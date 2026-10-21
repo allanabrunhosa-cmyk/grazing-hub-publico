@@ -1,0 +1,164 @@
+name: Qualidade visual
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  compilacao-publica:
+    name: Compilação pública sem arquivos privados
+    if: github.repository == 'allanabrunhosa-cmyk/grazing-hub-publico'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://ficticio:exemplo@127.0.0.1:5432/publicacao_teste?schema=public
+      AUTH_SECRET: chave-ficticia-exclusiva-da-compilacao-sem-dados-reais
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Contratos das permissões atuais e do histórico de migrations
+        id: contratos
+        run: npm test -- testes/login testes/permissoes testes/fiscal-saida/migrations-privacidade-historico.test.ts --maxWorkers=1
+      - name: Compilar com configuração fictícia e sem banco conectado
+        id: build
+        run: npm run build
+      - name: Resumo da independência de arquivos privados
+        if: always()
+        run: |
+          {
+            echo '## Compilação pública'
+            echo '| Verificação | Resultado |'
+            echo '| --- | --- |'
+            echo '| Contratos de permissões e migrations | ${{ steps.contratos.outcome }} |'
+            echo '| Compilação sem arquivos privados | ${{ steps.build.outcome }} |'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  design-system:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Gerar client local sem conectar a banco
+        run: npx prisma generate
+      - run: npm run lint:design
+        id: lint
+      - run: npm run test:design
+        id: testes
+      - name: Resumo do Design System
+        if: always()
+        run: |
+          {
+            echo '## Design System'
+            echo '| Verificação | Resultado |'
+            echo '| --- | --- |'
+            echo '| lint:design | ${{ steps.lint.outcome }} |'
+            echo '| test:design | ${{ steps.testes.outcome }} |'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  interface:
+    name: Contratos de interface e referências aprovadas
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.0-noble@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f
+      options: --ipc=host
+    env:
+      CI: 'true'
+      GRAZING_AMBIENTE_VISUAL: linux-amd64-playwright-1.64.0-noble
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Referências da base da PR ou do push
+        if: github.event_name == 'pull_request' || github.event.before != '0000000000000000000000000000000000000000'
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          path: .tmp/referencias-base
+          sparse-checkout: docs/design-system
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Instalar a suíte sem scripts de aplicação ou banco
+        run: npm ci --ignore-scripts
+      - name: Validar registro e aprovação humana de referências
+        id: registro
+        run: npm run lint:visual:referencias
+        env:
+          GRAZING_REFERENCIAS_BASE: ${{ github.workspace }}/.tmp/referencias-base/docs/design-system/referencias-visuais.json
+          GRAZING_HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          GRAZING_PR_NUMERO: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Geometria, teclado, nomes e isolamento (bloqueantes)
+        id: contratos
+        run: npm run test:visual:contratos
+      - name: Comparar aprovadas e capturar candidatas Em revisão
+        id: referencias
+        run: npm run test:visual:referencias
+      - name: Provar diff, erro operacional e referência ausente sem atualização
+        id: comparador
+        run: npm run test:visual:comparador
+      - name: Preparar evidências sem caches ou cópias redundantes
+        id: pacotes
+        if: always()
+        run: node scripts/pacotes-evidencias-visuais.mjs preparar
+        env:
+          EVIDENCIAS_ESTADO_ANTERIOR: ${{ job.status }}
+          EVIDENCIAS_VERIFICACOES: >-
+            {"registro":"${{ steps.registro.outcome }}","contratos":"${{ steps.contratos.outcome }}","referencias":"${{ steps.referencias.outcome }}","comparador":"${{ steps.comparador.outcome }}"}
+      - name: Relatórios compactos (três dias)
+        id: upload_relatorios
+        if: always() && steps.pacotes.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualidade-visual-linux-${{ github.run_id }}-${{ github.run_attempt }}-relatorios
+          path: .tmp/qualidade-visual-automatizada/pacotes/relatorios
+          retention-days: 3
+          if-no-files-found: error
+      - name: Diagnósticos de falhas (sete dias)
+        id: upload_diagnosticos
+        if: always() && steps.pacotes.outcome == 'success' && steps.pacotes.outputs.tem_diagnosticos == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualidade-visual-linux-${{ github.run_id }}-${{ github.run_attempt }}-diagnosticos
+          path: .tmp/qualidade-visual-automatizada/pacotes/diagnosticos
+          retention-days: 7
+          if-no-files-found: error
+      - name: Candidatas para aprovação humana (14 dias)
+        id: upload_revisao
+        if: always() && steps.pacotes.outcome == 'success' && steps.pacotes.outputs.tem_revisao == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qualidade-visual-linux-${{ github.run_id }}-${{ github.run_attempt }}-revisao
+          path: .tmp/qualidade-visual-automatizada/pacotes/revisao
+          retention-days: 14
+          if-no-files-found: error
+      - name: Resumo dos testes e do envio das evidências
+        if: always()
+        run: node scripts/pacotes-evidencias-visuais.mjs resumir
+        env:
+          EVIDENCIAS_VERIFICACOES: >-
+            {"registro":"${{ steps.registro.outcome }}","contratos":"${{ steps.contratos.outcome }}","referencias":"${{ steps.referencias.outcome }}","comparador":"${{ steps.comparador.outcome }}"}
+          EVIDENCIAS_UPLOADS: >-
+            {"relatorios":{"resultado":"${{ steps.upload_relatorios.outcome }}","url":"${{ steps.upload_relatorios.outputs.artifact-url }}"},"diagnosticos":{"resultado":"${{ steps.upload_diagnosticos.outcome }}","url":"${{ steps.upload_diagnosticos.outputs.artifact-url }}"},"revisao":{"resultado":"${{ steps.upload_revisao.outcome }}","url":"${{ steps.upload_revisao.outputs.artifact-url }}"}}
