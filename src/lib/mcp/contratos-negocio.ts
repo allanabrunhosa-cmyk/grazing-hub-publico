@@ -34,7 +34,7 @@ export const ProdutoMcp = z.object({ id: IdMcp.optional(), versao: VersaoMcp.opt
   novoVinculoComplemento: z.object({ grupoId: IdMcp, preco: DinheiroMcp }).strict().nullable().optional(),
   pausasComplementos: z.array(z.object({ opcaoId: IdMcp, ativo: z.boolean(), grupos: z.array(z.object({ id: IdMcp, versao: VersaoMcp }).strict()).max(100) }).strict()).max(100).optional(),
   preco: DinheiroMcp, componentes: z.array(ComponenteMcp).max(100).default([]), tempoPreparoMinutos: z.number().int().min(0).max(10080).nullable().optional(), tipoEmbalagemId: IdMcp.nullable().optional(), slotsEntrega: z.number().int().min(0).max(1000).nullable().optional(),
-  classificacoes: z.array(z.enum(["PRINCIPAL", "OPCAO", "COMPLEMENTO"])).min(1).max(3).optional(),
+  classificacoes: z.array(z.enum(["PRINCIPAL", "COMPLEMENTO"])).length(1).optional(),
 }).strict();
 export const ProdutoAtualizacaoMcp = camposAtualizacaoMcp(ProdutoMcp).extend({ id: IdMcp, versao: VersaoMcp }).refine(d => Object.keys(d).some(k => !["id", "versao"].includes(k)), "Informe ao menos um campo para atualizar.");
 export const PedidoMcp = z.object({ clienteId: IdMcp.nullable(), canalId: IdMcp.nullable(), atendimento: z.enum(["ENTREGA", "RETIRADA"]).nullable(), prazo: z.enum(["IMEDIATO", "AGENDADO"]).nullable(),

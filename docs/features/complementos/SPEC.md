@@ -1,5 +1,35 @@
 # Complementos
 
+## Organização solicitada em 21/10/2026
+
+- Cada cadastro usa uma classificação: **Produto** (`PRINCIPAL`) permite venda avulsa;
+  **Complemento** exige hospedagem em produto. `OPCAO` e múltiplos papéis são somente
+  compatibilidade de leitura; prevalece Produto se houver `PRINCIPAL`. Produtos também
+  podem ser escolhas de grupos, sem mudar sua classificação. Tipos internos legados
+  permanecem preservados, sem escolha de classes na interface.
+- Categoria de Produto pertence ao cardápio do site. Categoria de Complemento é opcional,
+  tem cor e aparece em coluna própria como tag. Categoria de Grupo organiza somente grupos.
+- `CategoriaVenda.escopo/cor` separam as duas primeiras finalidades. A migration manual
+  `20261021210000_categorias_complementos` duplica categorias utilizadas por complementos,
+  transfere somente esses vínculos e incrementa as revisões dos produtos e das categorias
+  compartilhadas. Formulários anteriores à separação são recusados. Preserva nomes, ordem,
+  atividade, identidades de produtos/grupos, composição e pedidos históricos. Nome é
+  único por escopo. Backup íntegro precede a aplicação produtiva.
+- Grupos selecionam produtos e complementos cadastrados. Novas escolhas herdam preço e
+  composição por referência. Ajustes no grupo ou no produto não regravam o padrão.
+  A precedência continua produto > grupo > cadastro; porções mantêm sua precisão.
+- Produtos, Complementos e Grupos têm Disponibilidade com vínculos e estados reais do
+  cadastro, inclusive pausas e exclusões locais. Habilitação cadastral não comprova
+  sincronização com plataforma externa. Sem operações reais para testar.
+
+Aceite: isolamento de categorias no servidor e na UI; somente duas classificações;
+tags coloridas; seleção de Produto em grupo; composição padrão de uma porção e meia
+porção em um único produto; disponibilidade correta; autorização/revisão/auditoria
+preservadas; migrations e fluxos em base sintética; QA visual isolado; publicação
+autorizada pelo usuário somente após validações. Execução corrente na seção
+Organização de TASKS.md. As seções abaixo registram a implantação anterior;
+preço único e organização atual seguem o contrato de Vendas.
+
 ## Objetivo e aceite
 
 Cardápio reúne Produtos e Complementos na navegação de Vendas & Pedidos. Complementos tem lista de cadastros na primeira aba e grupos na segunda. Cadastro simples: nome, foto, categorias, preços Site/iFood (incluindo zero) e composição pelo editor de ingredientes existente, sem FM. Complementos são escolhas dentro de produtos. Cadastros podem existir antes de receber um grupo.

@@ -1,5 +1,73 @@
 # Execução — Complementos
 
+## Organização — 21/10/2026
+
+Base pública inicial: `6de2cb6950848a82ccc884c3ce3d48d6a2120212`. Continuação em
+`codex/complementos-organizacao-20261021`, criada em clone independente. Apenas
+o diff funcional revisado foi portado; nenhum objeto Git privado foi importado.
+
+- [x] Separar Produto/Complemento, categorias comerciais e categorias de grupos.
+- [x] Implementar tags, Disponibilidade e seleção de cadastros nos grupos.
+- [x] Preservar composição padrão e substituições específicas por produto.
+- [x] Preparar migration manual com transferência de categorias e revisão de cadastros.
+- [x] Revalidar o conjunto na base pública e registrar os resultados abaixo.
+- [x] Publicar a branch e abrir PR de continuação.
+- [ ] Integrar após a transição da origem e concluir o ritual de publicação.
+
+Estado: [PR pública #4](https://github.com/allanabrunhosa-cmyk/grazing-hub-publico/pull/4),
+sem publicação produtiva. O usuário autorizou publicar ao final. A transição
+do repositório exige aguardar a primeira publicação da origem pública antes de
+integrar esta continuação ou acionar novo deploy. Backup íntegro e conferência
+das migrations continuam obrigatórios antes da aplicação produtiva.
+
+As evidências abaixo desta seção pertencem às implantações anteriores.
+
+Validação da continuação pública, Node 22: Prisma generate/validate aprovados;
+28 integrações de Vendas aprovadas em dois arquivos. Três cenários de Pedidos
+aprovados; os outros 71 não foram executados nesta seleção. Todos usam schemas
+efêmeros no banco sintético local. A primeira tentativa de conexão foi bloqueada
+pela sandbox; a execução autorizada fora dessa restrição passou.
+
+Navegador: 24 contratos aprovados em 320/390/768/1440 px, temas claro/escuro e
+toque. Capturas consultivas de lista, Disponibilidade e grupo inspecionadas.
+Sem aprovação de novas referências. Contratos MCP/autorização/arquivos: 526
+testes aprovados; 63 opt-ins não executados. Interface/domínio: 98 de 99 passaram;
+um cenário de Clientes falhou na execução conjunta e passou isolado. O cenário
+de GTIN da base pública também passou isolado. Nenhuma asserção foi afrouxada.
+
+Conciliação local com a main pública `4e95b639164b446b9f34e7107d207e1c21e99491`:
+preservada a inclusão manual de opções no topo, com foco no primeiro campo;
+a seleção de cadastros existentes mantém preço/composição por referência.
+Tipos de rotas gerados pelo Next no clone limpo; a primeira tentativa de
+typecheck identificou somente a ausência desses arquivos gerados.
+
+Revisão funcional conciliada `39cc221b9770087a4ebd4cfef491851d6430235b`:
+52 testes de interface/domínio em cinco arquivos e 28 integrações de Vendas
+aprovados. O grupo passou novamente nos 12 contextos visuais, com capturas
+separadas das 24 anteriores. ESLint e lint:design aprovados: oito bases/422
+consumidores; qualidade visual com zero desvios novos. Build webpack/Node 22
+aprovado, incluindo TypeScript e 106 páginas. Avisos legados de middleware e
+APIs Edge da dependência jose permanecem. CI da PR em andamento.
+
+A regressão global anterior à portabilidade não foi integralmente verde:
+507 arquivos/6.546 testes passaram, 66 arquivos/1.047 testes foram ignorados e
+cinco casos falharam. Os alvos com falhas foram revalidados por escopo, inclusive
+consulta fiscal legada preservada, inventário de permissões, GTIN e arquivos.
+Não declarar a suíte global original como aprovada nem como execução da revisão
+pública conciliada.
+
+Revisão da migration antes da aplicação produtiva: categorias compartilhadas
+também recebem incremento de revisão. O teste cobre a recusa de um formulário
+antigo que tentaria renomear a categoria do site após a separação. As 28
+integrações passaram novamente com essa asserção; ESLint e diff aprovados.
+O CI desse ajuste deve passar antes da publicação.
+
+Conciliação com `94d72d2a107f4b2c4deadca595eed40e328e1db8` (PR fiscal #3),
+sem conflitos nem alteração da SQL de Complementos: 141 testes aprovados em
+oito arquivos, cobrindo composição/disponibilidade e os consumidores fiscais
+de Pedidos. O plano anterior apontou somente a migration de Complementos.
+A publicação exige conferir novamente a imagem e o backup após o avanço fiscal.
+
 > Exportação pública: dados cadastrais, identificadores de registros e valores comerciais alterados neste documento são exemplos sintéticos. Os registros operacionais originais permanecem privados; esta versão não concede aprovação fiscal ou operacional.
 
 - [x] Banco, validação e persistência; migration isolada e conflitos.

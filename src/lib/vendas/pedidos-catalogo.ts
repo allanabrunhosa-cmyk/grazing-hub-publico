@@ -1,4 +1,5 @@
 import { limitesEfetivos, type ProdutoEntrada } from "./dominio";
+import { classificacaoComercial } from "./classificacao";
 import type { ItemPedidoEntrada } from "./pedidos-dominio";
 
 type Produto = Pick<ProdutoEntrada, "nome" | "ativo" | "classificacoes" | "categorias" | "grupos" | "preco"> & { id: string };
@@ -21,6 +22,6 @@ export function permiteOpcaoAvulsa(grupo: { tipo: string; minimo: number; maximo
 
 /** Novos itens vendem produtos; complementos são escolhas internas. Itens históricos continuam identificáveis pela chave legada. */
 export function opcoesCatalogoPedido(produtos: Produto[]): OpcaoCatalogoPedido[] {
-  return produtos.filter(p => p.ativo && (p.classificacoes?.includes("PRINCIPAL") || (p.classificacoes?.includes("OPCAO") && !p.classificacoes.includes("COMPLEMENTO"))))
+  return produtos.filter(p => p.ativo && classificacaoComercial(p) === "PRINCIPAL")
     .map(p => ({ value: p.id, produtoId: p.id, label: p.nome, categorias: p.categorias, indisponivel: false }));
 }

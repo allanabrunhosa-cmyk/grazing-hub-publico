@@ -18,7 +18,7 @@ const chaveOpcao = (grupo: string, opcao: string) => JSON.stringify([grupo, opca
 async function preparar(tx: Prisma.TransactionClient, pacote: PacoteCatalogo) {
   const [fontes, categorias, grupos, produtos] = await Promise.all([
     tx.identidadeExternaVenda.findMany({ where: { origem: pacote.origem, loja: pacote.loja } }),
-    tx.categoriaVenda.findMany(),
+    tx.categoriaVenda.findMany({ where: { escopo: "PRODUTO" } }),
     tx.grupoComplementoVenda.findMany({ include: { _count: { select: { opcoes: true, produtos: true } } } }),
     tx.produtoVenda.findMany({ select: { id: true, nome: true, versao: true, _count: { select: { grupos: true, comoOpcao: true } } } }),
   ]);
@@ -125,7 +125,7 @@ export async function aplicarImportacao(conteudo: string, token: string, autor: 
       anteriores.set(p.chave, antes);
       const campos = { nome: p.nome, especificacao: p.especificacao, descricao: p.descricao, tipo: p.tipo, unidade: p.unidade, preco: p.preco };
       if (antes) await tx.produtoVenda.update({ where: { id: antes.id }, data: { ...campos, versao: { increment: 1 } } });
-      else { const classificacao = !p.categorias.length && pacote.grupos.some(g => g.opcoes.some(o => o.produtoChave === p.chave)) ? "OPCAO" : "PRINCIPAL"; await tx.produtoVenda.create({ data: { ...campos, classificacao, classificacoes: [classificacao], id: id("PRODUTO", p.chave), ativo: false, observacoes: [`Importado de ${pacote.origem}. Conferir antes de ativar.`, ...p.pendencias].join("\n").slice(0, 3000) } }); }
+      else { const classificacao = !p.categorias.length && pacote.grupos.some(g => g.opcoes.some(o => o.produtoChave === p.chave)) ? "COMPLEMENTO" : "PRINCIPAL"; await tx.produtoVenda.create({ data: { ...campos, classificacao, classificacoes: [classificacao], id: id("PRODUTO", p.chave), ativo: false, observacoes: [`Importado de ${pacote.origem}. Conferir antes de ativar.`, ...p.pendencias].join("\n").slice(0, 3000) } }); }
     }
     for (const l of processar.filter(l => l.entidade === "GRUPO")) {
       const g = pacote.grupos.find(g => g.chave === l.chave)!;

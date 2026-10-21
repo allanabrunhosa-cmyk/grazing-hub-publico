@@ -1,5 +1,6 @@
 /** Regras do cadastro comercial; não movimentam estoque nem emitem documentos. */
 import { telefoneOpcionalArmazenado } from "./telefone";
+import { CORES_CATEGORIA, type CorCategoria, type EscopoCategoria } from "./classificacao";
 import { preservarCodigoMunicipio } from "./municipio";
 import { cobrancasDoCliente, identidadePrincipalCliente, LIMITE_COBRANCAS_CLIENTE } from "./cliente-cobranca";
 import { normalizarEmailCliente } from "./cliente-identificadores";
@@ -19,7 +20,7 @@ export type ClienteEntrada = { id: string; versao: number; nome: string; primeir
   /** Estado transitório do formulário, removido pela validação antes de persistir. */
   tipoEscolhido?: boolean;
 };
-export type CategoriaEntrada = { id: string; versao: number; nome: string; ativo: boolean };
+export type CategoriaEntrada = { id: string; versao: number; nome: string; ativo: boolean; escopo?: EscopoCategoria; cor?: CorCategoria };
 export type ComposicaoComplemento = ProdutoEntrada["componentes"];
 export type AjusteOpcao = { opcaoId: string; preco?: string; composicao?: ComposicaoComplemento | null; ativo?: boolean };
 export type PausaComplemento = { opcaoId: string; ativo: boolean; grupos: { id: string; versao: number }[] };
@@ -231,6 +232,12 @@ export function validarCategoria(entrada: unknown): CategoriaEntrada {
   const d = objeto(entrada);
   return { ...identidade(d), nome: texto(d.nome, "Nome", 120, true), ativo: booleano(d.ativo, "Ativo") };
 }
+export function validarCategoriaComercial(entrada: unknown) {
+  const d = objeto(entrada);
+  if (d.escopo !== undefined && d.escopo !== "PRODUTO" && d.escopo !== "COMPLEMENTO") throw new ErroCadastroVenda("Escopo de categoria inválido.");
+  if (d.cor !== undefined && (typeof d.cor !== "string" || !Object.hasOwn(CORES_CATEGORIA, d.cor))) throw new ErroCadastroVenda("Cor de categoria inválida.");
+  return { ...validarCategoria(d), ...(d.escopo === undefined ? {} : { escopo: d.escopo as EscopoCategoria }), ...(d.cor === undefined ? {} : { cor: d.cor as CorCategoria }) };
+}
 export function validarComponentes(entrada: unknown): ComposicaoComplemento {
   const componentes = lista(entrada, "Composição").map(valor => {
     const c = objeto(valor), quantidade = decimal(c.quantidade, "Quantidade"), unidade = texto(c.unidade, "Unidade", 20, true);
@@ -283,9 +290,9 @@ export function validarProduto(entrada: unknown): ProdutoEntrada {
   const preco = decimal(d.preco, "Preço", true);
   const componentes = validarComponentes(d.componentes);
   const classificacoes = lista(d.classificacoes ?? [d.classificacao ?? "PRINCIPAL"], "Classificações", 3).map(c => texto(c, "Classificação", 20, true)) as NonNullable<ProdutoEntrada["classificacoes"]>;
-  if (!classificacoes.length || classificacoes.some(c => !["PRINCIPAL", "OPCAO", "COMPLEMENTO"].includes(c))) throw new ErroCadastroVenda("Classificação de produto inválida.");
+  if (classificacoes.length !== 1 || classificacoes.some(c => !["PRINCIPAL", "COMPLEMENTO"].includes(c))) throw new ErroCadastroVenda("Escolha uma classificação: Produto ou Complemento.");
   semDuplicados(classificacoes, "Classificações");
-  if (!classificacoes.includes("PRINCIPAL") && grupos.length) throw new ErroCadastroVenda("Somente produtos principais podem conter grupos próprios.");
+  if (!classificacoes.includes("PRINCIPAL") && grupos.length) throw new ErroCadastroVenda("Somente Produtos podem conter grupos próprios.");
   const tempoPreparoMinutos = d.tempoPreparoMinutos == null ? null : inteiro(d.tempoPreparoMinutos, "Tempo de preparo");
   const embalagem = Object.hasOwn(d, "tipoEmbalagemId") ? { tipoEmbalagemId: opcional(d.tipoEmbalagemId, "Tipo de embalagem", 100) } : {};
   const slots = Object.hasOwn(d, "slotsEntrega") ? { slotsEntrega: d.slotsEntrega == null ? null : inteiro(d.slotsEntrega, "Slots de entrega") } : {};

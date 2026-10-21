@@ -13,7 +13,7 @@ describe("novas regras comerciais", () => {
     expect(validarProduto({ ...base,tempoPreparoMinutos:15 }).tempoPreparoMinutos).toBe(15);
     for (const tempo of [-1,0.5,NaN]) expect(() => validarProduto({ ...base,tempoPreparoMinutos:tempo })).toThrow();
     expect(() => validarProduto({ ...base,classificacao:"OUTRO" })).toThrow();
-    expect(() => validarProduto({ ...base,classificacao:"OPCAO",grupos:[{grupoId:"g",usarPadrao:false,minimo:0,maximo:null}] })).toThrow("Somente produtos principais");
+    expect(() => validarProduto({ ...base,classificacao:"COMPLEMENTO",grupos:[{grupoId:"g",usarPadrao:false,minimo:0,maximo:null}] })).toThrow("Somente Produtos");
   });
   const g = { id:"g",nome:"Queijos",tipo:"COMPOSICAO",minimo:9,maximo:9,repetir:false,ativo:true,opcoes:[{id:"a",nome:"Brie",preco:"10",ativo:true},{id:"b",nome:"Gouda",preco:"20",ativo:true}],vinculo:{grupoId:"g",usarPadrao:false,minimo:1,maximo:1,opcoesExcluidas:["b"]} };
   it("não aceita opção excluída nem soma seu preço", () => {

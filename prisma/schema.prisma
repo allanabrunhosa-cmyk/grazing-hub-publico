@@ -84,11 +84,14 @@ model ContatoClienteVenda {
 
 model CategoriaVenda {
   id String @id @default(cuid())
-  nome String @unique
+  nome String
+  escopo String @default("PRODUTO")
+  cor String @default("azul")
   ordem Int @default(0)
   ativo Boolean @default(true)
   versao Int @default(1)
   produtos ProdutoCategoriaVenda[]
+  @@unique([escopo, nome])
 }
 
 model ProdutoVenda {

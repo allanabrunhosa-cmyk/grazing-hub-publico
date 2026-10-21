@@ -1,6 +1,7 @@
 import type { OpcaoEntrada, ProdutoEntrada } from "./dominio";
+import { classificacaoComercial } from "./classificacao";
 
-export const ehComplemento = (p: Pick<ProdutoEntrada, "classificacoes" | "classificacao">) => (p.classificacoes ?? [p.classificacao ?? "PRINCIPAL"]).includes("COMPLEMENTO");
+export const ehComplemento = (p: Pick<ProdutoEntrada, "classificacoes" | "classificacao">) => classificacaoComercial(p) === "COMPLEMENTO";
 export const precoPadraoComplemento = (p: Pick<ProdutoEntrada, "preco">) => p.preco;
 
 export function precosOpcoes<T extends { preco: string; produtoId?: string | null; usarPrecoPadrao?: boolean }>(opcoes: T[], produtos: (Pick<ProdutoEntrada, "preco"> & { id: string })[]): T[] {

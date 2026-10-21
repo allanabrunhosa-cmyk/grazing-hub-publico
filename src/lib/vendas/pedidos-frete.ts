@@ -1,3 +1,4 @@
+import { classificacaoComercial } from "./classificacao";
 import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { lerAjustesOpcoes, opcoesEfetivas, simularConfiguracao } from "./dominio";
@@ -33,6 +34,7 @@ export async function calcularItensFretePedido(tx: Prisma.TransactionClient, d: 
       grupos: { include: { grupo: { include: { opcoes: true } } } },
     } });
     if (!produto?.ativo || !produto.classificacoes.some(c => ["PRINCIPAL", "OPCAO", "COMPLEMENTO"].includes(c))) throw new ErroPedidoVenda("Produto indisponível.");
+    if (!entrada.complementoAvulso && classificacaoComercial(produto) !== "PRINCIPAL") throw new ErroPedidoVenda("Complementos só podem ser escolhidos dentro de um produto.");
     let base = produto.preco, multiplicador = "1";
     // Itens avulsos históricos mantêm o preço e o multiplicador da opção. A confirmação continua validando sua origem.
     if (entrada.complementoAvulso) {

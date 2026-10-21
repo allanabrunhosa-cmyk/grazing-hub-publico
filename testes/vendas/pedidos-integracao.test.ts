@@ -1,4 +1,5 @@
 import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararDependenciaAtendimento } from "./dependencia-atendimento";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { config } from "dotenv";
 import { Client } from "pg";
@@ -69,7 +70,8 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M1 no PostgreS
         await banco.query(`INSERT INTO "Usuario" (id,nome,email,"senhaHash","updatedAt") VALUES ('legado-fixture','Legado fictício','legado@example.invalid','inutil',now())`);
         await banco.query(`INSERT INTO "PedidoVenda" (id,"chaveCriacao","hashCriacao","criadoPorId","updatedAt",total) VALUES ('legado-fixture','legado-fixture','hash-ficticio','legado-fixture',now(),123)`);
       }
-      await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+      const sql = await prepararDependenciaAtendimento(banco, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8"));
+      await banco.query(prepararSqlMigrationFiscal(pasta.name, sql));
       if (pasta.name === "20260926090000_pedidos_operacao_externa") {
         expect((await banco.query(`SELECT "modoFinanceiro", total::text FROM "PedidoVenda" WHERE id='legado-fixture'`)).rows).toEqual([{ modoFinanceiro: "HUB", total: "123.00" }]);
         await banco.query(`DELETE FROM "PedidoVenda" WHERE id='legado-fixture'`);
@@ -96,6 +98,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M1 no PostgreS
   }, 90000);
   afterAll(async () => {
     await sim.prisma?.$disconnect(); if (!banco) return;
+    await banco.query("ROLLBACK");
     if (criado && /^teste_pedidos_[a-f0-9]{32}$/.test(esquema)) await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);
     await banco.end();
   });
@@ -1396,7 +1399,10 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M1 no PostgreS
     await sim.prisma.opcaoComplementoVenda.update({ where: { id: c.grupo.opcoes[0].id }, data: { preco: "99", quantidade: "9", nome: "Novo padrão futuro" } });
     expect((await sim.prisma.itemPedidoVenda.findUniqueOrThrow({ where: { id: item.id } })).composicaoSnapshot).toEqual(item.composicaoSnapshot);
     expect({ titulos: await sim.prisma.lancamentoFinanceiro.count(), movimentos: await sim.prisma.movimentacaoEstoque.count() }).toEqual(antes);
-    await expect(sim.prisma.$transaction(tx => calcularPedido(tx, { ...c.dados(), itens: [{ produtoId: c.complemento.id, quantidade: "1", escolhas: {}, precoManual: null }] }))).rejects.toThrow("dentro de um produto");
+    for (const classificacao of ["COMPLEMENTO", "OPCAO"]) {
+      await sim.prisma.produtoVenda.update({ where: { id: c.complemento.id }, data: { classificacao, classificacoes: [classificacao] } });
+      await expect(sim.prisma.$transaction(tx => calcularPedido(tx, { ...c.dados(), itens: [{ produtoId: c.complemento.id, quantidade: "1", escolhas: {}, precoManual: null }] }))).rejects.toThrow("dentro de um produto");
+    }
     await expect(sim.prisma.$transaction(tx => calcularPedido(tx, c.dados()))).rejects.toThrow("dentro de um produto");
   });
   it("alias inativo só configura composição própria em COMPOSICAO, sem permitir mercadoria avulsa ou herança inativa", async () => {

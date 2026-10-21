@@ -171,10 +171,14 @@ transitória no Google já autorizado, sem coordenadas persistidas ou exportadas
   (`/vendas/fiscal/vinculos`). Ambos usam `vendas.fiscal`; leitura e edição são
   autorizadas no servidor. A nova consulta seleciona apenas o cadastro fiscal,
   sem carregar preços, clientes ou cálculo de composição.
-- Abas: Produtos = papel `PRINCIPAL`; Complementos = papéis `OPCAO`/`COMPLEMENTO`
-  em `ProdutoVenda.classificacoes`. Um cadastro com múltiplos papéis aparece nas
-  abas correspondentes, compartilhando ID e revisão. Opções de grupo sem
+- Classificação comercial única: Produto (`PRINCIPAL`) permite venda avulsa;
+  Complemento participa de produtos. A leitura de `OPCAO` equivale a Complemento;
+  cadastros antigos com `PRINCIPAL` e outros papéis são Produtos. O mesmo Produto
+  também pode pertencer a grupos, preservando ID e revisão. Opções de grupo sem
   `ProdutoVenda` vinculado não são cadastros fiscais independentes.
+- Vínculos fiscais preserva a consulta dos papéis antigos, inclusive o mesmo ID
+  nas duas abas quando houver múltiplos papéis legados. Essa compatibilidade de
+  conferência fiscal não oferece outra classificação no cadastro comercial.
 - Vínculos fiscais consulta também `fotoUrl` e nomes/atividade das categorias do
   produto, sem carregar preços/composição. Foto privada aceita visualização de
   `vendas.produtos` ou `vendas.fiscal` no endpoint, mantendo sessão e cache privado.
@@ -222,7 +226,8 @@ ProdutoVenda → categorias/grupos/opções/componentes/preço único; CanalVend
   A tabela conserva largura mínima no desktop/tablet e rolagem interna; no celular,
   identificação e preço ficam acima do status e das ações. A expansão abrange as
   quatro colunas. Nenhum preço ou status muda ao expandir.
-- Papéis Principal/Opção/Complemento independem de Padrão/Personalizado/Revenda.
+- Interface oferece somente as classificações Produto e Complemento. Tipos internos
+  legados são preservados, sem seletor de classes.
 - Mínimo/máximo ficam no vínculo produto/grupo; Extras opcional, ilimitado, repetível.
 - Produto e complemento usam somente `ProdutoVenda.preco` (Decimal 12,2). Canal identifica origem e segmenta relatórios. Confirmar explicitamente, nunca salvar por blur.
 - Fiscal tem permissão própria; alteração comercial não sobrescreve fiscal nem equivale a emissão/homologação.
@@ -260,7 +265,13 @@ Scripts iFood são cargas assistidas, não sincronização/autoridade recorrente
 
 ## Complementos — cadastro e substituições por vínculo
 
-`/vendas/catalogo` chama-se **Complementos**, dentro de Cardápio, com abas Complementos e Grupos de complementos. `catalogo/complementos-client.tsx` reutiliza `ProdutosVenda`: categorias, filtros, foto, expansão, status, edição, ordenação comercial e `PrecoProduto` com preço único/CMV. O escopo mostra somente complementos e coluna Preço, sem impressão de ficha; categorias vazias são omitidas na consulta geral. O editor simples em `catalogo/editor-complemento.tsx` tem nome, foto, categorias, preço único e `ComposicaoProduto` sem FM. `FotoCampo` reutiliza envio autenticado e X oficial; envio fica no rascunho e bloqueia Salvar enquanto pendente. Complementos podem existir antes de receber um grupo; preço zero é escolha grátis. Permissões de Produtos continuam governando o cadastro, enquanto grupos usam Catálogo.
+`/vendas/catalogo` chama-se **Complementos**, dentro de Cardápio, com abas Complementos e Grupos de complementos. `catalogo/complementos-client.tsx` reutiliza `ProdutosVenda`: categorias, filtros, foto, expansão, status, edição, ordenação comercial e `PrecoProduto` com preço único/CMV. O escopo mostra somente complementos, com coluna Categoria em tags coloridas, Preço e CMV, sem impressão de ficha. A listagem é única; categorias funcionam como organização e filtro. O editor simples em `catalogo/editor-complemento.tsx` tem nome, foto, categorias, preço único e `ComposicaoProduto` sem FM. `FotoCampo` reutiliza envio autenticado e X oficial; envio fica no rascunho e bloqueia Salvar enquanto pendente. Complementos podem existir antes de receber um grupo; preço zero é escolha grátis. Permissões de Produtos continuam governando o cadastro, enquanto grupos usam Catálogo.
+
+Categorias de Produto pertencem ao cardápio do site. Categorias de Complemento são opcionais e internas, com cor selecionada entre as variantes existentes de Badge. `CategoriaVenda.escopo/cor` e a unicidade por escopo isolam essas finalidades no servidor. A migration manual `20261021210000_categorias_complementos` copia categorias antigas utilizadas por complementos e transfere somente seus vínculos, preservando nome, atividade e ordem; incrementa a revisão dos cadastros afetados. Categorias de grupos continuam em `CategoriaGrupoComplementoVenda`, com criação rápida no editor e salvamento explícito.
+
+`EditorGrupo` seleciona Produtos e Complementos pelo MultiselecaoCombobox oficial. Escolhas novas herdam preço/composição do cadastro; edição no grupo cria substituição desse grupo. O produto mantém ordem, limites e substituições locais. A seleção evita a autorreferência direta na UI e o servidor a recusa em transação.
+
+Produtos, Complementos e Grupos têm aba **Disponibilidade**. `catalogo/disponibilidade.tsx` e `lib/vendas/disponibilidade.ts` mostram vínculos, grupos pausados, cadastro inativo e exclusões locais, além da origem da composição. Habilitação cadastral para venda avulsa não certifica sincronização externa. Dados e ações fictícios são usados no QA; referências visuais permanecem Em revisão.
 
 `ProdutoVenda.preco` é o valor comercial vigente. `precoComplemento` e `PrecoProdutoVenda` permanecem exclusivamente como arquivo legado, sem leitura/escrita nos fluxos de preço. A exclusão autorizada de produto remove também os preços legados vinculados. `OpcaoComplementoVenda.composicao` substitui a composição por escolha no grupo; ausência herda o produto e seu multiplicador legado. `ProdutoGrupoVenda.ajustesOpcoes` guarda preço, composição e pausa locais, com precedência vínculo > grupo > padrão. Composição substituta já é por escolha e não reaplica o multiplicador. Porções e quantidade seguem a validação de ingredientes no servidor; referências/unidade/atividade dos insumos são conferidas em transação. Migration SQL aditiva `20261005010000_complementos_composicao`.
 
@@ -434,7 +445,7 @@ Configuração e simulador somente em Vendas & Pedidos → Configurações → E
 - No editor de Pedidos, cada produto novo apresenta somente grupos com mínimo
   efetivo maior que zero (`limitesEfetivos`). Escolhas opcionais já existentes no
   rascunho/pedido permanecem acessíveis como seleção anterior, sem exclusão silenciosa.
-- `pedidos-catalogo.ts` oferece produtos ativos de papéis Principal/Opção, sem filtro por canal. Complementos são escolhas internas; porções avulsas aparecem apenas nos pedidos históricos. Grupo não recebe identidade de produto fictícia.
+- `pedidos-catalogo.ts` oferece somente Produtos ativos, sem filtro por canal. Opções legadas são lidas como Complementos. Complementos são escolhas internas; porções avulsas aparecem apenas nos pedidos históricos. Grupo não recebe identidade de produto fictícia.
 - A opção avulsa é vendida por unidade/porção, com preço do grupo. O servidor valida
   a origem (produto/grupo/opção), opcionalidade, exclusões e disponibilidade do cadastro,
   e calcula preço/composição sem confiar nos dados de preço enviados pelo navegador.

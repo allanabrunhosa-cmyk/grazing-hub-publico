@@ -43,17 +43,17 @@ export async function salvarClienteVendaAction(entrada: ClienteEntrada) {
 }
 export async function salvarCategoriaVendaAction(entrada: CategoriaEntrada) {
   const autor = await exigirPermissao("vendas.catalogo", entrada?.id ? "editar" : "adicionar");
-  try { const id = await salvarCategoria(entrada, autor); const registro = await prisma.categoriaVenda.findUniqueOrThrow({ where: { id }, include: { produtos: { select: { produtoId: true, ordem: true } } } }); revalidatePath("/vendas", "layout"); atualizarCadastrosFiscais(); return { ok: true as const, id, registro }; }
+  try { const id = await salvarCategoria(entrada, autor); const registro = await prisma.categoriaVenda.findUniqueOrThrow({ where: { id }, include: { produtos: { select: { produtoId: true, ordem: true } } } }); revalidatePath("/vendas", "layout"); atualizarCadastrosFiscais(); return { ok: true as const, id, registro: { ...registro, escopo: registro.escopo as NonNullable<CategoriaEntrada["escopo"]>, cor: registro.cor as NonNullable<CategoriaEntrada["cor"]> } }; }
   catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
 }
 export async function salvarCategoriaGrupoVendaAction(entrada: CategoriaEntrada) {
   const autor = await exigirPermissao("vendas.catalogo", entrada?.id ? "editar" : "adicionar");
-  try { const id = await salvarCategoriaGrupo(entrada, autor); revalidatePath("/vendas", "layout"); return { ok: true as const, id }; }
+  try { const id = await salvarCategoriaGrupo(entrada, autor); const registro = await prisma.categoriaGrupoComplementoVenda.findUniqueOrThrow({ where: { id } }); revalidatePath("/vendas", "layout"); return { ok: true as const, id, registro }; }
   catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
 }
-export async function reordenarCategoriasVendaAction(ids: ReferenciaOrdem[]) {
+export async function reordenarCategoriasVendaAction(ids: ReferenciaOrdem[], escopo = "PRODUTO") {
   const autor = await exigirPermissao("vendas.catalogo", "editar");
-  try { await reordenarCategorias(ids, autor); revalidatePath("/vendas", "layout"); return { ok: true as const }; }
+  try { await reordenarCategorias(ids, autor, escopo); revalidatePath("/vendas", "layout"); return { ok: true as const }; }
   catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
 }
 export async function reordenarProdutosVendaAction(categoriaId: string, itens: ReferenciaOrdem[]) {
