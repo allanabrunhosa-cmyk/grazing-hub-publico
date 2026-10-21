@@ -824,3 +824,12 @@ conteúdo longo, normal, carregamento/desabilitado, vazio e erro. Mesma referên
 viewport e estado antes/depois; `comparar-design.mjs` nunca altera referências.
 Foco, teclado, contraste composto, diálogo e leitor de tela ainda precisam de
 avaliação própria. Registrar não executado separadamente de aprovado.
+
+### Inclusão em listas de campos repetíveis
+
+O botão Adicionar fica antes da lista editável. A nova linha aparece no início,
+perto do botão. Preserve os valores e a ordem relativa das linhas anteriores.
+Em Complementos, abra a nova opção e foque seu nome. Não salve o formulário
+comercial ao inserir a linha ou ao perder o foco. Limites, permissões e validações
+continuam aplicáveis. Histórico, paginação e listas cronológicas não mudam de ordem
+por esta regra de preenchimento.

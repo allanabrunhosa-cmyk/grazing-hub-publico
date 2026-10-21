@@ -82,7 +82,7 @@ it("mantém item e mostra novos vínculos detectados pelo servidor na confirmaç
   const usuario = await abrir();
   await usuario.click(screen.getByRole("button", { name: "Confirmar exclusão" }));
   expect(await screen.findByText("Preparação recém-vinculada")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Confirmar exclusão" })).toHaveProperty("disabled", false);
+  await waitFor(() => expect(screen.getByRole("button", { name: "Confirmar exclusão" })).toHaveProperty("disabled", false));
   expect(screen.getByRole("dialog")).toBeTruthy();
   expect(acoes.excluir).toHaveBeenCalledTimes(1);
   await usuario.click(screen.getByRole("button", { name: "Confirmar exclusão" }));

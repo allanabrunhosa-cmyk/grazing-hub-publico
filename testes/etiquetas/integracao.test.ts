@@ -1,3 +1,4 @@
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { config } from "dotenv";
@@ -32,7 +33,7 @@ describe.skipIf(process.env.ETIQUETAS_BANCO_TESTE !== "1")("etiquetas no Postgre
     criado = true;
     await banco.query(`SET search_path TO "${esquema}"`);
     const pastas = (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
-    for (const pasta of pastas) await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+    for (const pasta of pastas) await banco.query(await prepararMigrationHubIsolada(banco, esquema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     simulacao.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: endereco.toString(), options: `-c search_path=${esquema}` }, { schema: esquema }) });
     await simulacao.prisma.usuario.create({ data: { id: "admin-etiquetas", nome: "Admin fictício", email: "etiquetas@example.invalid", senhaHash: "sem-login", admin: true, perfilAcessoId: "perfil-administrador" } });
     simulacao.sessao.mockResolvedValue({ userId: "admin-etiquetas", admin: true, permissoes: {}, excecoes: {} });
@@ -44,6 +45,7 @@ describe.skipIf(process.env.ETIQUETAS_BANCO_TESTE !== "1")("etiquetas no Postgre
   afterAll(async () => {
     await simulacao.prisma?.$disconnect();
     if (!banco) return;
+    await limparIntegracaoHubIsolada(banco, esquema);
     if (criado && /^teste_etiquetas_[a-f0-9]{32}$/.test(esquema)) await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);
     await banco.end();
   });
@@ -83,6 +85,10 @@ describe.skipIf(process.env.ETIQUETAS_BANCO_TESTE !== "1")("etiquetas no Postgre
   });
   it("resolve responsável ativo no mesmo cadastro, ignorando nome enviado pelo navegador", async () => {
     await simulacao.prisma.usuario.create({ data: { id: "responsavel", nome: "Ana da cozinha", email: "ana@example.invalid", senhaHash: "sem-login" } });
+    expect((await simulacao.prisma.usuario.findUniqueOrThrow({ where: { id: "responsavel" } })).responsavelEtiquetaHabilitado).toBe(false);
+    expect(await prepararEtiquetaAction({ ...entrada, chaveIdempotencia: randomUUID(), responsavelUsuarioId: "responsavel" })).toHaveProperty("erro");
+    expect(await configurarUsuarioResponsavelAction("responsavel", true)).toEqual({ ok: true });
+    expect(await simulacao.prisma.eventoAuditoriaEtiqueta.count({ where: { entidadeId: "responsavel", acao: "RESPONSAVEL_CONFIGURADO" } })).toBe(1);
     const resultado = await prepararEtiquetaAction({ ...entrada, chaveIdempotencia: randomUUID(), responsavelUsuarioId: "responsavel", responsavelManipulacao: "Nome adulterado" });
     if ("erro" in resultado) throw new Error(resultado.erro);
     expect(resultado.trabalho.dados.responsavelManipulacao).toBe("Ana da cozinha");
@@ -252,7 +258,7 @@ describe.skipIf(process.env.ETIQUETAS_BANCO_TESTE !== "1")("etiquetas no Postgre
     try {
       await c.query(`CREATE SCHEMA "${schema}"`); await c.query(`SET search_path TO "${schema}"`);
       const pastas = (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a,b) => a.name.localeCompare(b.name));
-      for (const pasta of pastas.filter(p => p.name !== "20261016120000_validades_operacao")) await c.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+      for (const pasta of pastas.filter(p => p.name < "20261016120000_validades_operacao")) await c.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
       await c.query(`INSERT INTO "ConfiguracaoLoja" ("id", "nome", "updatedAt") VALUES ('singleton','Loja fictícia',now());
         INSERT INTO "Usuario" ("id","nome","email","senhaHash","updatedAt") VALUES ('teste','Pessoa fictícia','teste@example.invalid','sem-login',now());
         INSERT INTO "Insumo" ("id","nome","unidade","updatedAt") VALUES ('item','Produto fictício','KG',now());

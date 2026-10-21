@@ -2,6 +2,87 @@
 
 > Exportação pública: dados cadastrais, identificadores de registros e valores comerciais alterados neste documento são exemplos sintéticos. Os registros operacionais originais permanecem privados; esta versão não concede aprovação fiscal ou operacional.
 
+## Novos responsáveis e inclusão no topo — 21/10/2026
+
+Pedido: corrigir e publicar. Branch `codex/validades-novos-itens-inicio-20261021`,
+worktree `<WORKTREE_PRIVADO_PRESERVADO>`.
+Base de implementação `92d15c81` (main `4a1f9b97` e registro anterior preservado).
+
+- Implementado: criação central de usuário grava `responsavelEtiquetaHabilitado=false`;
+  schema e SQL manual mudam o default. Não há UPDATE dos usuários existentes.
+  Habilitação manual e auditoria já existentes continuam em Configurações → Responsáveis.
+- Complementos: nova opção no início, expandida e com foco no nome. Os valores,
+  identificadores e ordem relativa das opções anteriores ficam preservados.
+- Mesmo padrão aplicado às listas de campos repetíveis encontradas em Compras,
+  Insumos, entradas avulsas, parcelas de notas e formulários de Vendas (pagamentos,
+  horários, pedidos e documentação fiscal). Adicionar fica antes das linhas.
+  Histórico, paginação e seleção de registros já preenchidos não são invertidos.
+  Nenhuma regra de cálculo, integração externa ou autorização mudou nestas listas.
+  Contrato visual canônico: `docs/design-system/padroes.md`, inclusão em listas.
+- PostgreSQL 17 local exclusivo em `127.0.0.1:55439`, base `grazing_qa`, sob `.tmp`.
+  Não usa o PostgreSQL existente em 5432. Somente usuários e dados fictícios.
+  Integração comprova legado habilitado/desabilitado preservado, default do banco,
+  criação via ação (também com campo extra indevido) e edição sem reabilitar/desabilitar.
+- Prisma validate/generate e typecheck com Node 22.23.2 passaram. Lint de design:
+  92 desvios históricos, zero novos; zero referências aprovadas promovidas.
+- Prévia isolada com `testes/visual/vendas.vite.config.mts`, porta 4261.
+  Playwright em Chrome headless: 320/390/768/1440 px, claro/escuro, inclusão repetida,
+  foco e preenchimento anterior. Oito auditorias parciais sem apontamentos.
+  Capturas consultivas e logs em `.tmp/validades-listas-20261021` deste worktree.
+  Não equivalem a homologação humana ou conferência autenticada em produção.
+- Integrações reais locais de Acessos e Etiquetas: 42 testes aprovados, incluindo
+  recusa do novo responsável, habilitação manual auditada e emissão posterior.
+  Comando: `ACESSOS_BANCO_TESTE=1 ETIQUETAS_BANCO_TESTE=1` com `vitest run
+  testes/permissoes/integracao.test.ts testes/etiquetas/integracao.test.ts`,
+  `--maxWorkers=1 --pool=threads --testTimeout=15000 --hookTimeout=60000`.
+  As variáveis são definidas no shell, apontando DATABASE_URL apenas à base local.
+- Backup privado criado e íntegro: `<BACKUP_PRIVADO_PRESERVADO_01>`,
+  123.236.072 bytes; `pg_restore --file=/dev/null`, sem restore.
+- Complemento da revisão: veículos também entram no topo. Nove testes do consumidor
+  de Entregas passaram; novas faixas são ordenadas por distância somente no envio,
+  preservando IDs/preços e a validação do domínio.
+- Primeira regressão geral em threads terminou com falha nativa do Windows
+  (`0xC0000005`), sem relatório; não foi contada como aprovação.
+- Base integrada: `cd9eedff`, incluindo main `97b49098`. Bateria geral em forks:
+  575 arquivos; 6.544 casos aprovados, seis falhos e 1.046 casos
+  não executados. Houve também falha de preparação em duas suítes de banco.
+  Comando: `node --max-old-space-size=2048 node_modules/vitest/vitest.mjs run
+  --maxWorkers=2 --pool=forks --testTimeout=20000 --hookTimeout=60000
+  --reporter=default --reporter=json --outputFile=.tmp/validades-listas-20261021/regressao-forks.json`.
+  Opt-ins ACESSOS_BANCO_TESTE e ETIQUETAS_BANCO_TESTE habilitados; DATABASE_URL
+  aponta somente para o cluster sintético. Relatório bruto foi preservado.
+- Revalidações: 298 testes em fronteiras de permissão, regras fiscais e Entregas;
+  mais 63 em Acessos, Etiquetas, composição e exclusão de Insumos. Foram corrigidos
+  contratos da ordem antiga, uma espera de loading, a referência a um texto removido
+  na main e o inventário de duas ações fiscais que já possuíam guarda explícita.
+  Nenhuma ação fiscal de runtime mudou. O teste de 15.001 documentos passou
+  isolado em 1,79s, conservando seu timeout de 15s e todas as asserções.
+- A preparação das duas integrações agora reproduz a view oficial do Atendimento
+  em schema próprio de cada fixture. SQL versionado permanece intacto. A prova
+  histórica da migration de outubro usa somente migrations anteriores àquela data.
+- Consolidação rastreável: 6.594 aprovados, 1.004 condicionais não executados,
+  zero falhas remanescentes nos casos revalidados. `consolidado.json` aponta para
+  os relatórios originais e seus hashes. Isso não representa execução global única
+  sem falhas. Depois da bateria, as alterações são restritas a testes/documentação;
+  o código de runtime continua igual à base integrada indicada acima.
+- Revisão visual adicional: conversões, preparo, parcelas e veículos em 390/1440px;
+  faixas de pagamento em desktop/celular. Somente dados fictícios e rascunhos locais.
+- Janela de limpeza coordenada após o término da regressão; liberação recebida.
+  Ambiente, runtime Node compartilhado e PostgreSQL foram preservados.
+- Validação final de `5b0a818d`: lint global, tokens, qualidade visual e tsc
+  --noEmit aprovados. Build Next 16.3.4 webpack, limite de heap 4GB, exit 0.
+  Código de runtime idêntico a `cd9eedff`; ajustes posteriores são de testes/docs.
+  Aviso preexistente: convenção middleware descontinuada pelo Next; sem erro de build.
+- Backup final privado: `<BACKUP_PRIVADO_PRESERVADO_02>`,
+  123.238.537 bytes, integridade verificada sem restore. Imagem anterior exata
+  preservada. Plano obtido da cópia imutável dos scripts/migrations de `5b0a818d`:
+  apenas `20261021180000_responsavel_validades_opt_in`, checksum
+  `d448d354f31da363ec36e58a427bc957fd3c0e247484754435a985e270b3fec6`.
+  Aplicação pelo executor oficial em processo único; nenhuma configuração fiscal
+  precisa ser reaplicada. Aplicação e publicação ainda pendentes nesta revisão.
+  Registrar a revisão efetivamente validada e o resultado antes de encerrar.
+
+
 ## Fotos na emissão e etapa Etiqueta — 17/10/2026
 
 Pedido explícito: corrigir e publicar. Branch `codex/validades-fotos-previa-20261017`,

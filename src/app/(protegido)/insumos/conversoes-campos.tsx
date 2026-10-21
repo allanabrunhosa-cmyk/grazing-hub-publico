@@ -24,6 +24,7 @@ export function ConversoesCampos({ unidadePrincipal, conversoes = [], desabilita
     <input type="hidden" name="conversoes" value={JSON.stringify(linhas)} />
     <p className="text-sm font-medium">Fatores de conversão</p>
     <p className="text-xs text-muted-foreground">Informe quanto cada embalagem representa em {unidadeMedidaAbreviada[unidadePrincipal]}. Usado nos pedidos e como referência na contagem.</p>
+    <Button type="button" data-dialogo-altera size="sm" variant="outline" disabled={desabilitado || disponiveis.length === 0} onClick={() => definirLinhas((atuais) => [{ unidade: disponiveis[0], fator: "" }, ...atuais])}><Plus className="size-4" />Adicionar conversão</Button>
     {linhas.map((linha, indice) => <div key={indice} className="flex flex-wrap items-center gap-2">
       <span className="text-sm">1</span>
       <Select value={linha.unidade} disabled={desabilitado} onValueChange={(valor) => {
@@ -37,6 +38,6 @@ export function ConversoesCampos({ unidadePrincipal, conversoes = [], desabilita
       <span className="text-sm">{unidadeMedidaAbreviada[unidadePrincipal]}</span>
       <Button type="button" data-dialogo-altera variant="ghost" size="icon-sm" aria-label={`Remover conversão ${indice + 1}`} disabled={desabilitado} onClick={() => definirLinhas((atuais) => atuais.filter((_, posicao) => posicao !== indice))}><X className="size-4" /></Button>
     </div>)}
-    <Button type="button" data-dialogo-altera size="sm" variant="outline" disabled={desabilitado || disponiveis.length === 0} onClick={() => definirLinhas((atuais) => [...atuais, { unidade: disponiveis[0], fator: "" }])}><Plus className="size-4" />Adicionar conversão</Button>
+
   </div>;
 }

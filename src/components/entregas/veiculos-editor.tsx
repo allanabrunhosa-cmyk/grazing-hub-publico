@@ -13,6 +13,7 @@ export function VeiculosEntregaEditor({ config: c, alterar, disabled }: { config
   function campo(id: string, valores: Partial<(typeof veiculos)[number]>) { alterar({ ...c, veiculos: veiculos.map(v => v.id === id ? { ...v, ...valores } : v) }); }
   return <Card><CardHeader><CardTitle>Veículos</CardTitle><CardDescription>A ocupação total dos produtos deve estar entre os slots mínimos e máximos de um único veículo ativo.</CardDescription></CardHeader><CardContent className="space-y-4">
     <fieldset disabled={disabled} className="min-w-0 space-y-4">
+      <Button type="button" variant="outline" disabled={disabled || veiculos.length >= 50} onClick={() => alterar({ ...c, veiculos: [{ id: crypto.randomUUID(), nome: "", perfil: "MOTO", ativo: true, slotsMinimos: null, slotsMaximos: null }, ...veiculos] })}>Adicionar veículo</Button>
       <Table className="w-max table-fixed text-left"><colgroup><col className="w-56" /><col className="w-48" /><col className="w-32" /><col className="w-32" /><col className="w-32" /><col className="w-14" /></colgroup>
         <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Perfil de rota</TableHead><TableHead>Slots mínimos</TableHead><TableHead>Slots máximos</TableHead><TableHead>Status</TableHead><TableHead><span className="sr-only">Remover</span></TableHead></TableRow></TableHeader>
         <TableBody>{veiculos.map((v, i) => <TableRow key={v.id}>
@@ -25,7 +26,7 @@ export function VeiculosEntregaEditor({ config: c, alterar, disabled }: { config
         </TableRow>)}</TableBody>
       </Table>
       {!veiculos.length && <p className="text-sm text-muted-foreground">Nenhum veículo cadastrado.</p>}
-      <Button type="button" variant="outline" disabled={disabled || veiculos.length >= 50} onClick={() => alterar({ ...c, veiculos: [...veiculos, { id: crypto.randomUUID(), nome: "", perfil: "MOTO", ativo: true, slotsMinimos: null, slotsMaximos: null }] })}>Adicionar veículo</Button>
+
     </fieldset>
   </CardContent></Card>;
 }

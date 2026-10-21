@@ -1,6 +1,13 @@
 {
   "repositorioOrigem": "allanabrunhosa-cmyk/grazing-hub",
   "commitCandidato": "2638c7d9d871c985e925f2f5b7679a91d5fe14f7",
-  "historico": "Snapshot inicial. NÃ£o contÃ©m os objetos Git nem as branches do histÃ³rico privado.",
-  "baseAtiva": "Candidata Ã  adoÃ§Ã£o; nenhuma alteraÃ§Ã£o de produÃ§Ã£o foi executada."
+  "historico": "Histórico público iniciado por snapshot. Não contém os objetos Git nem as branches do histórico privado.",
+  "baseAtiva": "Base pública para desenvolvimento. A implantação segue o procedimento autorizado e depende de verificação operacional externa.",
+  "commitBaseOriginal": "608dc51a98271ce5ae54efc69900c96ed0a1257c",
+  "reconciliacao": {
+    "baseOriginalAnterior": "97b490987506418255577042fef51fe4427eb332",
+    "mainPublicaAnterior": "6de2cb6950848a82ccc884c3ce3d48d6a2120212",
+    "tipo": "Diff de conteúdo revisado, sem importar objetos do histórico privado.",
+    "privacidade": "Documentos operacionais preservados no acervo privado; caminhos de usuário e de backup e identificadores operacionais generalizados."
+  }
 }

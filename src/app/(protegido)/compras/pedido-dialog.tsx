@@ -248,7 +248,7 @@ export function PedidoDialog({
   }
 
   function adicionarLinha() {
-    setLinhas((prev) => [...prev, linhaVazia()]);
+    setLinhas((prev) => [linhaVazia(), ...prev]);
   }
 
   function trocarUnidade(linha: Linha, unidadeCompra: UnidadeMedida) {
