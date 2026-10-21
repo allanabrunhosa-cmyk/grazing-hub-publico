@@ -6,7 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { jsPDF } from "jspdf";
 import { Prisma, PrismaClient } from "@/generated/prisma/client";
 import type { SessaoAtual } from "@/lib/session";
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import { massaPayloadLocal } from "./brasilnfe-payload-local-fixtures";
 const s = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient, versaoConfiguracao: 1, emitenteHash: "", http: vi.fn<typeof fetch>(), pre: null as unknown as import("@/lib/fiscal-saida/brasilnfe/pre-requisitos-dominio").PreRequisitosBrasilNfe }));
 vi.mock("server-only", () => ({}));
@@ -84,7 +84,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
     vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-15T15:00:00Z"));
     const url = new URL(process.env.DATABASE_URL!); if (!["127.0.0.1", "localhost"].includes(url.hostname) || !/^\/teste_/.test(url.pathname)) throw new Error("Banco local exclusivamente sintético obrigatório");
     banco = new Client({ connectionString: url.toString() }); await banco.connect(); await banco.query(`CREATE SCHEMA "${schema}"`); criado = true; await banco.query(`SET search_path TO "${schema}"`);
-    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(await prepararMigrationHubIsolada(banco, schema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     s.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${schema}` }, { schema }) });
     const perfil = await s.prisma.perfilAcesso.findUniqueOrThrow({ where: { sistema: "ADMINISTRADOR" } });
     const u = await s.prisma.usuario.create({ data: { nome: "Autor exclusivamente sintético", email: "revisao-emissao@example.invalid", senhaHash: "inutil", perfilAcessoId: perfil.id } });
@@ -101,7 +101,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
     await configurarHabilitacaoEmissaoBrasilNfe({ ambiente: "HOMOLOGACAO", revisao: 0, habilitada: true, modelos: [55, 65], documentosHomologados: [], confirmarAtivacao: true }, sessao);
     // Habilitação produtiva também será conferida pelo serviço normal, após a prova de homologação abaixo.
   }, 120000);
-  afterAll(async () => { await s.prisma?.$disconnect(); if (banco) { if (criado && /^teste_revisao_emissao_[a-f0-9]{32}$/.test(schema)) await banco.query(`DROP SCHEMA "${schema}" CASCADE`); await banco.end(); } vi.useRealTimers(); });
+  afterAll(async () => { await s.prisma?.$disconnect(); if (banco) { if (criado && /^teste_revisao_emissao_[a-f0-9]{32}$/.test(schema)) { await limparIntegracaoHubIsolada(banco, schema); await banco.query(`DROP SCHEMA "${schema}" CASCADE`); } await banco.end(); } vi.useRealTimers(); });
   afterEach(() => { s.http.mockReset(); });
   it("Emitir direto não ativa rascunhos fiscais quando ainda não existe configuração aprovada", async () => {
     await propostas(); const p = await pedido(), antes = await ativacoes();
@@ -187,21 +187,20 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
     expect(await ativacoes()).toBe(ativacoesAntes); expect(await s.prisma.versaoEstruturaFiscal.findMany({ where: { status: "RASCUNHO" }, orderBy: { id: "asc" } })).toEqual(rascunhosAntes);
     expect(await efeitos()).toEqual({ financeiro: 0, estoque: 0, recebidas: 0 });
   }, 15000);
-  it("um clique NFC-e65 cartão exige confirmação explícita e só então transmite com tpIntegra2", async () => {
+  it("um clique NFC-e65 usa a forma comercial sem exigir recebimento nem confirmação de cartão", async () => {
     const pre = { ...s.pre, verificadoEm: new Date().toISOString(), empresaVerificadaEm: new Date().toISOString() };
     await s.prisma.configuracaoBrasilNfe.update({ where: { id: "singleton" }, data: { preRequisitos: json(pre), preRequisitosEmitenteHash: s.emitenteHash } });
     await configurarHabilitacaoEmissaoBrasilNfe({ ambiente: "PRODUCAO", revisao: 1, habilitada: true, modelos: [55, 65], documentosHomologados: [homologadaId], confirmarAtivacao: true,
       decisaoProducao65: { versao: 1, tipo: "DECISAO_ADMINISTRATIVA_SEM_HOMOLOGACAO_LOCAL", motivo: "CSC_HOMOLOGACAO_INDISPONIVEL_RESPONSAVEL", confirmarResponsabilidade: true, modoRegistro: "SESSAO_NORMAL" } }, sessao);
     const p = await pedido(), httpAntes = s.http.mock.calls.length;
     await s.prisma.pedidoVenda.update({ where: { id: p.id }, data: { formaPagamentoInformada: "CARTAO_CREDITO", pagamentoInformadoSnapshot: { tipo: "CARTAO_CREDITO" } } });
-    const pendente = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 65 }, sessao);
-    expect(pendente).toMatchObject({ exigeEscolhaCartao: true, conferirAntesDeRepetir: false }); expect(s.http).toHaveBeenCalledTimes(httpAntes);
     let corpoEnviado: Record<string, unknown> | null = null;
     s.http.mockResolvedValueOnce(response(empresa())).mockImplementationOnce(async (_url, init) => {
       corpoEnviado = JSON.parse(String(init?.body));
       return response(retornoDireto(65, "42"));
     });
-    const r = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 65, pagamentoCartaoNaoIntegrado: true }, sessao);
+    const r = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 65 }, sessao);
+    expect(s.http.mock.calls.slice(httpAntes).map(v => String(v[0]))).toEqual(["https://api.brasilnfe.com.br/services/empresa/BuscarEmpresa", "https://api.brasilnfe.com.br/services/fiscal/EnviarNotaFiscal"]);
     expect(corpoEnviado).toMatchObject({ ModeloDocumento: 65, TipoAmbiente: 1, IndicadorPresenca: 4, ConsumidorFinal: true, Pagamentos: [{ FormaPagamento: "03", VlPago: 10, TipoIntegracao: false }] });
     expect((corpoEnviado as unknown as { Pagamentos: unknown[] }).Pagamentos[0]).not.toHaveProperty("CnpjCredenciadora"); expect((corpoEnviado as unknown as { Pagamentos: unknown[] }).Pagamentos[0]).not.toHaveProperty("NumeroAutorizacao");
     expect(r).toMatchObject({ ok: true, documento: { status: "AUTORIZADO", modeloDocumento: 65, ambiente: "PRODUCAO", numero: "42" } });
