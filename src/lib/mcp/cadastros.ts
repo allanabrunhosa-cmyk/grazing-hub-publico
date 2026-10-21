@@ -9,7 +9,7 @@ import { precosOpcoes } from "@/lib/vendas/complementos";
 import { validarComponentes } from "@/lib/vendas/dominio";
 import * as cartoes from "@/app/(protegido)/financeiro/bancario/cartoes-actions";
 import * as perdas from "@/app/(protegido)/inventario/perdas/categorias-actions";
-import { CartaoMcp, CategoriaComercialMcp, FormaPagamentoMcp, GrupoComercialMcp, type NomeCadastrosMcp } from "./registro-cadastros";
+import { CartaoMcp, CategoriaCatalogoMcp, CategoriaComercialMcp, FormaPagamentoMcp, GrupoComercialMcp, type NomeCadastrosMcp } from "./registro-cadastros";
 import { ConsultaMcp } from "./contratos-negocio";
 import { ErroMcp } from "./politica";
 import type { AdaptadorMcp } from "./negocio";
@@ -29,11 +29,11 @@ export const ADAPTADORES_CADASTROS: Record<NomeCadastrosMcp, AdaptadorMcp> = {
   produtos_composicao: async d => { const p = await prisma.produtoVenda.findUnique({ where: { id: id(d) }, select: { id: true, nome: true, versao: true, preco: true, unidade: true, modoPreparo: true, componentes: { take: 101, select: { id: true, insumoId: true, quantidade: true, unidade: true, observacaoPorcao: true, porcao: true, exibirFicha: true } }, grupos: { take: 101, select: { grupoId: true, usarPadrao: true, minimo: true, maximo: true, opcoesExcluidas: true, ajustesOpcoes: true } } } }); if (!p) throw new ErroMcp("invalid_request", 404, "Produto não encontrado."); if (p.componentes.length > 100 || p.grupos.length > 100) throw new ErroMcp("volume_excedido", 422, "Ficha excede 100 componentes ou grupos; consulte pela interface."); return { ...p, limitacao: "Custos e margens omitidos; ajustes locais são dados comerciais, sem autorização." }; },
   produtos_excluir: (d, a) => servicos.excluirCadastroVenda("PRODUTO", id(d), versao(d), a.sessao),
   catalogo_categorias: async d => { const { c, where, take, skip } = consulta(d); const [r, n] = await Promise.all([prisma.categoriaVenda.findMany({ where, take, skip, orderBy: [{ ordem: "asc" }, { id: "asc" }] }), prisma.categoriaVenda.count({ where })]); return pagina(c, r, n); },
-  catalogo_categoria_criar: (d, a) => servicos.salvarCategoria({ ...CategoriaComercialMcp.parse(d), id: "", versao: 0 }, a.sessao).then(id => ({ id })),
+  catalogo_categoria_criar: (d, a) => servicos.salvarCategoria({ ...CategoriaCatalogoMcp.parse(d), id: "", versao: 0 }, a.sessao).then(id => ({ id })),
   catalogo_categoria_atualizar: async (d, a) => { const atual=await prisma.categoriaVenda.findUniqueOrThrow({where:{id:id(d)}}); return {id:await servicos.salvarCategoria({nome:atual.nome,ativo:atual.ativo,...d},a.sessao)}; },
   catalogo_categoria_disponibilidade: (d, a) => servicos.alterarStatusCadastroVenda("CATEGORIA", id(d), versao(d), ativos(d), a.sessao),
   catalogo_categoria_excluir: (d, a) => servicos.excluirCadastroVenda("CATEGORIA", id(d), versao(d), a.sessao),
-  catalogo_ordenar_categorias: (d, a) => servicos.reordenarCategorias(d.itens, a.sessao),
+  catalogo_ordenar_categorias: (d, a) => servicos.reordenarCategorias(d.itens, a.sessao, d.escopo as string | undefined),
   catalogo_ordenar_produtos: (d, a) => servicos.reordenarProdutos(d.categoriaId as string, d.itens, a.sessao),
   complementos_categorias: async d => { const { c, where, take, skip } = consulta(d); const [r, n] = await Promise.all([prisma.categoriaGrupoComplementoVenda.findMany({ where, take, skip, orderBy: [{ ordem: "asc" }, { id: "asc" }] }), prisma.categoriaGrupoComplementoVenda.count({ where })]); return pagina(c, r, n); },
   complementos_categoria_criar: (d, a) => servicos.salvarCategoriaGrupo({ ...CategoriaComercialMcp.parse(d), id: "", versao: 0 }, a.sessao).then(id => ({ id })),

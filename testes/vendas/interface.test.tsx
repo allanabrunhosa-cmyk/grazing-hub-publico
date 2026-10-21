@@ -71,11 +71,13 @@ describe("interface de cadastros de Vendas", () => {
     expect((screen.getByRole("textbox", { name: "Nome *" }) as HTMLInputElement).checkValidity()).toBe(true);
   });
   it("Extras não apresenta limite máximo editável", async () => {
-    render(<CatalogoVenda dados={{ categorias: [], categoriasGrupos: [], produtos: [], grupos: [{ id: "extras", nome: "Extras", tipo: "EXTRAS", categoriaId: null, versao: 1, ativo: true, minimo: 0, maximo: null, repetir: true, produtos: ["p"], opcoes: [] }] }} adicionar editar />);
+    render(<CatalogoVenda dados={{ categorias: [], categoriasGrupos: [], produtos: [{ id: "produto-extra", nome: "Produto sintético", ativo: true, preco: "12", versao: 1, grupos: [] }], grupos: [{ id: "extras", nome: "Extras", tipo: "EXTRAS", categoriaId: null, versao: 1, ativo: true, minimo: 0, maximo: null, repetir: true, produtos: ["p"], opcoes: [] }] }} adicionar editar />);
     const u = userEvent.setup(); await u.click(screen.getByRole("tab", { name: "Grupos de complementos" })); await u.click(screen.getByRole("button", { name: "Editar Extras" }));
     expect(screen.queryByRole("spinbutton", { name: /Máximo/ })).toBeNull();
     expect(screen.getByText(/Extras é sempre opcional/)).toBeTruthy();
-    await u.click(screen.getByRole("button", { name: "Adicionar opção" }));
+    await u.click(screen.getByRole("combobox", { name: "Produtos e complementos do grupo" }));
+    await u.click(await screen.findByRole("option", { name: "Produto sintético" }));
+    await u.keyboard("{Escape}");
     expect(screen.getByRole("textbox", { name: "Nome da opção 1" })).toBeTruthy();
   });
   it("cria categoria dentro do produto e preserva o preenchimento sem salvar o pai", async () => {
@@ -359,7 +361,8 @@ describe("catálogo expansível e regras próprias",()=>{
     render(<ProdutosVenda dados={catalogo} adicionar editar />);
     const u = userEvent.setup(); await u.click(screen.getByRole("button", { name: "Novo produto" }));
     await u.type(screen.getByRole("textbox", { name: "Nome *" }), "Novo complemento");
-    await u.click(screen.getByRole("checkbox", { name: "Complemento" }));
+    await u.click(screen.getByRole("combobox", { name: "Classificação" }));
+    await u.click(await screen.findByRole("option", { name: "Complemento" }));
     await u.click(screen.getByRole("button", { name: "Preço" }));
     expect(screen.getByRole("textbox", { name: "Preço do produto" })).toBeTruthy();
     expect(screen.queryByRole("combobox", { name: /Canal do preço/ })).toBeNull();
@@ -367,16 +370,54 @@ describe("catálogo expansível e regras próprias",()=>{
 });
 
 describe("Complementos e escopo da pausa", () => {
+  it("retorna à aba do campo obrigatório ao salvar pela disponibilidade", async () => {
+    render(<CatalogoVenda dados={catalogo} dadosComplementos={catalogo} adicionar editar adicionarComplemento editarComplemento />);
+    const u = userEvent.setup(); await u.click(screen.getByRole("button", { name: "Novo complemento" }));
+    await u.click(screen.getByRole("tab", { name: "Disponibilidade" }));
+    await u.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(sim.salvar).not.toHaveBeenCalled();
+    expect(await screen.findByRole("textbox", { name: "Nome do complemento *" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Cadastro", selected: true })).toBeTruthy();
+  });
+  it("mostra tags internas e a disponibilidade do complemento sem salvar ao trocar abas", async () => {
+    const complemento = { ...catalogo.produtos[0], id: "copa", nome: "Copa sintética", classificacoes: ["COMPLEMENTO" as const], grupos: [], categorias: ["interna"] };
+    const dados = { ...catalogo, categorias: [...catalogo.categorias, { id: "interna", nome: "Charcutaria", escopo: "COMPLEMENTO" as const, cor: "verde" as const, versao: 1, ativo: true, ordem: 1, produtos: [] }], produtos: [...catalogo.produtos, complemento], grupos: [{ ...catalogo.grupos[0], opcoes: [{ ...catalogo.grupos[0].opcoes[0], produtoId: "copa" }] }] };
+    render(<CatalogoVenda dados={dados} dadosComplementos={dados} adicionar editar adicionarComplemento editarComplemento />);
+    expect(screen.getByRole("columnheader", { name: "Categoria" })).toBeTruthy();
+    const linha = screen.getByRole("button", { name: "Editar Copa sintética" }).closest("tr")!;
+    expect(within(linha).getByText("Charcutaria").getAttribute("data-slot")).toBe("badge");
+    expect(screen.queryByRole("combobox", { name: /Classificação dos/ })).toBeNull();
+    const u = userEvent.setup(); await u.click(screen.getByRole("button", { name: "Editar Copa sintética" }));
+    await u.click(screen.getByRole("tab", { name: "Disponibilidade" }));
+    const dialogo = within(screen.getByRole("dialog"));
+    expect(dialogo.getByText("Produto catálogo")).toBeTruthy();
+    expect(dialogo.getByText("Disponível", { exact: true })).toBeTruthy();
+    await u.click(dialogo.getByRole("tab", { name: "Cadastro" }));
+    expect(dialogo.getByRole("textbox", { name: "Nome do complemento *" })).toHaveProperty("value", "Copa sintética");
+    expect(sim.salvar).not.toHaveBeenCalled();
+  });
+  it("adiciona Produto e Complemento a um grupo com herança do cadastro", async () => {
+    sim.salvar.mockResolvedValue({ ok: true });
+    const principal = { ...catalogo.produtos[0], grupos: [] };
+    const complemento = { ...principal, id: "copa", nome: "Copa sintética", classificacoes: ["COMPLEMENTO" as const], classificacao: "COMPLEMENTO" as const };
+    render(<EditorGrupo inicial={{ ...catalogo.grupos[0], id: "", versao: 0, opcoes: [] }} produtos={[principal, complemento]} afetados={0} fechar={() => {}} />);
+    const u = userEvent.setup(); await u.click(screen.getByRole("combobox", { name: "Produtos e complementos do grupo" }));
+    await u.click(await screen.findByRole("option", { name: "Produto catálogo" }));
+    await u.click(screen.getByRole("option", { name: "Copa sintética" })); await u.keyboard("{Escape}");
+    expect(sim.salvar).not.toHaveBeenCalled();
+    await u.click(screen.getByRole("button", { name: "Salvar" }));
+    expect(sim.salvar).toHaveBeenCalledWith(expect.objectContaining({ opcoes: expect.arrayContaining([expect.objectContaining({ produtoId: "p", usarPrecoPadrao: true, composicao: null, quantidade: "1" }), expect.objectContaining({ produtoId: "copa", usarPrecoPadrao: true, composicao: null, quantidade: "1" })]) }));
+  }, 15000);
   it("mostra complemento com foto, preço único e CMV; salva explicitamente", async () => {
     const complemento = { ...catalogo.produtos[0], id: "compl", nome: "Salame", classificacoes: ["COMPLEMENTO" as const], grupos: [], preco: "10" };
     const dados = { ...catalogo, produtos: [complemento] };
     sim.salvar.mockResolvedValue({ ok: true, versao: 2 });
     render(<ProvedorAcesso acesso={{ admin: false, permissoes: { "financeiro.custos": ["visualizar"] }, excecoes: {} }}><CatalogoVenda dados={dados} dadosComplementos={dados} adicionar editar adicionarComplemento editarComplemento /></ProvedorAcesso>);
-    expect(screen.getAllByRole("columnheader").map(v => v.textContent)).toEqual(["Complemento", "Preço", "Status", "Ações"]);
+    expect(screen.getAllByRole("columnheader").map(v => v.textContent)).toEqual(["Complemento", "Categoria", "Preço", "Status", "Ações"]);
     const linha = screen.getByRole("button", { name: "Editar Salame" }).closest("tr")!;
     const celulas = within(linha).getAllByRole("cell");
-    expect(within(celulas[2]).getByRole("switch", { name: "Status de Salame" })).toBeTruthy();
-    expect(within(celulas[3]).getAllByRole("button").map(botao => botao.getAttribute("aria-label"))).toEqual(["Editar Salame", "Excluir Salame"]);
+    expect(within(celulas[3]).getByRole("switch", { name: "Status de Salame" })).toBeTruthy();
+    expect(within(celulas[4]).getAllByRole("button").map(botao => botao.getAttribute("aria-label"))).toEqual(["Editar Salame", "Excluir Salame"]);
     const expandir = screen.getByRole("button", { name: "Abrir detalhes de Salame" });
     expect(expandir.firstElementChild?.classList.contains("lucide-chevron-right")).toBe(true);
     expect(expandir.firstElementChild?.nextElementSibling?.querySelector("img")).toBeTruthy();

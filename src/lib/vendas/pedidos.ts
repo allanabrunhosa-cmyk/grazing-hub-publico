@@ -1,3 +1,4 @@
+import { classificacaoComercial } from "./classificacao";
 import { pedidoEmAcompanhamento } from "@/lib/ifood/acompanhamento-dominio";
 import { exigirEfeitoOperacional } from "@/lib/ifood/acompanhamento";
 import { diaNoFuso, diaValido, somarDias, intervaloDatasPedidos } from "./pedidos-agenda-dominio";
@@ -360,7 +361,7 @@ export async function calcularPedido(tx: Tx, d: PedidoEntrada, pagamentoAnterior
     } });
     if (!produto?.ativo || !produto.classificacoes.some(c => ["PRINCIPAL", "OPCAO", "COMPLEMENTO"].includes(c))) throw new ErroPedidoVenda("Produto indisponível.");
     let complementoAvulso: { produtoOrigemId: string; grupoId: string; grupoNome: string; opcaoId: string; opcaoNome: string; multiplicador: string; unidadeProduto: string; preco: string } | undefined;
-    if (!entrada.complementoAvulso && produto.classificacoes.includes("COMPLEMENTO") && !produto.classificacoes.includes("PRINCIPAL")) throw new ErroPedidoVenda("Complementos só podem ser escolhidos dentro de um produto.");
+    if (!entrada.complementoAvulso && classificacaoComercial(produto) !== "PRINCIPAL") throw new ErroPedidoVenda("Complementos só podem ser escolhidos dentro de um produto.");
     if (entrada.complementoAvulso) {
       const legado = itensAnteriores?.find(i => i.produtoId === entrada.produtoId && (i.produtoSnapshot as { complementoAvulso?: { opcaoId: string } }).complementoAvulso?.opcaoId === entrada.complementoAvulso?.opcaoId);
       if (!legado) throw new ErroPedidoVenda("Complementos só podem ser escolhidos dentro de um produto.");

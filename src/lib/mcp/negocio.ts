@@ -22,6 +22,7 @@ import { ADAPTADORES_CADASTROS } from "./cadastros";
 import { ADAPTADORES_CANAIS_FISCAL } from "./canais-fiscal";
 import { ADAPTADORES_COMPLEMENTARES } from "./complementar";
 import { FUNCOES_FINANCEIRAS_MCP } from "./catalogo";
+import { classificacaoComercial } from "@/lib/vendas/classificacao";
 
 export type ReferenciaNegocio = { modelo: "cliente" | "produto" | "pedido" | "lancamento" | "conta"; id: string; hash: string };
 type Ambiente = { sessao: SessaoAtual; acesso: ContextoMcp; chave: string; operacaoId: string };
@@ -77,7 +78,7 @@ export const ADAPTADORES_MCP: Record<NomeNegocioMcp, AdaptadorMcp> = {
     const atual = await prisma.produtoVenda.findUniqueOrThrow({ where: { id: string(d,"id") }, include: { categorias: true, grupos: true, componentes: true } });
     // Fotografia interna somente para preservar campos omitidos. A decisão e os
     // cálculos continuam no serviço compartilhado, inclusive concorrência.
-    const entrada = { ...Object.fromEntries(Object.entries(atual).filter(([k])=>k in ProdutoMcp.shape)), preco: atual.preco.toString(), categorias: atual.categorias.map(c=>c.categoriaId),
+    const entrada = { ...Object.fromEntries(Object.entries(atual).filter(([k])=>k in ProdutoMcp.shape)), classificacoes: [classificacaoComercial(atual)], preco: atual.preco.toString(), categorias: atual.categorias.map(c=>c.categoriaId),
       grupos: atual.grupos.map(g=>({ grupoId:g.grupoId, usarPadrao:g.usarPadrao, minimo:g.minimo, maximo:g.maximo, opcoesExcluidas:g.opcoesExcluidas, ajustesOpcoes:g.ajustesOpcoes ?? [] })),
       componentes: atual.componentes.map(c=>({ insumoId:c.insumoId, quantidade:c.quantidade.toString(), unidade:c.unidade, observacaoPorcao:c.observacaoPorcao, porcao:c.porcao, exibirFicha:c.exibirFicha })), ...d };
     return { id: await cadastros.salvarProduto(entrada, sessao) };

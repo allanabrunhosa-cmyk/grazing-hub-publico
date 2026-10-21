@@ -3,6 +3,7 @@ import { funcao } from "./definicao";
 import { camposAtualizacaoMcp, ComponenteMcp, ConsultaMcp, DataMcp, DinheiroMcp, IdMcp, QuantidadeMcp, ReferenciaMcp } from "./contratos-negocio";
 import { CAMPOS_FISCAIS } from "@/lib/vendas/dominio";
 export const CategoriaComercialMcp = z.object({ nome: z.string().min(1).max(120), ativo: z.boolean().default(true) }).strict();
+export const CategoriaCatalogoMcp = CategoriaComercialMcp.extend({ escopo: z.enum(["PRODUTO", "COMPLEMENTO"]).optional(), cor: z.enum(["azul", "verde", "amarelo", "vermelho"]).optional() });
 export const GrupoComercialMcp = CategoriaComercialMcp.extend({ tipo: z.enum(["COMPOSICAO", "EXTRAS", "COMPLEMENTAR"]), categoriaId: IdMcp.nullable().optional(), minimo: z.number().int().min(0).max(1000), maximo: z.number().int().min(0).max(1000).nullable(), repetir: z.boolean(), opcoes: z.array(z.object({ id: IdMcp.or(z.literal("")).default(""), nome: z.string().min(1).max(160), preco: DinheiroMcp, produtoId: IdMcp.nullable(), quantidade: QuantidadeMcp, ativo: z.boolean(), usarPrecoPadrao: z.boolean().optional(), composicao: z.array(ComponenteMcp).max(100).nullable().optional() }).strict()).max(100) });
 export const FiscalComercialMcp = z.object(Object.fromEntries(CAMPOS_FISCAIS.map(k => [k, z.string().max(k === "observacoes" ? 1000 : 100).default("")] )) as Record<typeof CAMPOS_FISCAIS[number], z.ZodDefault<z.ZodString>>).strict();
 export const FormaPagamentoMcp = CategoriaComercialMcp.extend({ tipo: z.enum(["BOLETO", "PIX", "CARTAO_CREDITO", "CARTAO_DEBITO", "VOUCHER", "TRANSFERENCIA", "DINHEIRO", "OUTRO"]), taxaPercentual: z.string().regex(/^\d{1,3}(\.\d{1,6})?$/), taxaFixa: DinheiroMcp, prazoDias: z.number().int().min(0).max(3650), inicioPrazo: z.enum(["VENDA", "PAGAMENTO"]), contagemPrazo: z.enum(["CORRIDOS", "UTEIS"]), vencimentoFlexivel: z.boolean(), permiteParcelamento: z.boolean(), maximoParcelas: z.number().int().min(1).max(120), faixasTaxa: z.array(z.object({ de: z.number().int().min(1).max(120), ate: z.number().int().min(1).max(120), percentual: z.string().regex(/^\d{1,3}(\.\d{1,6})?$/), fixa: DinheiroMcp }).strict()).max(120), observacoes: z.string().max(1000) });
@@ -14,6 +15,7 @@ export const HorariosMcp = z.union([
 export const CartaoMcp = z.object({ nome: z.string().min(1).max(120), contaBancariaId: IdMcp, diaFechamento: z.number().int().min(1).max(31), diaVencimento: z.number().int().min(1).max(31), final: z.string().regex(/^\d{4}$|^$/).optional(), emissor: z.string().max(120).optional(), bandeira: z.string().max(60).optional(), limite: DinheiroMcp.optional(), toleranciaDias: z.number().int().min(0).max(31).optional(), observacoes: z.string().max(1000).optional() }).strict();
 const ref = ReferenciaMcp;
 const categoriaAtualizacao = camposAtualizacaoMcp(CategoriaComercialMcp).extend(ref.shape).refine(d=>Object.keys(d).some(k=>!["id","versao"].includes(k)), "Informe um campo para atualizar.");
+const categoriaCatalogoAtualizacao = camposAtualizacaoMcp(CategoriaCatalogoMcp).extend(ref.shape).refine(d=>Object.keys(d).some(k=>!["id","versao"].includes(k)), "Informe um campo para atualizar.");
 const ordem = z.array(ref).min(1).max(100);
 export const FUNCOES_CADASTROS_MCP = [
   funcao("clientes_disponibilidade", "Clientes", "Ativar ou inativar cliente preservando histórico", "vendas.clientes", "editar", ref.extend({ ativo: z.boolean() })),
@@ -21,11 +23,11 @@ export const FUNCOES_CADASTROS_MCP = [
   funcao("produtos_custos", "Produtos", "Consultar CMV da composição fixa pelos cálculos da tela; escolhas variáveis não compõem este resultado", "financeiro.custos", "visualizar", z.object({ id: IdMcp }).strict()),
   funcao("produtos_excluir", "Produtos", "Excluir produto sem vínculos impeditivos após revisão", "vendas.produtos", "excluir", ref, true),
   funcao("catalogo_categorias", "Catálogo", "Consultar categorias comerciais", "vendas.catalogo", "visualizar", ConsultaMcp),
-  funcao("catalogo_categoria_criar", "Catálogo", "Cadastrar categoria comercial", "vendas.catalogo", "adicionar", CategoriaComercialMcp),
-  funcao("catalogo_categoria_atualizar", "Catálogo", "Atualizar categoria comercial", "vendas.catalogo", "editar", categoriaAtualizacao),
+  funcao("catalogo_categoria_criar", "Catálogo", "Cadastrar categoria comercial", "vendas.catalogo", "adicionar", CategoriaCatalogoMcp),
+  funcao("catalogo_categoria_atualizar", "Catálogo", "Atualizar categoria comercial", "vendas.catalogo", "editar", categoriaCatalogoAtualizacao),
   funcao("catalogo_categoria_disponibilidade", "Catálogo", "Ativar ou inativar categoria comercial", "vendas.catalogo", "editar", ref.extend({ ativo: z.boolean() })),
   funcao("catalogo_categoria_excluir", "Catálogo", "Excluir categoria e seus vínculos comerciais permitidos", "vendas.catalogo", "excluir", ref, true),
-  funcao("catalogo_ordenar_categorias", "Catálogo", "Ordenar categorias com versões atuais", "vendas.catalogo", "editar", z.object({ itens: ordem }).strict()),
+  funcao("catalogo_ordenar_categorias", "Catálogo", "Ordenar categorias com versões atuais", "vendas.catalogo", "editar", z.object({ itens: ordem, escopo: z.enum(["PRODUTO", "COMPLEMENTO"]).optional() }).strict()),
   funcao("catalogo_ordenar_produtos", "Catálogo", "Ordenar produtos de uma categoria com versões atuais", "vendas.catalogo", "editar", z.object({ categoriaId: IdMcp, itens: ordem }).strict()),
   funcao("complementos_categorias", "Complementos", "Consultar categorias de grupos de complementos", "vendas.catalogo", "visualizar", ConsultaMcp),
   funcao("complementos_categoria_criar", "Complementos", "Cadastrar categoria de complementos", "vendas.catalogo", "adicionar", CategoriaComercialMcp),

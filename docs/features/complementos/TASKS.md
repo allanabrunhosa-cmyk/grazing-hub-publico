@@ -1,5 +1,37 @@
 # Execução — Complementos
 
+## Organização — 21/10/2026
+
+Base pública: `6de2cb6950848a82ccc884c3ce3d48d6a2120212`. Continuação em
+`codex/complementos-organizacao-20261021`, criada em clone independente. Apenas
+o diff funcional revisado foi portado; nenhum objeto Git privado foi importado.
+
+- [x] Separar Produto/Complemento, categorias comerciais e categorias de grupos.
+- [x] Implementar tags, Disponibilidade e seleção de cadastros nos grupos.
+- [x] Preservar composição padrão e substituições específicas por produto.
+- [x] Preparar migration manual com transferência de categorias e revisão de cadastros.
+- [ ] Revalidar o conjunto na base pública e registrar os resultados abaixo.
+- [ ] Publicar a branch e abrir PR de continuação.
+- [ ] Integrar após a transição da origem e concluir o ritual de publicação.
+
+Estado: implementação local. O usuário autorizou publicar ao final. A transição
+do repositório exige aguardar a primeira publicação da origem pública antes de
+integrar esta continuação ou acionar novo deploy. Backup íntegro e conferência
+das migrations continuam obrigatórios antes da aplicação produtiva.
+
+As evidências abaixo desta seção pertencem às implantações anteriores.
+
+Validação da continuação pública, Node 22: Prisma generate/validate aprovados;
+28 integrações de Vendas aprovadas em dois arquivos. Três cenários de Pedidos
+aprovados; os outros 71 não foram executados nesta seleção. Todos usam schemas
+efêmeros no banco sintético local. A primeira tentativa de conexão foi bloqueada
+pela sandbox; a execução autorizada fora dessa restrição passou.
+
+Navegador: 24 contratos aprovados em 320/390/768/1440 px, temas claro/escuro e
+toque. Capturas consultivas de lista, Disponibilidade e grupo inspecionadas.
+Sem aprovação de novas referências. Testes de interface/domínio, contratos,
+lint/design, tipos e compilação da candidata pública ainda em verificação.
+
 > Exportação pública: dados cadastrais, identificadores de registros e valores comerciais alterados neste documento são exemplos sintéticos. Os registros operacionais originais permanecem privados; esta versão não concede aprovação fiscal ou operacional.
 
 - [x] Banco, validação e persistência; migration isolada e conflitos.

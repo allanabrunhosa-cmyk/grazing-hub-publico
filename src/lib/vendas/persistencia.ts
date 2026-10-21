@@ -2,7 +2,7 @@ import "server-only";
 import { herdarParametrosFiscais } from "@/lib/tributacao/heranca";
 import { prisma } from "@/lib/prisma";
 import { Prisma, type UnidadeMedida } from "@/generated/prisma/client";
-import { ErroCadastroVenda, validarCategoria, validarCliente, validarGrupo, validarProduto, validarFiscal, limitesEfetivos, decimal, opcoesEfetivas, lerAjustesOpcoes, type ComposicaoComplemento } from "./dominio";
+import { ErroCadastroVenda, validarCategoria, validarCategoriaComercial, validarCliente, validarGrupo, validarProduto, validarFiscal, limitesEfetivos, decimal, opcoesEfetivas, lerAjustesOpcoes, type ComposicaoComplemento } from "./dominio";
 import { validarOrdem, conferirOrdem } from "./ordem";
 import { permissaoEfetiva, type Permissoes, type Excecoes } from "@/lib/permissoes/catalogo";
 import { RECURSOS_STATUS_VENDA, type TipoStatusVenda } from "./status-cadastro";
@@ -57,11 +57,12 @@ export async function salvarClienteNaTransacao(tx: Banco, entrada: unknown, auto
     return depois.id;
 }
 export async function salvarCategoria(entrada: unknown, autor: Autor) {
-  const { id, versao, ...dados } = validarCategoria(entrada);
+  const { id, versao, ...dados } = validarCategoriaComercial(entrada);
   return transacao(async tx => {
     const antes = id ? await tx.categoriaVenda.findUnique({ where: { id } }) : null;
     conferirVersao(antes, id, versao);
-    const maior = await tx.categoriaVenda.aggregate({ _max: { ordem: true } });
+    if (antes && dados.escopo && dados.escopo !== antes.escopo) throw new ErroCadastroVenda("O escopo da categoria não pode ser alterado.");
+    const maior = await tx.categoriaVenda.aggregate({ where: { escopo: dados.escopo ?? antes?.escopo ?? "PRODUTO" }, _max: { ordem: true } });
     const depois = id ? await tx.categoriaVenda.update({ where: { id }, data: { ...dados, versao: { increment: 1 } } }) : await tx.categoriaVenda.create({ data: { ...dados, ordem: (maior._max.ordem ?? -1) + 1 } });
     await historico(tx, autor, "CATEGORIA", depois.id, antes, depois);
     return depois.id;
@@ -78,11 +79,12 @@ export async function salvarCategoriaGrupo(entrada: unknown, autor: Autor) {
     return depois.id;
   });
 }
-export async function reordenarCategorias(entrada: unknown, autor: Autor) {
+export async function reordenarCategorias(entrada: unknown, autor: Autor, escopo = "PRODUTO") {
+  if (!["PRODUTO", "COMPLEMENTO"].includes(escopo)) throw new ErroCadastroVenda("Escopo de categoria inválido.");
   const itens = validarOrdem(entrada);
   const ids = itens.map(i => i.id);
   return transacao(async tx => {
-    const antes = await tx.categoriaVenda.findMany({ orderBy: [{ ordem: "asc" }, { id: "asc" }] });
+    const antes = await tx.categoriaVenda.findMany({ where: { escopo }, orderBy: [{ ordem: "asc" }, { id: "asc" }] });
     conferirOrdem(itens, antes);
     for (const [ordem, id] of ids.entries()) await tx.categoriaVenda.update({ where: { id }, data: { ordem, versao: { increment: 1 } } });
     await historico(tx, autor, "ORDEM_CATEGORIAS", "catalogo", antes.map(c => c.id), ids);
@@ -148,6 +150,8 @@ export async function salvarProduto(entrada: unknown, autor: Autor, dadosFiscais
     if (dados.tipoEmbalagemId && !await tx.tipoEmbalagemVenda.count({ where: { id: dados.tipoEmbalagemId, ...(dados.tipoEmbalagemId === antes?.tipoEmbalagemId ? {} : { ativo: true }) } })) throw new ErroCadastroVenda("Escolha um tipo de embalagem ativo existente.");
     if (dados.fotoUrl && !await tx.fotoProdutoVenda.count({ where: { id: dados.fotoUrl.split("/").pop() } })) throw new ErroCadastroVenda("Foto não encontrada. Envie a imagem novamente.");
     const categoriasAtuais = await tx.categoriaVenda.findMany({ where: { id: { in: categorias } } });
+    const escopo = dados.classificacoes?.includes("PRINCIPAL") ? "PRODUTO" : "COMPLEMENTO";
+    if (categoriasAtuais.some(c => c.escopo !== escopo)) throw new ErroCadastroVenda("Escolha categorias da classificação do cadastro.");
     if (categorias.some(c => !categoriasAtuais.some(a => a.id === c && (a.ativo || antes?.categorias.some(v => v.categoriaId === c))))) throw new ErroCadastroVenda("Escolha categorias ativas existentes.");
     const gruposAtuais = await tx.grupoComplementoVenda.findMany({ where: { id: { in: grupos.map(g => g.grupoId) } }, include: { opcoes: true } });
     if (grupos.some(g => !gruposAtuais.some(a => a.id === g.grupoId && (a.ativo || antes?.grupos.some(v => v.grupoId === g.grupoId))))) throw new ErroCadastroVenda("Escolha grupos ativos existentes.");

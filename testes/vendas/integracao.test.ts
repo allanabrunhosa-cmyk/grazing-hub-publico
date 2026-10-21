@@ -1,3 +1,4 @@
+import { prepararDependenciaAtendimento } from "./dependencia-atendimento";
 import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
 import { beforeAll, afterAll, describe, it, expect, vi } from "vitest";
 import { config } from "dotenv";
@@ -73,12 +74,13 @@ describe.skipIf(process.env.VENDAS_BANCO_TESTE !== "1")("Vendas no PostgreSQL is
     if (!["localhost", "127.0.0.1"].includes(url.hostname)) throw new Error("Somente PostgreSQL local.");
     banco = new Client({ connectionString: url.toString() }); await banco.connect(); await banco.query(`CREATE SCHEMA "${esquema}"`); criado = true; await banco.query(`SET search_path TO "${esquema}"`);
     const pastas = (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a,b) => a.name.localeCompare(b.name));
-    for (const p of pastas) await banco.query(prepararSqlMigrationFiscal(p.name, await readFile(`prisma/migrations/${p.name}/migration.sql`, "utf8")));
+    for (const p of pastas) { const sql = await prepararDependenciaAtendimento(banco, p.name, await readFile(`prisma/migrations/${p.name}/migration.sql`, "utf8")); await banco.query(prepararSqlMigrationFiscal(p.name, sql)); }
     sim.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${esquema}` }, { schema: esquema }) });
     expect(await sim.prisma.$queryRaw`SELECT current_schema() AS esquema`).toEqual([{ esquema }]);
   }, 90000);
   afterAll(async () => {
     await sim.prisma?.$disconnect(); if (!banco) return;
+    await banco.query("ROLLBACK");
     if (criado && /^teste_vendas_[a-f0-9]{32}$/.test(esquema)) await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);
     await banco.end();
   });
@@ -250,9 +252,9 @@ describe.skipIf(process.env.VENDAS_BANCO_TESTE !== "1")("Vendas no PostgreSQL is
     const categoriaGrupo = await salvarCategoriaGrupo({id:"",versao:0,nome:"Família de grupos",ativo:true},autor);
     const dadosGrupo = await sim.prisma.grupoComplementoVenda.findUniqueOrThrow({where:{id:outroGrupo},include:{opcoes:true}});
     await salvarGrupo({ ...dadosGrupo, categoriaId: categoriaGrupo, opcoes: dadosGrupo.opcoes.map(o => ({...o,preco:o.preco.toString(),quantidade:o.quantidade.toString()})) },autor);
-    await salvarProduto({ ...produto, id, versao:1, nome:"Produto de múltiplos papéis", classificacoes:["PRINCIPAL","OPCAO","COMPLEMENTO"], grupos:[{grupoId:outroGrupo,usarPadrao:false,minimo:0,maximo:null}] },autor);
+    await salvarProduto({ ...produto, id, versao:1, nome:"Produto também disponível em grupos", classificacoes:["PRINCIPAL"], grupos:[{grupoId:outroGrupo,usarPadrao:false,minimo:0,maximo:null}] },autor);
     const papeis = await sim.prisma.produtoVenda.findUniqueOrThrow({where:{id}});
-    expect(papeis.classificacoes).toEqual(["PRINCIPAL","OPCAO","COMPLEMENTO"]);
+    expect(papeis.classificacoes).toEqual(["PRINCIPAL"]);
     expect((await sim.prisma.grupoComplementoVenda.findUniqueOrThrow({where:{id:outroGrupo}})).categoriaId).toBe(categoriaGrupo);
     await alterarPrecoProduto(id,2,"159",autor);
     expect((await sim.prisma.produtoVenda.findUniqueOrThrow({where:{id}})).preco.toString()).toBe("159");
