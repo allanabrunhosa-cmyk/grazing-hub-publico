@@ -260,6 +260,24 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
     expect(envios[1].Pagamentos).toMatchObject([{ FormaPagamento: "03" }]);
     expect(await efeitos()).toEqual({ financeiro: 0, estoque: 0, recebidas: 0 });
   }, 15000);
+  it.each([600, 777, 383, 232])("novo clique consulta rejeição %s e permite trocar NF-e por NFC-e sem reenvio incerto", async codigo => {
+    const numeroRejeitada = String(codigo + 100), numeroNova = String(codigo + 200);
+    const p = await pedido(); await s.prisma.pedidoVenda.update({ where: { id: p.id }, data: { canalNomeSnapshot: "Site" } });
+    s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response({ contrato: "resposta sintética inválida" }));
+    const tentativa = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 55 }, sessao);
+    expect(tentativa.documento?.status).toBe("PENDENTE_CONFERENCIA");
+    const original = await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: tentativa.documento!.id } });
+    s.http.mockResolvedValueOnce(response({ status: 1, Encontrada: true, Historico: [], erros: [], avisos: [], Nota: {
+      ModeloDocumento: 55, IdentificadorInterno: original.id, CodTipoAmbiente: 1, Status: 3, Emitida: false, CodStatusResposta: codigo,
+      Chave: retornoDireto(55, numeroRejeitada).ReturnNF.ChaveNF, Numero: numeroRejeitada, Serie: "6", NumeroProtocolo: null, DsStatusResposta: "SEGREDO-EXTERNO-SINTETICO",
+    } })).mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response(retornoDireto(65, numeroNova)));
+    const nova = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 65 }, sessao);
+    expect(nova).toMatchObject({ ok: true, documento: { status: "AUTORIZADO", modeloDocumento: 65 } });
+    const antiga = await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: original.id } });
+    expect(antiga).toMatchObject({ status: "REJEITADO", protocolo: null, ultimoErro: expect.stringContaining(`SEFAZ ${codigo}`) });
+    expect(antiga.payload).toEqual(original.payload); expect(JSON.stringify(antiga)).not.toContain("SEGREDO-EXTERNO");
+    expect(nova.documento!.id).not.toBe(original.id); expect(await efeitos()).toEqual({ financeiro: 0, estoque: 0, recebidas: 0 });
+  }, 15000);
   it("HTTP403 mostra o motivo seguro e preserva a tentativa incerta sem novo POST", async () => {
     const p = await pedido(), httpAntes = s.http.mock.calls.length;
     s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(new Response("Token=SEGREDO_SINTETICO_NAO_PUBLICAR", { status: 403 }));

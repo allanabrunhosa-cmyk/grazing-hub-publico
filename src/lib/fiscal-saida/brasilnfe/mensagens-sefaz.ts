@@ -22,6 +22,7 @@ const emissao: Record<number, string> = {
   464: "Hash do QR-Code diferente do calculado pela SEFAZ. Confira o CSC e a configuração da NFC-e no emissor.",
   539: "Duplicidade de nota fiscal com diferença na chave de acesso. Consulte a nota já registrada na SEFAZ antes de qualquer novo envio.",
   591: "CSOSN incompatível com o regime tributário do emitente. Confira o regime da empresa e o ICMS do produto.",
+  600: "CSOSN do produto incompatível com destinatário não contribuinte na NF-e. Confira o CSOSN na regra de ICMS dos itens indicados. Corrija o cadastro antes de tentar novamente.",
   611: "Código de barras do produto inválido. Confira o cadastro do item.",
   725: "CFOP inválido para NFC-e. Revise a regra fiscal ou o modelo da nota.",
   777: "NCM completo do produto não informado. Complete a classificação fiscal do item.",
