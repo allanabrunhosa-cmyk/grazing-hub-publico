@@ -129,6 +129,13 @@ tipada de `EditorVenda`; os demais consumidores conservam a variante atual.
 `SelecaoFormulario` e `Input` com restrição de dígitos compõem o GTIN. Alternar
 ausência/código conserva o valor digitado; nova versão preserva os dados históricos.
 
+Nos formulários fiscais de produtos e grupos, os campos omitem notas de catálogo,
+contagens, fontes normativas e orientações estáticas abaixo dos controles, conforme
+pedido de 21/10/2026. Os seletores mantêm código e descrição nas opções. Erros de
+consulta, avisos de vigência/contexto e regime não confirmado continuam visíveis.
+O seletor compartilhado conserva as descrições por padrão nos demais consumidores.
+Nenhum parâmetro fiscal ou contrato de salvamento muda com essa simplificação.
+
 Capturas adicionais inspecionadas: [390 claro](evidencias/classificacao-gtin-390-light.png),
 [390 escuro](evidencias/classificacao-gtin-390-dark.png),
 [1440 claro](evidencias/classificacao-gtin-1440-light.png) e
