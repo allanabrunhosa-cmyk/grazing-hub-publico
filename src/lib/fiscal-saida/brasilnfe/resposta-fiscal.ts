@@ -9,7 +9,7 @@ import { mensagemRejeicaoXmlNfe } from "./texto-xml";
 /** Códigos deste endpoint que comprovam rejeição de validação, sem autorização.
  * A lista curta é deliberada: duplicidade, indisponibilidade e código desconhecido
  * exigem conferência; código SEFAZ não é status do envelope de outro endpoint. */
-const rejeicoesComprovadas = new Set([215, 225, 386, 725, 787]);
+const rejeicoesComprovadas = new Set([209, 215, 225, 229, 230, 231, 232, 233, 234, 237, 383, 386, 462, 463, 464, 591, 600, 611, 725, 777, 778, 787, 788, 789, 796]);
 // Exclusivo da recuperação: NT 2026.007 v1.10, RV 12E02-10/cStat 181.
 // Não altera a aceitação do envelope nem presume rejeição para código desconhecido.
 const rejeicoesConsultaComprovadas = new Set([181, ...rejeicoesComprovadas]);

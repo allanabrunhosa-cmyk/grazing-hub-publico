@@ -1,4 +1,5 @@
 import "server-only";
+import { pendenciaCsosnNaoContribuinte } from "@/lib/fiscal-saida/brasilnfe/csosn-nao-contribuinte";
 import { apresentacaoCanalVenda } from "@/lib/vendas/canais-apresentacao";
 import { descricaoProdutoNfe } from "@/lib/fiscal-saida/brasilnfe/texto-xml";
 import { identidadeFiscalCobranca } from "@/lib/vendas/cliente-cobranca";
@@ -152,6 +153,11 @@ async function calcularPreviaPedidoBase(tx: Prisma.TransactionClient, p: PedidoF
     try { documentoCalculado = aplicarLayoutRtc(documento, rtc2027); }
     catch (erro) { pendencia(erro instanceof Error ? erro.message : "Mapeamento RTC incompatível com o documento."); rtc2027 = undefined; }
   }
+  documentoCalculado.Produtos.forEach((produto, indice) => {
+    const motivo = pendenciaCsosnNaoContribuinte({ modelo: documentoCalculado.ModeloDocumento, crt: perfil?.crt, finalidade: documentoCalculado.Finalidade,
+      indicadorIe: documentoCalculado.Cliente?.IndicadorIe, cfop: produto.CFOP, csosn: produto.Imposto.ICMS.CodSituacaoTributaria, indice, nome: produto.NmProduto });
+    if (motivo) pendencia(motivo);
+  });
   // Acrescenta a posição comercial sem alterar o nome fotografado ou a linha fiscal.
   previa.pendencias = previa.pendencias.map(mensagem => {
     const indices = itens.flatMap((item, n) => mensagem.startsWith(`${item.nome}:`) || mensagem.startsWith(`${item.nome} /`) ? [n + 1] : []);

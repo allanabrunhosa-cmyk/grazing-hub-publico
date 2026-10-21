@@ -130,3 +130,22 @@ test("incerteza preserva modelo/botão e rejeição consultada permite nova tent
   await fiscal.getByRole("button", { name: "Emitir NF-e", exact: true }).click();
   await expect(page.getByText("Nota fiscal emitida com sucesso.", { exact: true })).toBeVisible();
 });
+
+test("CSOSN aponta item e campo, mantém tentativa e permite selecionar NFC-e", async ({ page }, info) => {
+  await page.route("**/*", rota => new URL(rota.request().url()).origin === origem ? rota.continue() : rota.abort());
+  await page.goto(`/pedido-detalhe.html?fiscal=csosn&tema=${info.project.metadata.tema}`);
+  const fiscal = page.getByRole("region", { name: "Nota fiscal", exact: true });
+  const seletor = fiscal.getByRole("combobox", { name: "Modelo da nota", exact: true });
+  await seletor.press("Enter"); await page.getByRole("option", { name: "NF-e (55)", exact: true }).click();
+  await fiscal.getByRole("button", { name: "Emitir NF-e", exact: true }).click();
+  await expect(fiscal.getByRole("alert")).toContainText("Item fiscal 3 — Caixa Grazing média / produto de exemplo: CSOSN 900");
+  await expect(fiscal.getByRole("alert")).toContainText("SEFAZ 600");
+  await expect(fiscal.getByRole("button", { name: "Emitir NF-e", exact: true })).toBeEnabled();
+  await fiscal.scrollIntoViewIfNeeded(); await mkdir(evidencia, { recursive: true });
+  await page.screenshot({ path: resolve(evidencia, `${info.project.name}-csosn.png`), fullPage: true });
+  const fonte = (await readFile(resolve(raiz, "scripts/auditar-interface.mjs"), "utf8")).replace(/^[\s\S]*?(export function auditarInterface)/, "function auditarInterface");
+  expect((await page.evaluate(f => (0, eval)(`(${f})(document)`), fonte)).problemas).toEqual([]);
+  await seletor.press("Enter"); await page.getByRole("option", { name: "NFC-e (65)", exact: true }).click();
+  await fiscal.getByRole("button", { name: "Emitir NFC-e", exact: true }).click();
+  await expect(page.getByText("Nota fiscal emitida com sucesso.", { exact: true })).toBeVisible();
+});

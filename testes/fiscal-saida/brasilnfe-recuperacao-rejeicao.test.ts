@@ -16,7 +16,7 @@ describe("Recuperação de rejeição única com identidade fiscal comprovada", 
     expect(r.retorno).not.toHaveProperty("protocolo"); expect(r.retorno.erro).toContain("reenvio automático permanece bloqueado");
     expect(recuperar(rejeitada(), [], status).retorno.eventoId).toBe(r.retorno.eventoId);
   });
-  it.each([215, 225, 386, 725, 787])("aceita rejeição %s da lista restrita em uma única tentativa", codigo => {
+  it.each([209, 215, 225, 229, 230, 231, 232, 233, 234, 237, 383, 386, 462, 463, 464, 591, 600, 611, 725, 777, 778, 787, 788, 789, 796])("aceita rejeição %s da lista restrita em uma única tentativa", codigo => {
     expect(recuperar(rejeitada(codigo)).retorno.status).toBe("REJEITADO");
   });
   it.each([182, 204, 539, 105, 108, 999])("código não incluído %s exige conferência", codigo => {
@@ -29,6 +29,11 @@ describe("Recuperação de rejeição única com identidade fiscal comprovada", 
   });
   it("rejeição recuperada conserva motivo do CFOP da NFC-e", () => {
     expect(recuperar(rejeitada(725)).retorno).toMatchObject({ status: "REJEITADO", erro: expect.stringContaining("CFOP inválido para NFC-e") });
+  });
+  it("600 com histórico divergente mantém conferência; código sozinho não basta", () => {
+    expect(recuperar(rejeitada(600), [{ ...rejeitada(600), Chave: chaveFicticia(55, "000000124"), Numero: "124" }]).retorno.status).toBe("PENDENTE_CONFERENCIA");
+    expect(recuperar({ ...rejeitada(600), Chave: null }).retorno.status).toBe("PENDENTE_CONFERENCIA");
+    expect(() => recuperar({ ...rejeitada(600), NumeroProtocolo: "123456789" })).toThrow();
   });
   it("sem prova do emitente não presume rejeição comprovada", () => {
     const r = recuperar({ ...rejeitada(), Chave: null }); expect(r.retorno.status).toBe("PENDENTE_CONFERENCIA"); expect(r.evidencia.permiteReenvio).toBe(false);

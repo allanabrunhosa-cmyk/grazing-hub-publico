@@ -433,3 +433,21 @@ não são substituídas por valores fixos ou por dados de testes.
 
 Evidências fictícias e validações desta alteração:
 [canal Site e novas tentativas](evidencias/fiscal-site-retentativa-20261021/README.md).
+
+### Complemento: rejeição 600 e CSOSN por item
+
+O código 600 passa a ter tradução local e a integrar a lista restrita de rejeições
+comprovadas. Na consulta, exige nota única, identidade comprovada, situação de
+rejeição, ausência de autorização/protocolo e histórico sem divergência. O código
+isolado não libera reenvio. O próximo clique pode consultar a rejeição e preparar
+outra revisão no modelo escolhido, preservando a identidade e o snapshot anteriores.
+
+A mesma lista abrange as rejeições de validação já traduzidas para cadastro, NCM,
+GTIN e CSC. Códigos desconhecidos, duplicidade e denegação não são liberados por
+essa lista. As guardas de protocolo, histórico e identidade permanecem obrigatórias.
+
+`brasilnfe/csosn-nao-contribuinte.ts` verifica a venda normal NF-e/CRT1 para
+destinatário não contribuinte. A prévia e o validador final compartilham a guarda.
+O erro indica item fiscal, produto e CSOSN. Não troca códigos nem altera regras
+aprovadas. NFC-e conserva suas validações próprias e as exceções existentes.
+Fonte: [MOC 7, N12a-70, página 108](https://www.confaz.fazenda.gov.br/legislacao/arquivo-manuais/moc7-anexo-i-leiaute-e-rv.pdf).

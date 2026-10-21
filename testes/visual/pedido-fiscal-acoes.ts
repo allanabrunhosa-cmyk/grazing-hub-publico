@@ -25,6 +25,11 @@ export async function cancelarNotaPedidoBrasilNfeAction() { return { erro: "Canc
 
 export async function emitirNotaPedidoDiretaBrasilNfeAction(entrada: { modelo: 55 | 65; versaoPedido: number; indicadorPresenca?: number; pagamentoCartaoNaoIntegrado?: true }) {
   const estado = new URLSearchParams(location.search).get("fiscal");
+  if (estado === "csosn" && entrada.modelo === 55) return {
+    erro: "A nota não foi emitida. Corrija os pontos indicados.", documento: null, conferirAntesDeRepetir: false,
+    exigeEscolhaPresenca: false, exigeEscolhaCartao: false,
+    pendencias: [{ campo: "tributacao", mensagem: "Item fiscal 3 — Caixa Grazing média / produto de exemplo: CSOSN 900 incompatível com destinatário não contribuinte na NF-e (SEFAZ 600). Corrija o CSOSN na regra de ICMS deste produto e tente novamente.", href: "/financeiro/fiscal/cobertura" }],
+  };
   if (estado === "rede") throw new Error("Falha exclusivamente sintética de conexão.");
   if (estado === "erro" || estado === "presenca" && !entrada.indicadorPresenca) return {
     erro: "A nota não foi emitida. Corrija os pontos indicados.", documento: null, conferirAntesDeRepetir: false,
