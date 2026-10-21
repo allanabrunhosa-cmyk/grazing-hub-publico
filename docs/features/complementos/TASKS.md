@@ -56,6 +56,12 @@ consulta fiscal legada preservada, inventário de permissões, GTIN e arquivos.
 Não declarar a suíte global original como aprovada nem como execução da revisão
 pública conciliada.
 
+Revisão da migration antes da aplicação produtiva: categorias compartilhadas
+também recebem incremento de revisão. O teste cobre a recusa de um formulário
+antigo que tentaria renomear a categoria do site após a separação. As 28
+integrações passaram novamente com essa asserção; ESLint e diff aprovados.
+O CI desse ajuste deve passar antes da publicação.
+
 > Exportação pública: dados cadastrais, identificadores de registros e valores comerciais alterados neste documento são exemplos sintéticos. Os registros operacionais originais permanecem privados; esta versão não concede aprovação fiscal ou operacional.
 
 - [x] Banco, validação e persistência; migration isolada e conflitos.

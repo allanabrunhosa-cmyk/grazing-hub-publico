@@ -48,6 +48,8 @@ describe.skipIf(process.env.VENDAS_BANCO_TESTE !== "1")("categorias e complement
   it("migra categorias por classificação e preserva nomes, ordem e produtos", async () => {
     const categorias = await sim.prisma.categoriaVenda.findMany({ where: { nome: "Categoria sintética compartilhada" }, orderBy: { escopo: "asc" } });
     expect(categorias.map(c => [c.escopo,c.ordem,c.ativo])).toEqual([["COMPLEMENTO",7,false],["PRODUTO",7,false]]);
+    expect(categorias.map(c => c.versao)).toEqual([1,2]);
+    await expect(salvarCategoria({ id: "cat-antiga", versao: 1, nome: "Nome antigo enviado por formulário", ativo: false, escopo: "PRODUTO" }, autor)).rejects.toThrow("outra tela");
     for (const id of ["antigo-complemento", "antiga-opcao"]) {
       const p = await sim.prisma.produtoVenda.findUniqueOrThrow({ where: { id }, include: { categorias: true } });
       expect(p.versao).toBe(2); expect(p.categorias[0].categoriaId).toBe(categorias[0].id);

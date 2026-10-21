@@ -11,7 +11,8 @@
   tem cor e aparece em coluna própria como tag. Categoria de Grupo organiza somente grupos.
 - `CategoriaVenda.escopo/cor` separam as duas primeiras finalidades. A migration manual
   `20261021210000_categorias_complementos` duplica categorias utilizadas por complementos,
-  transfere somente esses vínculos e incrementa suas revisões. Preserva nomes, ordem,
+  transfere somente esses vínculos e incrementa as revisões dos produtos e das categorias
+  compartilhadas. Formulários anteriores à separação são recusados. Preserva nomes, ordem,
   atividade, identidades de produtos/grupos, composição e pedidos históricos. Nome é
   único por escopo. Backup íntegro precede a aplicação produtiva.
 - Grupos selecionam produtos e complementos cadastrados. Novas escolhas herdam preço e

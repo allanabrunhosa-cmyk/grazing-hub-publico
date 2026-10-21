@@ -22,6 +22,12 @@ WHERE EXISTS (
 );
 UPDATE "ProdutoCategoriaVenda" pc SET "categoriaId" = 'catcmp_' || md5(pc."categoriaId")
 FROM "ProdutoVenda" p WHERE p."id" = pc."produtoId" AND NOT ('PRINCIPAL' = ANY(p."classificacoes"));
+-- Recusa editores antigos da categoria compartilhada, agora separada por finalidade.
+UPDATE "CategoriaVenda" c SET "versao" = c."versao" + 1
+WHERE c."escopo" = 'PRODUTO' AND EXISTS (
+  SELECT 1 FROM "CategoriaVenda" interna
+  WHERE interna."escopo" = 'COMPLEMENTO' AND interna."id" = 'catcmp_' || md5(c."id")
+);
 -- Recusa formulários abertos antes da troca de identidades de categorias.
 UPDATE "ProdutoVenda" p SET "versao" = p."versao" + 1
 WHERE EXISTS (SELECT 1 FROM "ProdutoCategoriaVenda" pc JOIN "CategoriaVenda" c ON c."id" = pc."categoriaId"
