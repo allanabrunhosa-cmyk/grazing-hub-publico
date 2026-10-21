@@ -12,15 +12,15 @@ o diff funcional revisado foi portado; nenhum objeto Git privado foi importado.
 - [x] Preparar migration manual com transferência de categorias e revisão de cadastros.
 - [x] Revalidar o conjunto na base pública e registrar os resultados abaixo.
 - [x] Publicar a branch e abrir PR de continuação.
-- [ ] Integrar após a transição da origem e concluir o ritual de publicação.
+- [x] Integrar após a transição da origem e concluir o ritual de publicação.
 
-Estado: [PR pública #4](https://github.com/allanabrunhosa-cmyk/grazing-hub-publico/pull/4),
-sem publicação produtiva. O usuário autorizou publicar ao final. A transição
-do repositório exige aguardar a primeira publicação da origem pública antes de
-integrar esta continuação ou acionar novo deploy. Backup íntegro e conferência
-das migrations continuam obrigatórios antes da aplicação produtiva.
+Estado: publicado pela [PR pública #4](https://github.com/allanabrunhosa-cmyk/grazing-hub-publico/pull/4).
+A transição foi concluída antes da integração. O usuário autorizou o envio
+público e o acesso operacional para backup e deploy. A revisão publicada é
+`1d17f54d77741db55ea8801f935c705d4ddfc40b`. Backup privado íntegro, migrations
+atualizadas e interface autenticada conferidos.
 
-As evidências abaixo desta seção pertencem às implantações anteriores.
+As seções após a publicação desta organização preservam registros de implantações anteriores.
 
 Validação da continuação pública, Node 22: Prisma generate/validate aprovados;
 28 integrações de Vendas aprovadas em dois arquivos. Três cenários de Pedidos
@@ -47,7 +47,7 @@ aprovados. O grupo passou novamente nos 12 contextos visuais, com capturas
 separadas das 24 anteriores. ESLint e lint:design aprovados: oito bases/422
 consumidores; qualidade visual com zero desvios novos. Build webpack/Node 22
 aprovado, incluindo TypeScript e 106 páginas. Avisos legados de middleware e
-APIs Edge da dependência jose permanecem. CI da PR em andamento.
+APIs Edge da dependência jose permanecem. O CI da revisão final passou.
 
 A regressão global anterior à portabilidade não foi integralmente verde:
 507 arquivos/6.546 testes passaram, 66 arquivos/1.047 testes foram ignorados e
@@ -60,13 +60,47 @@ Revisão da migration antes da aplicação produtiva: categorias compartilhadas
 também recebem incremento de revisão. O teste cobre a recusa de um formulário
 antigo que tentaria renomear a categoria do site após a separação. As 28
 integrações passaram novamente com essa asserção; ESLint e diff aprovados.
-O CI desse ajuste deve passar antes da publicação.
+O ajuste foi abrangido pelo CI da revisão final antes da publicação.
 
 Conciliação com `94d72d2a107f4b2c4deadca595eed40e328e1db8` (PR fiscal #3),
 sem conflitos nem alteração da SQL de Complementos: 141 testes aprovados em
 oito arquivos, cobrindo composição/disponibilidade e os consumidores fiscais
 de Pedidos. O plano anterior apontou somente a migration de Complementos.
-A publicação exige conferir novamente a imagem e o backup após o avanço fiscal.
+A imagem, o plano e o backup foram conferidos novamente após o avanço fiscal.
+
+### Publicação da organização — 21/10/2026
+
+Revisão funcional `d0d8b908ddc00ba9544e923476de9da5af5a93c7`, integrada em
+`1d17f54d77741db55ea8801f935c705d4ddfc40b`. Os três checks do CI passaram na
+revisão funcional: Design System, compilação pública e contratos de interface.
+O build oficial Docker/Node 22 passou, incluindo tipos e 106 páginas.
+
+O backup foi renovado após a publicação fiscal da PR #3. Catálogo, checksum e
+leitura integral foram verificados antes da integração. A imagem e a configuração
+anteriores foram preservadas. O plano aprovado continha somente a migration
+`20261021210000_categorias_complementos`. Após o deploy, o planejador não apontou
+pendências e Prisma migrate status confirmou o histórico atualizado.
+
+A tarefa nova permaneceu Running por 140 segundos, sem reinícios. Variáveis,
+mounts e configuração fiscal foram preservados. O auxiliar oficial reconferiu a
+configuração sem restaurar banco nem consultar serviços fiscais. Os comprovantes
+e identificadores da execução permanecem privados, fora do Git.
+
+HTTPS: login 200; Complementos, Produtos e Pedidos 307 para login sem sessão.
+A rota fiscal legada respondeu 308 para `/financeiro/fiscal/grupos`, que respondeu
+307 para login. A expectativa inicial de 307 direto nessa rota foi corrigida na
+conferência; o fluxo existente foi preservado.
+
+Na UI autenticada, foram conferidos: coluna Categoria em Complementos; apenas
+Produto e Complemento no seletor; composição padrão; Disponibilidade nos três
+editores; indicação de composição específica por produto; categoria própria e
+seletor de Produtos/Complementos no grupo; venda avulsa e categorias do site no
+produto. Os editores foram fechados sem salvar. Nenhum dado real foi usado para
+teste de gravação. Referências visuais continuam Em revisão.
+
+Este registro pós-deploy segue somente para a branch de trabalho. Não gera
+outro deploy documental. Ambientes sintéticos foram encerrados; cópias, bancos,
+logs privados e dependências compartilhadas foram preservados.
 
 > Exportação pública: dados cadastrais, identificadores de registros e valores comerciais alterados neste documento são exemplos sintéticos. Os registros operacionais originais permanecem privados; esta versão não concede aprovação fiscal ou operacional.
 
