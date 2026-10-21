@@ -50,6 +50,7 @@ function Hora({ nome, valor, alterar, contexto }: { nome: string; valor: string;
 const colunasHorario = "grid grid-cols-[2.25rem_5rem_5rem_2.25rem] items-center gap-x-2 gap-y-2 lg:grid-cols-[2.25rem_10.25rem_10.25rem_minmax(10rem,1fr)_2.25rem]";
 function ListaHorarios({ horarios, alterar, contexto, disabled }: { horarios: FaixaRascunho[]; alterar: (h: FaixaRascunho[]) => void; contexto: string; disabled: boolean }) {
   return <div className="min-w-0 space-y-3">
+    <Button type="button" variant="outline" disabled={horarios.length >= 100} onClick={() => alterar([novoHorario(), ...horarios])}><Plus className="size-4" />Adicionar horário</Button>
     {!!horarios.length && <div className="overflow-x-auto"><div className="lg:min-w-[40rem]">
       <div className={`${colunasHorario} mb-2 text-sm font-medium`} aria-hidden="true"><span /><span>Início</span><span>Término</span><span className="hidden lg:block">Horário em texto (opcional)</span></div>
       <ListaOrdenavel itens={horarios} chave={h => h.chaveLocal} nome={h => `${h.texto || (h.inicio ? `${h.inicio}–${h.fim}` : "horário")} de ${contexto}`} mudar={alterar} disabled={disabled}>
@@ -63,7 +64,7 @@ function ListaHorarios({ horarios, alterar, contexto, disabled }: { horarios: Fa
       </ListaOrdenavel>
     </div></div>}
     {!horarios.length && <p className="text-sm text-muted-foreground">Nenhum horário adicionado.</p>}
-    <Button type="button" variant="outline" disabled={horarios.length >= 100} onClick={() => alterar([...horarios, novoHorario()])}><Plus className="size-4" />Adicionar horário</Button>
+
   </div>;
 }
 
@@ -90,7 +91,7 @@ export function HorariosEntregaForm({ inicial, editar, salvar }: { inicial: Dado
   function adicionarData(data: string, especial: boolean) {
     if (!data) return;
     if (d.desativadas.includes(data) || d.especiais.some(e => e.data === data)) { setErro("Esta data já está cadastrada. Remova a exceção anterior para mudar seu tipo."); return; }
-    if (especial) { mudar({ ...d, especiais: [...d.especiais, { data, horarios: [novoHorario()] }] }); setDataEspecial(""); }
+    if (especial) { mudar({ ...d, especiais: [{ data, horarios: [novoHorario()] }, ...d.especiais] }); setDataEspecial(""); }
     else { mudar({ ...d, desativadas: [...d.desativadas, data].sort() }); setDataDesativada(""); }
   }
   async function confirmar() {

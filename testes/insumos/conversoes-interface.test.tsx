@@ -30,3 +30,16 @@ it("mostra equivalência sem converter novamente o valor salvo da contagem", asy
   fireEvent.keyDown(campo, { key: "Enter" });
   await waitFor(() => expect(simulados.salvar).toHaveBeenCalledWith("acucar", 20));
 });
+
+it("insere conversões antes das preenchidas e preserva seu payload", () => {
+  const { container } = render(<form><ConversoesCampos unidadePrincipal="KG" conversoes={[{ unidade: "FD", fator: 10 }]} desabilitado={false} /></form>);
+  const adicionar = screen.getByRole("button", { name: "Adicionar conversão" });
+  fireEvent.click(adicionar);
+  expect(screen.getByLabelText("Fator da conversão 1")).toHaveProperty("value", "");
+  expect(screen.getByLabelText("Fator da conversão 2")).toHaveProperty("value", "10");
+  fireEvent.change(screen.getByLabelText("Fator da conversão 1"), { target: { value: "5" } });
+  fireEvent.click(adicionar);
+  const valores = JSON.parse(new FormData(container.querySelector("form")!).get("conversoes") as string);
+  expect(valores.map((l: { fator: string }) => l.fator)).toEqual(["", "5", "10"]);
+  expect(adicionar.compareDocumentPosition(screen.getByLabelText("Fator da conversão 1")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});

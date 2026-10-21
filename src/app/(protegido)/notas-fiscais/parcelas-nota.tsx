@@ -25,7 +25,7 @@ export function ParcelasNota({ parcelas, cartoes, dataEmissao, bloqueado, mostra
     }));
   }
   return <div className="space-y-3 rounded-lg border p-3">
-    <div className="flex items-center justify-between gap-2"><Label>Parcelas (duplicatas)</Label><Button type="button" data-dialogo-altera size="sm" variant="outline" disabled={bloqueado} onClick={() => onChange([...parcelas, { numero: String(parcelas.length + 1).padStart(3, "0"), valor: "", dataVencimento: "", formaPagamento: "BOLETO" }])}><Plus className="size-3.5" />Nova parcela</Button></div>
+    <div className="flex items-center justify-between gap-2"><Label>Parcelas (duplicatas)</Label><Button type="button" data-dialogo-altera size="sm" variant="outline" disabled={bloqueado} onClick={() => onChange([{ numero: String(parcelas.length + 1).padStart(3, "0"), valor: "", dataVencimento: "", formaPagamento: "BOLETO" }, ...parcelas])}><Plus className="size-3.5" />Nova parcela</Button></div>
     {!parcelas.length && <p className={mostrarErros ? "rounded-md border border-destructive bg-destructive/10 p-2 text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>Nenhuma parcela — adicione ao menos uma.</p>}
     {parcelas.map((p, i) => {
       const numeroInvalido = !!mostrarErros && !p.numero.trim();

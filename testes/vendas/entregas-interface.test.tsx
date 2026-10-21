@@ -14,6 +14,7 @@ vi.mock("@/app/(protegido)/vendas/pedidos/cadastro-cliente-actions",()=>({ busca
 import { EntregasForm } from "@/app/(protegido)/vendas/area-entrega/entregas-form";
 import { FretePedido } from "@/app/(protegido)/vendas/pedidos/frete-pedido";
 import { CustoEntrega } from "@/app/(protegido)/vendas/pedidos/custo-entrega";
+import { VeiculosEntregaEditor } from "@/components/entregas/veiculos-editor";
 import { entregasVazias } from "@/lib/vendas/entregas-dominio";
 import type { PedidoEntrada } from "@/lib/vendas/pedidos-dominio";
 const inicial={config:entregasVazias(),versao:0,origemLoja:"",mapasProntos:false,pendencias:["Integração Google Maps pendente"]};
@@ -25,6 +26,26 @@ describe("Interface oficial de Entregas",()=>{
   const selecao={id:"c",nome:"Carro antigo",perfil:"CARRO"as const,regraId:null,embalagens:[],...(novo?{modelo:"SLOTS"as const,escolha:"SLOTS"as const,slotsOcupados:4}:{escolha:"OPERADOR"as const})};
   render(<FretePedido dados={d} alterar={vi.fn()} manual={false} aprovarCobertura={false} configuracaoExistente veiculos={veiculos} slotsOcupados={99} snapshot={{selecaoVeiculo:selecao,freteCobrado:"24.00"}} />);
   expect(screen.getByText("Carro antigo · registrado")).toBeTruthy();expect(screen.getByText(novo?"4 slots ocupados.":"Veículo registrado no pedido.")).toBeTruthy();expect(screen.queryByText(/99 slots/)).toBeNull();
+ });
+ it("inclui veículos no topo e preserva nome, identidade e frete dos anteriores",()=>{
+  const config={...entregasVazias(),veiculos:[{id:"van",nome:"Van anterior",perfil:"CARRO"as const,ativo:false,slotsMinimos:4,slotsMaximos:20}],faixas:[{id:"faixa",limiteMetros:1000,preco:"0",precos:{van:"22.00"}}]};
+  const alterar=vi.fn();
+  function Teste(){const [d,setD]=React.useState<ReturnType<typeof entregasVazias>>(config);return <VeiculosEntregaEditor config={d} disabled={false} alterar={v=>{alterar(v);setD(v);}}/>;}
+  render(<Teste/>);const adicionar=screen.getByRole("button",{name:"Adicionar veículo"});fireEvent.click(adicionar);
+  expect(screen.getByLabelText("Nome do veículo 1")).toHaveProperty("value","");
+  expect(screen.getByLabelText("Nome do veículo 2")).toHaveProperty("value","Van anterior");
+  fireEvent.change(screen.getByLabelText("Nome do veículo 1"),{target:{value:"Moto nova"}});fireEvent.click(adicionar);
+  expect(screen.getByLabelText("Nome do veículo 1")).toHaveProperty("value","");expect(screen.getByLabelText("Nome do veículo 2")).toHaveProperty("value","Moto nova");
+  const ultimo=alterar.mock.calls.at(-1)![0];expect(ultimo.veiculos[2]).toEqual(config.veiculos[0]);expect(ultimo.faixas).toEqual(config.faixas);
+  expect(adicionar.compareDocumentPosition(screen.getByLabelText("Nome do veículo 1")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+ });
+ it("preenche a nova faixa no topo e envia limites crescentes sem trocar preços ou IDs",async()=>{
+  const config={...entregasVazias(),modelo:"SLOTS"as const,veiculos:[{id:"m",nome:"Moto",perfil:"MOTO"as const,ativo:true,slotsMinimos:0,slotsMaximos:3}],faixas:[{id:"a",limiteMetros:1000,preco:"0",precos:{m:"22.00"}}]};
+  render(<EntregasForm inicial={{...inicial,config}} editar/>);fireEvent.click(screen.getByRole("button",{name:"Adicionar faixa"}));
+  expect(screen.getByRole("textbox",{name:"Limite em km da faixa 2"})).toHaveProperty("value","1");
+  fireEvent.change(screen.getByRole("textbox",{name:"Limite em km da faixa 1"}),{target:{value:"2,5"}});expect(s.salvar).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button",{name:"Salvar Entregas"}));await waitFor(()=>expect(s.salvar).toHaveBeenCalled());
+  const faixas=s.salvar.mock.calls[0][0].faixas;expect(faixas.map((f:{limiteMetros:number})=>f.limiteMetros)).toEqual([1000,2500]);expect(faixas[0]).toEqual(config.faixas[0]);expect(faixas[1].id).not.toBe("a");
  });
  it("simulador pede somente endereço e veículo e preenche o CEP sem salvar",async()=>{
   s.cep.mockResolvedValue({endereco:{logradouro:"Rua sintética",bairro:"Centro",cidade:"São Paulo",uf:"SP"}});

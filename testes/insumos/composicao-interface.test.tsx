@@ -214,13 +214,14 @@ it("mantém os passos do modo de preparo numerados e reordenáveis", async () =>
   await usuario.click(screen.getByRole("textbox", { name: "Passo 1" }));
   await usuario.paste("Misture os ingredientes");
   await usuario.click(screen.getByRole("button", { name: "Adicionar passo" }));
-  await usuario.click(screen.getByRole("textbox", { name: "Passo 2" }));
+  expect(screen.getByRole("textbox", { name: "Passo 2" })).toHaveProperty("value", "Misture os ingredientes");
+  await usuario.click(screen.getByRole("textbox", { name: "Passo 1" }));
   await usuario.paste("Leve para gelar");
-  expect(new FormData(container.querySelector("form")!).get("modoPreparo")).toBe('["Misture os ingredientes","Leve para gelar"]');
+  expect(new FormData(container.querySelector("form")!).get("modoPreparo")).toBe('["Leve para gelar","Misture os ingredientes"]');
   expect(screen.queryByRole("button", { name: "Mover passo 2 para cima" })).toBeNull();
   screen.getByRole("button", { name: "Arrastar Passo 2" }).focus();
   await usuario.keyboard(" {ArrowUp}{Enter}");
-  expect((screen.getByRole("textbox", { name: "Passo 1" }) as HTMLTextAreaElement).value).toBe("Leve para gelar");
+  expect((screen.getByRole("textbox", { name: "Passo 1" }) as HTMLTextAreaElement).value).toBe("Misture os ingredientes");
   for (let indice = 3; indice <= 10; indice += 1) await usuario.click(screen.getByRole("button", { name: "Adicionar passo" }));
   expect(screen.getAllByRole("textbox", { name: /Passo \d+/ })).toHaveLength(10);
   expect((screen.getByRole("button", { name: "Adicionar passo" }) as HTMLButtonElement).disabled).toBe(true);

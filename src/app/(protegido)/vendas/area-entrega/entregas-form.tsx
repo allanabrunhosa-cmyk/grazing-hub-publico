@@ -48,7 +48,7 @@ export function EntregasForm({ inicial, editar }: { inicial: Inicial; editar: bo
     if (travaSalvar.current || consultandoOrigem) return;
     travaSalvar.current = true; setSalvando(true); setErro(""); setAviso("");
     try {
-      const config = { ...d, faixas: d.faixas.map(f => ({ ...f, limiteMetros: kmParaMetros(limites[f.id] ?? "") })) };
+      const config = { ...d, faixas: d.faixas.map(f => ({ ...f, limiteMetros: kmParaMetros(limites[f.id] ?? "") })).sort((a, b) => a.limiteMetros - b.limiteMetros) };
       const r = await salvarEntregasAction(config, base.versao);
       if ("erro" in r) setErro(r.erro);
       else {
@@ -97,7 +97,7 @@ export function EntregasForm({ inicial, editar }: { inicial: Inicial; editar: bo
               </TableRow>)}</TableBody>
             </Table>
             {!d.faixas.length && <p className="text-sm text-muted-foreground">Nenhuma faixa cadastrada. A última faixa define a cobertura.</p>}
-            <Button type="button" variant="outline" disabled={bloqueado || d.faixas.length >= 100} onClick={() => { const id = crypto.randomUUID(); campo("faixas", [...d.faixas, { id, limiteMetros: 0, preco: "0.00", precos: {} }]); setLimites(a => ({ ...a, [id]: "" })); }}>Adicionar faixa</Button>
+            <Button type="button" variant="outline" disabled={bloqueado || d.faixas.length >= 100} onClick={() => { const id = crypto.randomUUID(); campo("faixas", [{ id, limiteMetros: 0, preco: "0.00", precos: {} }, ...d.faixas]); setLimites(a => ({ ...a, [id]: "" })); }}>Adicionar faixa</Button>
           </section>
         </fieldset>
       </CardContent></Card></TabsContent>

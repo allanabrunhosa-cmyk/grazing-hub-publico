@@ -91,7 +91,6 @@ export function RecebimentoDialog({
 
   function adicionarItemExtra() {
     setLinhas((prev) => [
-      ...prev,
       {
         chave: novaChave(),
         pedidoItemId: null,
@@ -105,6 +104,7 @@ export function RecebimentoDialog({
         validade: "",
         qualidadeOk: true,
       },
+      ...prev,
     ]);
   }
 
@@ -150,7 +150,11 @@ export function RecebimentoDialog({
         <div className="space-y-3">
           {pedido.recebimentos.some(r => r.reabertoEm) && <p className="rounded-xl bg-warning-bg p-3 text-sm text-warning">Pedido reaberto: confira novamente as quantidades totais que chegaram. As conferências anteriores permanecem no histórico.</p>}
           <div className="space-y-2">
-            {linhas.map((linha) => (
+            {!pedido.usoConsumo && <Button type="button" data-dialogo-altera variant="outline" size="sm" className="gap-1.5" onClick={adicionarItemExtra} disabled={pending}>
+            <Plus className="size-4" />
+            Adicionar insumo (fora do pedido)
+          </Button>}
+    {linhas.map((linha) => (
               <div key={linha.chave} className="space-y-1.5 rounded-lg border p-2.5">
                 <div className="flex items-center justify-between gap-2">
                   {linha.pedidoItemId ? (
@@ -214,10 +218,7 @@ export function RecebimentoDialog({
             ))}
           </div>
 
-          {!pedido.usoConsumo && <Button type="button" data-dialogo-altera variant="outline" size="sm" className="gap-1.5" onClick={adicionarItemExtra} disabled={pending}>
-            <Plus className="size-4" />
-            Adicionar insumo (fora do pedido)
-          </Button>}
+
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

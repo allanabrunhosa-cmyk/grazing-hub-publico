@@ -401,7 +401,7 @@ export function EntradaAvulsaForm({
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <Label>Custos adicionais</Label>
-                <Button type="button" size="sm" variant="ghost" disabled={pending || custosAdicionais.length >= 20} onClick={() => setCustosAdicionais(atuais => [...atuais, { chave: chave("custo"), descricao: "", valor: "" }])}>
+                <Button type="button" size="sm" variant="ghost" disabled={pending || custosAdicionais.length >= 20} onClick={() => setCustosAdicionais(atuais => [{ chave: chave("custo"), descricao: "", valor: "" }, ...atuais])}>
                   <Plus className="size-4" /> Adicionar custo
                 </Button>
               </div>

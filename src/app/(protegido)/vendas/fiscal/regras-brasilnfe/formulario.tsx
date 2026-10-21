@@ -96,7 +96,7 @@ export function FormularioRegraBrasilNfe({ catalogos, historico, fechar }: { cat
               <CampoRegra nome="Indicador do pagamento"><SelecaoFormulario aria-label={`Indicador do pagamento ${indice + 1}`} required value={p.indicador} onValueChange={v => definirPagamentos(atuais => atuais.map((m, i) => i === indice ? { ...m, indicador: v } : m))}><option value="">Selecione</option><option value="0">À vista</option><option value="1">A prazo</option></SelecaoFormulario></CampoRegra>
               <CampoRegra nome="Descrição (obrigatória para código 99)"><Input aria-label={`Descrição do pagamento ${indice + 1}`} required={p.codigo === "99"} maxLength={60} value={p.descricao} onChange={e => definirPagamentos(atuais => atuais.map((m, i) => i === indice ? { ...m, descricao: e.target.value } : m))} /></CampoRegra>
             </div><GrupoAcoes><BotaoRemoverItem nome={`Remover correspondência de pagamento ${indice + 1}`} onClick={() => definirPagamentos(atuais => atuais.filter((_, i) => i !== indice))} /></GrupoAcoes></div>)}
-            <Button type="button" variant="outline" disabled={pagamentos.length >= 100 || !catalogos.formas.length} onClick={() => definirPagamentos(atuais => [...atuais, { formaId: "", codigo: "", indicador: "", descricao: "" }])}>Adicionar correspondência</Button>
+            <Button type="button" variant="outline" disabled={pagamentos.length >= 100 || !catalogos.formas.length} onClick={() => definirPagamentos(atuais => [{ formaId: "", codigo: "", indicador: "", descricao: "" }, ...atuais])}>Adicionar correspondência</Button>
           </section>
         </>}
         {["PRODUTO", "GRUPO"].includes(campos.alvo) && <>

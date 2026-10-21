@@ -20,7 +20,10 @@ export function ModoPreparoCampos({ passos, onChange, disabled }: {
     <div className="space-y-3">
       <input type="hidden" name="modoPreparo" value={JSON.stringify(passos)} />
       <p className="text-sm text-muted-foreground">Até {MAXIMO_PASSOS_PREPARO} passos, para que a ficha técnica caiba em uma página.</p>
-      {passos.length === 0 ? (
+      <Button type="button" variant="outline" size="sm" onClick={() => onChange(["", ...passos])} disabled={disabled || passos.length >= MAXIMO_PASSOS_PREPARO}>
+        <Plus /> Adicionar passo
+      </Button>
+    {passos.length === 0 ? (
         <p className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
           Nenhum passo cadastrado.
         </p>
@@ -50,9 +53,7 @@ export function ModoPreparoCampos({ passos, onChange, disabled }: {
           </ListaOrdenavel>
         </div>
       )}
-      <Button type="button" variant="outline" size="sm" onClick={() => onChange([...passos, ""])} disabled={disabled || passos.length >= MAXIMO_PASSOS_PREPARO}>
-        <Plus /> Adicionar passo
-      </Button>
+
     </div>
   );
 }
