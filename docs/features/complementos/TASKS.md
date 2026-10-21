@@ -2,7 +2,7 @@
 
 ## Organização — 21/10/2026
 
-Base pública: `6de2cb6950848a82ccc884c3ce3d48d6a2120212`. Continuação em
+Base pública inicial: `6de2cb6950848a82ccc884c3ce3d48d6a2120212`. Continuação em
 `codex/complementos-organizacao-20261021`, criada em clone independente. Apenas
 o diff funcional revisado foi portado; nenhum objeto Git privado foi importado.
 
@@ -31,6 +31,12 @@ Navegador: 24 contratos aprovados em 320/390/768/1440 px, temas claro/escuro e
 toque. Capturas consultivas de lista, Disponibilidade e grupo inspecionadas.
 Sem aprovação de novas referências. Testes de interface/domínio, contratos,
 lint/design, tipos e compilação da candidata pública ainda em verificação.
+
+Conciliação local com a main pública `4e95b639164b446b9f34e7107d207e1c21e99491`:
+preservada a inclusão manual de opções no topo, com foco no primeiro campo;
+a seleção de cadastros existentes mantém preço/composição por referência.
+Tipos de rotas gerados pelo Next no clone limpo; a primeira tentativa de
+typecheck identificou somente a ausência desses arquivos gerados.
 
 > Exportação pública: dados cadastrais, identificadores de registros e valores comerciais alterados neste documento são exemplos sintéticos. Os registros operacionais originais permanecem privados; esta versão não concede aprovação fiscal ou operacional.
 

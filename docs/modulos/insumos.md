@@ -316,3 +316,32 @@ recusar negativos na digitação/colagem. Os 27 testes focados de formulário,
 composição e ação passaram; lint, tokens e novo build webpack passaram. A consulta
 somente leitura ao perfil publicado Produção confirmou Insumos visualizar/editar/
 adicionar e Validades visualizar/editar. Nenhuma permissão foi alterada.
+
+### Publicação confirmada — 19/10/2026
+
+Correção funcional `7e9b90cd3168ff0186909592f18698637a820f6a`; revisão definitiva
+`6a1ffb2f14f4434b63bb040606af1fba89d5f8fd`, integrada à main e compilada pelo
+Dokploy. A identificação da tarefa, do contêiner e da imagem permanece no acervo privado.
+No smoke, serviço Running, sem reinícios; migrations sem pendências.
+
+Backup privado pré-publicação `<BACKUP_PRIVADO_PRESERVADO>`:
+121.835.677 bytes, validado por pg_restore para /dev/null com saída zero, sem
+restaurar no banco. Configuração fiscal comparada somente em leitura com o snapshot,
+sem diferenças. O modo restaurar foi rejeitado pela revisão automática por poder
+reaplicar configuração; não foi executado. Não houve operação fiscal ou ajuste de perfil.
+
+HTTPS: login do HUB, Validades e Pedidos 200; Insumos e emissão de etiquetas sem
+sessão 307 para o login do respectivo host. A conferência autenticada não ocorreu:
+o navegador isolado estava sem sessão e a ferramenta do Chrome existente bloqueou
+a automação por não conseguir confirmar sua URL. Nenhum prazo real foi alterado.
+
+Caminho operacional: HUB → Insumos → abrir a linha do item → Validades → Salvar
+validades. O editor completo do cadastro também apresenta os campos a quem tem
+as permissões funcionais correspondentes. Validades → Prazos dos produtos continua
+usando a mesma ação. Conferir com o perfil de Produção em uso real é a validação
+operacional pendente, sem necessidade de alterar o perfil diagnosticado.
+
+Encerramento local: cópias e dependências preservadas, sem limpeza automática.
+Check mediu aproximadamente 11,7 GB livres; Plan teve medição parcial e timeout
+de metadados em cache externo, sem remoções. Prévias locais continuam abertas;
+não registrar seus ambientes como encerrados nem apagar seus caches em uso.

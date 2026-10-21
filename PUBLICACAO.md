@@ -12,8 +12,10 @@ Não reexecuta a recuperação nem altera o histórico. Consulte o contrato e os
 [SQL público e histórico aplicado](docs/contexto/migrations-publicas.md).
 Qualquer divergência fora do par conhecido continua bloqueada.
 
-A adoção em produção exige validar a partida completa, conferir o plano em leitura
-e aprovar a troca de origem e o deploy. Esta publicação de código não fez essa troca.
+Esta é a base pública para o desenvolvimento. A adoção e o deploy foram autorizados.
+A implantação exige validar a partida completa, conferir o plano em leitura e registrar
+a evidência do procedimento. Este documento não atesta a execução da troca de origem
+ou do deploy.
 
 Uma captura antiga de preço ficou no acervo privado enquanto sua origem sintética
 não for comprovada. As demais imagens técnicas foram preservadas. A aprovação

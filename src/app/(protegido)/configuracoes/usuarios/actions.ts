@@ -112,7 +112,7 @@ export async function salvarUsuarioAcesso(input: { id?: string; nome: string; em
     }
     if (!anterior && input.ativo && !await emailConfigurado()) throw new ErroGestaoAcessos("Configure o envio de e-mail antes de convidar um usuário.");
     const dados = { nome, email, ativo: input.ativo, perfilAcessoId: perfil.id, admin: administrador, permissoesPersonalizadas: comoJson(excecoes) };
-    const usuario = anterior ? await tx.usuario.update({ where: { id: anterior.id }, data: { ...dados, ...(!input.ativo ? { sessaoVersao: { increment: 1 } } : {}), ...(email !== anterior.email ? { emailVerificadoEm: null } : {}) } }) : await tx.usuario.create({ data: { ...dados, senhaHash: await hashPassword(randomBytes(48).toString("base64url")), senhaDefinida: false } });
+    const usuario = anterior ? await tx.usuario.update({ where: { id: anterior.id }, data: { ...dados, ...(!input.ativo ? { sessaoVersao: { increment: 1 } } : {}), ...(email !== anterior.email ? { emailVerificadoEm: null } : {}) } }) : await tx.usuario.create({ data: { ...dados, senhaHash: await hashPassword(randomBytes(48).toString("base64url")), senhaDefinida: false, responsavelEtiquetaHabilitado: false } });
     if (!anterior && usuario.ativo) link = await criarLinkRecuperacao(tx, usuario);
     await historico(tx, ator, "Usuário", usuario.id, anterior ? "Usuário atualizado" : "Usuário criado com convite pendente", anterior ? dadosPublicos(anterior) : null, dadosPublicos(usuario));
   });

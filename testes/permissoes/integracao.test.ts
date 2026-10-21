@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import { beforeAll, beforeEach, afterAll, describe, expect, it, vi } from "vitest";
 import { config } from "dotenv"; import {Client} from "pg";
 import {PrismaPg} from "@prisma/adapter-pg"; import {PrismaClient} from "@/generated/prisma/client";
@@ -20,16 +20,18 @@ describe.skipIf(!executar)("gestão de acessos no PostgreSQL isolado",()=>{
   admin=new Client({connectionString:url.toString()});await admin.connect();await admin.query(`CREATE SCHEMA "${schema}"`);await admin.query(`SET search_path TO "${schema}"`);
   for(const pasta of (await readdir('prisma/migrations',{withFileTypes:true})).filter(d=>d.isDirectory()).sort((a,b)=>a.name.localeCompare(b.name))){
     if(pasta.name==='20260911090000_usuarios_permissoes')await admin.query(`INSERT INTO "Usuario" (id,nome,email,"senhaHash",admin,ativo,"updatedAt") VALUES ('legado-admin','Admin','legado-admin@example.invalid','hash-preservado',true,true,NOW()),('legado-equipe','Equipe','legado-equipe@example.invalid','hash-preservado',false,true,NOW())`);
-    await admin.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`,'utf8')));
+    if(pasta.name==='20261021180000_responsavel_validades_opt_in')await admin.query(`UPDATE "Usuario" SET "responsavelEtiquetaHabilitado" = false WHERE id = 'legado-equipe'`);
+    await admin.query(await prepararMigrationHubIsolada(admin, schema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`,'utf8')));
   }
   s.prisma=new PrismaClient({adapter:new PrismaPg({connectionString:url.toString(),options:`-c search_path=${schema}`},{schema})});
   const legados=await s.prisma.usuario.findMany({orderBy:{id:'asc'}});
   expect(legados.map(u=>[u.perfilAcessoId,u.ativo,u.senhaHash])).toEqual([['perfil-administrador',true,'hash-preservado'],['perfil-equipe',true,'hash-preservado']]);
+  expect(legados.map(u=>[u.id,u.responsavelEtiquetaHabilitado])).toEqual([['legado-admin',true],['legado-equipe',false]]);
   const equipe=await s.prisma.perfilAcesso.findUniqueOrThrow({where:{id:'perfil-equipe'}});
   expect(equipe.permissoes).not.toHaveProperty('configuracoes.usuarios');
   expect(equipe.permissoes).not.toHaveProperty('financeiro.saldo');
  },60000);
- afterAll(async()=>{await s.prisma?.$disconnect();if(admin){if(!/^teste_acessos_\d+$/.test(schema))throw Error('Schema inválido');await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);await admin.end();}});
+ afterAll(async()=>{await s.prisma?.$disconnect();if(admin){await limparIntegracaoHubIsolada(admin,schema);if(!/^teste_acessos_\d+$/.test(schema))throw Error('Schema inválido');await admin.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);await admin.end();}});
  beforeEach(async()=>{
   s.enviar.mockReset().mockResolvedValue(undefined);s.configurado.mockReset().mockResolvedValue(true);
   await admin.query('TRUNCATE "Usuario", "HistoricoAcesso" CASCADE');
@@ -44,8 +46,25 @@ describe.skipIf(!executar)("gestão de acessos no PostgreSQL isolado",()=>{
   const p=await s.prisma.perfilAcesso.findUniqueOrThrow({where:{nome:'Compras'}});
   expect(await salvarUsuarioAcesso(entrada(p.id))).toEqual({ok:true});
   const u=await s.prisma.usuario.findUniqueOrThrow({where:{email:'pessoa@example.invalid'}});
-  expect(u.senhaDefinida).toBe(false); expect(u.emailVerificadoEm).toBeNull(); expect(await s.prisma.recuperacaoSenha.count({where:{usuarioId:u.id}})).toBe(1);expect(u.senhaHash).toMatch(/^\$2/);
+  expect(u.responsavelEtiquetaHabilitado).toBe(false); expect(u.senhaDefinida).toBe(false); expect(u.emailVerificadoEm).toBeNull(); expect(await s.prisma.recuperacaoSenha.count({where:{usuarioId:u.id}})).toBe(1);expect(u.senhaHash).toMatch(/^\$2/);
   const logs=JSON.stringify(await s.prisma.historicoAcesso.findMany());expect(logs).not.toContain('senhaHash');expect(logs).not.toContain('SenhaInicialDeTeste123');
+ });
+
+ it("novos usuários de qualquer perfil exigem habilitação manual e edição preserva a escolha",async()=>{
+  for(const perfilAcessoId of ['perfil-administrador','perfil-equipe']){
+   const email=`novo-${perfilAcessoId}@example.invalid`;
+   expect(await salvarUsuarioAcesso({...entrada(perfilAcessoId),email,ativo:false,...{responsavelEtiquetaHabilitado:true}})).toEqual({ok:true});
+   const u=await s.prisma.usuario.findUniqueOrThrow({where:{email}});
+   expect(u.responsavelEtiquetaHabilitado).toBe(false);
+   await s.prisma.usuario.update({where:{id:u.id},data:{responsavelEtiquetaHabilitado:true}});
+   const habilitado=await s.prisma.usuario.findUniqueOrThrow({where:{id:u.id}});
+   expect(await salvarUsuarioAcesso({...entrada(perfilAcessoId),email,ativo:false,id:u.id,versao:habilitado.updatedAt.toISOString(),nome:'Nome atualizado'})).toEqual({ok:true});
+   expect((await s.prisma.usuario.findUniqueOrThrow({where:{id:u.id}})).responsavelEtiquetaHabilitado).toBe(true);
+  }
+ });
+ it("o banco também desabilita responsáveis em criações que omitem o campo",async()=>{
+  await admin.query(`INSERT INTO "Usuario" (id,nome,email,"senhaHash","updatedAt") VALUES ('novo-direto','Pessoa fictícia','direto@example.invalid','sem-acesso-real',NOW())`);
+  expect((await s.prisma.usuario.findUniqueOrThrow({where:{id:'novo-direto'}})).responsavelEtiquetaHabilitado).toBe(false);
  });
 
  it("convite define senha e confirma e-mail atomicamente, com link de uso único",async()=>{

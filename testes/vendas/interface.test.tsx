@@ -80,6 +80,23 @@ describe("interface de cadastros de Vendas", () => {
     await u.keyboard("{Escape}");
     expect(screen.getByRole("textbox", { name: "Nome da opção 1" })).toBeTruthy();
   });
+  it("inclui opções no topo, mantém o preenchimento e não salva até confirmar", async () => {
+    render(<EditorGrupo inicial={{ id: "", versao: 0, nome: "Grupo fictício", tipo: "COMPOSICAO", categoriaId: null, minimo: 0, maximo: 1, repetir: false, ativo: true, opcoes: [] }} afetados={0} produtos={[]} insumos={[]} fechar={vi.fn()} />);
+    const u = userEvent.setup();
+    const adicionar = screen.getByRole("button", { name: "Adicionar opção" });
+    await u.click(adicionar);
+    await u.type(screen.getByRole("textbox", { name: "Nome da opção 1" }), "Primeira preenchida");
+    await u.click(adicionar);
+    const primeira = screen.getByRole("textbox", { name: "Nome da opção 1" });
+    expect(primeira).toHaveProperty("value", "");
+    expect(document.activeElement).toBe(primeira);
+    expect(screen.getByRole("textbox", { name: "Nome da opção 2" })).toHaveProperty("value", "Primeira preenchida");
+    await u.type(primeira, "Segunda preenchida");
+    await u.click(adicionar);
+    expect(screen.getAllByRole("textbox", { name: /Nome da opção/ }).map(e => (e as HTMLInputElement).value)).toEqual(["", "Segunda preenchida", "Primeira preenchida"]);
+    expect(adicionar.compareDocumentPosition(screen.getByRole("textbox", { name: "Nome da opção 1" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(sim.salvar).not.toHaveBeenCalled();
+  });
   it("cria categoria dentro do produto e preserva o preenchimento sem salvar o pai", async () => {
     sim.salvar.mockResolvedValueOnce({ ok: true, id: "c", registro: { id: "c", versao: 1, nome: "Categoria nova", ativo: true, ordem: 0, produtos: [] } });
     render(<ProdutosVenda dados={vazio} adicionar editar adicionarCatalogo />);

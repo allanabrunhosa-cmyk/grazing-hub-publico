@@ -181,15 +181,18 @@ it.each([{ botao: "Enviar para revisão", titulo: "Enviar decisão para revisão
 });
 it("adicionar ou remover fonte modifica somente proposta e usa remoção oficial", async () => {
   render(<FormularioRegraBrasilNfe catalogos={catalogos} historico={historico} fechar={vi.fn()} />);
+  const tituloAnterior = (screen.getByLabelText("Título da fonte 1") as HTMLInputElement).value;
   fireEvent.click(screen.getByRole("button", { name: "Adicionar fonte" }));
-  expect((screen.getByLabelText("Título da fonte 2") as HTMLInputElement).value).toBe("");
-  expect((screen.getByLabelText("URL da fonte 2") as HTMLInputElement).maxLength).toBe(500);
-  fireEvent.change(screen.getByLabelText("Título da fonte 2"), { target: { value: "Fonte fictícia complementar" } });
-  fireEvent.blur(screen.getByLabelText("Título da fonte 2"));
+  expect((screen.getByLabelText("Título da fonte 1") as HTMLInputElement).value).toBe("");
+  expect(screen.getByLabelText("Título da fonte 2")).toHaveProperty("value", tituloAnterior);
+  expect((screen.getByLabelText("URL da fonte 1") as HTMLInputElement).maxLength).toBe(500);
+  fireEvent.change(screen.getByLabelText("Título da fonte 1"), { target: { value: "Fonte fictícia complementar" } });
+  fireEvent.blur(screen.getByLabelText("Título da fonte 1"));
   expect(acoes.salvar).not.toHaveBeenCalled();
-  expect(screen.getByRole("button", { name: "Remover fonte 2" }).querySelector("svg")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Remover fonte 2" }));
+  expect(screen.getByRole("button", { name: "Remover fonte 1" }).querySelector("svg")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Remover fonte 1" }));
   expect(screen.queryByLabelText("Título da fonte 2")).toBeNull();
+  expect(screen.getByLabelText("Título da fonte 1")).toHaveProperty("value", tituloAnterior);
   expect(acoes.aprovar).not.toHaveBeenCalled();
 });
 it("fontes e endereços externos são apenas texto escapado no histórico", () => {
@@ -249,6 +252,7 @@ it("GTIN exige escolha da unidade final e limita código sem salvar automaticame
   const campo = screen.getByLabelText("EAN / GTIN") as HTMLInputElement;
   expect(campo.value).toBe(""); expect(campo.maxLength).toBe(14);
   expect(screen.queryByText(/Confirme o código da unidade vendida/)).toBeNull();
+  expect(campo.inputMode).toBe("numeric");
   await usuario.type(campo, "letras"); expect(campo.value).toBe("");
   await usuario.click(campo); await usuario.paste("0123456789012"); expect(campo.value).toBe("0123456789012");
   fireEvent.blur(campo); expect(acoes.salvar).not.toHaveBeenCalled(); expect(acoes.aprovar).not.toHaveBeenCalled();

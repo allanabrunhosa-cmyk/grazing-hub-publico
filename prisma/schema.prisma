@@ -938,7 +938,7 @@ enum ResultadoTentativaEtiqueta {
 // ============================================================
 
 model Usuario {
-  responsavelEtiquetaHabilitado Boolean @default(true)
+  responsavelEtiquetaHabilitado Boolean @default(false)
   regrasBrasilNfe VersaoRegraFiscalBrasilNfe[] @relation("RegraBrasilNfeResponsavel")
   planosBrasilNfe PlanoFiscalBrasilNfe[] @relation("PlanoBrasilNfeResponsavel")
   autorizacoesMcp McpAutorizacao[]

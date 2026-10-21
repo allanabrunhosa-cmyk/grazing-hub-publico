@@ -56,6 +56,13 @@ nem baselines automaticamente para obter resultado verde.
   CONCILIACAO_BANCO_TESTE, VENDAS_BANCO_TESTE, DESIGN_BANCO_TESTE.
   Consultar a flag exata, configurar DATABASE_URL **local de testes** e verificar guardas
   localhost/schema antes de ativar. Não copiar secrets em comandos/logs/documentação.
+- A cadeia atual de migrations também espera a view da integração do Atendimento.
+  As suítes de Acessos e Etiquetas usam `testes/login/migrations-hub-isoladas.ts`:
+  a view oficial fica em namespace exclusivo da fixture; somente a cópia SQL
+  executada em teste recebe esse namespace. O helper exige NODE_ENV=test,
+  prefixo de schema reservado e search_path correspondente. Os chamadores
+  conferem localhost. Cleanup faz ROLLBACK e remove somente sua integração.
+  Não alterar migrations já aplicadas nem criar essa fixture no banco real.
 - Prévia padrão: `npm run teste:visual`. Outras: configurações em `testes/visual`;
   use somente a configuração do consumidor, com fixtures e ações simuladas.
 - Em máquina com pouca memória, `--maxWorkers=1` limita concorrência. Timeout ampliado

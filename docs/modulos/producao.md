@@ -43,7 +43,7 @@ Insumo como produto/preparação; Usuários habilitados e ResponsavelEtiqueta se
 - Seleção individual/em grupo de Imprimir etiquetas e Gestão reutilizam FotoProduto, com ícone quando a foto falta/falha. A prévia da etapa Etiqueta dispensa cabeçalho repetido e se adapta à altura disponível no desktop, sem alterar ZPL.
 - Fotos existentes do catálogo usam `/api/etiquetas/produtos/[id]/foto`: caminho estrito no host, sessão relida e Produção/visualizar; cache privado, sem SVG ou imagens externas. Não ampliar `/api/insumos` no host dedicado.
 - Baixa de cópias retira etiquetas do acompanhamento; preserva snapshots, auditoria e estoque. Exclusão de ponto é recuperável e revoga a credencial; ponto padrão/fila em curso são protegidos.
-- Configurações → Responsáveis seleciona usuários habilitados e cadastra pessoas sem criar acesso ao HUB.
+- Configurações → Responsáveis seleciona usuários habilitados e cadastra pessoas sem criar acesso ao HUB. Novos usuários começam desabilitados como responsáveis, inclusive administradores. A habilitação é manual; editar o usuário não altera essa escolha. A migration `20261021180000_responsavel_validades_opt_in` muda somente o default e preserva os usuários existentes.
 - Produção/visualizar e adicionar; configuração exige administrador. Host dedicado não concede permissão nova.
 
 ## Integrações e cuidados
