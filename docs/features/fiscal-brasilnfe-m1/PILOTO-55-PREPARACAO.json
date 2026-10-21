@@ -1,0 +1,123 @@
+{
+  "esquema": "grazing.brasilnfe.preparacao-piloto",
+  "versao": 1,
+  "estado": "IMPEDIDO",
+  "dataRevisao": "2026-10-12",
+  "modelo": 55,
+  "ambiente": 2,
+  "transmissaoPermitida": false,
+  "producaoBloqueada": true,
+  "produtoFonte": "Sanduiches no mini brioche — 20un",
+  "recorte": {
+    "sabores": [
+      "Brie + geleia de frutas vermelhas",
+      "Minas padrão + geleia de manga/maracujá"
+    ],
+    "unidadesPorSaborPlanejadas": [
+      5,
+      5
+    ],
+    "pesoNominalReceitaGramas": 1000,
+    "processo": "Pão comprado pronto, cortado e recheado; produto resfriado; celofane, adesivo de sabor/fechamento e bandeja para servir."
+  },
+  "classificacoesPropostas": {
+    "ncm": "19059090",
+    "cfop": "5101",
+    "origem": "0",
+    "csosnCondicional": "102",
+    "pisProposto": "49",
+    "cofinsProposto": "49",
+    "cest": null,
+    "ipiCst": null,
+    "ipiEnquadramento": null,
+    "crt": null,
+    "ie": "000000000000",
+    "observacao": "Propostas fundamentadas, não aplicadas/aprovadas. Simples vigente confirmado pela Receita em2026; CRT1/2 depende de situação estadual de sublimite. Caixa sem GTIN confirmada pelo usuário. IPI: inclusão/omissão, CST e cEnq pendentes.",
+    "ean": "SEM GTIN",
+    "cestAplicavelProposto": false,
+    "stAplicavelProposto": false,
+    "cestConfianca": "MEDIA",
+    "stConfianca": "ALTA",
+    "ipiPoliticaGrupo": null
+  },
+  "cenarioComercialFuturo": {
+    "exclusivamenteFicticio": true,
+    "quantidade": "1",
+    "unidade": "UN",
+    "precoUnitario": "10.00",
+    "desconto": "0.00",
+    "frete": "0.00",
+    "outrosCustos": "0.00",
+    "totalPlanejado": "10.00",
+    "pagamentoPlanejado": "10.00",
+    "troco": "0.00",
+    "mapeamentoFormaFiscal": null
+  },
+  "documentoId": null,
+  "hashSnapshot": null,
+  "hashPayloadFiscal": null,
+  "revisaoPedido": null,
+  "planoId": null,
+  "versoesAprovadas": null,
+  "aprovacaoPrimeiraTransmissao": null,
+  "impedimentos": [
+    "EMPRESA_CRT_SUBLIMITE_ESTADUAL",
+    "IPI_POLITICA_GRUPO_CST_CENQ",
+    "APROVACAO_INTERNA_DOS_CAMPOS_E_VERSOES",
+    "FOTOGRAFIA_E_PLANO_FICTICIOS",
+    "SERVICO_CERTIFICADO_E_RECUPERACAO_SEPARADOS"
+  ],
+  "evidencias": "PILOTO-55-CLASSIFICACAO.md",
+  "roteiro": "PILOTO-55-IMPEDIMENTOS.md",
+  "cadastroObservado": {
+    "cnpjCorresponde": true,
+    "razaoSocial": "Empresa exclusivamente fictícia de exemplo",
+    "ie": "000000000000",
+    "regimeComprovanteHistorico": "SIMPLES NACIONAL",
+    "crtAtualConfirmado": false,
+    "enderecoCorrespondeHub": true,
+    "logradouro": "Rua Exemplo",
+    "numero": "100",
+    "complemento": null,
+    "cep": "00000000",
+    "bairro": "Bairro Exemplo",
+    "municipio": "SAO PAULO",
+    "uf": "SP",
+    "codigoMunicipio": "3550308",
+    "cartaoCnpjEmitidoEm": "2023-02-15T13:31:09-03:00",
+    "inscricaoDataConsulta": null,
+    "inscricaoArquivoModificadoEm": "2023-05-22T15:08:08Z",
+    "fonteCartao": "Referência privada substituída por exemplo sintético",
+    "fonteInscricao": "Referência privada substituída por exemplo sintético",
+    "opcaoSimplesConfirmada": true,
+    "situacaoSimei": "NAO_ENQUADRADO",
+    "consultaOptantesEm": "2026-10-12T19:43:27-03:00",
+    "fonteOpcaoSimples": "Referência privada substituída por exemplo sintético",
+    "situacaoSublimiteConfirmada": false,
+    "consultaCadespEstado": "ACESSO_REJEITADO_SEM_RESULTADO",
+    "cadastroMinimoLocalCompletado": true,
+    "auditoriaLocalDataBanco": "2026-10-12 23:06:49.005",
+    "auditoriaLocalFusoBanco": "America/Sao_Paulo",
+    "origemSalvamentoLocal": "Referência privada substituída por exemplo sintético"
+  },
+  "gtinEvidencia": {
+    "unidade": "Caixa de 20 sanduíches",
+    "estado": "SEM_GTIN_DECLARADO",
+    "data": "2026-10-12",
+    "cadastroOperacionalAlterado": false,
+    "fonte": "Declaração direta do usuário nesta conversa"
+  },
+  "pisCofinsFonte": {
+    "pergunta": 102,
+    "sha256": "2bc1dfe299777ac198b2808de437617d628afd6a16f453f88a4ae25935fb31a4",
+    "leituraIntegral": true,
+    "dataEdicaoConfirmada": false,
+    "uri": "htt<DOCUMENTO_PRIVADO>",
+    "dataConsulta": "2026-10-12",
+    "paginasFisicas": [
+      51,
+      52
+    ]
+  },
+  "notaExportacao": "Exemplo exclusivamente sintético. IDs, hashes e cadastro não identificam a operação real. Nenhum conteúdo deste arquivo concede aprovação ou permite transmissão."
+}

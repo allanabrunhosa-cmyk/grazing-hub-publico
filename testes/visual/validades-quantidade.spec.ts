@@ -1,0 +1,47 @@
+import { expect, test } from "@playwright/test";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
+const raiz = resolve(__dirname, "../..");
+const evidencia = resolve(raiz, ".tmp/dashboard-operacao-20261020/validades");
+
+test("quantidade digitável mantém limites, foco, setas e leitura em grupo e na etiqueta", async ({ page }, info) => {
+  await page.route("**/*", rota => new URL(rota.request().url()).origin === "http://127.0.0.1:4279" ? rota.continue() : rota.abort());
+  await page.goto(`/etiquetas.html?tema=${info.project.metadata.tema}`);
+  await page.getByRole("button", { name: "Ana da cozinha", exact: true }).click();
+  await page.getByRole("button", { name: /Preparações.*1 produto/ }).click();
+  await page.getByRole("button", { name: "Imprimir grupo", exact: true }).click();
+  const grupo = page.getByRole("spinbutton", { name: "Quantidade de etiquetas de Salame fatiado", exact: true });
+  await expect(grupo).toHaveValue("0");
+  await grupo.fill("30");
+  await expect(page.getByRole("button", { name: "Aumentar cópias de Salame fatiado", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Preparar grupo", exact: true })).toBeEnabled();
+  await mkdir(evidencia, { recursive: true });
+  await page.screenshot({ path: resolve(evidencia, `${info.project.name}-grupo.png`), fullPage: true });
+  await page.getByRole("button", { name: "Selecionando grupo", exact: true }).click();
+  await page.getByRole("button", { name: "Salame fatiado Preparação · KG", exact: true }).click();
+  await page.getByRole("button", { name: /Refrigerado.*15 dia/ }).click();
+  const campo = page.getByRole("spinbutton", { name: "Quantidade de etiquetas", exact: true });
+  await campo.fill("");
+  await expect(page.getByRole("button", { name: "Imprimir", exact: true })).toBeDisabled();
+  await campo.pressSequentially("30");
+  await expect(campo).toBeFocused();
+  await expect(campo).toHaveValue("30");
+  await expect(page.getByRole("button", { name: "Aumentar cópias", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Imprimir", exact: true })).toBeEnabled();
+  await campo.press("Tab");
+  await page.getByRole("button", { name: "Diminuir cópias", exact: true }).click();
+  await expect(campo).toHaveValue("29");
+  await page.getByRole("button", { name: "Aumentar cópias", exact: true }).click();
+  await expect(campo).toHaveValue("30");
+  const auditorFonte = (await readFile(resolve(raiz, "scripts/auditar-interface.mjs"), "utf8")).replace(/^[\s\S]*?(export function auditarInterface)/, "function auditarInterface");
+  const auditoria = await page.evaluate(fonte => (0, eval)(`(${fonte})(document)`), auditorFonte);
+  expect(auditoria.problemas).toEqual([]);
+  await page.screenshot({ path: resolve(evidencia, `${info.project.name}-30.png`), fullPage: true });
+  await campo.fill("31");
+  await expect(campo).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText("Informe um número inteiro de 1 a 30.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Imprimir", exact: true })).toBeDisabled();
+  await page.screenshot({ path: resolve(evidencia, `${info.project.name}-erro.png`), fullPage: true });
+  await writeFile(resolve(evidencia, `${info.project.name}-auditoria.json`), JSON.stringify({ sintetico: true, largura: info.project.metadata.largura, tema: info.project.metadata.tema, auditoria }, null, 2));
+});

@@ -1,0 +1,53 @@
+// @vitest-environment jsdom
+import { afterEach, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { ClientesVenda } from "@/app/(protegido)/vendas/clientes/clientes-client";
+import { GruposFiscais } from "@/app/(protegido)/vendas/fiscal/grupos-fiscais-client";
+import { FormasPagamentoVenda } from "@/app/(protegido)/vendas/formas-pagamento/formas-pagamento-client";
+import { BotaoExcluirVenda } from "@/app/(protegido)/vendas/botao-excluir";
+const sim = vi.hoisted(() => ({ salvar: vi.fn(), refresh: vi.fn() }));
+vi.mock("@/lib/vendas/cliente-identidade-http", () => ({ consultarIdentidadeClienteCadastro: vi.fn().mockResolvedValue({ email: false, documento: false }), consultarIdentidadeClientePedido: vi.fn().mockResolvedValue({ email: false, documento: false }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: sim.refresh }) }));
+vi.mock("@/app/(protegido)/vendas/actions", () => ({ alterarStatusCadastroVendaAction: sim.salvar, salvarClienteVendaAction: vi.fn(), salvarGrupoFiscalVendaAction: vi.fn(), excluirCadastroVendaAction: sim.salvar }));
+vi.mock("@/app/(protegido)/vendas/clientes/credito-actions", () => ({ ajustarCreditoClienteAction: vi.fn() }));
+vi.mock("@/app/(protegido)/vendas/clientes/historico-actions", () => ({ consultarHistoricoPedidosClienteAction: vi.fn() }));
+vi.mock("@/app/(protegido)/vendas/clientes/cadastro-actions", () => ({  buscarCnpjClienteAction: vi.fn(), buscarCepClienteAction: vi.fn() }));
+vi.mock("@/app/(protegido)/vendas/pedidos/cadastro-cliente-actions", () => ({  buscarCnpjPedidoAction: vi.fn(), buscarCepPedidoAction: vi.fn() }));
+vi.mock("@/app/(protegido)/vendas/formas-pagamento/actions", () => ({ salvarFormaPagamentoVendaAction: vi.fn() }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+afterEach(() => { cleanup(); vi.resetAllMocks(); vi.restoreAllMocks(); });
+const cliente = { id: "c", versao: 1, nome: "Cliente fictício", tipo: "PF" as const, documento: null, email: null, telefone: null, contato: null, observacoes: null, enderecos: [], ativo: true };
+const fiscal = { id: "f", versao: 1, nome: "Fiscal fictício", fiscal: { ncm: "04069020" }, ativo: true, produtos: [] };
+const forma = { id: "p", versao: 1, nome: "Pix fictício", tipo: "PIX" as const, taxaPercentual: "0", taxaFixa: "0", prazoDias: 0, inicioPrazo: "PAGAMENTO" as const, contagemPrazo: "CORRIDOS" as const, vencimentoFlexivel: false, permiteParcelamento: false, maximoParcelas: 1, faixasTaxa: [], observacoes: null, ativo: true };
+it.each(["CLIENTE", "GRUPO_FISCAL", "FORMA_PAGAMENTO"] as const)("altera %s na listagem, preserva o valor em erro e reusa a revisão confirmada", async tipo => {
+  if (tipo === "CLIENTE") render(<ClientesVenda clientes={[cliente]} total={1} pagina={1} busca="fictício" situacao="todos" adicionar={false} editar />);
+  else if (tipo === "GRUPO_FISCAL") render(<GruposFiscais grupos={[fiscal]} editar />);
+  else render(<FormasPagamentoVenda formas={[forma]} adicionar={false} editar />);
+  const status = screen.getByRole("switch");
+  sim.salvar.mockResolvedValueOnce({ erro: "Conflito controlado" }); fireEvent.click(status);
+  expect(await screen.findByRole("alert")).toHaveProperty("textContent", "Conflito controlado");
+  expect(status.getAttribute("aria-checked")).toBe("true");
+  sim.salvar.mockResolvedValueOnce({ ok: true, versao: 2 }); fireEvent.click(status);
+  await waitFor(() => expect(status.getAttribute("aria-checked")).toBe("false"));
+  sim.salvar.mockResolvedValueOnce({ ok: true, versao: 3 }); fireEvent.click(status);
+  await waitFor(() => expect(sim.salvar).toHaveBeenLastCalledWith(tipo, expect.any(String), 2, true));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  if (tipo === "CLIENTE") expect(screen.getByLabelText("Buscar clientes")).toHaveProperty("value", "fictício");
+});
+it("consulta fiscal não habilita mutação nem edição", () => {
+  render(<GruposFiscais grupos={[fiscal]} editar={false} />);
+  expect(screen.getByRole("switch")).toHaveProperty("disabled", true);
+  expect(screen.getByText("Somente consulta neste cadastro.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("switch")); expect(sim.salvar).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Editar Fiscal fictício" })).toBeNull();
+});
+it("exclusão compacta preserva confirmação e informa falha sem remover a linha", async () => {
+  const confirmar = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValue(true);
+  render(<BotaoExcluirVenda tipo="GRUPO_FISCAL" id="f" versao={1} nome="Fiscal fictício" />);
+  fireEvent.click(screen.getByRole("button")); expect(sim.salvar).not.toHaveBeenCalled();
+  sim.salvar.mockRejectedValueOnce(new Error("Rede indisponível"));
+  fireEvent.click(screen.getByRole("button")); fireEvent.click(screen.getByRole("button"));
+  expect(await screen.findByRole("alert")).toHaveProperty("textContent", expect.stringContaining("Não foi possível confirmar"));
+  expect(sim.salvar).toHaveBeenCalledOnce(); expect(sim.refresh).not.toHaveBeenCalled();
+  expect(confirmar).toHaveBeenCalledTimes(2);
+});

@@ -1,0 +1,10 @@
+[Unit]
+Description=Busca diaria de notas fiscais do Grazing HUB
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/grazing-hub/buscar-notas.sh
+TimeoutStartSec=30min

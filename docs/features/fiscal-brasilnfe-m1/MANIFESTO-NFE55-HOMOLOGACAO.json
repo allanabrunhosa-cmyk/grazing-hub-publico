@@ -1,0 +1,64 @@
+{
+  "estado": "PREPARADO_LOCALMENTE",
+  "transmissaoPermitida": false,
+  "pendencias": [],
+  "manifesto": {
+    "esquema": "grazing.brasilnfe.manifesto-local",
+    "versao": 1,
+    "planoId": "registro-sintetico-32",
+    "documentoId": "registro-sintetico-33",
+    "modelo": 55,
+    "ambiente": 2,
+    "hashSnapshot": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "hashPayloadFiscal": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "total": "10.00",
+    "quantidadeItens": 1,
+    "revisaoPedido": 1,
+    "emitenteHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "parametrosHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "vinculadoEm": "2026-10-13T02:40:18.940Z",
+    "conferidoEm": "2026-10-13T02:58:02.276Z",
+    "versoes": [
+      {
+        "papel": "EMPRESA",
+        "alvo": "EMPRESA",
+        "regraId": "registro-sintetico-34",
+        "versaoId": "registro-sintetico-35",
+        "revisao": 2,
+        "conteudoHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "fundamentacaoHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "aprovacaoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "vigenteDesde": "2026-10-12",
+        "vigenteAte": "2026-12-31"
+      },
+      {
+        "papel": "ITEM:registro-sintetico-7",
+        "alvo": "PRODUTO",
+        "regraId": "registro-sintetico-36",
+        "versaoId": "registro-sintetico-37",
+        "revisao": 4,
+        "conteudoHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "fundamentacaoHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "aprovacaoHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "vigenteDesde": "2026-10-12",
+        "vigenteAte": "2026-12-31"
+      },
+      {
+        "papel": "OPERACAO",
+        "alvo": "OPERACAO",
+        "regraId": "registro-sintetico-38",
+        "versaoId": "registro-sintetico-39",
+        "revisao": 2,
+        "conteudoHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "fundamentacaoHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "aprovacaoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "vigenteDesde": "2026-10-12",
+        "vigenteAte": "2026-12-31"
+      }
+    ],
+    "transmissaoPermitida": false,
+    "servicoCertificadoRecuperacao": "CONFERENCIA_SEPARADA",
+    "autorizacaoPrimeiraTransmissao": "PENDENTE"
+  },
+  "notaExportacao": "Exemplo exclusivamente sintético. IDs, hashes e cadastro não identificam a operação real. Nenhum conteúdo deste arquivo concede aprovação ou permite transmissão."
+}

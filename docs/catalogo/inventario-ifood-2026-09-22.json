@@ -1,0 +1,72 @@
+{
+  "coleta": "2026-09-22",
+  "origem": "Portal iFood autenticado, loja Tábua de Frios - Grazing Table & Co",
+  "nota": "Exemplo exclusivamente sintético de preços. Nomes e descrições públicas foram preservados; o levantamento comercial original permanece privado.",
+  "categorias": [
+    {"id":"35a289b7-77aa-4141-aa60-c515205952e5","nome":"Grazings Mais Queridas","produtos":[
+      ["5c6803df-23e5-4cf4-a129-39bb512b0060","Tabua de Frios Grazing para 1 Pessoa","10.00"],
+      ["f365df58-eead-4fb3-a8f7-1b71ace3489e","Tábua de Frios Grazing Vegetariana para 1 pessoa","10.00"],
+      ["9a9afd82-fad0-4989-8b3f-5997a036381d","Tábua de Frios Grazing para 2","10.00"],
+      ["660a1326-dcc5-4b31-91a2-2e8e48c15137","Tábua de Frios Grazing para 2 Vegetariana","10.00"],
+      ["7db71698-5a6a-4c31-a0df-9c220d5d71c8","Tábua de Frios Grazing Caprese para 2","10.00"],
+      ["498b34c5-527e-49fc-84ed-56f5190d9b55","Tábua de Frios Grazing para 3","10.00"],
+      ["d55b8813-20e3-4733-be2d-b7b727f09f61","Tábua de Frios Grazing para 3 Vegetariana","10.00"],
+      ["f941a42a-086c-4db2-9023-56a77222e3a8","Tábua de Frios Grazing para 4","10.00"],
+      ["c2c403e7-cded-4154-b6a0-002132dd9ffb","Tábua de Frios Grazing para 4 Vegetariana","10.00"]]},
+    {"id":"8ba81168-d2be-49fe-b2c7-35907477e22b","nome":"Granzing Confraternização","produtos":[
+      ["2ae4e1fb-8189-4e03-9b28-e91c03dfc0ab","Tábua de Frios Grazing para 10 Padrão","10.00"],
+      ["d2536210-f0c2-4464-ae9d-86cc80987b11","Tábua de Frios Grazing para 10 Vegetariana","10.00"],
+      ["de55f618-aaf6-4f18-bf7d-cd2b2e93af4f","Tábua de Frios Grazing para 10 Festa","10.00"],
+      ["79fb0abc-9501-418b-ab61-b921190b904b","Tábua de Frios Grazing para 10 Gran Caprese","10.00"]]},
+    {"id":"6b0fe16d-d9d3-4426-8589-1dfb7a354abc","nome":"Monte a sua Grazing","produtos":[
+      ["15a0caf2-870b-4fcd-83f1-18fb38627854","Monte sua Tábua de Frios Grazing para 1","10.00"],
+      ["8fb39714-1c0a-4464-b2de-610f43315c1b","Monte sua Tábua de Frios Grazing para 1 Vegetariana","10.00"],
+      ["14f5a78e-d86b-4f56-9ef6-a7bec0ce1436","Monte sua Tábua de Frios Grazing para 2","10.00"],
+      ["b492cd9e-ccbf-4bf3-8038-87afe7299742","Monte sua Tabua de Frios Grazing para 2 Vegetariana","10.00"],
+      ["35c12ce5-a5a2-4932-8eb8-1c205bdb7e1e","Monte sua Tábua de Frios Grazing para 3","10.00"],
+      ["14161801-58fa-485b-93b0-492682d6ba19","Monte sua Tábua de Frios Grazing para 3 Vegetariana","10.00"],
+      ["966205de-98c8-4118-9b02-b276006a37a4","Monte sua Tábua de Frios Grazing para 4","10.00"]]},
+    {"id":"1dc936b7-7022-4e27-a29e-ce24e59cf244","nome":"Café da Manhã","produtos":[
+      ["e2431bd8-c558-483e-8f5e-47b0e0321d75","Cesta de café da manhã para 2","10.00"]]},
+    {"id":"119b21cb-e236-4890-b11e-3bb998207921","nome":"Sanduiches & Aperitivos","produtos":[
+      ["5adf0352-2d35-432c-9f12-f40f4009d8c6","Sanduiches no mini brioche - 20 un","10.00"],
+      ["666cdb63-1c94-4c28-9834-43bfa4671cb0","Tabua de frios Grazing Espetinhos 48 un","10.00"],
+      ["c7ac6dff-fb5b-4996-8d99-7294f1393487","Tabua de frios Grazing Espetinhos 24 un","10.00"],
+      ["6047d91e-08d1-4457-a697-125ba40fe9a7","Guirlanda Caprese - Aperitivos para 3 Pessoas","10.00"],
+      ["47a48c4a-c40c-4815-a1bb-35fa137a744b","Gran Bufala Rolls 48un (tábua de frios)","10.00"],
+      ["e028e602-e674-465f-aa86-1963f01221f4","Búfala Rolls de Mortadela com Pistache","10.00"],
+      ["03be9432-4525-4f25-8622-59a079e7a974","Búfala Rolls de Presunto Cru","10.00"],
+      ["7b42b990-b4fe-4b71-bb7a-05ee15caf935","Potinho de Frios Grazing Cup","10.00"],
+      ["64c5770b-188d-4c48-ba6b-840a43496712","Pães de queijo com crosta parmesão","10.00"],
+      ["481b001d-08de-4239-844f-5012b7d87864","Cesta de Pães e Crackers","10.00"],
+      ["b6f109fc-c736-4e5d-9d22-70c5f43c029a","Mix de Nuts","10.00"]]},
+    {"id":"56ff9f19-519c-4412-b227-597585653d47","nome":"Tortas e Folhados","produtos":[
+      ["3665daa2-2afa-499d-8c68-aecb69718c4e","Torta artesanal 1,2kg da Torta no Quintal","10.00"],
+      ["6fff560f-583c-4601-aa53-a3de52a9bb05","Mini Brie Folhado com Mel","10.00"],
+      ["7e427d21-459e-44c8-9d77-1e7a80445942","Brie Folhado com Mel","10.00"]]},
+    {"id":"4fc0dc86-20d9-4095-b5c9-13a4c768f64b","nome":"Doces","produtos":[
+      ["e857d8c8-70f7-420f-bfb3-5c947650df0a","Mini Cookies Artesanais de baunilha com gotas de chocolate","10.00"],
+      ["4f4c99a9-9a98-41fe-b76c-56fddaa5a364","Mini Bolos Artesanais 24un","10.00"],
+      ["9af71e5d-32e1-42c9-8bb6-38bd19e5e1f2","Mini Bolos Artesanais 6un","10.00"],
+      ["7feadbdd-f626-46c9-9465-1118c45a6a57","Pote de frutas frescas","10.00"]]},
+    {"id":"c0d3c6e8-651e-4b54-8f83-24c946e1b227","nome":"Não Alcoólicos","produtos":[
+      ["4ecf9ab6-1a88-4760-bce0-a3097ee50d7f","Suco integral 200ml","10.00"]]},
+    {"id":"ab808d18-b462-4634-bd48-a676d4a8cbea","nome":"Vinhos e Espumantes","produtos":[
+      ["f163aa78-e418-411e-bac2-82a1ce70bdf5","Espumante Casa Valduga Brut (375ml)","10.00"],
+      ["14ded01b-9224-4e8e-a5e8-a4ebae7284bf","Espumante Casa Valduga Brut (750ml)","10.00"],
+      ["6d8ba69d-f63d-4571-add9-e48ee38545a8","Vinho Branco Carmen Sauvignon Garrafa 375ml","10.00"],
+      ["2db8eb64-a360-4a99-8a28-e3beb60f289e","Vinho Branco Carmen Insigne Sauvignon Blanc 750ml","10.00"],
+      ["9bc1c8f7-b303-4d2c-a634-5c918eb8a999","Vinho Branco Campagnola Pinot Grigio 750ml","10.00"],
+      ["caf6179a-5a85-41cf-b367-0d249cf797cf","Vinho Fino Rosé Seco Chartron La Fleur","10.00"],
+      ["56f2ad16-2ad7-4e11-ba22-8c4edb59068d","Vinho Tinto Chileno Carmen Carmenere Seco Fino Garrafa 375ml","10.00"],
+      ["a6ee5de2-ec7c-4348-be1a-3d006283acd5","Vinho Tinto Chileno Carmen Insigne Carménère 750ml","10.00"],
+      ["17167dd2-50f3-48b5-84da-ae55baed57ec","Vinho Tinto Bonacchi Montepulciano Garrafa 750ml","10.00"],
+      ["31260e45-50c3-424c-b05a-1ba0b49afb96","Vinho Tinto Los Vascos Cabernet Sauvignon Garrafa 750ml","10.00"],
+      ["3c38090a-67e3-4395-8727-40dfb781c215","Vinho Tinto Argentina Catena Malbec Garrafa 750ml","10.00"],
+      ["55f1a576-1efd-4030-999e-69fd7a089b42","Vinho Alma Negra M Blend Garrafa 750ml","10.00"]]},
+    {"id":"8ad6a7cb-872b-4428-8a02-3a7818ea767a","nome":"Cervejas e Licores","produtos":[
+      ["2c03c825-e4a8-49a0-92b4-bbcd8a8986c9","Cerveja Nacional Leopoldina Pilsener Extra Garrafa 500ml","10.00"],
+      ["028fe21e-8a89-4590-beea-1d717e076610","Cerveja Importada Índia Pale Ale IPA Leopoldina Garrafa 500ml","10.00"],
+      ["e4c47eec-c65a-4c49-bbcd-498090c81b72","Licor Bardêra Doce de Leite 500 ml","10.00"]]}
+  ]
+}

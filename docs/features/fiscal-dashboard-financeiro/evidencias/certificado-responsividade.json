@@ -1,0 +1,154 @@
+{
+  "base": "f833bcaf",
+  "fonte": "prévia isolada com metadados fictícios",
+  "comparacao": "Cartão CertificadoCard de Dados da empresa: variantes e formato da data preservados; no dashboard, validade e conexão permanecem separadas.",
+  "cenarios": [
+    {
+      "largura": 320,
+      "tema": "claro",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 10,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    },
+    {
+      "largura": 390,
+      "tema": "claro",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 10,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    },
+    {
+      "largura": 768,
+      "tema": "claro",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 13,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    },
+    {
+      "largura": 1440,
+      "tema": "escuro",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 13,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    },
+    {
+      "largura": 768,
+      "tema": "escuro",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 13,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    },
+    {
+      "largura": 390,
+      "tema": "escuro",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 10,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    },
+    {
+      "largura": 320,
+      "tema": "escuro",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 10,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    },
+    {
+      "largura": 390,
+      "tema": "claro",
+      "estado": "ausente",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 10,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    },
+    {
+      "largura": 390,
+      "tema": "claro",
+      "estado": "vigente",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 10,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    },
+    {
+      "largura": 390,
+      "tema": "claro",
+      "estado": "vencido",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 10,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    },
+    {
+      "largura": 1440,
+      "tema": "claro",
+      "problemas": [],
+      "verificacoes": {
+        "alvosCompactos": 0,
+        "botoesVisiveis": 13,
+        "camposVisiveis": 0,
+        "gruposAcoes": 0,
+        "overflowDocumento": true,
+        "ponteiroGrosso": false
+      }
+    }
+  ],
+  "limites": "Verificação DOM parcial com ponteiro fino; não certifica WCAG, leitor de tela ou hardware de toque."
+}

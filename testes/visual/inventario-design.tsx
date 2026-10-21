@@ -1,0 +1,14 @@
+import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ProvedorAcesso } from "@/components/layout/acesso-contexto";
+import { Sidebar } from "@/components/layout/sidebar";
+import { CabecalhoConteudo } from "@/components/layout/cabecalho-conteudo";
+import { BarraAcoes } from "@/components/padroes-operacionais";
+import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/sonner";
+import { ContagemForm } from "@/app/(protegido)/inventario/contagem/[id]/contagem-form";
+import { LocaisDialog } from "@/app/(protegido)/inventario/locais-dialog";
+import { CategoriasPerdaDialog } from "@/app/(protegido)/inventario/perdas/categorias-dialog";
+import { contagemTeste } from "../inventario/dados";
+import "@/app/globals.css";
+createRoot(document.getElementById("root")!).render(<ThemeProvider attribute="class" defaultTheme="light"><ProvedorAcesso acesso={{ admin: true, permissoes: {}, excecoes: {} }}><div className="estrutura-sistema"><Sidebar /><div className="painel-sistema"><CabecalhoConteudo sessao={{ nome: "Equipe fictícia" }} /><main className="conteudo-sistema space-y-6"><BarraAcoes titulo="Estoque" descricao="Teste fictício: confirmar altera somente o estado desta prévia."><LocaisDialog locais={[{ id: "cozinha", nome: "Cozinha fictícia" }]} trigger={<Button variant="outline">Locais</Button>} /><CategoriasPerdaDialog categorias={[{ id: "quebra", nome: "Quebra fictícia", ativo: true, usada: true, codigoLegado: null }]} /></BarraAcoes><ContagemForm contagem={contagemTeste} /></main></div></div><Toaster /></ProvedorAcesso></ThemeProvider>);

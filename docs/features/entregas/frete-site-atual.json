@@ -1,0 +1,336 @@
+{
+  "fonte": "https://grazingtable.com.br/wp-admin/admin.php?page=exwoofood_shpping_options",
+  "consultadoEm": "2026-10-01",
+  "metodo": "ENTREGA_RETIRADA",
+  "perfil": "CARRO",
+  "limiteKm": "270",
+  "freteGeral": null,
+  "gratisAPartir": null,
+  "faixas": [
+    {
+      "gratisAPartir": "",
+      "km": "5",
+      "pedidoMinimo": "0",
+      "preco": "10"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "10",
+      "pedidoMinimo": "0",
+      "preco": "20"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "15",
+      "pedidoMinimo": "0",
+      "preco": "30"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "20",
+      "pedidoMinimo": "0",
+      "preco": "40"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "25",
+      "pedidoMinimo": "0",
+      "preco": "50"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "30",
+      "pedidoMinimo": "0",
+      "preco": "60"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "35",
+      "pedidoMinimo": "0",
+      "preco": "70"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "40",
+      "pedidoMinimo": "0",
+      "preco": "80"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "45",
+      "pedidoMinimo": "0",
+      "preco": "90"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "50",
+      "pedidoMinimo": "0",
+      "preco": "100"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "55",
+      "pedidoMinimo": "0",
+      "preco": "110"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "60",
+      "pedidoMinimo": "0",
+      "preco": "120"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "65",
+      "pedidoMinimo": "0",
+      "preco": "130"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "70",
+      "pedidoMinimo": "0",
+      "preco": "140"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "75",
+      "pedidoMinimo": "0",
+      "preco": "150"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "80",
+      "pedidoMinimo": "0",
+      "preco": "160"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "85",
+      "pedidoMinimo": "0",
+      "preco": "170"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "90",
+      "pedidoMinimo": "0",
+      "preco": "180"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "95",
+      "pedidoMinimo": "0",
+      "preco": "190"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "100",
+      "pedidoMinimo": "0",
+      "preco": "200"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "105",
+      "pedidoMinimo": "0",
+      "preco": "210"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "110",
+      "pedidoMinimo": "0",
+      "preco": "220"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "115",
+      "pedidoMinimo": "0",
+      "preco": "230"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "120",
+      "pedidoMinimo": "0",
+      "preco": "240"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "125",
+      "pedidoMinimo": "0",
+      "preco": "250"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "130",
+      "pedidoMinimo": "0",
+      "preco": "260"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "135",
+      "pedidoMinimo": "0",
+      "preco": "270"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "140",
+      "pedidoMinimo": "0",
+      "preco": "280"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "145",
+      "pedidoMinimo": "0",
+      "preco": "290"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "150",
+      "pedidoMinimo": "0",
+      "preco": "300"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "155",
+      "pedidoMinimo": "0",
+      "preco": "310"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "160",
+      "pedidoMinimo": "0",
+      "preco": "320"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "165",
+      "pedidoMinimo": "0",
+      "preco": "330"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "170",
+      "pedidoMinimo": "0",
+      "preco": "340"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "175",
+      "pedidoMinimo": "0",
+      "preco": "350"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "180",
+      "pedidoMinimo": "0",
+      "preco": "360"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "185",
+      "pedidoMinimo": "0",
+      "preco": "370"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "190",
+      "pedidoMinimo": "0",
+      "preco": "380"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "195",
+      "pedidoMinimo": "0",
+      "preco": "390"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "200",
+      "pedidoMinimo": "0",
+      "preco": "400"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "205",
+      "pedidoMinimo": "0",
+      "preco": "410"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "210",
+      "pedidoMinimo": "0",
+      "preco": "420"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "215",
+      "pedidoMinimo": "0",
+      "preco": "430"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "220",
+      "pedidoMinimo": "0",
+      "preco": "440"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "225",
+      "pedidoMinimo": "0",
+      "preco": "450"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "230",
+      "pedidoMinimo": "0",
+      "preco": "460"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "235",
+      "pedidoMinimo": "0",
+      "preco": "470"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "240",
+      "pedidoMinimo": "0",
+      "preco": "480"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "245",
+      "pedidoMinimo": "0",
+      "preco": "490"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "250",
+      "pedidoMinimo": "0",
+      "preco": "500"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "255",
+      "pedidoMinimo": "0",
+      "preco": "510"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "260",
+      "pedidoMinimo": "0",
+      "preco": "520"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "265",
+      "pedidoMinimo": "0",
+      "preco": "530"
+    },
+    {
+      "gratisAPartir": "",
+      "km": "270",
+      "pedidoMinimo": "0",
+      "preco": "540"
+    }
+  ],
+  "observacao": "Exemplo exclusivamente sintético do formato. Não corresponde à tabela comercial vigente nem autoriza copiar preços para produção."
+}

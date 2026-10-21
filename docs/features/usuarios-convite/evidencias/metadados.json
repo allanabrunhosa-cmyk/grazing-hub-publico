@@ -1,0 +1,28 @@
+{
+  "revisaoCodigo": "bc0f1f09f50d24ad85351726e9bae69c76bb861c",
+  "status": "Em revisão",
+  "origem": "Prévia Vite com componentes reais e dados fictícios",
+  "viewport": {
+    "width": 390,
+    "height": 1000
+  },
+  "tema": "claro",
+  "ponteiro": "mouse",
+  "dpr": 1,
+  "browser": "Chromium 154.0.8037.98",
+  "fontFamily": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+  "arquivos": [
+    {
+      "nome": "novo-usuario-390-claro.png",
+      "largura": 344,
+      "altura": 570,
+      "sha256": "a6b8e634a4f88e7bf76e5a91601841f88e46f2d2d68f000d4992cb6b2252536d"
+    },
+    {
+      "nome": "nova-senha-390-claro.png",
+      "largura": 390,
+      "altura": 1000,
+      "sha256": "23002e1e3667253346b2bd43ec4394f1dc544d04d0b2e07327954c5d393d9c3a"
+    }
+  ]
+}

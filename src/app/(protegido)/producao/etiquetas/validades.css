@@ -1,0 +1,142 @@
+/* Variante operacional de Validades. Escopo local; tokens oficiais do HUB. */
+.validades-premium { min-width:0; }
+.validades-premium .validades-cabecalho { padding:1.25rem; border:1px solid var(--border); border-radius:var(--ds-cartao-raio); background:color-mix(in srgb,var(--card) 78%,transparent); box-shadow:var(--shadow-xs); backdrop-filter:blur(calc(var(--ds-vidro-desfoque) / 3)); }
+.validades-premium [data-slot="card"] { background:color-mix(in srgb,var(--card) 90%,transparent); border-color:color-mix(in srgb,var(--border) 75%,transparent); box-shadow:var(--shadow-xs); }
+.validades-premium [data-slot="card-header"] { gap:.5rem; }
+.validades-premium [data-slot="tabs-list"] { max-width:100%; }
+.validades-premium [data-slot="table"] { background:color-mix(in srgb,var(--card) 94%,transparent); }
+.validades-premium .validades-opcao, .validades-premium .validades-opcao-grupo { display:block; height:auto; min-height:calc(var(--ds-controle-altura) * 2); white-space:normal; text-align:left; padding:1rem; border:1px solid var(--border); border-radius:var(--ds-cartao-raio); background:color-mix(in srgb,var(--card) 88%,transparent); font-weight:400; transition:box-shadow var(--ds-movimento-rapido),border-color var(--ds-movimento-rapido),background var(--ds-movimento-rapido); }
+.validades-premium .validades-opcao:hover, .validades-premium .validades-opcao[aria-pressed="true"] { border-color:var(--primary); background:color-mix(in srgb,var(--primary) 6%,var(--card)); box-shadow:var(--shadow-sm); }
+.validades-premium .validades-opcao[aria-pressed="true"] { outline:2px solid color-mix(in srgb,var(--primary) 22%,transparent); }
+.validades-steps { padding:.25rem; border:1px solid var(--border); border-radius:var(--ds-cartao-raio); background:color-mix(in srgb,var(--card) 82%,transparent); }
+.validades-premium .validades-steps > button { min-width:0; height:var(--ds-controle-altura); gap:.5rem; padding-inline:.5rem; }
+.validades-conservacao { padding:1rem; border:1px solid var(--border); border-radius:var(--ds-cartao-raio); background:color-mix(in srgb,var(--primary) 3%,var(--card)); }
+.validades-lista-produtos { min-width:0; border-top:1px solid var(--border); }
+.validades-lista-produtos > summary:focus-visible { outline:2px solid var(--ring); outline-offset:4px; border-radius:var(--ds-controle-raio); }
+.validades-indicadores { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr)); gap:.875rem; }
+.validades-premium .validades-indicador { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:.75rem; height:auto; padding:.875rem; text-align:left; white-space:normal; border-radius:var(--ds-cartao-raio); border:1px solid color-mix(in srgb,var(--tom) 20%,var(--card)); background:color-mix(in srgb,var(--tom) 4%,var(--card)); box-shadow:var(--shadow-sm); }
+.validades-premium [data-tom="critico"], .validades-detalhe [data-tom="critico"] { --tom:var(--destructive); }
+.validades-premium [data-tom="alerta"], .validades-detalhe [data-tom="alerta"] { --tom:var(--warning); }
+.validades-premium [data-tom="preventivo"], .validades-detalhe [data-tom="preventivo"] { --tom:var(--success); }
+.validades-premium [data-tom="neutro"], .validades-detalhe [data-tom="neutro"] { --tom:var(--muted-foreground); }
+.validades-indicador:hover, .validades-indicador[aria-pressed="true"] { box-shadow:var(--shadow-md); border-color:var(--tom); }
+.validades-icone-indicador { display:grid; place-items:center; padding:.625rem; color:var(--tom); background:color-mix(in srgb,var(--tom) 11%,transparent); border-radius:var(--ds-cartao-raio); }
+.validades-icone-indicador svg { width:1.75rem; height:1.75rem; }
+.validades-indicador-textos { display:flex; flex-direction:column; gap:.25rem; min-width:0; font-weight:400; }
+.validades-indicador-textos .text-stat { color:var(--tom); line-height:1.1; }
+.validades-seta { color:var(--tom); }
+.validades-premium .validades-filtros { padding-block:.875rem; }
+
+.validades-grade { display:grid; align-items:start; grid-template-columns:repeat(auto-fit,minmax(min(100%,max(19rem,calc((100% - 1.75rem) / 3))),1fr)); gap:.875rem; }
+.validades-premium .validades-etiqueta { position:relative; padding-block:0; transition:box-shadow var(--ds-movimento-rapido),border-color var(--ds-movimento-rapido); }
+.validades-premium .validades-etiqueta > [data-slot="card-content"] { padding:.875rem; }
+.validades-etiqueta:has(.validades-abrir-slot:hover), .validades-etiqueta:has(.validades-abrir-slot:focus-visible) { border-color:color-mix(in srgb,var(--primary) 45%,var(--border)); box-shadow:var(--shadow-md); }
+.validades-premium .validades-abrir-slot { position:absolute; inset:0; z-index:1; width:100%; height:100%; padding:0; border-radius:inherit; background:transparent; }
+.validades-etiqueta-conteudo { display:flex; align-items:flex-start; gap:.875rem; }
+.validades-foto { display:grid; place-items:center; flex:0 0 5.25rem; width:5.25rem; aspect-ratio:1; overflow:hidden; border-radius:calc(var(--ds-cartao-raio) / 2); background:var(--muted); }
+.validades-foto img { width:100%; height:100%; object-fit:cover; }
+.validades-copias { flex-shrink:0; border-radius:var(--ds-botao-raio); padding:.25rem .5rem; color:var(--primary); background:color-mix(in srgb,var(--primary) 7%,var(--card)); font-size:.75rem; font-weight:600; }
+.validades-chip { display:inline-flex; align-items:center; gap:.375rem; width:fit-content; max-width:100%; border-radius:var(--ds-botao-raio); padding:.25rem .625rem; background:color-mix(in srgb,var(--tom) 10%,var(--card)); color:var(--tom); font-size:.75rem; font-weight:600; }
+.validades-chip svg { width:1rem; height:1rem; flex-shrink:0; }
+.validades-etiqueta-acoes { display:flex; align-items:center; flex-wrap:wrap; justify-content:space-between; gap:.5rem; margin-top:.875rem; padding-top:.625rem; border-top:1px solid var(--border); }
+.validades-etiqueta-acoes > span { flex:1; min-width:6rem; }
+.validades-etiqueta-acoes > button { position:relative; z-index:2; }
+.validades-em-lista { grid-template-columns:1fr; }
+.validades-em-lista .validades-etiqueta > [data-slot="card-content"] { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:1rem; align-items:center; }
+.validades-em-lista .validades-etiqueta-acoes { margin:0; border:0; }
+.validades-em-lista .validades-etiqueta-acoes > span { display:none; }
+.validades-detalhe { width:min(56rem,calc(100vw - 2rem)); background:color-mix(in srgb,var(--card) 96%,transparent); box-shadow:var(--shadow-lg); border:1px solid var(--border); padding:1.5rem; }
+.validades-detalhe-grade { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1.5rem; align-items:start; }
+.validades-papel { min-width:0; padding:1rem; border-radius:var(--ds-cartao-raio); background:var(--muted); }
+.validades-dados-etiqueta { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+.validades-dados-etiqueta div { min-width:0; }
+.validades-dados-etiqueta dt { font-size:.75rem; color:var(--muted-foreground); margin-bottom:.25rem; }
+.validades-dados-etiqueta dd { font-weight:500; overflow-wrap:anywhere; }
+.validades-baixa { padding:1rem; border:1px solid var(--border); border-radius:var(--ds-cartao-raio); background:color-mix(in srgb,var(--success) 3%,var(--card)); }
+.validades-detalhe-acoes { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem; border-top:1px solid var(--border); padding-top:1rem; }
+@media(max-width:1279px) {   .validades-icone-indicador { padding:.5rem; } .validades-premium .validades-indicador { gap:.625rem; padding:1rem; } .validades-seta { display:none; } }
+@media(max-width:639px) {   .validades-indicadores { grid-template-columns:1fr; } .validades-premium .validades-indicador { grid-template-columns:auto minmax(0,1fr) auto; } .validades-seta { display:block; } .validades-grade { grid-template-columns:1fr; } .validades-detalhe-grade { grid-template-columns:1fr; } .validades-detalhe { padding:1rem; } .validades-em-lista .validades-etiqueta > [data-slot="card-content"] { display:block; } .validades-em-lista .validades-etiqueta-acoes { margin-top:.875rem; border-top:1px solid var(--border); } .validades-em-lista .validades-etiqueta-acoes > span { display:flex; } }
+@media(prefers-reduced-motion:reduce) { .validades-premium * { transition:none!important; animation:none!important; } }
+@media(prefers-reduced-transparency:reduce) { .validades-premium [data-slot="card"], .validades-premium .validades-cabecalho, .validades-detalhe { background:var(--card); backdrop-filter:none; } }
+@supports not(backdrop-filter:blur(1px)) { .validades-premium .validades-cabecalho, .validades-detalhe { background:var(--card); } }
+@media(forced-colors:active) { .validades-indicador, .validades-chip, .validades-etiqueta, .validades-detalhe { border:1px solid CanvasText!important; background:Canvas!important; color:CanvasText!important; box-shadow:none!important; } }
+
+[data-identidade="etiquetas"] .conteudo-sistema { padding:1rem 0; }
+[data-identidade="etiquetas"] .cabecalho-sistema { min-height:3.5rem; padding:.5rem 1rem; }
+.validades-premium .validades-cabecalho { padding:.625rem 1rem; }
+.validades-cabecalho h1 { font-size:1.5rem; line-height:1.25; }
+.validades-cabecalho p { margin-top:.125rem; font-size:.8125rem; }
+.validades-premium .validades-fluxo { gap:.75rem; container-type:inline-size; }
+.validades-premium .validades-fluxo > * { margin-block:0; }
+.validades-resumo-grupo { position:relative; min-width:0; }
+.validades-registros { margin-top:.875rem; border-top:1px solid var(--border); }
+.validades-registro { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.75rem; padding-block:.875rem; }
+.validades-registro + .validades-registro { border-top:1px solid var(--border); }
+.validades-registro .ds-grupo-acoes { flex-wrap:wrap; }
+.validades-em-lista .validades-etiqueta > [data-slot="card-content"] { display:block; }
+.validades-em-lista .validades-resumo-grupo { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:1rem; }
+.validades-premium .validades-passo-conteudo { gap:1rem; padding-block:1rem; }
+.validades-passo-conteudo > [data-slot="card-header"], .validades-passo-conteudo > [data-slot="card-content"] { padding-inline:1rem; }
+.validades-premium .validades-opcao { min-height:calc(var(--ds-controle-altura) * 1.5); padding:.75rem; }
+.validades-premium .validades-opcao > svg { display:inline-block; vertical-align:middle; margin:0 .5rem 0 0; }
+@media(max-width:639px) { .validades-cabecalho p { display:none; } .validades-em-lista .validades-resumo-grupo { display:block; } .validades-steps > button > span:last-child { font-size:.6875rem; } }
+@media(max-width:767px) { [data-identidade="etiquetas"] .conteudo-sistema { padding:1rem .5rem; } }
+
+/* As abas administrativas preservam rótulos completos em telas estreitas. */
+.validades-premium [aria-label="Configurações de Validades"][data-slot="tabs-list"] { display:flex; width:100%; height:auto; flex-wrap:wrap; justify-content:flex-start; gap:.25rem; }
+.validades-premium [aria-label="Configurações de Validades"] > [data-slot="tabs-trigger"] { flex:1 0 auto; min-height:var(--ds-controle-altura); }
+@media(max-width:639px) { .validades-premium [aria-label="Configurações de Validades"] > [data-slot="tabs-trigger"] { flex-basis:100%; } }
+
+/* No celular, resumos e filtros compartilham linhas para priorizar os produtos. */
+@media(max-width:639px) {
+  .validades-indicadores { grid-template-columns:repeat(3,minmax(0,1fr)); gap:.5rem; }
+  .validades-premium .validades-indicador { display:flex; padding:.75rem .5rem; gap:0; }
+  .validades-indicador .validades-icone-indicador, .validades-indicador .validades-seta, .validades-indicador-textos > span > span { display:none; }
+  .validades-indicador-textos { width:100%; }
+  .validades-indicador-textos strong { min-height:2rem; font-size:.75rem; line-height:1rem; }
+  .validades-indicador-textos .text-stat { font-size:1.5rem; }
+
+
+
+  .validades-filtros > [data-slot="card-content"] { padding-inline:.75rem; }
+}
+
+.validades-premium .validades-steps > button[aria-current="step"] { opacity:1; color:var(--foreground); }
+
+
+
+
+
+@media(min-width:640px) and (max-width:1023px) {
+  .validades-indicadores { grid-template-columns:repeat(3,minmax(0,1fr)); gap:.5rem; }
+  .validades-premium .validades-indicador { display:flex; padding:.75rem; gap:0; }
+  .validades-indicador .validades-icone-indicador, .validades-indicador .validades-seta, .validades-indicador-textos > span > span { display:none; }
+  .validades-indicador-textos { width:100%; }
+  .validades-indicador-textos strong { min-height:2rem; font-size:.75rem; line-height:1rem; }
+  .validades-indicador-textos .text-stat { font-size:1.5rem; }
+}
+
+.validades-etiqueta h3 { overflow-wrap:anywhere; }
+
+/* O grupo quebra pela largura real disponível; nenhum controle invade o vizinho. */
+.validades-filtros-principais { display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; }
+.validades-filtros-principais > :first-child { flex:1 1 16rem; }
+.validades-filtros-principais > :last-child { margin-left:auto; }
+@media(max-width:1279px) { .validades-filtros-principais > :first-child { flex-basis:100%; } }
+@media(max-width:639px) { .validades-filtros-principais { gap:.5rem; } }
+
+/* Uma faixa para a etapa principal e as áreas; conteúdo do produto é sequencial. */
+.validades-navegacao-emissao { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem; }
+.validades-navegacao-emissao > [data-slot="tabs-list"] { margin-left:auto; }
+.validades-navegacao-emissao .validades-steps { gap:.25rem; }
+.validades-premium .validades-cabecalho-passo { display:flex; align-items:center; gap:.5rem; }
+.validades-cabecalho-passo > div { min-width:0; }
+.validades-produto-subetapas { gap:1rem; }
+.validades-produto-subetapas > [data-slot="tabs-list"] { width:100%; }
+.validades-produto-subetapas > [data-slot="tabs-list"] > button { min-height:var(--ds-controle-altura); }
+@container (max-width:36rem) {
+  .validades-navegacao-emissao .validades-nome-etapa { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+  .validades-navegacao-emissao .validades-steps > button { width:var(--ds-controle-altura); }
+}
+
+.validades-foto.validades-foto-selecao { flex-basis:3.5rem; width:3.5rem; }

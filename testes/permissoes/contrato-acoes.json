@@ -1,0 +1,777 @@
+[
+  { "arquivo": "src/app/(protegido)/financeiro/fiscal/documento-actions.ts", "funcao": "consultarDocumentoDashboardAction", "recurso": "financeiro.fiscal.painel", "acao": "visualizar", "argumentos": ["NF_ENTRADA", "nota-ficticia"] },
+  { "arquivo": "src/app/(protegido)/inventario/entradas/actions.ts", "funcao": "consultarEntradaAvulsaAction", "recurso": "inventario", "acao": "visualizar", "argumentos": ["entrada-ficticia"] },
+  { "arquivo": "src/app/(protegido)/inventario/entradas/actions.ts", "funcao": "excluirEntradaAvulsaAction", "recurso": "inventario", "acao": "excluir", "argumentos": [{}] },
+  { "arquivo": "src/app/(protegido)/inventario/entradas/actions.ts", "funcao": "corrigirEntradaAvulsaAction", "recurso": "inventario", "acao": "editar", "argumentos": [{}] },
+  { "arquivo": "src/app/(protegido)/insumos/movimentacoes-actions.ts", "funcao": "consultarMovimentacoesItemAction", "recurso": "insumos", "acao": "visualizar", "argumentos": [{}] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/resumo-pedido-actions.ts", "funcao": "consultarResumoPedidoAction", "recurso": "vendas.pedidos", "acao": "visualizar", "argumentos": ["pedido-ficticio"] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "editarInformacoesPedidoAction", "recurso": "vendas.pedidos.revisar", "acao": "editar", "argumentos": ["pedido-ficticio", 1, {}, "chave-ficticia"] },
+  { "arquivo": "src/app/(protegido)/mcp/revisao/[id]/actions.ts", "funcao": "aprovarMcpAction", "guardaIndividual": true, "recurso": "identidade própria; ação central revalidada na proposta", "acao": "editar", "argumentos": [{}, {}] },
+  {"arquivo": "src/app/(protegido)/vendas/pedidos/ifood/actions.ts", "funcao": "salvarFinanceiroConfigIfoodAction", "recurso": "configuracoes.loja", "acao": "editar", "argumentos": ["loja-ficticia", 1, {}, "chave-ficticia"]},
+  {"arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "retomarDevolucaoPedidoAction", "recurso": "vendas.pedidos.cancelar", "acao": "editar", "argumentos": ["pedido-ficticio", "tratamento-ficticio", "chave-ficticia"]},
+  {"arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "concluirDevolucaoContextualAction", "recurso": "vendas.pedidos.cancelar", "acao": "editar", "argumentos": ["pedido-ficticio", "tratamento-ficticio", "conta-ficticia", "2026-10-08", "comprovacao-ficticia", "chave-ficticia"]},
+  { "arquivo": "src/app/(protegido)/configuracoes/integracoes/mcp/actions.ts", "funcao": "salvarMcpAction", "recurso": "configuracoes.mcp", "acao": "editar", "argumentos": [{}] },
+  { "arquivo": "src/app/(protegido)/configuracoes/integracoes/mcp/actions.ts", "funcao": "diagnosticarMcpAction", "recurso": "configuracoes.mcp", "acao": "visualizar", "argumentos": [] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "registrarCancelamentoBoletoPedidoAction", "recurso": "financeiro.movimentacoes", "acao": "editar", "argumentos": ["pedido-ficticio", "boleto-ficticio", "Evidência fictícia", "chave-ficticia-boleto"] },
+  { "arquivo": "src/app/(protegido)/notas-fiscais/actions.ts", "funcao": "obterResumoCancelamentoNotaAction", "recurso": "notas", "acao": "visualizar", "argumentos": ["nota-ficticia"] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "registrarEntradaTardiaBoletoPedidoAction", "recurso": "financeiro.baixas", "acao": "editar", "argumentos": ["pedido-ficticio", "boleto-ficticio", "conta-ficticia", "2026-10-02", "Evidência fictícia", "chave-ficticia-boleto"] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "corrigirRecebimentoPedidoAction", "recurso": "financeiro.estornos", "acao": "editar", "argumentos": ["pedido-ficticio", "titulo-ficticio", "2026-10-02", "Motivo fictício", "chave-ficticia-correcao"] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/custos-entrega-actions.ts", "funcao": "buscarDespesasEntregaAction", "recurso": "financeiro.movimentacoes", "acao": "editar", "argumentos": ["ficticia"] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/custos-entrega-actions.ts", "funcao": "vincularDespesaEntregaAction", "recurso": "financeiro.movimentacoes", "acao": "editar", "argumentos": [{}] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/custos-entrega-actions.ts", "funcao": "desvincularDespesaEntregaAction", "recurso": "financeiro.movimentacoes", "acao": "editar", "argumentos": ["vinculo-ficticio", "Motivo ficticio", "chave-ficticia-vinculo"] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/fiscal-actions.ts", "funcao": "prepararFiscalSaidaAction", "recurso": "vendas.fiscal", "acao": "editar", "argumentos": ["pedido-ficticio", 1] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/fiscal-actions.ts", "funcao": "acaoFiscalSaidaAction", "recurso": "vendas.fiscal", "acao": "editar", "argumentos": ["doc-ficticio", "CONSULTAR", ""] },
+  { "arquivo": "src/app/(protegido)/inventario/producao/actions.ts", "funcao": "registrarProducaoPreparacaoAction", "recurso": "inventario", "acao": "editar", "argumentos": [{}] },
+  { "arquivo": "src/app/(protegido)/inventario/producao/actions.ts", "funcao": "corrigirProducaoPreparacaoAction", "recurso": "inventario", "acao": "editar", "argumentos": ["producao-ficticia", "Correção fictícia", "chave-ficticia-producao"] },
+  { "arquivo": "src/app/(protegido)/vendas/canais/actions.ts", "funcao": "salvarCanalVendaAction", "recurso": "vendas.produtos", "acao": "editar", "argumentos": [{}] },
+  { "arquivo": "src/app/(protegido)/porcoes/actions.ts", "funcao": "listarPorcoesAction", "recurso": "suprimentos.porcoes", "acao": "visualizar", "argumentos": ["insumo-ficticio"] },
+  { "arquivo": "src/app/(protegido)/porcoes/actions.ts", "funcao": "salvarPorcaoAction", "recurso": "suprimentos.porcoes", "acao": "adicionar", "argumentos": [{"insumoId":"insumo-ficticio","nome":"1 fatia","quantidade":"0.01","unidade":"KG"}] },
+  { "arquivo": "src/app/(protegido)/porcoes/actions.ts", "funcao": "removerPorcaoAction", "recurso": "suprimentos.porcoes", "acao": "excluir", "argumentos": [{"id":"porcao-ficticia","versao":1}] },
+  { "arquivo": "src/app/(protegido)/porcoes/actions.ts", "funcao": "reordenarCategoriasPorcoesAction", "recurso": "suprimentos.porcoes", "acao": "editar", "argumentos": [[{"id":"categoria-ficticia","versao":1}]] },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/gestor-actions.ts", "funcao": "mudarStatusGestorPedidoAction", "recurso": "vendas.pedidos", "acao": "visualizar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/gestor-actions.ts", "funcao": "salvarMovimentacaoEstoqueGestorPedidosAction", "recurso": "vendas.pedidos", "acao": "visualizar", "argumentos": [true, 0, "chave-ficticia", "local-ficticio"] },
+  { "arquivo": "src/app/(protegido)/vendas/horarios/actions.ts", "funcao": "salvarHorariosAction", "recurso": "vendas.horarios", "acao": "editar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "encerrarPedidoManualAction", "recurso": "vendas.pedidos.cancelar", "acao": "editar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/producao/actions.ts", "funcao": "produzirMaterialAction", "recurso": "vendas.pedidos.producao", "acao": "editar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/producao/actions.ts", "funcao": "produzirPedidoAction", "recurso": "vendas.pedidos.producao", "acao": "editar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/documento-actions.ts", "funcao": "vincularDocumentoExternoPedidoAction", "recurso": "vendas.fiscal", "acao": "editar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/fisico-actions.ts", "funcao": "executarFisicoPedidoAction", "recurso": "vendas.pedidos.revisar", "acao": "editar" },
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"registrarRecebimentoPedidoAction","recurso":"financeiro.baixas","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"ajustarVencimentoPedidoAction","recurso":"vendas.pedidos.revisar","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"registrarCapturaCartaoPedidoAction","recurso":"financeiro.baixas","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"registrarEmissaoBoletoPedidoAction","recurso":"financeiro.movimentacoes","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"confirmarPagamentoBoletoPedidoAction","recurso":"financeiro.baixas","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"registrarRepasseCartaoPedidoAction","recurso":"financeiro.baixas","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"solicitarDevolucaoPedidoAction","recurso":"vendas.pedidos.cancelar","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"mudarEstadoDevolucaoPedidoAction","recurso":"vendas.pedidos.cancelar","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"concluirDevolucaoPedidoAction","recurso":"financeiro.baixas","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"concederCreditoPedidoAction","recurso":"vendas.pedidos.cancelar","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/actions.ts","funcao":"liberarCreditoAplicadoPedidoAction","recurso":"vendas.pedidos.cancelar","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/clientes/credito-actions.ts","funcao":"ajustarCreditoClienteAction","recurso":"financeiro.movimentacoes","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/clientes/historico-actions.ts","funcao":"consultarHistoricoPedidosClienteAction","recurso":"vendas.clientes","acao":"visualizar","argumentos":["cliente-ficticio"]},
+  {"arquivo":"src/app/(protegido)/vendas/clientes/cadastro-actions.ts","funcao":"buscarCnpjClienteAction","recurso":"vendas.clientes","acao":"visualizar","argumentos":["11222333000181"]},
+  {"arquivo":"src/app/(protegido)/vendas/clientes/cadastro-actions.ts","funcao":"buscarCepClienteAction","recurso":"vendas.clientes","acao":"visualizar","argumentos":["00000000"]},
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "executarOperacaoPedidoAction", "recurso": "vendas.pedidos.revisar", "acao": "editar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "criarRascunhoPedidoAction", "recurso": "vendas.pedidos", "acao": "adicionar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "salvarRascunhoPedidoAction", "recurso": "vendas.pedidos", "acao": "adicionar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "confirmarPedidoVendaAction", "recurso": "vendas.pedidos.confirmar", "acao": "editar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "consultarCreditoClientePedidoAction", "recurso": "vendas.pedidos.confirmar", "acao": "editar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "revisarPedidoVendaAction", "recurso": "vendas.pedidos.revisar", "acao": "editar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "cancelarPedidoVendaAction", "recurso": "vendas.pedidos.cancelar", "acao": "editar" },
+  { "arquivo": "src/app/(protegido)/vendas/pedidos/actions.ts", "funcao": "registrarEntregaPedidoVendaAction", "recurso": "vendas.pedidos.revisar", "acao": "editar" },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "alterarStatusCadastroVendaAction",
+    "recurso": "vendas.produtos",
+    "acao": "editar",
+    "argumentos": [
+      "PRODUTO",
+      "existente",
+      1,
+      false
+    ],
+    "preGuarda": "if (!Object.hasOwn(RECURSOS_STATUS_VENDA, tipo)) return { erro: \"Tipo de cadastro inválido.\" };"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "salvarCategoriaGrupoVendaAction",
+    "recurso": "vendas.catalogo",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "salvarGrupoFiscalVendaAction",
+    "recurso": "vendas.fiscal",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "alterarPrecoProdutoVendaAction",
+    "recurso": "vendas.produtos",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "criarCanalVendaAction",
+    "recurso": "vendas.produtos",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "excluirCadastroVendaAction",
+    "recurso": "vendas.catalogo",
+    "acao": "editar",
+    "argumentos": [
+      "GRUPO",
+      "existente",
+      1
+    ],
+    "preGuarda": "const recurso = tipo === \"PRODUTO\" ? \"vendas.produtos\" : tipo === \"GRUPO_FISCAL\" ? \"vendas.fiscal\" : \"vendas.catalogo\";"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/importacao/actions.ts",
+    "funcao": "prepararImportacaoVendaAction",
+    "recurso": "vendas.importacao",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/importacao/actions.ts",
+    "funcao": "aplicarImportacaoVendaAction",
+    "recurso": "vendas.importacao",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "reordenarProdutosVendaAction",
+    "recurso": "vendas.catalogo",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "alterarSituacaoProdutoVendaAction",
+    "recurso": "vendas.produtos",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/formas-pagamento/actions.ts",
+    "funcao": "salvarFormaPagamentoVendaAction",
+    "recurso": "vendas.formas-pagamento",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/perdas/categorias-actions.ts",
+    "funcao": "adicionarCategoriaPerdaAction",
+    "recurso": "inventario.perdas",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/perdas/categorias-actions.ts",
+    "funcao": "alterarCategoriaPerdaAction",
+    "recurso": "inventario.perdas",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/perdas/categorias-actions.ts",
+    "funcao": "removerCategoriaPerdaAction",
+    "recurso": "inventario.perdas",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "enviarFotoProdutoVendaAction",
+    "recurso": "vendas.produtos",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "salvarClienteVendaAction",
+    "recurso": "vendas.clientes",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "salvarCategoriaVendaAction",
+    "recurso": "vendas.catalogo",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "reordenarCategoriasVendaAction",
+    "recurso": "vendas.catalogo",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "salvarGrupoVendaAction",
+    "recurso": "vendas.catalogo",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "salvarProdutoVendaAction",
+    "recurso": "vendas.produtos",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "salvarFiscalVendaAction",
+    "recurso": "vendas.fiscal",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/configuracoes/design/actions.ts",
+    "funcao": "salvarRascunhoDesignAction",
+    "recurso": "configuracoes.design",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/configuracoes/design/actions.ts",
+    "funcao": "publicarRascunhoDesignAction",
+    "recurso": "configuracoes.design",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/configuracoes/design/actions.ts",
+    "funcao": "restaurarVersaoDesignAction",
+    "recurso": "configuracoes.design",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/producao/etiquetas/actions.ts",
+    "funcao": "prepararEtiquetaAction",
+    "recurso": "producao",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/producao/etiquetas/actions.ts",
+    "funcao": "iniciarEnvioEtiquetaAction",
+    "recurso": "producao",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/producao/etiquetas/actions.ts",
+    "funcao": "finalizarTentativaEtiquetaAction",
+    "recurso": "producao",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/producao/etiquetas/actions.ts",
+    "funcao": "registrarExportacaoEtiquetaAction",
+    "recurso": "producao",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/producao/etiquetas/actions.ts",
+    "funcao": "confirmarImpressaoEtiquetaAction",
+    "recurso": "producao",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/producao/etiquetas/actions.ts",
+    "funcao": "salvarConfiguracaoProdutoEtiquetaAction",
+    "recurso": "producao",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/producao/etiquetas/actions.ts",
+    "funcao": "salvarConfiguracaoImpressoraAction",
+    "recurso": "producao",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/compras/actions.ts",
+    "funcao": "salvarPedidoAction",
+    "recurso": "compras",
+    "acao": "input.pedidoId ? \"editar\" : \"adicionar\""
+  },
+  {
+    "arquivo": "src/app/(protegido)/compras/actions.ts",
+    "funcao": "confirmarRecebimentoAction",
+    "recurso": "compras.receber",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/compras/actions.ts",
+    "funcao": "cancelarPedidoAction",
+    "recurso": "compras",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/compras/actions.ts",
+    "funcao": "reabrirPedidoAction",
+    "recurso": "compras.receber",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/compras/actions.ts",
+    "funcao": "excluirPedidoAction",
+    "recurso": "compras",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/compras/reagendar-pedido.ts",
+    "funcao": "reagendarPedidoAction",
+    "recurso": "compras",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/configuracoes/actions.ts",
+    "funcao": "salvarConfiguracaoLojaAction",
+    "recurso": "configuracoes.loja",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/configuracoes/actions.ts",
+    "funcao": "uploadCertificadoAction",
+    "recurso": "configuracoes.loja",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/configuracoes/actions.ts",
+    "funcao": "removerCertificadoAction",
+    "recurso": "configuracoes.loja",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/configuracoes/actions.ts",
+    "funcao": "obterSenhaCertificadoAction",
+    "recurso": "configuracoes.loja",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/bancario/actions.ts",
+    "funcao": "editarSaldoInicialAction",
+    "recurso": "financeiro.saldo",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/bancario/actions.ts",
+    "funcao": "criarContaBancariaAction",
+    "recurso": "financeiro.bancario",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/bancario/actions.ts",
+    "funcao": "alternarAtivoContaBancariaAction",
+    "recurso": "financeiro.bancario",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/contas/actions.ts",
+    "funcao": "baixarLancamentoAction",
+    "recurso": "financeiro.baixas",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/contas/actions.ts",
+    "funcao": "estornarBaixaLancamentoAction",
+    "recurso": "financeiro.baixas",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/lancamentos/actions.ts",
+    "funcao": "criarLancamentoAction",
+    "recurso": "financeiro.movimentacoes",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/lancamentos/actions.ts",
+    "funcao": "atualizarLancamentoAction",
+    "recurso": "financeiro.movimentacoes",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/lancamentos/actions.ts",
+    "funcao": "obterResumoExclusaoLancamentoAction",
+    "recurso": "financeiro.movimentacoes",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/lancamentos/actions.ts",
+    "funcao": "excluirLancamentoAction",
+    "recurso": "financeiro.movimentacoes",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/movimentacoes/baixar-nota.ts",
+    "funcao": "baixarNotaFiscalAction",
+    "recurso": "financeiro.baixas",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-actions.ts",
+    "funcao": "prepararExtratoAction",
+    "recurso": "financeiro.conciliacao",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-actions.ts",
+    "funcao": "importarExtratoAction",
+    "recurso": "financeiro.conciliacao",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-actions.ts",
+    "funcao": "conciliarExtratoAction",
+    "recurso": "financeiro.conciliacao",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-actions.ts",
+    "funcao": "desfazerConciliacaoAction",
+    "recurso": "financeiro.conciliacao",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/plano-de-contas/actions.ts",
+    "funcao": "criarCategoriaFinanceiraAction",
+    "recurso": "financeiro.plano",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/plano-de-contas/actions.ts",
+    "funcao": "atualizarCategoriaFinanceiraAction",
+    "recurso": "financeiro.plano",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/plano-de-contas/actions.ts",
+    "funcao": "alternarAtivoCategoriaFinanceiraAction",
+    "recurso": "financeiro.plano",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/plano-de-contas/actions.ts",
+    "funcao": "excluirCategoriaFinanceiraAction",
+    "recurso": "financeiro.plano",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/fornecedores/actions.ts",
+    "funcao": "saveFornecedorAction",
+    "recurso": "fornecedores",
+    "acao": "String(formData.get(\"id\") ?? \"\").trim() ? \"editar\" : \"adicionar\""
+  },
+  {
+    "arquivo": "src/app/(protegido)/fornecedores/actions.ts",
+    "funcao": "deleteFornecedorAction",
+    "recurso": "fornecedores",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/fornecedores/actions.ts",
+    "funcao": "salvarBeneficiarioAction",
+    "recurso": "fornecedores",
+    "acao": "String(formData.get(\"id\") ?? \"\").trim() ? \"editar\" : \"adicionar\""
+  },
+  {
+    "arquivo": "src/app/(protegido)/fornecedores/actions.ts",
+    "funcao": "excluirBeneficiarioAction",
+    "recurso": "fornecedores",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/fornecedores/actions.ts",
+    "funcao": "createCanalPedidoAction",
+    "recurso": "fornecedores",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/fornecedores/actions.ts",
+    "funcao": "createFormaPagamentoAction",
+    "recurso": "fornecedores",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/fornecedores/actions.ts",
+    "funcao": "importFornecedoresAction",
+    "recurso": "fornecedores",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/insumos/actions.ts",
+    "funcao": "saveInsumoAction",
+    "recurso": "insumos",
+    "acao": "String(formData.get(\"id\") ?? \"\").trim() ? \"editar\" : \"adicionar\""
+  },
+  {
+    "arquivo": "src/app/(protegido)/insumos/actions.ts",
+    "funcao": "deleteInsumoAction",
+    "recurso": "insumos",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/insumos/actions.ts",
+    "funcao": "consultarExclusaoInsumoAction",
+    "recurso": "insumos",
+    "acao": "excluir",
+    "argumentos": ["insumo-ficticio"]
+  },
+  {
+    "arquivo": "src/app/(protegido)/insumos/actions.ts",
+    "funcao": "createCategoriaAction",
+    "recurso": "insumos",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/insumos/actions.ts",
+    "funcao": "renameCategoriaAction",
+    "recurso": "insumos",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/insumos/actions.ts",
+    "funcao": "deleteCategoriaAction",
+    "recurso": "insumos",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/insumos/actions.ts",
+    "funcao": "createCentroCustoAction",
+    "recurso": "insumos",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/insumos/actions.ts",
+    "funcao": "importInsumosAction",
+    "recurso": "insumos",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/actions.ts",
+    "funcao": "createLocalAction",
+    "recurso": "inventario",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/actions.ts",
+    "funcao": "renameLocalAction",
+    "recurso": "inventario",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/actions.ts",
+    "funcao": "deleteLocalAction",
+    "recurso": "inventario",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/historico-insumo-actions.ts",
+    "funcao": "obterMovimentacoesInsumoAction",
+    "recurso": "inventario",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/contagem/actions.ts",
+    "funcao": "iniciarContagemAction",
+    "recurso": "inventario.contagem",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/contagem/actions.ts",
+    "funcao": "salvarItemContagemAction",
+    "recurso": "inventario.contagem",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/contagem/actions.ts",
+    "funcao": "excluirContagemAction",
+    "recurso": "inventario.contagem",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/contagem/actions.ts",
+    "funcao": "finalizarContagemAction",
+    "recurso": "inventario.contagem",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/entrada-avulsa/actions.ts",
+    "funcao": "registrarEntradaAvulsaAction",
+    "recurso": "inventario.entrada",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/perdas/actions.ts",
+    "funcao": "registrarPerdaAction",
+    "recurso": "inventario.perdas",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/inventario/perdas/actions.ts",
+    "funcao": "excluirPerdaAction",
+    "recurso": "inventario.perdas",
+    "acao": "excluir"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/aceitar-nota.ts",
+    "funcao": "aceitarNotaAction",
+    "recurso": "notas.manifestar",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/actions.ts",
+    "funcao": "sincronizarAction",
+    "recurso": "notas",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/actions.ts",
+    "funcao": "manifestarAction",
+    "recurso": "notas.manifestar",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/actions.ts",
+    "funcao": "exportarXmlPorDataAction",
+    "recurso": "notas",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/actions.ts",
+    "funcao": "obterItensNotaFiscalAction",
+    "recurso": "notas",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/actions.ts",
+    "funcao": "confirmarConciliacaoNotaAction",
+    "recurso": "notas.manifestar",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/actions.ts",
+    "funcao": "obterInsumoOptionAction",
+    "recurso": "insumos",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/conciliar-fornecedor-actions.ts",
+    "funcao": "prepararConciliacaoFornecedorAction",
+    "recurso": "notas",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/conciliar-fornecedor-actions.ts",
+    "funcao": "conciliarFornecedorNotaAction",
+    "recurso": "notas.manifestar",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/importar-xml.ts",
+    "funcao": "importarXmlAvulsoAction",
+    "recurso": "notas",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/importar-xml.ts",
+    "funcao": "importarXmlNotaAction",
+    "recurso": "notas",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/status-cadastros-actions.ts",
+    "funcao": "alterarStatusFornecedorAction",
+    "recurso": "fornecedores",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/status-cadastros-actions.ts",
+    "funcao": "alterarStatusInsumoAction",
+    "recurso": "insumos",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/notas-fiscais/importar-chave.ts",
+    "funcao": "importarChaveAction",
+    "recurso": "notas",
+    "acao": "adicionar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/bancario/cartoes-actions.ts",
+    "funcao": "salvarCartaoAction",
+    "recurso": "financeiro.bancario",
+    "acao": "id ? \"editar\" : \"adicionar\""
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/bancario/cartoes-actions.ts",
+    "funcao": "alternarCartaoAction",
+    "recurso": "financeiro.bancario",
+    "acao": "editar"
+  }
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"identificarFaturaAction","recurso":"financeiro.faturas","acao":"adicionar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"prepararFaturaAction","recurso":"financeiro.faturas","acao":"adicionar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"importarFaturaAction","recurso":"financeiro.faturas","acao":"adicionar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"classificarFaturaAction","recurso":"financeiro.faturas","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"concluirDespesasFaturaAction","recurso":"financeiro.faturas","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"corrigirCartaoDespesaAction","recurso":"financeiro.faturas","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"correspondenciasFaturaAction","recurso":"financeiro.faturas","acao":"visualizar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"vincularFaturaAction","recurso":"financeiro.faturas","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"pagarFaturaAction","recurso":"financeiro.cartoes-pagamentos","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"desfazerPagamentoFaturaAction","recurso":"financeiro.cartoes-pagamentos","acao":"excluir"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"ajustarItemFaturaAction","recurso":"financeiro.faturas","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"cancelarFaturaAction","recurso":"financeiro.faturas","acao":"excluir"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"salvarRegraFaturaAction","recurso":"financeiro.cartoes-regras","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/producao/etiquetas/pontos-actions.ts","funcao":"criarPontoImpressaoAction","recurso":"producao","acao":"adicionar"}
+  ,{"arquivo":"src/app/(protegido)/producao/etiquetas/pontos-actions.ts","funcao":"atualizarPontoImpressaoAction","recurso":"producao","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/producao/etiquetas/pontos-actions.ts","funcao":"emitirCodigoPontoAction","recurso":"producao","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/producao/etiquetas/pontos-actions.ts","funcao":"revogarPontoAction","recurso":"producao","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/producao/etiquetas/pontos-actions.ts","funcao":"selecionarImpressoraPontoAction","recurso":"producao","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/producao/etiquetas/pontos-actions.ts","funcao":"enfileirarPontoAction","recurso":"producao","acao":"adicionar"}
+  ,{"arquivo":"src/app/(protegido)/producao/etiquetas/pontos-actions.ts","funcao":"imprimirTestePontoAction","recurso":"producao","acao":"adicionar"}
+  ,{"arquivo":"src/app/(protegido)/producao/etiquetas/pontos-actions.ts","funcao":"solicitarMudancaWifiPontoAction","recurso":"producao","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/producao/etiquetas/pontos-actions.ts","funcao":"confirmarSaidaFisicaPontoAction","recurso":"producao","acao":"adicionar"}
+  ,{"arquivo":"src/app/(protegido)/vendas/pedidos/cadastro-cliente-actions.ts","funcao":"buscarCnpjPedidoAction","recurso":"vendas.pedidos","acao":"visualizar","argumentos":["11222333000181"]}
+  ,{"arquivo":"src/app/(protegido)/vendas/pedidos/cadastro-cliente-actions.ts","funcao":"buscarCepPedidoAction","recurso":"vendas.pedidos","acao":"visualizar","argumentos":["00000000"]}
+  ,{"arquivo":"src/app/(protegido)/vendas/pedidos/cadastro-cliente-actions.ts","funcao":"criarClienteDoPedidoAction","recurso":"vendas.clientes","acao":"adicionar","argumentos":[{}]}
+  ,{"arquivo":"src/app/(protegido)/vendas/area-entrega/actions.ts","funcao":"salvarEntregasAction","recurso":"vendas.area-entrega","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/vendas/area-entrega/actions.ts","funcao":"simularEntregaAction","recurso":"vendas.area-entrega","acao":"visualizar"}
+  ,{"arquivo":"src/app/(protegido)/vendas/pedidos/entregas-actions.ts","funcao":"calcularFretePedidoAction","recurso":"vendas.pedidos","acao":"visualizar"}
+  ,{"arquivo":"src/app/(protegido)/vendas/pedidos/custos-entrega-actions.ts","funcao":"salvarCustoEntregaAction","recurso":"vendas.pedidos.logistica","acao":"editar"}
+,{"arquivo":"src/app/(protegido)/vendas/produtos/embalagens-actions.ts","funcao":"salvarTipoEmbalagemAction","recurso":"vendas.catalogo","acao":"id ? \"editar\" : \"adicionar\""}
+  ,{"arquivo":"src/app/(protegido)/vendas/area-entrega/actions.ts","funcao":"buscarCepEntregaAction","recurso":"vendas.area-entrega","acao":"visualizar","argumentos":["00000000"]}
+  ,{"arquivo":"src/app/(protegido)/configuracoes/actions.ts","funcao":"buscarCepLojaAction","recurso":"configuracoes.loja","acao":"visualizar","argumentos":["00000000"]},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"configurarIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"iniciarVinculoIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"concluirVinculoIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"listarLojasIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"vincularLojaIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"prepararAcompanhamentoIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"ativarLojaIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"motivosIfoodAction","recurso":"vendas.pedidos.cancelar","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"acaoPedidoIfoodAction","recurso":"vendas.pedidos","acao":"visualizar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"gerarFinanceiroIfoodAction","recurso":"financeiro.movimentacoes","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"renovarAutorizacaoIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"retomarEventosIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"estadoLojaIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"conferirAcaoIfoodAction","recurso":"vendas.pedidos.revisar","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"consultarMerchantIfoodAction","recurso":"configuracoes.loja","acao":"editar"},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"detalhesMerchantIfoodAction","recurso":"configuracoes.loja","acao":"editar","argumentos":["loja-ficticia"]},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/ifood/actions.ts","funcao":"solicitarMerchantIfoodAction","recurso":"configuracoes.loja","acao":"editar"}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"compensarItensFaturaAction","recurso":"financeiro.faturas","acao":"editar","argumentos":["ficticia",1,"compra","credito","Estorno no mesmo dia"]}
+  ,{"arquivo":"src/app/(protegido)/financeiro/cartoes/actions.ts","funcao":"desfazerCompensacaoFaturaAction","recurso":"financeiro.faturas","acao":"editar","argumentos":["ficticia",1,"compra","Corrigir compensacao"]}
+  ,{"arquivo":"src/app/(protegido)/vendas/fiscal/estrutura-actions.ts","funcao":"salvarVersaoFiscalAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}]}
+  ,{"arquivo":"src/app/(protegido)/vendas/fiscal/estrutura-actions.ts","funcao":"analisarImpactoFiscalAction","recurso":"vendas.fiscal","acao":"editar","argumentos":["versao-ficticia"]}
+  ,{"arquivo":"src/app/(protegido)/vendas/fiscal/estrutura-actions.ts","funcao":"ativarVersaoFiscalAction","recurso":"vendas.fiscal","acao":"editar","argumentos":["versao-ficticia","hash-ficticio","chave-ficticia"]}
+  ,{"arquivo":"src/app/(protegido)/vendas/fiscal/estrutura-actions.ts","funcao":"consultarPainelFiscalAction","recurso":"vendas.fiscal","acao":"visualizar","argumentos":[]}
+  ,{"arquivo":"src/app/(protegido)/vendas/pedidos/fiscal-actions.ts","funcao":"previaFiscalSaidaAction","recurso":"vendas.fiscal","acao":"visualizar","argumentos":["pedido-ficticio",1]},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/emissao-actions.ts","funcao":"prepararEmissaoPedidoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":["pedido-ficticio",1,55,"HOMOLOGACAO"]},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/emissao-actions.ts","funcao":"emitirNotaPedidoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/emissao-actions.ts","funcao":"emitirNotaPedidoDiretaBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/emissao-actions.ts","funcao":"consultarResultadoEmissaoPedidoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":["pedido-ficticio"]},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/emissao-actions.ts","funcao":"cancelarNotaPedidoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/emissao-actions.ts","funcao":"consultarEmissaoPedidoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":["documento-ficticio"]},
+  {"arquivo":"src/app/(protegido)/vendas/pedidos/emissao-actions.ts","funcao":"obterDocumentosEmissaoPedidoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":["documento-ficticio"]},
+  {"arquivo":"src/app/(protegido)/configuracoes/integracoes/brasilnfe-actions.ts","funcao":"obterPreRequisitosBrasilNfeAction","recurso":"configuracoes.brasilnfe","acao":"visualizar","argumentos":[]},
+  {"arquivo":"src/app/(protegido)/configuracoes/integracoes/brasilnfe-actions.ts","funcao":"registrarEvidenciaPainelBrasilNfeAction","recurso":"configuracoes.brasilnfe","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/configuracoes/integracoes/brasilnfe-actions.ts","funcao":"verificarPreRequisitosBrasilNfeAction","recurso":"configuracoes.brasilnfe","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/vendas/fiscal/regras-brasilnfe/actions.ts","funcao":"salvarRascunhoRegraBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/vendas/fiscal/regras-brasilnfe/actions.ts","funcao":"aprovarRegraBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/vendas/fiscal/regras-brasilnfe/actions.ts","funcao":"revisarRegraBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/vendas/fiscal/regras-brasilnfe/actions.ts","funcao":"bloquearRegraBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/vendas/fiscal/regras-brasilnfe/actions.ts","funcao":"inativarRegraBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/vendas/fiscal/regras-brasilnfe/actions.ts","funcao":"historicoRegraBrasilNfeAction","recurso":"vendas.fiscal","acao":"visualizar","argumentos":["regra-ficticia"]},
+  {"arquivo":"src/app/(protegido)/configuracoes/integracoes/brasilnfe-actions.ts","funcao":"obterConfiguracaoBrasilNfeAction","recurso":"configuracoes.brasilnfe","acao":"visualizar","argumentos":[]},
+  {"arquivo":"src/app/(protegido)/configuracoes/integracoes/brasilnfe-actions.ts","funcao":"salvarConfiguracaoBrasilNfeAction","recurso":"configuracoes.brasilnfe","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/configuracoes/integracoes/brasilnfe-actions.ts","funcao":"validarConexaoBrasilNfeAction","recurso":"configuracoes.brasilnfe","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/financeiro/fiscal/numeracao/actions.ts","funcao":"consultarNumeracaoFiscalBrasilNfeAction","recurso":"configuracoes.brasilnfe","acao":"editar","argumentos":[{"versao":1}]},
+  {"arquivo":"src/app/(protegido)/financeiro/fiscal/numeracao/actions.ts","funcao":"atualizarNumeracaoFiscalBrasilNfeAction","recurso":"configuracoes.brasilnfe","acao":"editar","argumentos":[{"versao":3,"modelo":55,"ambiente":2,"serie":"6","proximoNumero":"1","padrao":true,"operacaoId":"00000000-0000-4000-8000-000000000001","consultadoEm":"2026-10-15T12:00:00.000Z","confirmarAtualizacao":true}]},
+  {"arquivo":"src/app/(protegido)/configuracoes/integracoes/brasilnfe-actions.ts","funcao":"obterHabilitacaoEmissaoBrasilNfeAction","recurso":"configuracoes.brasilnfe","acao":"visualizar","argumentos":[]},
+  {"arquivo":"src/app/(protegido)/configuracoes/integracoes/brasilnfe-actions.ts","funcao":"configurarHabilitacaoEmissaoBrasilNfeAction","recurso":"configuracoes.brasilnfe","acao":"editar","argumentos":[{}]},
+  {"arquivo":"src/app/(protegido)/financeiro/fiscal/homologacao/actions.ts","funcao":"prepararPilotosBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[],"guardaDelegada":"agir","chamadaDelegada":"return agir(prepararCenariosPilotoBrasilNfe);"},
+  {"arquivo":"src/app/(protegido)/financeiro/fiscal/homologacao/actions.ts","funcao":"separarIpiPilotoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[],"guardaDelegada":"agir","chamadaDelegada":"return agir(separarRepresentacaoIpiPilotoBrasilNfe);"},
+  {"arquivo":"src/app/(protegido)/financeiro/fiscal/homologacao/actions.ts","funcao":"aprovarPilotosBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}],"guardaDelegada":"agir","chamadaDelegada":"return agir(s => aprovarRevisaoPilotoBrasilNfe(entrada, s));"},
+  {"arquivo":"src/app/(protegido)/financeiro/fiscal/homologacao/actions.ts","funcao":"concluirManifestosPilotoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[],"guardaDelegada":"agir","chamadaDelegada":"return agir(concluirVinculosPilotoBrasilNfe);"},
+  {"arquivo":"src/app/(protegido)/financeiro/fiscal/homologacao/actions.ts","funcao":"transmitirPilotoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":[{}],"guardaDelegada":"agir","chamadaDelegada":"return agir(s => transmitirUmaHomologacaoBrasilNfe(entrada, s));"},
+  {"arquivo":"src/app/(protegido)/financeiro/fiscal/homologacao/actions.ts","funcao":"consultarPilotoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":["documento-ficticio"],"guardaDelegada":"agir","chamadaDelegada":"return agir(s => consultarHomologacaoBrasilNfe(id, s));"},
+  {"arquivo":"src/app/(protegido)/financeiro/fiscal/homologacao/actions.ts","funcao":"documentosPilotoBrasilNfeAction","recurso":"vendas.fiscal","acao":"editar","argumentos":["documento-ficticio"],"guardaDelegada":"agir","chamadaDelegada":"return agir(s => baixarDocumentosHomologacaoBrasilNfe(id, s));"}
+  ,{"arquivo":"src/app/(protegido)/vendas/bi/actions.ts","funcao":"consultarBiAction","recurso":"vendas.bi","acao":"visualizar","argumentos":[{}]}
+,
+{"arquivo": "src/app/(protegido)/producao/etiquetas/operacao-actions.ts", "funcao": "excluirPontoImpressaoAction", "recurso": "producao", "acao": "excluir"},
+{"arquivo": "src/app/(protegido)/producao/etiquetas/operacao-actions.ts", "funcao": "baixarEtiquetaAction", "recurso": "producao.validades", "acao": "editar"},
+{"arquivo": "src/app/(protegido)/producao/etiquetas/operacao-actions.ts", "funcao": "configurarUsuarioResponsavelAction", "recurso": "producao", "acao": "editar"},
+{"arquivo": "src/app/(protegido)/producao/etiquetas/operacao-actions.ts", "funcao": "salvarResponsavelEtiquetaAction", "recurso": "producao", "acao": "editar"}
+,
+{"arquivo": "src/app/(protegido)/vendas/fiscal/estrutura-actions.ts", "funcao": "registrarDeclaracaoGrazing1Action", "recurso": "vendas.fiscal", "acao": "editar"}
+,{"arquivo":"src/app/(protegido)/producao/etiquetas/operacao-actions.ts","funcao":"restaurarPontoImpressaoAction","recurso":"producao","acao":"editar"}
+]

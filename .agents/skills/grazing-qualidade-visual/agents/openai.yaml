@@ -1,0 +1,6 @@
+interface:
+  display_name: "Grazing HUB · Qualidade visual"
+  short_description: "Reutilizar o Design System e validar novas interfaces"
+  default_prompt: "Use $grazing-qualidade-visual para implementar esta interface com os padrões reais do HUB e validar sua aparência."
+policy:
+  allow_implicit_invocation: true

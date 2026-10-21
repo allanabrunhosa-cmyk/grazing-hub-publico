@@ -1,0 +1,66 @@
+{
+  "data": "2026-10-21",
+  "status": "Em revisão",
+  "origem": "Prévia Vite isolada do working tree, dados e callbacks fictícios",
+  "base": "c278a92f5bae3cfafa0f083524ceb36991905060",
+  "fontes": [
+    {
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
+      "sha256": "4c3828ec75368e1d8748943da5364855a16857f194a2d196fc4447cffb0279a6"
+    },
+    {
+      "arquivo": "src/lib/permissoes/atendimento.ts",
+      "sha256": "b8fe1bc6e3c7382fd553202a15e98cce07ad5b4e9302b94cbf4901afdb1f8550"
+    },
+    {
+      "arquivo": "testes/visual/permissoes-atendimento.tsx",
+      "sha256": "76562d639973fdbaad391357d7901afa375757f16cf226f70a4a7b9bebbec545"
+    }
+  ],
+  "capturas": [
+    {
+      "arquivo": "chromium-1440-claro-perfil.png",
+      "sha256": "b7cda26ef61188c8677ea9c269b5600d9e89ec3ce448b3b249c1ebd6b30791e2",
+      "largura": 976,
+      "altura": 1614
+    },
+    {
+      "arquivo": "chromium-1440-escuro-perfil.png",
+      "sha256": "c1f83db1cbaf7fe5b8a8805ff3df3b68848a9d3999483ef66a122ee966ef98b3",
+      "largura": 976,
+      "altura": 1614
+    },
+    {
+      "arquivo": "chromium-768-claro-perfil.png",
+      "sha256": "1f14fb5c1f4184d4fab3151c306689f541df8544c68aff8c93e2812d08d32f84",
+      "largura": 720,
+      "altura": 1726
+    },
+    {
+      "arquivo": "chromium-390-escuro-personalizado.png",
+      "sha256": "eff3f1fce32d79f232e63c9ec5a7126c781e3a205df6c38802be666e23e61b04",
+      "largura": 358,
+      "altura": 2266
+    },
+    {
+      "arquivo": "chromium-320-claro-vazio.png",
+      "sha256": "a170e5c4a90798b323dbe01d2ba0900fcf6a6274ba3d166bd0cc8ba9e2d32fd2",
+      "largura": 288,
+      "altura": 2910
+    },
+    {
+      "arquivo": "chromium-320-escuro-salvando.png",
+      "sha256": "fdcd16da85bb232c96f55339052c55d4a4fa67c93935b5ff7d2d786252f2512c",
+      "largura": 288,
+      "altura": 2318
+    }
+  ],
+  "comparacaoAprovada": false,
+  "runtime": "Node 22.23.3",
+  "ambiente": "Windows local; Chromium via Playwright 1.64.0",
+  "contratos": {
+    "consumidor": 24,
+    "referenciasGerais": 60,
+    "testesUi": 22
+  }
+}

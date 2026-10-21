@@ -1,0 +1,967 @@
+{
+  "estado": "Em revisão",
+  "data": "2026-10-13",
+  "execucao": "38342215955",
+  "artefato": "11787576916",
+  "sha256Zip": "8c06a70156c813a5ca45a9a1ad40cc24c739a299c5446b673e75b6b1aaa0722c",
+  "runUrl": "https://github.com/allanabrunhosa-cmyk/grazing-hub/actions/runs/38342215955",
+  "referenciasAprovadas": 0,
+  "observacao": "Seleção de evidências. Não registrada como baseline. PNGs copiados sem recaptura, transformação ou aprovação.",
+  "candidatas": [
+    {
+      "id": "CAND-01",
+      "categoria": "Botões",
+      "estado": "Em revisão",
+      "arquivo": "cand-01-chromium-320-claro-toque-controles.png",
+      "sha256": "ec00d16d60b7687e31363877baceffcc63c4acfc1ef896ad2dfc3f7da7e3b02c",
+      "larguraImagem": 288,
+      "alturaImagem": 185,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-320-claro-toque/candidatas/controles.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-320-claro-toque",
+        "caso": "normal",
+        "tema": "claro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 320,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": true,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "ec00d16d60b7687e31363877baceffcc63c4acfc1ef896ad2dfc3f7da7e3b02c",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "dd279fb66bac8d7c7130592845237e6eb31001e87a1c8e01c056ac8c06dfd44b",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "dc0dcfee232ad887de5740d1afae3cdf23490d6b9a53157ee728c5c3ec4bf11a",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "f056cfbcf4b510931c23d9680dccb2d88d7f40035e013c54bc31b7b4f00322af",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "ca2a49caf24bae76e226b6773e23b2057c18cc9820a157f6037d4423774639dc",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "ed31814c81e5253b313d1e46a192083d003f2b4efecb914c1202389c6efd9033",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Não visível neste contexto",
+            "motivo": "Lateral oculta no layout móvel real"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "fad897fe7ec881a5ee04254f1b2e0421f0ddf7e938513468d350489a4cba0c71",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-02",
+      "categoria": "Botões",
+      "estado": "Em revisão",
+      "arquivo": "cand-02-chromium-390-escuro-toque-controles.png",
+      "sha256": "cb3d4ffe385983ba2109d3dd377f5bed573d4a68a680ba129e741953152f322d",
+      "larguraImagem": 358,
+      "alturaImagem": 133,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-390-escuro-toque/candidatas/controles.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-390-escuro-toque",
+        "caso": "normal",
+        "tema": "escuro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 390,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": true,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "cb3d4ffe385983ba2109d3dd377f5bed573d4a68a680ba129e741953152f322d",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "2515e7edefbd7cc1edc75a29ff6be4bd1689b5408de20486fc3d5999b42b2c8d",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "7b54fd69e6740a2df2ab38164d00c63f3f89450b18d9a73b941c0702bde6f442",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "408e167ee7c76ee0a0afde242811634fe81fe209f04fe91c82b35d27e8dd6ef4",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "81dca5605d2a6c377ae8a1e22dc0727740b94bff30e46da284a220a3dee4f6a2",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "da819cb8d787c0c0dd9d283d5321e533a225639f96ea29efc0c92d8f8a8dd9ad",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Não visível neste contexto",
+            "motivo": "Lateral oculta no layout móvel real"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "5e624f5621e6a66cae0ca60b9f1573e43319f4f64c4ffd38d08832078d5b3c2f",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-03",
+      "categoria": "Botões",
+      "estado": "Em revisão",
+      "arquivo": "cand-03-chromium-768-claro-fino-controles.png",
+      "sha256": "ae2bae166f3d613755e45a2865a2937e58bc13637fc96f046ae3b30b74486ac9",
+      "larguraImagem": 432,
+      "alturaImagem": 133,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-768-claro-fino/candidatas/controles.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-768-claro-fino",
+        "caso": "normal",
+        "tema": "claro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 768,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": false,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "ae2bae166f3d613755e45a2865a2937e58bc13637fc96f046ae3b30b74486ac9",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "c3d89d23ee9b186bdb97dfb9e03776e6364594c66a65761a380cd27fc3857f60",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "d52642a51467cbe5cdd1eac85989678f255adf92e0f15a0204afb6c0293a0f39",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "f03e42fb6560be2de9289eb465f716604550357de442c32b6cc62856c34c7a31",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "9ce51b4d4228889a7c64207a585b2ac00069b771f48eebf20d411ac6a156b5d5",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "9cfac69c6162925e24d083caab4296c5606758c4204c88b789d078895fc1d306",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Em revisão",
+            "sha256": "9863c8c5a5fb974a678c6fe116392e0e45fb033308af3050d094cfd898468b49",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "6315a623c556caebd5a10e9bcd6002dba039cb5186af3b52be4b263afa43c9b4",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-04",
+      "categoria": "Botões",
+      "estado": "Em revisão",
+      "arquivo": "cand-04-chromium-1440-claro-fino-controles.png",
+      "sha256": "fe628735242e569716c2294553de700bf990c3d7860ae14f91bd7acffa6df9d3",
+      "larguraImagem": 1104,
+      "alturaImagem": 81,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-1440-claro-fino/candidatas/controles.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-1440-claro-fino",
+        "caso": "normal",
+        "tema": "claro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 1440,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": false,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "fe628735242e569716c2294553de700bf990c3d7860ae14f91bd7acffa6df9d3",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "48289f93504c274a9fd85a47afcc9c634465a0b2d707ec9955c27738374fdded",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "1aae8a14027c5612173645494f1722b9d4fc6560f42dfd6e7f89cee6d2c82ad0",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "810707a76ca936ac3db9914033812d77b90137a6e5be96733e801aed03468cd4",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "b86ad3c135877c089fc03d1e9737c32bef2c242f0cbb447df6246894d25a7c27",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "ffad4666f58a4f438622520509915ddfdb2901bff86197ff37dc7e962861ed9d",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Em revisão",
+            "sha256": "11bd4f620ebd42b6d955b5a54900467ef39812c8da5fe0dd180265f19a9dbfa1",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "47560b734ff9a9e60d8d52a25750c5ec5ef6072f1bb356d85b139150af586685",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-05",
+      "categoria": "Formulários",
+      "estado": "Em revisão",
+      "arquivo": "cand-05-chromium-390-escuro-toque-formulario.png",
+      "sha256": "2515e7edefbd7cc1edc75a29ff6be4bd1689b5408de20486fc3d5999b42b2c8d",
+      "larguraImagem": 358,
+      "alturaImagem": 497,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-390-escuro-toque/candidatas/formulario.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-390-escuro-toque",
+        "caso": "normal",
+        "tema": "escuro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 390,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": true,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "cb3d4ffe385983ba2109d3dd377f5bed573d4a68a680ba129e741953152f322d",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "2515e7edefbd7cc1edc75a29ff6be4bd1689b5408de20486fc3d5999b42b2c8d",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "7b54fd69e6740a2df2ab38164d00c63f3f89450b18d9a73b941c0702bde6f442",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "408e167ee7c76ee0a0afde242811634fe81fe209f04fe91c82b35d27e8dd6ef4",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "81dca5605d2a6c377ae8a1e22dc0727740b94bff30e46da284a220a3dee4f6a2",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "da819cb8d787c0c0dd9d283d5321e533a225639f96ea29efc0c92d8f8a8dd9ad",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Não visível neste contexto",
+            "motivo": "Lateral oculta no layout móvel real"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "5e624f5621e6a66cae0ca60b9f1573e43319f4f64c4ffd38d08832078d5b3c2f",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-06",
+      "categoria": "Formulários",
+      "estado": "Em revisão",
+      "arquivo": "cand-06-chromium-768-claro-fino-formulario.png",
+      "sha256": "c3d89d23ee9b186bdb97dfb9e03776e6364594c66a65761a380cd27fc3857f60",
+      "larguraImagem": 432,
+      "alturaImagem": 409,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-768-claro-fino/candidatas/formulario.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-768-claro-fino",
+        "caso": "normal",
+        "tema": "claro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 768,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": false,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "ae2bae166f3d613755e45a2865a2937e58bc13637fc96f046ae3b30b74486ac9",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "c3d89d23ee9b186bdb97dfb9e03776e6364594c66a65761a380cd27fc3857f60",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "d52642a51467cbe5cdd1eac85989678f255adf92e0f15a0204afb6c0293a0f39",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "f03e42fb6560be2de9289eb465f716604550357de442c32b6cc62856c34c7a31",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "9ce51b4d4228889a7c64207a585b2ac00069b771f48eebf20d411ac6a156b5d5",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "9cfac69c6162925e24d083caab4296c5606758c4204c88b789d078895fc1d306",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Em revisão",
+            "sha256": "9863c8c5a5fb974a678c6fe116392e0e45fb033308af3050d094cfd898468b49",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "6315a623c556caebd5a10e9bcd6002dba039cb5186af3b52be4b263afa43c9b4",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-07",
+      "categoria": "Formulários",
+      "estado": "Em revisão",
+      "arquivo": "cand-07-chromium-1440-claro-fino-formulario.png",
+      "sha256": "48289f93504c274a9fd85a47afcc9c634465a0b2d707ec9955c27738374fdded",
+      "larguraImagem": 1104,
+      "alturaImagem": 321,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-1440-claro-fino/candidatas/formulario.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-1440-claro-fino",
+        "caso": "normal",
+        "tema": "claro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 1440,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": false,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "fe628735242e569716c2294553de700bf990c3d7860ae14f91bd7acffa6df9d3",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "48289f93504c274a9fd85a47afcc9c634465a0b2d707ec9955c27738374fdded",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "1aae8a14027c5612173645494f1722b9d4fc6560f42dfd6e7f89cee6d2c82ad0",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "810707a76ca936ac3db9914033812d77b90137a6e5be96733e801aed03468cd4",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "b86ad3c135877c089fc03d1e9737c32bef2c242f0cbb447df6246894d25a7c27",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "ffad4666f58a4f438622520509915ddfdb2901bff86197ff37dc7e962861ed9d",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Em revisão",
+            "sha256": "11bd4f620ebd42b6d955b5a54900467ef39812c8da5fe0dd180265f19a9dbfa1",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "47560b734ff9a9e60d8d52a25750c5ec5ef6072f1bb356d85b139150af586685",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-08",
+      "categoria": "Tabelas",
+      "estado": "Em revisão",
+      "arquivo": "cand-08-chromium-320-claro-fino-tabela.png",
+      "sha256": "4b70cefcb69dda968df1cd15da5cac6bb5cec16228597c55e482936f27eb3080",
+      "larguraImagem": 288,
+      "alturaImagem": 253,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-320-claro-fino/candidatas/tabela.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-320-claro-fino",
+        "caso": "normal",
+        "tema": "claro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 320,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": false,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "2efee53fb1b0ca6c0985881a61c182ff7172f752f7931c650dcbdfd7b4a63e89",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "33ad1a023f7f16c68db4e5e1d606458e51c28384a6ed70234e0e744aadaac556",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "4b70cefcb69dda968df1cd15da5cac6bb5cec16228597c55e482936f27eb3080",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "5f56fc74d8a2fd768f9ebe05468407a6695852fbc77a220684fc120c0318b250",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "238a837ef8b4d0060d1ab748ba032b1e294065fe4fdef002fb4758c594be360a",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "ffd25047828b3be083352a3fbca1055bcd3d256df2246ba8c375f7fd9028b510",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Não visível neste contexto",
+            "motivo": "Lateral oculta no layout móvel real"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "4e162e87db703dd1d0017bd36b5696c1ba5ed49734b4fcce0c64902f04d08a2c",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-09",
+      "categoria": "Tabelas",
+      "estado": "Em revisão",
+      "arquivo": "cand-09-chromium-1440-escuro-fino-tabela.png",
+      "sha256": "5124dd0d4eb17572c9991e3231f51809e32f8b262ec87e866d34ee63a5f76189",
+      "larguraImagem": 1104,
+      "alturaImagem": 250,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-1440-escuro-fino/candidatas/tabela.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-1440-escuro-fino",
+        "caso": "normal",
+        "tema": "escuro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 1440,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": false,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "dbf2252cd72a68406907921bec7bdc63c269599627121bc1b92484b0b857f37d",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "9fafafc8ea9c3249408cce7934f0e1e520f7b724cc1a6929c9ebe4df4fffdde6",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "5124dd0d4eb17572c9991e3231f51809e32f8b262ec87e866d34ee63a5f76189",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "42c89063d6e9c8d83f6b883f285ba117a60bd39eb0aba2d6b77b886561b4be95",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "435c29000a5e1a22469ad35392da8455d9a687932cf93bf6b9ad8810f38f58f8",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "2903548162a3c1d7f2c5338083265df4fcaa82ba797e09af60ba90664ead90ea",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Em revisão",
+            "sha256": "e880d5c0a9a4573930934b10bb6a97bc0fc1d181e918ab110a43b72990e2c983",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "15b322e18a4a4c5b2e66f2248ee5e5efb5f0e278fc1b4053bdf90f73cfd2e676",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-10",
+      "categoria": "Modais",
+      "estado": "Em revisão",
+      "arquivo": "cand-10-chromium-320-claro-toque-dialogo-painel.png",
+      "sha256": "ed31814c81e5253b313d1e46a192083d003f2b4efecb914c1202389c6efd9033",
+      "larguraImagem": 288,
+      "alturaImagem": 288,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-320-claro-toque/candidatas/dialogo-painel.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-320-claro-toque",
+        "caso": "normal",
+        "tema": "claro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 320,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": true,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "ec00d16d60b7687e31363877baceffcc63c4acfc1ef896ad2dfc3f7da7e3b02c",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "dd279fb66bac8d7c7130592845237e6eb31001e87a1c8e01c056ac8c06dfd44b",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "dc0dcfee232ad887de5740d1afae3cdf23490d6b9a53157ee728c5c3ec4bf11a",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "f056cfbcf4b510931c23d9680dccb2d88d7f40035e013c54bc31b7b4f00322af",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "ca2a49caf24bae76e226b6773e23b2057c18cc9820a157f6037d4423774639dc",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "ed31814c81e5253b313d1e46a192083d003f2b4efecb914c1202389c6efd9033",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Não visível neste contexto",
+            "motivo": "Lateral oculta no layout móvel real"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "fad897fe7ec881a5ee04254f1b2e0421f0ddf7e938513468d350489a4cba0c71",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-11",
+      "categoria": "Modais",
+      "estado": "Em revisão",
+      "arquivo": "cand-11-chromium-768-claro-fino-dialogo-painel.png",
+      "sha256": "9cfac69c6162925e24d083caab4296c5606758c4204c88b789d078895fc1d306",
+      "larguraImagem": 384,
+      "alturaImagem": 236,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-768-claro-fino/candidatas/dialogo-painel.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-768-claro-fino",
+        "caso": "normal",
+        "tema": "claro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 768,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": false,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "ae2bae166f3d613755e45a2865a2937e58bc13637fc96f046ae3b30b74486ac9",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "c3d89d23ee9b186bdb97dfb9e03776e6364594c66a65761a380cd27fc3857f60",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "d52642a51467cbe5cdd1eac85989678f255adf92e0f15a0204afb6c0293a0f39",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "f03e42fb6560be2de9289eb465f716604550357de442c32b6cc62856c34c7a31",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "9ce51b4d4228889a7c64207a585b2ac00069b771f48eebf20d411ac6a156b5d5",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "9cfac69c6162925e24d083caab4296c5606758c4204c88b789d078895fc1d306",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Em revisão",
+            "sha256": "9863c8c5a5fb974a678c6fe116392e0e45fb033308af3050d094cfd898468b49",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "6315a623c556caebd5a10e9bcd6002dba039cb5186af3b52be4b263afa43c9b4",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    },
+    {
+      "id": "CAND-12",
+      "categoria": "Painel lateral",
+      "estado": "Em revisão",
+      "arquivo": "cand-12-chromium-1440-escuro-fino-lateral.png",
+      "sha256": "e880d5c0a9a4573930934b10bb6a97bc0fc1d181e918ab110a43b72990e2c983",
+      "larguraImagem": 256,
+      "alturaImagem": 869,
+      "caminhoNoArtefato": "referencias/resultados/referencias-capturas-e-referências-normal-chromium-1440-escuro-fino/candidatas/lateral.png",
+      "origem": {
+        "commit": "c1c0006b131ce3756809a85f74f125b731fd4111",
+        "alteracoesLocais": null,
+        "projeto": "chromium-1440-escuro-fino",
+        "caso": "normal",
+        "tema": "escuro",
+        "ambiente": "linux-amd64-playwright-1.64.0-noble",
+        "chromium": "156.0.8078.4",
+        "layout": {
+          "largura": 1440,
+          "altura": 900,
+          "dpr": 1,
+          "ponteiroGrosso": false,
+          "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+          "fontes": "loaded"
+        },
+        "imagens": [
+          {
+            "secao": "controles",
+            "estado": "Em revisão",
+            "sha256": "dbf2252cd72a68406907921bec7bdc63c269599627121bc1b92484b0b857f37d",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "formulario",
+            "estado": "Em revisão",
+            "sha256": "9fafafc8ea9c3249408cce7934f0e1e520f7b724cc1a6929c9ebe4df4fffdde6",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "tabela",
+            "estado": "Em revisão",
+            "sha256": "5124dd0d4eb17572c9991e3231f51809e32f8b262ec87e866d34ee63a5f76189",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "filtros",
+            "estado": "Em revisão",
+            "sha256": "42c89063d6e9c8d83f6b883f285ba117a60bd39eb0aba2d6b77b886561b4be95",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo",
+            "estado": "Em revisão",
+            "sha256": "435c29000a5e1a22469ad35392da8455d9a687932cf93bf6b9ad8810f38f58f8",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "dialogo-painel",
+            "estado": "Em revisão",
+            "sha256": "2903548162a3c1d7f2c5338083265df4fcaa82ba797e09af60ba90664ead90ea",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "lateral",
+            "estado": "Em revisão",
+            "sha256": "e880d5c0a9a4573930934b10bb6a97bc0fc1d181e918ab110a43b72990e2c983",
+            "comparacao": "Sem referência registrada"
+          },
+          {
+            "secao": "estados",
+            "estado": "Em revisão",
+            "sha256": "15b322e18a4a4c5b2e66f2248ee5e5efb5f0e278fc1b4053bdf90f73cfd2e676",
+            "comparacao": "Sem referência registrada"
+          }
+        ],
+        "aprovadas": 0,
+        "execucao": "38342215955",
+        "aviso": "Toda nova captura é Em revisão; o estado da referência é registrado separadamente. Inspecione legibilidade, hierarquia, sobreposição e contraste. Origem local com alterações não representa o commit isoladamente."
+      }
+    }
+  ]
+}

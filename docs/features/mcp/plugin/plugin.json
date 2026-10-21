@@ -1,0 +1,25 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dev-6ac69bc9f48c819197f5bfbde209b575",
+  "version": "1.0.2",
+  "description": "Consulta financeira do Grazing HUB, somente leitura.",
+  "author": {
+    "name": "App developer"
+  },
+  "extensions": {
+    "com.openai": {
+      "apps": "./.app.json",
+      "interface": {
+        "capabilities": [],
+        "category": "Other",
+        "defaultPrompt": null,
+        "developerName": "App developer",
+        "displayName": "Grazing Hub",
+        "longDescription": "Consulta financeira do Grazing HUB, somente leitura.",
+        "shortDescription": "Consulta financeira do Grazing HUB, somente leitura.",
+        "logo": "./assets/grazing-hub.png",
+        "composerIcon": "./assets/grazing-hub.png"
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "formato": 1,
+  "origem": "OUTRO",
+  "loja": "Prévia isolada — dados fictícios",
+  "referencia": "Arquivo exclusivo para testes locais; não importar em produção.",
+  "categorias": [],
+  "grupos": [],
+  "produtos": [{ "chave": "produto-teste", "nome": "Produto de demonstração", "tipo": "PADRAO", "categorias": [], "grupos": [], "precos": [{ "canal": "DIRETO", "preco": "10", "ativo": true }] }]
+}

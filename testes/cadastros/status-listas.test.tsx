@@ -1,0 +1,86 @@
+// @vitest-environment jsdom
+import { afterEach, expect, it, vi } from "vitest";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { FornecedoresTable } from "@/app/(protegido)/fornecedores/fornecedores-table";
+import { InsumosTable } from "@/app/(protegido)/insumos/insumos-table";
+import { fornecedorStatus, insumoStatus } from "./dados";
+import { ProvedorAcesso } from "@/components/layout/acesso-contexto";
+import type { ReactNode } from "react";
+const Administrador = ({ children }: { children: ReactNode }) => <ProvedorAcesso acesso={{ admin: true, permissoes: {}, excecoes: {} }}>{children}</ProvedorAcesso>;
+const m = vi.hoisted(() => ({ fornecedor: vi.fn(async () => ({ ok: true })), insumo: vi.fn(async () => ({ ok: true })) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
+vi.mock("@/app/(protegido)/producao/etiquetas/actions", () => ({ salvarConfiguracaoProdutoEtiquetaAction: vi.fn() }));
+vi.mock("@/app/(protegido)/status-cadastros-actions", () => ({ alterarStatusFornecedorAction: m.fornecedor, alterarStatusInsumoAction: m.insumo }));
+vi.mock("@/app/(protegido)/fornecedores/fornecedor-actions-cell", () => ({ FornecedorActionsCell: () => null }));
+vi.mock("@/app/(protegido)/fornecedores/fornecedor-detalhes", () => ({ FornecedorDetalhes: () => <tr><td>Detalhes abertos</td></tr> }));
+vi.mock("@/app/(protegido)/insumos/insumo-actions-cell", () => ({ InsumoActionsCell: () => null }));
+vi.mock("@/app/(protegido)/insumos/insumo-dialog", () => ({ InsumoDialog: () => null }));
+vi.mock("@/app/(protegido)/insumos/movimentacoes-actions", () => ({ consultarMovimentacoesItemAction: vi.fn(async () => ({ dados: { linhas: [], total: 0, pagina: 1, paginas: 1 } })) }));
+vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+afterEach(() => { cleanup(); vi.clearAllMocks(); });
+it("inativa fornecedor na lista sem abrir detalhes, e o filtro permite reativá-lo", async () => {
+  const usuario = userEvent.setup();
+  const props = { fornecedores: [fornecedorStatus], canaisPedidoOptions: [], formasPagamentoOptions: [] };
+  const { rerender } = render(<FornecedoresTable {...props} />, { wrapper: Administrador });
+  await usuario.click(screen.getByRole("switch", { name: `Status de ${fornecedorStatus.nome}` }));
+  expect(m.fornecedor).toHaveBeenCalledExactlyOnceWith(fornecedorStatus.id, false);
+  expect(screen.queryByText("Detalhes abertos")).toBeNull();
+  rerender(<FornecedoresTable {...props} fornecedores={[{ ...fornecedorStatus, ativo: false }]} />);
+  await usuario.click(screen.getByRole("button", { name: "Ativos (0)" }));
+  expect(screen.queryByRole("switch")).toBeNull();
+  await usuario.click(screen.getByRole("button", { name: "Inativos (1)" }));
+  await usuario.click(screen.getByRole("switch"));
+  expect(m.fornecedor).toHaveBeenLastCalledWith(fornecedorStatus.id, true);
+});
+it("filtra insumos por status junto com a busca e reativa o registro encontrado", async () => {
+  const usuario = userEvent.setup();
+  const props = { insumos: [insumoStatus, { ...insumoStatus, id: "arroz", nome: "Arroz", ativo: false }], categorias: [], centrosCusto: [], fornecedores: [], todosInsumos: [] };
+  render(<InsumosTable {...props} />, { wrapper: Administrador });
+  const filtroStatus = screen.getByRole("combobox", { name: "Filtrar insumos por status" });
+  expect(filtroStatus.textContent).toContain("Ativos (1)");
+  expect(screen.getByText(insumoStatus.nome)).toBeTruthy();
+  expect(screen.queryByText("Arroz")).toBeNull();
+  await usuario.click(filtroStatus);
+  await usuario.click(await screen.findByRole("option", { name: "Inativos (1)" }));
+  expect(screen.queryByText(insumoStatus.nome)).toBeNull();
+  await usuario.type(screen.getByRole("textbox", { name: "Buscar insumo, marca, categoria ou fornecedor" }), "arroz");
+  await usuario.click(screen.getByRole("switch", { name: "Status de Arroz" }));
+  expect(m.insumo).toHaveBeenCalledExactlyOnceWith("arroz", true);
+  expect(screen.getByRole("button", { name: "Abrir detalhes de Arroz" }).getAttribute("aria-expanded")).toBe("false");
+});
+it("explica consulta sem permitir alteração do fornecedor", async () => {
+  render(<FornecedoresTable fornecedores={[fornecedorStatus]} canaisPedidoOptions={[]} formasPagamentoOptions={[]} />);
+  const status = screen.getByRole("switch");
+  expect(status).toHaveProperty("disabled", true);
+  expect(screen.getByText("Seu perfil permite apenas consultar.")).toBeTruthy();
+  await userEvent.click(status); expect(m.fornecedor).not.toHaveBeenCalled();
+});
+
+it("conta insumos e preparações antes da paginação e combina busca, tipo e status", async () => {
+  const usuario = userEvent.setup();
+  render(<InsumosTable insumos={[insumoStatus, { ...insumoStatus, id: "bolo", nome: "Bolo de trigo", tipo: "PRODUTO_INTERMEDIARIO" }, { ...insumoStatus, id: "inativo", nome: "Trigo inativo", ativo: false }]} categorias={[]} centrosCusto={[]} fornecedores={[]} todosInsumos={[]} />, { wrapper: Administrador });
+  expect(screen.getByRole("button", { name: "Todos (2)" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Insumos (1)" })).toBeTruthy();
+  await usuario.click(screen.getByRole("button", { name: "Preparações (1)" }));
+  expect(screen.queryByText(insumoStatus.nome)).toBeNull();
+  await usuario.click(screen.getByRole("combobox", { name: "Filtrar insumos por status" }));
+  expect(await screen.findByRole("option", { name: "Todos os status (1)" })).toBeTruthy();
+  await usuario.keyboard("{Escape}");
+  await usuario.type(screen.getByRole("textbox", { name: "Buscar insumo, marca, categoria ou fornecedor" }), "farinha");
+  expect(screen.getByRole("button", { name: "Preparações (0)" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Insumos (1)" })).toBeTruthy();
+});
+it("conta fornecedores por status e busca e mostra quantidade de insumos na linha", async () => {
+  const usuario = userEvent.setup();
+  render(<FornecedoresTable fornecedores={[{ ...fornecedorStatus, quantidadeInsumos: 3 }, { ...fornecedorStatus, id: "inativo", nome: "Central", razaoSocial: "Central Alimentos", ativo: false }]} canaisPedidoOptions={[]} formasPagamentoOptions={[]} />, { wrapper: Administrador });
+  expect(screen.getByRole("button", { name: "Todos (2)" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Ativos (1)" })).toBeTruthy();
+  expect(screen.getByRole("columnheader", { name: "Insumos" })).toBeTruthy();
+  expect(within(screen.getByText(fornecedorStatus.nome).closest("tr")!).getByRole("cell", { name: "3" })).toBeTruthy();
+  await usuario.click(screen.getByRole("button", { name: "Inativos (1)" }));
+  expect(screen.queryByText(fornecedorStatus.nome)).toBeNull();
+  await usuario.type(screen.getByPlaceholderText("Buscar por nome, CNPJ, e-mail..."), "serra");
+  expect(screen.getByRole("button", { name: "Todos (1)" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Inativos (0)" })).toBeTruthy();
+});

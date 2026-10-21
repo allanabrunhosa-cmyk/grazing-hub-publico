@@ -1,0 +1,386 @@
+{
+  "origem": "https://gestor.takeat.app/financial/cost-centers?name=grazingtableco",
+  "consultadoEm": "2026-09-10",
+  "categorias": [
+    {
+      "nome": "Aquisição de Ativos",
+      "classificacao": "operacional",
+      "subcategorias": [
+        {
+          "nome": "Aplicações Financeiras",
+          "subcategorias": []
+        },
+        {
+          "nome": "Ativos de produção",
+          "subcategorias": [
+            {
+              "nome": "Equipamentos",
+              "subcategorias": []
+            },
+            {
+              "nome": "Utensilios",
+              "subcategorias": []
+            }
+          ]
+        },
+        {
+          "nome": "Imobilizado -benfeitorias e equips",
+          "subcategorias": []
+        },
+        {
+          "nome": "Instalações Gerais",
+          "subcategorias": []
+        },
+        {
+          "nome": "Mão de Obra",
+          "subcategorias": []
+        },
+        {
+          "nome": "Outros Ativos",
+          "subcategorias": [
+            {
+              "nome": "Outros equipamentos",
+              "subcategorias": []
+            },
+            {
+              "nome": "Outros utensilios",
+              "subcategorias": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nome": "Consumo e Utilidades Prediais",
+      "classificacao": "operacional",
+      "subcategorias": [
+        {
+          "nome": "Aluguel",
+          "subcategorias": []
+        },
+        {
+          "nome": "Energia Elétrica",
+          "subcategorias": []
+        },
+        {
+          "nome": "Gás",
+          "subcategorias": []
+        },
+        {
+          "nome": "IPTU",
+          "subcategorias": []
+        },
+        {
+          "nome": "Internet",
+          "subcategorias": []
+        },
+        {
+          "nome": "Manutenção Refrig. e AC",
+          "subcategorias": []
+        },
+        {
+          "nome": "Manutenção diversas",
+          "subcategorias": []
+        },
+        {
+          "nome": "Seguro Predial",
+          "subcategorias": []
+        },
+        {
+          "nome": "Telefone",
+          "subcategorias": []
+        },
+        {
+          "nome": "Água",
+          "subcategorias": []
+        }
+      ]
+    },
+    {
+      "nome": "Despesas com pessoal",
+      "classificacao": "operacional",
+      "subcategorias": [
+        {
+          "nome": "13º Salário",
+          "subcategorias": []
+        },
+        {
+          "nome": "Adiantamento",
+          "subcategorias": []
+        },
+        {
+          "nome": "Alimentação funcionário (AF)",
+          "subcategorias": []
+        },
+        {
+          "nome": "Comissão",
+          "subcategorias": []
+        },
+        {
+          "nome": "FGTS",
+          "subcategorias": []
+        },
+        {
+          "nome": "Freelancers",
+          "subcategorias": []
+        },
+        {
+          "nome": "Férias",
+          "subcategorias": []
+        },
+        {
+          "nome": "Horas Extras",
+          "subcategorias": []
+        },
+        {
+          "nome": "Outras despesas com pessoal",
+          "subcategorias": []
+        },
+        {
+          "nome": "Plano de Saúde",
+          "subcategorias": []
+        },
+        {
+          "nome": "Previdência Social (INSS)",
+          "subcategorias": []
+        },
+        {
+          "nome": "Pró Labore",
+          "subcategorias": []
+        },
+        {
+          "nome": "Rescisão Contratual",
+          "subcategorias": []
+        },
+        {
+          "nome": "Salários",
+          "subcategorias": []
+        },
+        {
+          "nome": "Seguro de vida",
+          "subcategorias": []
+        },
+        {
+          "nome": "Vale Alimentação",
+          "subcategorias": []
+        },
+        {
+          "nome": "Vale Transporte",
+          "subcategorias": []
+        }
+      ]
+    },
+    {
+      "nome": "Empréstimos e Financiamentos",
+      "classificacao": "operacional",
+      "subcategorias": [
+        {
+          "nome": "Empréstimo de Capital de Giro",
+          "subcategorias": []
+        },
+        {
+          "nome": "Outros Empréstimos",
+          "subcategorias": []
+        }
+      ]
+    },
+    {
+      "nome": "Frete",
+      "classificacao": "operacional",
+      "subcategorias": [
+        {
+          "nome": "Entregas terceirizadas",
+          "subcategorias": []
+        }
+      ]
+    },
+    {
+      "nome": "GA (Gerais e ADM)",
+      "classificacao": "operacional",
+      "subcategorias": [
+        {
+          "nome": "Contador",
+          "subcategorias": []
+        },
+        {
+          "nome": "Cursos e eventos (socios)",
+          "subcategorias": []
+        },
+        {
+          "nome": "Distribuição de lucros",
+          "subcategorias": []
+        },
+        {
+          "nome": "Marketing",
+          "subcategorias": [
+            {
+              "nome": "ADS",
+              "subcategorias": []
+            },
+            {
+              "nome": "Outros",
+              "subcategorias": []
+            },
+            {
+              "nome": "Serviços terceiros",
+              "subcategorias": []
+            }
+          ]
+        },
+        {
+          "nome": "Nutricionista",
+          "subcategorias": []
+        },
+        {
+          "nome": "Outras despesas",
+          "subcategorias": []
+        },
+        {
+          "nome": "Serviços terceiros",
+          "subcategorias": []
+        },
+        {
+          "nome": "Sistemas e assinaturas digitais",
+          "subcategorias": []
+        }
+      ]
+    },
+    {
+      "nome": "Impostos, Taxas e Tarifas",
+      "classificacao": "Deduções da receita",
+      "subcategorias": [
+        {
+          "nome": "Alvará Contribuição Sindical",
+          "subcategorias": []
+        },
+        {
+          "nome": "COFINS",
+          "subcategorias": []
+        },
+        {
+          "nome": "CSLL",
+          "subcategorias": []
+        },
+        {
+          "nome": "ICMS",
+          "subcategorias": []
+        },
+        {
+          "nome": "IPI",
+          "subcategorias": []
+        },
+        {
+          "nome": "IRPJ",
+          "subcategorias": []
+        },
+        {
+          "nome": "ISS",
+          "subcategorias": []
+        },
+        {
+          "nome": "PIS",
+          "subcategorias": []
+        },
+        {
+          "nome": "Simples Nacional",
+          "subcategorias": []
+        },
+        {
+          "nome": "Tarifas Bancárias",
+          "subcategorias": []
+        }
+      ]
+    },
+    {
+      "nome": "Insumos",
+      "classificacao": "insumos",
+      "subcategorias": [
+        {
+          "nome": "Bebidas para preparações",
+          "subcategorias": []
+        },
+        {
+          "nome": "Charcutaria",
+          "subcategorias": []
+        },
+        {
+          "nome": "Embalagens e acessórios descartáveis",
+          "subcategorias": []
+        },
+        {
+          "nome": "Frutas, antepastos e ervas",
+          "subcategorias": []
+        },
+        {
+          "nome": "Insumos para preparações",
+          "subcategorias": []
+        },
+        {
+          "nome": "Preparações doces",
+          "subcategorias": []
+        },
+        {
+          "nome": "Preparações salgadas",
+          "subcategorias": []
+        },
+        {
+          "nome": "Pães e Crackers",
+          "subcategorias": []
+        },
+        {
+          "nome": "Queijos",
+          "subcategorias": []
+        }
+      ]
+    },
+    {
+      "nome": "Material de Consumo",
+      "classificacao": "operacional",
+      "subcategorias": [
+        {
+          "nome": "Descartaveis operacionais",
+          "subcategorias": []
+        },
+        {
+          "nome": "Limpeza e conservação",
+          "subcategorias": []
+        },
+        {
+          "nome": "Material de escritório",
+          "subcategorias": []
+        }
+      ]
+    },
+    {
+      "nome": "Produtos para Revendas",
+      "classificacao": "insumos",
+      "subcategorias": [
+        {
+          "nome": "Cervejas e outros alcoolicos",
+          "subcategorias": []
+        },
+        {
+          "nome": "Doces revenda",
+          "subcategorias": []
+        },
+        {
+          "nome": "Emporio",
+          "subcategorias": []
+        },
+        {
+          "nome": "Não Alcoolicos revenda",
+          "subcategorias": []
+        },
+        {
+          "nome": "Tortas e salgados revenda",
+          "subcategorias": []
+        },
+        {
+          "nome": "Vinhos e espumantes",
+          "subcategorias": []
+        }
+      ]
+    }
+  ]
+}
+

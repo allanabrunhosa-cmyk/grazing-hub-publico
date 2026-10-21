@@ -1,0 +1,466 @@
+{
+  "versao": 1,
+  "origem": "Auditoria inicial; dívida técnica, não aprovação visual",
+  "ocorrencias": {
+    "f802a295ff683a11bea4309300c2ebec207d7fc2d5772d2852752f27e7a363be": {
+      "arquivo": "src/app/(protegido)/compras/pedido-detalhe-dialog.tsx",
+      "regra": "acao-compacta-sem-contexto",
+      "quantidade": 1
+    },
+    "0e04a8af2bb90e734e6cf88197efcb0ab830336d4c32e16c4bdf4602da5f654a": {
+      "arquivo": "src/app/(protegido)/compras/pedido-dialog.tsx",
+      "regra": "cor-local-em-botao",
+      "quantidade": 1
+    },
+    "16097cde33ed3e673f0ea5ccf0257d5654be72a85559c363410adba92038c2b0": {
+      "arquivo": "src/app/(protegido)/compras/pedidos-calendario.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "d205ed225bea24d18753c257c4316b088c25c18756717171db20634540076fe5": {
+      "arquivo": "src/app/(protegido)/compras/pedidos-calendario.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "734d235b8b590612f94eb5f3c940bad41c95815bcbb8c965049e3b8bc6029106": {
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "bcd3bcc0cf9b20685be9e98f65bd78d6baddf71c5a76b8fdb999e3fee618891d": {
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "4c37188136284c5b7d55f2ba94ebf1cc2efb661a36a9db4210414d5c69ff93a0": {
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "fb39dfdb43fefa0e62799cc8fbee37cd5751be33b1d7540859fab85b57e9042f": {
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "26ca32ce05bfc7a67ed854035ec2a66becce6cc6c29c255684690be86fdcce1a": {
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/usuarios-permissoes.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "1534bcf8cb70cf22fab30aed51e614ca9695ae93187ea22da087c4756b8fc2fb": {
+      "arquivo": "src/app/(protegido)/financeiro/cartoes/fatura-view.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "2968f40aaaec54213cbae03751251f1cce196d3ae4ca8a8d6ddf945ea5e0ea6d": {
+      "arquivo": "src/app/(protegido)/financeiro/fluxo-de-caixa/fluxo-caixa-view.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "0d7f7f4d3f027db6ec3431e491f420ecdde9203a7fd5c7cbe0973769873636f7": {
+      "arquivo": "src/app/(protegido)/financeiro/fluxo-de-caixa/fluxo-caixa-view.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "8a60607e4d79130dc383ad16ed3b85520cd45eba12b84fc481963c0e1cb7708a": {
+      "arquivo": "src/app/(protegido)/financeiro/fluxo-de-caixa/fluxo-caixa-view.tsx",
+      "regra": "acao-compacta-sem-contexto",
+      "quantidade": 1
+    },
+    "08a73fa6f323d2ee7a237798a3462c79c440eb05d76738ba3a2f7892b5f0b4a6": {
+      "arquivo": "src/app/(protegido)/financeiro/fluxo-de-caixa/fluxo-caixa-view.tsx",
+      "regra": "acao-compacta-sem-contexto",
+      "quantidade": 1
+    },
+    "299551dce3303d8d9858de8a5b2a477442e784c17cc2dd099eb24e172c212ce9": {
+      "arquivo": "src/app/(protegido)/financeiro/lancamentos/excluir-lancamento-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "578de4671e4b933d32dcba8c1fd827b5e769cb23ec2d504a2d7e131619631e62": {
+      "arquivo": "src/app/(protegido)/financeiro/lancamentos/excluir-lancamento-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "d9b9aeb32d5eb7e487ad8dee9e47818bbfebb2b9d5de7c397ebf9399b0c20983": {
+      "arquivo": "src/app/(protegido)/financeiro/lancamentos/lancamento-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "2928752452a3bb9c1b8f9877ad77fb59257e3cf35c60d062e4178302c41bfd2d": {
+      "arquivo": "src/app/(protegido)/financeiro/lancamentos/lancamentos-table.tsx",
+      "regra": "acao-compacta-sem-contexto",
+      "quantidade": 1
+    },
+    "4947c6673bf2d3d557539e0eba1ec9f608622bcdae3af90578fd7c1794837581": {
+      "arquivo": "src/app/(protegido)/financeiro/lancamentos/lancamentos-table.tsx",
+      "regra": "acao-compacta-sem-contexto",
+      "quantidade": 1
+    },
+    "0cc1d927af930d107aa9c24406e28070666084e8acf389eeef012aa31efc121c": {
+      "arquivo": "src/app/(protegido)/financeiro/manifesto-nfs/manifesto-nfs-view.tsx",
+      "regra": "cor-local-em-botao",
+      "quantidade": 1
+    },
+    "09cdb2bf5762c9450b846b21a60168238797b9d51fdec01f436b694b76b04883": {
+      "arquivo": "src/app/(protegido)/financeiro/manifesto-nfs/manifesto-nfs-view.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "d05dc60e5ef19d2eb17b390cd68fdc979fa994ae6be5799a8bd8700cce369431": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "9b4d77b1301b7c842b0ca851532e81710dab1f2f4ecc0434e8b9356fbf440035": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "1ea212c4717d5ff782d8bd2b9017f3ce14879655179943ac4222932e0c258055": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "16ef154d47d521d16a4cc2c3172c7e8cefea432d5f93622214792d1ee84b0c55": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "90ffb0462cbf3db6b6a122c27ce1047ba3b0534e3a2ee549ef2610d65efe7b07": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "regra": "acao-compacta-sem-contexto",
+      "quantidade": 1
+    },
+    "e4cffed98717fa43e85272595c31b2b8b8100e1e642cc059e95e3fb298c78f73": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "regra": "acao-compacta-sem-contexto",
+      "quantidade": 1
+    },
+    "1513e9f392f1b910a92e543879c96d65ed82eb82d4df08e6f8598f8d746ea21b": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "1c61b3faecac099f910dbdf8407a6b534781ecec69c26108e4c7923d59d915e6": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/importar-extrato-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "a45c6b0ad30a70504a9e59f740aa5362d000422943cc828ff714374cd45cc875": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/importar-extrato-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "0c1a7f504fb6b4d81ccf591a84975f51c0584ae1d3a6a7d8401cf8dd60f59e61": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/importar-extrato-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "2b9704fd4b47b7135ce27bd772462ca87e15bdf1eb965b42e5c90ba0de5e0791": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/movimentacoes-view.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "7fd9e76ca71d37283e51f6b7cdf9ea47ca6f58964c54fdcf093b8851aae79c44": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/movimentacoes-view.tsx",
+      "regra": "acao-compacta-sem-contexto",
+      "quantidade": 1
+    },
+    "c6f447152a799455a11ce9881a9f32ebe20e34b2f985ac440a6ab3715fa4776c": {
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/movimentacoes-view.tsx",
+      "regra": "acao-compacta-sem-contexto",
+      "quantidade": 1
+    },
+    "2ad47e37d0740909ff5702828c40f2ceb633fc770fded39f1450248adc476b07": {
+      "arquivo": "src/app/(protegido)/financeiro/plano-de-contas/grupo-card.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "1b032f21afc8ce49095aa0e00dcd3b29f838bb3b76a8e8b2ea1df416e52f73a1": {
+      "arquivo": "src/app/(protegido)/financeiro/plano-de-contas/grupo-card.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "0cca54ad6c2f914b4a2e4dfc3e03f4537623366974d79ed938ea722d7d5ce9c3": {
+      "arquivo": "src/app/(protegido)/fornecedores/creatable-checkbox-list.tsx",
+      "regra": "acao-compacta-sem-nome",
+      "quantidade": 1
+    },
+    "73586d619e3ec85a0f6d4e427f389871d041dbc2c4b797f5b151cfe3f5bd0ad4": {
+      "arquivo": "src/app/(protegido)/fornecedores/fornecedor-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "a2049fab8db717321a10a3e500b51128bb870147c0a4a0f27a770224c82b10e0": {
+      "arquivo": "src/app/(protegido)/fornecedores/fornecedor-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "1e7bc4c19b0146c78fcb04f769e14f7c1e3d107c3d1e4e4283f405f6fb2aaaa7": {
+      "arquivo": "src/app/(protegido)/fornecedores/fornecedores-table.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "4098d32d32c462a9b12d24050c98ee6b066bf42ee0dc253c323947b15fa31025": {
+      "arquivo": "src/app/(protegido)/fornecedores/import-fornecedores-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "c6754c2d72acd4cefd58dddac064986e9392e073ead9a917d59d507813f24f4a": {
+      "arquivo": "src/app/(protegido)/insumos/creatable-select.tsx",
+      "regra": "acao-compacta-sem-nome",
+      "quantidade": 1
+    },
+    "0b35a63a2b53f8541b90c490c8914c340b4729328c9cc7cfb7d0d7267717d7e0": {
+      "arquivo": "src/app/(protegido)/insumos/creatable-select.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "2892e18b1534e7356ae12114e845f1e1439790f702a8f39c3dac3a3710ff423d": {
+      "arquivo": "src/app/(protegido)/insumos/foto-dropzone.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "6107de1b7aaea8b3fb81547264b133f0f3418755ced57eaaae666e2a3ebaa7c8": {
+      "arquivo": "src/app/(protegido)/insumos/import-insumos-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "261032712ca99558ff117723bd2c7e201646f8f95054c0aa122c6917aeb91fd5": {
+      "arquivo": "src/app/(protegido)/insumos/insumo-form.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "f4c086d7a712ec1506b7c86781af65a337cf519499da9a0fc03c458449ce995c": {
+      "arquivo": "src/app/(protegido)/insumos/insumo-form.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "359d1f4faa9c830ccef9a3218ff26e9651d039c27f9d98f8129a4c95421caa6a": {
+      "arquivo": "src/app/(protegido)/insumos/insumo-form.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "e00ced58ac8d7da1752de34fa0d398a6436996c71035b1d8a0a5ff6382ff8800": {
+      "arquivo": "src/app/(protegido)/insumos/insumos-table.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "b4b92eaf36013fa8e829b9dbad1558ac78e7ed7a7a9d2aa12e6594e1293323da": {
+      "arquivo": "src/app/(protegido)/insumos/insumos-table.tsx",
+      "regra": "acao-compacta-sem-contexto",
+      "quantidade": 1
+    },
+    "b5809f945b829b994df689a0dc1102f22d3e1d77fb2f2e19a8434c1887f4f30d": {
+      "arquivo": "src/app/(protegido)/insumos/marcas-campo.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "7515c7168045673d488616965ad4815795869d7ac2943b47240f0bb623f29dcb": {
+      "arquivo": "src/app/(protegido)/inventario/contagem/excluir-contagem-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "4da99d364c61b31376516a5c20a7c545a81c4322d87595f9255a650c3800b424": {
+      "arquivo": "src/app/(protegido)/inventario/perdas/page.tsx",
+      "regra": "cor-local-em-botao",
+      "quantidade": 1
+    },
+    "06db802dc10cee9ce2f6e6aa7f236884039ea89e21c3e020fbdd60da8cec8870": {
+      "arquivo": "src/app/(protegido)/inventario/perdas/perdas-table.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "dcb62b8a27b152532ca101f542d4d7d0d5785533bb887498b1959fd857fec181": {
+      "arquivo": "src/app/(protegido)/inventario/posicao-atual-table.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "fff3f8d3c59095309e0e503acfcfa6e5e32a12b14b85e225591f521e69b8c914": {
+      "arquivo": "src/app/(protegido)/inventario/posicao-atual-table.tsx",
+      "regra": "acao-compacta-sem-nome",
+      "quantidade": 1
+    },
+    "7d01ce148b86a00371fb6a97e75207d6655c26c732ea9c0d1885146695e497ce": {
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "regra": "acao-compacta-sem-nome",
+      "quantidade": 1
+    },
+    "ac2554f5479b8db3a1d15b9f35d63b285239e00245ce8e8bce5d153470567ef0": {
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "regra": "cor-local-em-botao",
+      "quantidade": 1
+    },
+    "b1ee6c344c5d4c49cb8021f5eb4e5e9274c2ace1b1cb7cc84f9aa0a864b444f0": {
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "regra": "cor-local-em-botao",
+      "quantidade": 1
+    },
+    "d559483547bb1660f28cfc62134b9b1758bcbd1197ad3bde7ee62ff6e19cfd14": {
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "regra": "cor-local-em-botao",
+      "quantidade": 1
+    },
+    "96b517ba3793d2d2e78aa7737e06508dd80b9fc21e979d2417f15845787f9d96": {
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "79c644b2008dda03e360d750aa2eb1ae7fea1116db716004a7c4e363fadfeb9f": {
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "ff639d45b51ae8e8ea24c2a75633ec94f4235feacfdb36fdabffe04f007a6d2f": {
+      "arquivo": "src/app/(protegido)/perfil/avatar-dropzone.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "63b3da8cd1913ed193ef31866943144064189bc32f78e8caea87ccdedaa4bad9": {
+      "arquivo": "src/app/(protegido)/perfil/avatar-dropzone.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "90fca61cf1b7b025b42362c28487b393d50f47a4e8d0c51c9c8cbfbd4a0b862d": {
+      "arquivo": "src/app/(protegido)/perfil/avatar-dropzone.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "8f0385f6940e0957fe46da24c14360688790178713468c12ef71f0df1f957bc4": {
+      "arquivo": "src/app/(protegido)/producao/etiquetas/etiquetas-client.tsx",
+      "regra": "confirmacao-sem-semantica",
+      "quantidade": 1
+    },
+    "7df95262932ee46b11fa6fc91c9b9c773b1712d58c3d2fa118147c30f73d7ad7": {
+      "arquivo": "src/app/(protegido)/producao/etiquetas/pontos-impressao.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "b3f85f49480cc0fb53a80c14a0864cb1ee54afd11199935e8ff24b116ea39747": {
+      "arquivo": "src/app/(protegido)/producao/etiquetas/pontos-impressao.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "047ac86f20063d4286a9dff2b56e4451ea66baccd5244079b2b5bd6b6e23f52f": {
+      "arquivo": "src/app/(protegido)/producao/etiquetas/pontos-impressao.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "70aa32bc80bef5d6b97408ef566ebbe109b40d8db24aac41e2a2612c89208903": {
+      "arquivo": "src/app/(protegido)/producao/etiquetas/responsavel-etiqueta.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "64a38a051ca9ef34ce442abbcbc31f9850f3558ad1e4fbd2cd681d0cf88a590e": {
+      "arquivo": "src/app/(protegido)/vendas/catalogo/catalogo-client.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "105cef32218c191bae89a6657257e69295b851bbad17a6a6c01dfae35d942ec8": {
+      "arquivo": "src/app/(protegido)/vendas/catalogo/linha-complemento.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "2da0bb5af115d1f98b1e70fa04d34294d92063c8e03e00596a602f7820eaaa36": {
+      "arquivo": "src/app/(protegido)/vendas/catalogo/linha-complemento.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "e11447a7344356e61c2ec22e3a724ca1d8c61b05670987c216a2aeb3dee4e289": {
+      "arquivo": "src/app/(protegido)/vendas/clientes/clientes-client.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "a5e1d1e82f320d1ccb055f12d7cefbe34d8e56e9451a84254158857e5ad4951d": {
+      "arquivo": "src/app/(protegido)/vendas/componentes.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "5bdf801b24c8a1e8ce6df656d34cbaad3ebbd1ae50123cbf535c5f2587c8a0b5": {
+      "arquivo": "src/app/(protegido)/vendas/fiscal/fiscal-produto-editor.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "af2b83bebe6dcd0f06d7be4b4fe8d70038a7f53f876fe8ae6b87f9a3ce9d9893": {
+      "arquivo": "src/app/(protegido)/vendas/formas-pagamento/formas-pagamento-client.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "099c76a02dae9960c037e0d019457941cf2dbcab0b534e5f384002e45fc1201f": {
+      "arquivo": "src/app/(protegido)/vendas/importacao/importacao-client.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "4ee2fb9a0bdd8fe1e6d9ef8dec4b1385ec5a1de9f062b2572f7defc96eba8bae": {
+      "arquivo": "src/app/(protegido)/vendas/pedidos/gestor-client.tsx",
+      "regra": "acao-compacta-sem-nome",
+      "quantidade": 1
+    },
+    "97feec79850ad99341cbd78c6633aad5063f479df3ca677a9dccf5f515cc7ae9": {
+      "arquivo": "src/app/(protegido)/vendas/pedidos/gestor-client.tsx",
+      "regra": "acao-compacta-sem-nome",
+      "quantidade": 1
+    },
+    "fe6bc8082fac345a1d112794b47fe484e30b4a6b203a7a8fbe2ee3423f580c04": {
+      "arquivo": "src/app/(protegido)/vendas/produtos/foto-campo.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "18267f6cbc702b9270a1f9c29de06c24d999f2729e0d64aba5c0357158b13356": {
+      "arquivo": "src/app/(protegido)/vendas/produtos/produtos-client.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "6c407cb1fa0831169159f22d132a5920557d6f19e5c32c01a569bd6b72596bc6": {
+      "arquivo": "src/app/(protegido)/vendas/produtos/produtos-client.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "279d53016c313fe7af0728abf5be5f90ca712bea61bfc22ff6a4d5154093a377": {
+      "arquivo": "src/app/(protegido)/vendas/produtos/produtos-client.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "49e54d13aa35c32725418f55968d11f57ed7378e9ca22ec2e8199235a8b666c0": {
+      "arquivo": "src/components/cadastro-rapido-insumo-dialog.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "7bc156297aff7e5c92f5369fb0d3d56035b5f484edbe00b577e0772157bfb21c": {
+      "arquivo": "src/components/campo-busca.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "1e9024dc3f3fb35b5a386d98d77d4e0c5855e610db65ab9a9e194d64b8e0539c": {
+      "arquivo": "src/components/campo-senha.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "67999cc0fe484cb914b67b7f1aeb88e6a28687e691015e2f8c93c1013c5bab9b": {
+      "arquivo": "src/components/design-system/central-design.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "bdd7db3fb352ecb736f2bba0da7bbabee957b695329d83c3ce926fab14064cdb": {
+      "arquivo": "src/components/layout/grupo-navegacao.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "fd6b95a86042fb2b905e41052b04f6c8857309c947893a4cb72e6d8031bad356": {
+      "arquivo": "src/components/layout/module-switcher.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "803063c624b4b92632ee9fecbdf57c12a4711d1f3db7ef9bd32abdb8faad7996": {
+      "arquivo": "src/components/lista-ordenavel.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    },
+    "46d59e254573b7533ed84be17e089311ab7c26028877907bbb3aac5dc0eb1053": {
+      "arquivo": "src/components/status-ativo.tsx",
+      "regra": "controle-nativo",
+      "quantidade": 1
+    }
+  }
+}

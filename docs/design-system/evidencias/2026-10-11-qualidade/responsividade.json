@@ -1,0 +1,26 @@
+[
+  {
+    "width": 320,
+    "problemas": [],
+    "verificacoes": {
+      "alvosCompactos": 0,
+      "botoesVisiveis": 23,
+      "camposVisiveis": 1,
+      "gruposAcoes": 0,
+      "overflowDocumento": true,
+      "ponteiroGrosso": false
+    }
+  },
+  {
+    "width": 768,
+    "problemas": [],
+    "verificacoes": {
+      "alvosCompactos": 0,
+      "botoesVisiveis": 25,
+      "camposVisiveis": 1,
+      "gruposAcoes": 0,
+      "overflowDocumento": true,
+      "ponteiroGrosso": false
+    }
+  }
+]

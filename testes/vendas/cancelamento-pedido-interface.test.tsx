@@ -1,0 +1,161 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { criarDetalheFixture, dadosDetalhe, capacidadesDetalhe } from "../visual/pedido-detalhe-fixture";
+const sim = vi.hoisted(() => ({ cancelar: vi.fn(), refresh: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: sim.refresh }) }));
+vi.mock("@/app/(protegido)/vendas/pedidos/actions", () => ({ cancelarPedidoVendaAction: sim.cancelar, mudarEstadoDevolucaoPedidoAction: vi.fn(), retomarDevolucaoPedidoAction: vi.fn(), concluirDevolucaoContextualAction: vi.fn() }));
+vi.mock("@/app/(protegido)/vendas/pedidos/encerramento-manual", () => ({ EncerramentoManual: () => null }));
+vi.mock("@/app/(protegido)/vendas/pedidos/tratamento-boleto", () => ({ TratamentoBoleto: () => null }));
+import { CancelamentoPedido } from "@/app/(protegido)/vendas/pedidos/cancelamento-pedido";
+beforeEach(() => { vi.clearAllMocks(); sim.cancelar.mockResolvedValue({ ok: true }); });
+afterEach(cleanup);
+const props = () => ({ pedido: criarDetalheFixture(), dados: dadosDetalhe, capacidades: capacidadesDetalhe, responsavel: "Operador autenticado sintético" });
+const pedidoCancelado = (processando = false) => {
+  const p = criarDetalheFixture();
+  return { ...p, status: "CANCELADO", statusOperacional: "INTERROMPIDO", versao: 3, financeiro: { ...p.financeiro!, tratamentos: [{ id: "tratamento-sintetico", tipo: "DEVOLUCAO", status: processando ? "PROCESSANDO" : "SOLICITADA", valor: "90.00", retido: "0.00", motivo: null, referenciaPolitica: null, referenciaComunicacao: null, evidenciaConclusao: null, concluidoEm: null }] } };
+};
+
+describe("modal de cancelamento", () => {
+  it("abre pelo controle externo sem duplicar o gatilho e exige nome digitado e motivo", async () => {
+    render(<CancelamentoPedido {...props()} aberto mostrarGatilho={false} />);
+    const modal = screen.getByRole("dialog");
+    expect(screen.queryByRole("button", { name: "Cancelar pedido" })).toBeNull();
+    expect(within(modal).getByText(/Registro por: Operador autenticado sintético/)).toBeTruthy();
+    const nome = within(modal).getByRole("textbox", { name: "Nome do responsável" }) as HTMLInputElement;
+    const motivo = within(modal).getByRole("textbox", { name: "Motivo" });
+    const confirmar = within(modal).getByRole("button", { name: "Confirmar cancelamento" });
+    expect(confirmar.textContent).toBe("Confirmar cancelamento");
+    expect(confirmar.classList.contains("bg-destructive")).toBe(true);
+    expect(confirmar.classList.contains("text-white")).toBe(true);
+    expect(confirmar.getAttribute("data-acao")).not.toBe("excluir");
+    expect(nome.value).toBe(""); expect(nome.maxLength).toBe(120);
+    expect(confirmar.hasAttribute("disabled")).toBe(true);
+    fireEvent.change(motivo, { target: { value: "Solicitado pelo comprador" } });
+    expect(confirmar.hasAttribute("disabled")).toBe(true);
+    fireEvent.change(nome, { target: { value: "Pessoa responsável sintética" } });
+    expect(confirmar.hasAttribute("disabled")).toBe(false);
+    expect(within(modal).getByText(/90,00.*encaminhado para devolução/)).toBeTruthy();
+    await userEvent.click(confirmar);
+    expect(sim.cancelar).toHaveBeenCalledExactlyOnceWith("pedido-sintetico", 2, "Solicitado pelo comprador", expect.any(String), expect.objectContaining({ destino: "DEVOLUCAO", reter: "0.00" }), "Pessoa responsável sintética");
+    expect(sim.refresh).toHaveBeenCalledOnce();
+  });
+  it("explica consequências financeiras e físicas sem prometer reembolso ou retorno automático", () => {
+    render(<CancelamentoPedido {...props()} aberto mostrarGatilho={false} />);
+    const aviso = screen.getByRole("region", { name: "Consequências do cancelamento" });
+    expect(within(aviso).getByText(/Cobranças pendentes sem captura serão canceladas/)).toBeTruthy();
+    expect(within(aviso).getByText(/pagamentos já registrados, capturas de cartão e histórico serão preservados/)).toBeTruthy();
+    expect(within(aviso).getByText(/Cancelar não transfere valores nem estorna cartão automaticamente/)).toBeTruthy();
+    expect(within(aviso).getByText(/Reservas ainda não consumidas serão liberadas/)).toBeTruthy();
+    expect(within(aviso).getByText(/Materiais já consumidos e produtos preparados precisam de destinação própria/)).toBeTruthy();
+    expect(screen.getByText(/A solicitação só será concluída após comprovação/)).toBeTruthy();
+    expect(sim.cancelar).not.toHaveBeenCalled();
+  });
+  it("bloqueia caracteres e colagens inválidos no nome, mantendo o texto anterior", async () => {
+    render(<CancelamentoPedido {...props()} aberto mostrarGatilho={false} />);
+    const nome = screen.getByRole("textbox", { name: "Nome do responsável" }) as HTMLInputElement;
+    await userEvent.type(nome, "Ana123"); expect(nome.value).toBe("Ana");
+    fireEvent.change(nome, { target: { value: "<script>" } }); expect(nome.value).toBe("Ana");
+    expect(fireEvent.paste(nome, { clipboardData: { getData: () => "123" } })).toBe(false);
+    expect(fireEvent.paste(nome, { clipboardData: { getData: () => "B".repeat(121) } })).toBe(false);
+    expect(nome.value).toBe("Ana"); expect(sim.cancelar).not.toHaveBeenCalled();
+  });
+  it("preserva dados e chave no reenvio após recusa e separa chaves quando muda o responsável", async () => {
+    sim.cancelar.mockResolvedValue({ erro: "Operação ainda não confirmada" });
+    const mudar = vi.fn(); render(<CancelamentoPedido {...props()} aberto mostrarGatilho={false} aoMudarAberto={mudar} />);
+    const aguardarRecusa = (envios: number) => waitFor(() => {
+      expect(sim.cancelar).toHaveBeenCalledTimes(envios);
+      expect(screen.getByText("Operação ainda não confirmada")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Confirmar cancelamento" }).hasAttribute("disabled")).toBe(false);
+    });
+    fireEvent.change(screen.getByLabelText("Nome do responsável"), { target: { value: "Pessoa sintética" } });
+    fireEvent.change(screen.getByLabelText("Motivo"), { target: { value: "Cliente desistiu" } });
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
+    await aguardarRecusa(1);
+    const chave = sim.cancelar.mock.calls[0][3];
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
+    await aguardarRecusa(2);
+    expect(sim.cancelar.mock.calls[1][3]).toBe(chave);
+    expect((screen.getByLabelText("Nome do responsável") as HTMLInputElement).value).toBe("Pessoa sintética");
+    fireEvent.change(screen.getByLabelText("Nome do responsável"), { target: { value: "Outra pessoa sintética" } });
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
+    await aguardarRecusa(3);
+    expect(sim.cancelar.mock.calls[2][3]).not.toBe(chave); expect(sim.refresh).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Fechar" }));
+    expect(screen.getByRole("alertdialog", { name: "Sair sem salvar?" })).toBeTruthy();
+    expect(mudar).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Continuar editando" }));
+    expect((screen.getByLabelText("Nome do responsável") as HTMLInputElement).value).toBe("Outra pessoa sintética");
+  });
+  it("fecha após cancelamento confirmado sem tratar nome e motivo gravados como pendentes", async () => {
+    const mudar = vi.fn(), p = props();
+    const tela = render(<CancelamentoPedido {...p} aberto mostrarGatilho={false} aoMudarAberto={mudar} />);
+    fireEvent.change(screen.getByLabelText("Nome do responsável"), { target: { value: "Pessoa sintética" } });
+    fireEvent.change(screen.getByLabelText("Motivo"), { target: { value: "Cliente desistiu" } });
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
+    await screen.findByText("Pedido cancelado. Confira a situação da devolução abaixo.");
+    tela.rerender(<CancelamentoPedido {...p} pedido={pedidoCancelado()} aberto mostrarGatilho={false} aoMudarAberto={mudar} />);
+    expect(screen.getByRole("heading", { name: "Cancelamento e devolução" })).toBeTruthy();
+    expect(screen.queryByLabelText("Nome do responsável")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Fechar" }));
+    expect(mudar).toHaveBeenCalledWith(false);
+    expect(screen.queryByRole("alertdialog", { name: "Sair sem salvar?" })).toBeNull();
+  });
+  it("preserva a comprovação pós-venda e sua proteção após a mudança de fase e atualização de versão", async () => {
+    const mudar = vi.fn(), p = props();
+    const tela = render(<CancelamentoPedido {...p} aberto mostrarGatilho={false} aoMudarAberto={mudar} />);
+    fireEvent.change(screen.getByLabelText("Nome do responsável"), { target: { value: "Pessoa sintética" } });
+    fireEvent.change(screen.getByLabelText("Motivo"), { target: { value: "Cliente desistiu" } });
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar cancelamento" }));
+    await screen.findByText("Pedido cancelado. Confira a situação da devolução abaixo.");
+    const cancelado = pedidoCancelado(true);
+    tela.rerender(<CancelamentoPedido {...p} pedido={cancelado} aberto mostrarGatilho={false} aoMudarAberto={mudar} />);
+    fireEvent.change(screen.getByLabelText("Data da devolução"), { target: { value: "2026-10-09" } });
+    fireEvent.change(screen.getByLabelText("Comprovação da devolução"), { target: { value: "Comprovante sintético pendente" } });
+    tela.rerender(<CancelamentoPedido {...p} pedido={{ ...cancelado, versao: 4 }} aberto mostrarGatilho={false} aoMudarAberto={mudar} />);
+    await userEvent.click(screen.getByRole("button", { name: "Fechar" }));
+    expect(screen.getByRole("alertdialog", { name: "Sair sem salvar?" })).toBeTruthy(); expect(mudar).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "Continuar editando" }));
+    expect((screen.getByLabelText("Data da devolução") as HTMLInputElement).value).toBe("2026-10-09");
+    expect((screen.getByLabelText("Comprovação da devolução") as HTMLInputElement).value).toBe("Comprovante sintético pendente");
+  });
+  it("delega o fechamento controlado sem descartar silenciosamente o preenchimento", async () => {
+    const mudar = vi.fn(); render(<CancelamentoPedido {...props()} aberto mostrarGatilho={false} aoMudarAberto={mudar} />);
+    await userEvent.click(screen.getByRole("button", { name: "Fechar" }));
+    expect(mudar).toHaveBeenCalledWith(false);
+  });
+  it("mantém a confirmação desabilitada e bloqueia envio duplicado enquanto cancela", async () => {
+    let concluir!: (resultado: { ok: true }) => void;
+    sim.cancelar.mockReturnValue(new Promise(resolve => { concluir = resolve; }));
+    render(<CancelamentoPedido {...props()} aberto mostrarGatilho={false} />);
+    fireEvent.change(screen.getByLabelText("Nome do responsável"), { target: { value: "Responsável sintético" } });
+    fireEvent.change(screen.getByLabelText("Motivo"), { target: { value: "Cancelamento solicitado" } });
+    const confirmar = screen.getByRole("button", { name: "Confirmar cancelamento" });
+    fireEvent.click(confirmar); fireEvent.click(confirmar);
+    expect(sim.cancelar).toHaveBeenCalledOnce();
+    const aguardando = await screen.findByRole("button", { name: "Cancelando…" });
+    expect(aguardando.hasAttribute("disabled")).toBe(true);
+    expect(aguardando.getAttribute("aria-busy")).toBe("true");
+    fireEvent.click(aguardando);
+    expect(sim.cancelar).toHaveBeenCalledOnce();
+    await act(async () => { concluir({ ok: true }); });
+    expect(await screen.findByText("Pedido cancelado. Confira a situação da devolução abaixo.")).toBeTruthy();
+  });
+  it.each(["PENDENTE", "EM_PREPARO", "PRONTO", "EM_ENTREGA"])("libera cancelamento em %s mesmo com entrega anterior registrada", estado => {
+    const p = props();
+    render(<CancelamentoPedido {...p} pedido={{ ...p.pedido, statusOperacional: estado, entregueEm: "2026-10-09T12:00:00Z" }} aberto mostrarGatilho={false} />);
+    expect(screen.getByRole("dialog", { name: "Cancelar pedido" })).toBeTruthy();
+    expect(screen.getByLabelText("Nome do responsável")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Confirmar cancelamento" })).toBeTruthy();
+    expect(sim.cancelar).not.toHaveBeenCalled();
+  });
+  it.each(["sem-permissao", "entregue", "ifood"])("não permite abrir cancelamento local em %s", caso => {
+    const p = props();
+    if (caso === "sem-permissao") p.capacidades = { ...p.capacidades, cancelar: false };
+    if (caso === "entregue") p.pedido = { ...p.pedido, statusOperacional: "ENTREGUE" };
+    if (caso === "ifood") p.pedido = { ...p.pedido, origem: "IFOOD" };
+    render(<CancelamentoPedido {...p} aberto />);
+    expect(screen.queryByRole("dialog")).toBeNull(); expect(screen.queryByRole("button", { name: "Cancelar pedido" })).toBeNull();
+  });
+});

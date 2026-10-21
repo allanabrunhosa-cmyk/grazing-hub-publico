@@ -1,0 +1,12 @@
+import { createRoot } from "react-dom/client";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Sidebar } from "@/components/layout/sidebar";
+import { ProvedorAcesso } from "@/components/layout/acesso-contexto";
+import { CabecalhoConteudo } from "@/components/layout/cabecalho-conteudo";
+import { BiVendas } from "@/components/vendas/bi/bi-vendas";
+import { criarBiFicticio } from "./bi-vendas-dados";
+import { normalizarFiltrosBi } from "@/lib/vendas/bi-filtros";
+import "@/app/globals.css";
+const parametros = new URLSearchParams(location.search); const estado = parametros.get("estado") ?? "normal";
+const dados = criarBiFicticio(normalizarFiltrosBi({ de: "2026-01-01", ate: "2026-09-30", ...Object.fromEntries(parametros) }), estado);
+createRoot(document.getElementById("root")!).render(<ThemeProvider attribute="class" defaultTheme={parametros.has("escuro") ? "dark" : "light"} forcedTheme={parametros.has("escuro") ? "dark" : "light"} enableSystem={false}><ProvedorAcesso acesso={{ admin: true, permissoes: {}, excecoes: {} }}><div className="estrutura-sistema"><a href="#conteudo-principal" className="atalho-conteudo">Ir para o conteúdo</a><Sidebar /><div className="painel-sistema"><CabecalhoConteudo sessao={{ nome: "Equipe sintética", admin: true }} /><main className="conteudo-sistema" id="conteudo-principal" tabIndex={-1}><BiVendas dados={dados} chaveMapa={parametros.get("mapa") === "sintetico" ? "chave-sintetica-isolada" : ""} usuarioId="visual-isolado" consultar={async filtros => { if (estado === "erro") return { erro: "Falha simulada na consulta. Tente novamente." }; await new Promise(resolve => setTimeout(resolve, estado === "carregando" ? 10000 : filtros.canal === "site" ? 200 : 30)); return criarBiFicticio(filtros, estado); }} /></main></div></div></ProvedorAcesso></ThemeProvider>);

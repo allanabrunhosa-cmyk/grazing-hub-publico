@@ -1,0 +1,3274 @@
+{
+  "versao": 1,
+  "titulo": "Triagem individual dos desvios de qualidade visual",
+  "data": "2026-10-12",
+  "fuso": "America/Sao_Paulo",
+  "natureza": "Registro histórico de triagem estática; não é um novo manual normativo nem aprovação visual.",
+  "base": {
+    "commit": "a0281b310dfbe22438e1ad15686c7fcedd1d23db",
+    "pr": 9,
+    "baselineArquivo": "docs/design-system/desvios-baseline.json",
+    "baselineBlobGit": "bf76cf303d9c9724f0e99cae92df5ddcd5979afb",
+    "branchDeDocumentacao": "codex/protecao-visual-automatizada-20261012",
+    "nota": "A fonte e o baseline não diferem da leitura preparatória f29a07fe; as 98 chaves AST foram recalculadas e correspondem ao baseline."
+  },
+  "escopo": {
+    "fontes": [
+      "src/app",
+      "src/components"
+    ],
+    "arquivosTsxInspecionadosPeloRelatorio": 360,
+    "arquivosComOcorrencias": 56,
+    "ocorrencias": 98,
+    "novosNoRelatorioBase": 0,
+    "resolvidosNoRelatorioBase": 0
+  },
+  "contagens": {
+    "candidatosReais": 44,
+    "candidatosP1": 14,
+    "candidatosP2": 30,
+    "falsosPositivosConfirmados": 3,
+    "excecoesCandidatas": 51
+  },
+  "criterios": {
+    "candidato_real": "Evidência de contrato violado ou primitiva oficial equivalente no código. Não significa que um defeito de pixels foi comprovado.",
+    "falso_positivo_confirmado": "A composição oficial fornece a semântica que o analisador perdeu; confirmar com teste e DOM antes de retirar a entrada.",
+    "excecao_candidata": "Controle especializado, infraestrutura ou implementação de componente compartilhado que exige contrato preciso antes de migração ou dispensa. Não é exceção aprovada.",
+    "P1": "Primeira linha de trabalho: nomes e contexto acessível, com alto benefício e potencial de preservar a aparência.",
+    "P2": "Reutilização, tokens, semântica e geometria: validar consumidor e domínio antes de alterar.",
+    "P3": "Calibração ou especificação: reunir evidências e delimitar o contrato; não autoriza dispensa ou mudança automática."
+  },
+  "limites": [
+    "As classificações resultam de leitura de fontes e contratos, não de screenshots de 98 telas.",
+    "Não foram executados aplicação, testes, operações reais, bancos, SEFAZ ou equipamentos para esta triagem.",
+    "Prioridade é ordem recomendada de trabalho, não severidade de incidente nem prova de regressão.",
+    "As linhas pertencem à base indicada; localizar também por símbolo e chave AST nas revisões seguintes.",
+    "O baseline e o runtime foram preservados. Os lotes são recomendações, não execuções concluídas.",
+    "Nenhuma referência Em revisão foi promovida a aprovação humana."
+  ],
+  "lotes": [
+    {
+      "id": "L1",
+      "nome": "Nomes e contexto das ações",
+      "ids": [
+        1,
+        5,
+        14,
+        15,
+        19,
+        20,
+        27,
+        28,
+        34,
+        35,
+        38,
+        43,
+        51,
+        57
+      ],
+      "objetivo": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacao": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "quantidade": 14,
+      "situacao": "Recomendado; não executado por esta triagem"
+    },
+    {
+      "id": "L2",
+      "nome": "Checkboxes e áreas de texto",
+      "ids": [
+        10,
+        24,
+        30,
+        31,
+        32,
+        53,
+        71,
+        72,
+        73,
+        74,
+        79,
+        80,
+        81,
+        82,
+        89,
+        90
+      ],
+      "objetivo": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacao": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "quantidade": 16,
+      "situacao": "Recomendado; não executado por esta triagem"
+    },
+    {
+      "id": "L3",
+      "nome": "Ações comuns, tokens e confirmação",
+      "ids": [
+        2,
+        4,
+        6,
+        8,
+        18,
+        29,
+        44,
+        49,
+        52,
+        54,
+        55,
+        65,
+        67,
+        91
+      ],
+      "objetivo": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacao": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "quantidade": 14,
+      "situacao": "Recomendado; não executado por esta triagem"
+    },
+    {
+      "id": "L4",
+      "nome": "Falsos positivos de composição",
+      "ids": [
+        58,
+        84,
+        85
+      ],
+      "objetivo": "Resolver props do wrapper oficial no analisador e retirar apenas entradas efetivamente resolvidas após validação.",
+      "validacao": "Testes positivos para IDs 58/84/85, caso negativo ID 57 ainda detectado, nome no DOM e ausência de dispensa genérica de render.",
+      "quantidade": 3,
+      "situacao": "Recomendado; não executado por esta triagem"
+    },
+    {
+      "id": "L5",
+      "nome": "Uploads e grupos de radio",
+      "ids": [
+        16,
+        17,
+        22,
+        42,
+        45,
+        46,
+        62,
+        63,
+        66,
+        83,
+        86
+      ],
+      "objetivo": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacao": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "quantidade": 11,
+      "situacao": "Recomendado; não executado por esta triagem"
+    },
+    {
+      "id": "L6",
+      "nome": "Apresentação de domínio fiscal",
+      "ids": [
+        21,
+        59,
+        60,
+        61
+      ],
+      "objetivo": "Revisar a apresentação de aceite/recusa à luz de EX-DOM-01, preservando manifestação e efeitos do domínio.",
+      "validacao": "Contrato do domínio e referências equivalentes, claro/escuro, foco/contraste composto, confirmações e mocks. Sem SEFAZ ou documentos reais.",
+      "quantidade": 4,
+      "situacao": "Recomendado; não executado por esta triagem"
+    },
+    {
+      "id": "L7",
+      "nome": "Implementações nativas compartilhadas",
+      "ids": [
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98
+      ],
+      "objetivo": "Confirmar o alcance dos componentes oficiais e registrar contratos específicos, sem tratá-los como cópias por tela.",
+      "validacao": "Imports/consumidores, semântica, nomes, portais, teclado, pendência e alvos de toque. Nenhuma liberação por pasta inteira.",
+      "quantidade": 7,
+      "situacao": "Recomendado; não executado por esta triagem"
+    },
+    {
+      "id": "L8",
+      "nome": "Cards, linhas, calendário e matriz",
+      "ids": [
+        3,
+        7,
+        9,
+        11,
+        12,
+        13,
+        23,
+        25,
+        26,
+        33,
+        36,
+        37,
+        39,
+        40,
+        41,
+        47,
+        48,
+        50,
+        56,
+        64,
+        68,
+        69,
+        70,
+        75,
+        76,
+        77,
+        78,
+        87,
+        88
+      ],
+      "objetivo": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacao": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "quantidade": 29,
+      "situacao": "Recomendado; não executado por esta triagem"
+    }
+  ],
+  "ocorrencias": [
+    {
+      "id": "DSV-001",
+      "numero": 1,
+      "baseline": {
+        "chave": "f802a295ff683a11bea4309300c2ebec207d7fc2d5772d2852752f27e7a363be",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/compras/pedido-detalhe-dialog.tsx",
+      "linhaNaBase": 144,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O Button de edição declara apenas aria-label=\"Editar\"; falta identificar o pedido.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-002",
+      "numero": 2,
+      "baseline": {
+        "chave": "0e04a8af2bb90e734e6cf88197efcb0ab830336d4c32e16c4bdf4602da5f654a",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/compras/pedido-dialog.tsx",
+      "linhaNaBase": 451,
+      "regra": "cor-local-em-botao",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Atualizar página aplica border-amber-500 e bg-white no Button outline; a apresentação local não usa a variante/token equivalente.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-003",
+      "numero": 3,
+      "baseline": {
+        "chave": "16097cde33ed3e673f0ea5ccf0257d5654be72a85559c363410adba92038c2b0",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/compras/pedidos-calendario.tsx",
+      "linhaNaBase": 48,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão é o item de calendário, com arrasto, cor de status, nome contextual e bloqueios; substituir por Button genérico pode alterar a composição.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-004",
+      "numero": 4,
+      "baseline": {
+        "chave": "d205ed225bea24d18753c257c4316b088c25c18756717171db20634540076fe5",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/compras/pedidos-calendario.tsx",
+      "linhaNaBase": 115,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Novo pedido neste dia é uma ação de ícone comum; o botão nativo tem nome, mas duplica uma primitiva disponível.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-005",
+      "numero": 5,
+      "baseline": {
+        "chave": "4e74a1ee00fcf9f06cc2616e9a7bf59250614218d46960de3ab2be4f8e1431be",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/configuracoes/certificado-card.tsx",
+      "linhaNaBase": 125,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O texto Remover é convertido em X pelo Button; o nome não identifica o certificado.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-006",
+      "numero": 6,
+      "baseline": {
+        "chave": "734d235b8b590612f94eb5f3c940bad41c95815bcbb8c965049e3b8bc6029106",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
+      "linhaNaBase": 58,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Os presets Bloquear/Só visualizar/Tudo usam botões nativos com formatação local; avaliar Button equivalente preservando a matriz.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-007",
+      "numero": 7,
+      "baseline": {
+        "chave": "bcd3bcc0cf9b20685be9e98f65bd78d6baddf71c5a76b8fdb999e3fee618891d",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
+      "linhaNaBase": 69,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão implementa seleção coletiva de permissões com role=checkbox e aria-checked=mixed; exige contrato fiel do seletor coletivo.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-008",
+      "numero": 8,
+      "baseline": {
+        "chave": "4c37188136284c5b7d55f2ba94ebf1cc2efb661a36a9db4210414d5c69ff93a0",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
+      "linhaNaBase": 83,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Restaurar perfil é uma ação textual comum em botão nativo; existe Button link.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-009",
+      "numero": 9,
+      "baseline": {
+        "chave": "fb39dfdb43fefa0e62799cc8fbee37cd5751be33b1d7540859fab85b57e9042f",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
+      "linhaNaBase": 89,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O checkbox da matriz distingue permissão herdada, extra e veto, com cores e suporte a forced-colors próprios; preservar os estados antes de adaptar.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-010",
+      "numero": 10,
+      "baseline": {
+        "chave": "26ca32ce05bfc7a67ed854035ec2a66becce6cc6c29c255684690be86fdcce1a",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/configuracoes/usuarios/usuarios-permissoes.tsx",
+      "linhaNaBase": 133,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Usuário ativo é checkbox comum do rascunho, com label; reutilizar Checkbox sem introduzir persistência imediata.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-011",
+      "numero": 11,
+      "baseline": {
+        "chave": "1534bcf8cb70cf22fab30aed51e614ca9695ae93187ea22da087c4756b8fc2fb",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/cartoes/fatura-view.tsx",
+      "linhaNaBase": 133,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "A linha selecionável da fatura contém descrição, parcelas, pendências e valor, com nome contextual e aria-pressed.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-012",
+      "numero": 12,
+      "baseline": {
+        "chave": "2968f40aaaec54213cbae03751251f1cce196d3ae4ca8a8d6ddf945ea5e0ea6d",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/fluxo-de-caixa/fluxo-caixa-view.tsx",
+      "linhaNaBase": 87,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão expande categoria contábil dentro da célula, com hierarquia e aria-expanded.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-013",
+      "numero": 13,
+      "baseline": {
+        "chave": "0d7f7f4d3f027db6ec3431e491f420ecdde9203a7fd5c7cbe0973769873636f7",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/fluxo-de-caixa/fluxo-caixa-view.tsx",
+      "linhaNaBase": 139,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão expande grupo contábil, controla a linha e interrompe propagação.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-014",
+      "numero": 14,
+      "baseline": {
+        "chave": "8a60607e4d79130dc383ad16ed3b85520cd45eba12b84fc481963c0e1cb7708a",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/fluxo-de-caixa/fluxo-caixa-view.tsx",
+      "linhaNaBase": 372,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O gatilho usa aria-label=\"Editar\"; LancamentoDialog não acrescenta identificação do lançamento.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-015",
+      "numero": 15,
+      "baseline": {
+        "chave": "08a73fa6f323d2ee7a237798a3462c79c440eb05d76738ba3a2f7892b5f0b4a6",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/fluxo-de-caixa/fluxo-caixa-view.tsx",
+      "linhaNaBase": 375,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "A exclusão compacta tem nome genérico Excluir, sem a descrição do lançamento.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-016",
+      "numero": 16,
+      "baseline": {
+        "chave": "299551dce3303d8d9858de8a5b2a477442e784c17cc2dd099eb24e172c212ce9",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/lancamentos/excluir-lancamento-dialog.tsx",
+      "linhaNaBase": 60,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Radio Apenas esta está em fieldset/legend, possui label e name; não há RadioGroup oficial em ui.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui",
+            "descricao": "Não foi encontrado RadioGroup oficial nesta base; os radios existentes preservam fieldset/legend/label/name."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-017",
+      "numero": 17,
+      "baseline": {
+        "chave": "578de4671e4b933d32dcba8c1fd827b5e769cb23ec2d504a2d7e131619631e62",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/lancamentos/excluir-lancamento-dialog.tsx",
+      "linhaNaBase": 61,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Radio Todas as pendentes é mutuamente exclusivo com o ID16; preservar a seleção por name.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui",
+            "descricao": "Não foi encontrado RadioGroup oficial nesta base; os radios existentes preservam fieldset/legend/label/name."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-018",
+      "numero": 18,
+      "baseline": {
+        "chave": "d9b9aeb32d5eb7e487ad8dee9e47818bbfebb2b9d5de7c397ebf9399b0c20983",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/lancamentos/lancamento-dialog.tsx",
+      "linhaNaBase": 277,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Cadastrar fornecedor ou beneficiário usa botão textual nativo; Button link é equivalente.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-019",
+      "numero": 19,
+      "baseline": {
+        "chave": "2928752452a3bb9c1b8f9877ad77fb59257e3cf35c60d062e4178302c41bfd2d",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/lancamentos/lancamentos-table.tsx",
+      "linhaNaBase": 174,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Editar na tabela usa nome genérico, embora l.descricao esteja disponível.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-020",
+      "numero": 20,
+      "baseline": {
+        "chave": "4947c6673bf2d3d557539e0eba1ec9f608622bcdae3af90578fd7c1794837581",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/lancamentos/lancamentos-table.tsx",
+      "linhaNaBase": 177,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Excluir na tabela usa nome genérico; o runtime já converte o ícone recebido em X.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-021",
+      "numero": 21,
+      "baseline": {
+        "chave": "0cc1d927af930d107aa9c24406e28070666084e8acf389eeef012aa31efc121c",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/manifesto-nfs/manifesto-nfs-view.tsx",
+      "linhaNaBase": 96,
+      "regra": "cor-local-em-botao",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L6",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Aceitar NFS-e aplica verde local; EX-DOM-01 exige revisar o contrato fiscal antes da consolidação.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/inventario.md",
+            "referencia": "EX-DOM-01",
+            "descricao": "Cores e estados fiscais exigem revisão pelo domínio, sem autorização para overrides administrativos arbitrários."
+          }
+        ]
+      },
+      "proximaAcao": "Revisar a apresentação de aceite/recusa à luz de EX-DOM-01, preservando manifestação e efeitos do domínio.",
+      "validacaoRequerida": "Contrato do domínio e referências equivalentes, claro/escuro, foco/contraste composto, confirmações e mocks. Sem SEFAZ ou documentos reais.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-022",
+      "numero": 22,
+      "baseline": {
+        "chave": "09cdb2bf5762c9450b846b21a60168238797b9d51fdec01f436b694b76b04883",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/manifesto-nfs/manifesto-nfs-view.tsx",
+      "linhaNaBase": 148,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O input file de XML está oculto e é acionado por ref.click() a partir de Button oficial; é infraestrutura do seletor.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-023",
+      "numero": 23,
+      "baseline": {
+        "chave": "d05dc60e5ef19d2eb17b390cd68fdc979fa994ae6be5799a8bd8700cce369431",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "linhaNaBase": 175,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão é uma linha selecionável do extrato, com nome, aria-pressed, status e valor.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-024",
+      "numero": 24,
+      "baseline": {
+        "chave": "9b4d77b1301b7c842b0ca851532e81710dab1f2f4ecc0434e8b9356fbf440035",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "linhaNaBase": 200,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Checkbox comum de seleção agrupada usa accent-blue-600; existe Checkbox oficial.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-025",
+      "numero": 25,
+      "baseline": {
+        "chave": "1ea212c4717d5ff782d8bd2b9017f3ce14879655179943ac4222932e0c258055",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "linhaNaBase": 201,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão é um cabeçalho multilinear de movimentação, com composição e margem próprias.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-026",
+      "numero": 26,
+      "baseline": {
+        "chave": "16ef154d47d521d16a4cc2c3172c7e8cefea432d5f93622214792d1ee84b0c55",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "linhaNaBase": 229,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão é uma linha de composição que abre outro detalhe; reaparece no ID33.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-027",
+      "numero": 27,
+      "baseline": {
+        "chave": "90ffb0462cbf3db6b6a122c27ce1047ba3b0534e3a2ee549ef2610d65efe7b07",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "linhaNaBase": 257,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O texto Excluir vira X compacto, mas mantém nome genérico; falta identificar a movimentação.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-028",
+      "numero": 28,
+      "baseline": {
+        "chave": "e4cffed98717fa43e85272595c31b2b8b8100e1e642cc059e95e3fb298c78f73",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "linhaNaBase": 258,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Editar mantém aria-label genérico, sem a descrição do registro.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-029",
+      "numero": 29,
+      "baseline": {
+        "chave": "1513e9f392f1b910a92e543879c96d65ed82eb82d4df08e6f8598f8d746ea21b",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/conciliacao-view.tsx",
+      "linhaNaBase": 312,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Cadastrar fornecedor é um gatilho textual nativo equivalente ao ID18.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-030",
+      "numero": 30,
+      "baseline": {
+        "chave": "1c61b3faecac099f910dbdf8407a6b534781ecec69c26108e4c7923d59d915e6",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/importar-extrato-dialog.tsx",
+      "linhaNaBase": 77,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Checkbox de transação do extrato duplica a primitiva e fixa azul; preservar nome e bloqueio de item existente.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-031",
+      "numero": 31,
+      "baseline": {
+        "chave": "a45c6b0ad30a70504a9e59f740aa5362d000422943cc828ff714374cd45cc875",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/importar-extrato-dialog.tsx",
+      "linhaNaBase": 80,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "A confirmação binária da conta usa checkbox nativo rotulado; existe Checkbox equivalente.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-032",
+      "numero": 32,
+      "baseline": {
+        "chave": "0c1a7f504fb6b4d81ccf591a84975f51c0584ae1d3a6a7d8401cf8dd60f59e61",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/importar-extrato-dialog.tsx",
+      "linhaNaBase": 81,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "A confirmação de possíveis duplicadas usa checkbox comum; preservar a exigência do domínio.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-033",
+      "numero": 33,
+      "baseline": {
+        "chave": "2b9704fd4b47b7135ce27bd772462ca87e15bdf1eb965b42e5c90ba0de5e0791",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/movimentacoes-view.tsx",
+      "linhaNaBase": 209,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "A linha de composição abre detalhe e coincide com o padrão do ID26.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-034",
+      "numero": 34,
+      "baseline": {
+        "chave": "7fd9e76ca71d37283e51f6b7cdf9ea47ca6f58964c54fdcf093b8851aae79c44",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/movimentacoes-view.tsx",
+      "linhaNaBase": 232,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Excluir vira X, mas não vincula a descrição da movimentação ao nome acessível.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-035",
+      "numero": 35,
+      "baseline": {
+        "chave": "c6f447152a799455a11ce9881a9f32ebe20e34b2f985ac440a6ab3715fa4776c",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/movimentacoes/movimentacoes-view.tsx",
+      "linhaNaBase": 233,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Editar usa nome genérico; o wrapper de lançamento não o contextualiza.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-036",
+      "numero": 36,
+      "baseline": {
+        "chave": "2ad47e37d0740909ff5702828c40f2ceb633fc770fded39f1450248adc476b07",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/plano-de-contas/grupo-card.tsx",
+      "linhaNaBase": 229,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O disclosure da árvore recursiva usa nome/caminho, aria-expanded e aria-controls ligados à lista.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-037",
+      "numero": 37,
+      "baseline": {
+        "chave": "1b032f21afc8ce49095aa0e00dcd3b29f838bb3b76a8e8b2ea1df416e52f73a1",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/financeiro/plano-de-contas/grupo-card.tsx",
+      "linhaNaBase": 291,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O cabeçalho completo do Card expande grupo, com ordinal, natureza, resumo e chevron.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-038",
+      "numero": 38,
+      "baseline": {
+        "chave": "0cca54ad6c2f914b4a2e4dfc3e03f4537623366974d79ed938ea722d7d5ce9c3",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/fornecedores/creatable-checkbox-list.tsx",
+      "linhaNaBase": 76,
+      "regra": "acao-compacta-sem-nome",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O Button contém apenas Plus/Loader2, sem texto, aria-label, aria-labelledby ou title.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-039",
+      "numero": 39,
+      "baseline": {
+        "chave": "73586d619e3ec85a0f6d4e427f389871d041dbc2c4b797f5b151cfe3f5bd0ad4",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/fornecedores/fornecedor-dialog.tsx",
+      "linhaNaBase": 97,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O card selecionável Fornecedor tem aria-pressed e composição própria; precisa de contrato de seleção por cards.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-040",
+      "numero": 40,
+      "baseline": {
+        "chave": "a2049fab8db717321a10a3e500b51128bb870147c0a4a0f27a770224c82b10e0",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/fornecedores/fornecedor-dialog.tsx",
+      "linhaNaBase": 115,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O card selecionável Beneficiário é o par do ID39; preservar sua geometria e a escolha exclusiva.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-041",
+      "numero": 41,
+      "baseline": {
+        "chave": "1e7bc4c19b0146c78fcb04f769e14f7c1e3d107c3d1e4e4283f405f6fb2aaaa7",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/fornecedores/fornecedores-table.tsx",
+      "linhaNaBase": 184,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O expansor de fornecedor possui nome e região associados; faz parte da família de linhas expansíveis.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-042",
+      "numero": 42,
+      "baseline": {
+        "chave": "4098d32d32c462a9b12d24050c98ee6b066bf42ee0dc253c323947b15fa31025",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/fornecedores/import-fornecedores-dialog.tsx",
+      "linhaNaBase": 101,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Input CSV oculto está dentro do seletor visual de importação; não é um controle visual paralelo.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-043",
+      "numero": 43,
+      "baseline": {
+        "chave": "c6754c2d72acd4cefd58dddac064986e9392e073ead9a917d59d507813f24f4a",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/insumos/creatable-select.tsx",
+      "linhaNaBase": 91,
+      "regra": "acao-compacta-sem-nome",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O Button de adicionar contém apenas Plus/Loader2 e não fornece nome acessível.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-044",
+      "numero": 44,
+      "baseline": {
+        "chave": "0b35a63a2b53f8541b90c490c8914c340b4729328c9cc7cfb7d0d7267717d7e0",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/insumos/creatable-select.tsx",
+      "linhaNaBase": 96,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Adicionar um valor novo usa botão textual nativo; existe ação equivalente em Button.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-045",
+      "numero": 45,
+      "baseline": {
+        "chave": "2892e18b1534e7356ae12114e845f1e1439790f702a8f39c3dac3a3710ff423d",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/insumos/foto-dropzone.tsx",
+      "linhaNaBase": 89,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O input file sr-only integra o dropzone de foto, com ref, name e restrições próprias.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-046",
+      "numero": 46,
+      "baseline": {
+        "chave": "6107de1b7aaea8b3fb81547264b133f0f3418755ced57eaaae666e2a3ebaa7c8",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/insumos/import-insumos-dialog.tsx",
+      "linhaNaBase": 96,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Input CSV oculto está associado ao seletor visual de importação de insumos.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-047",
+      "numero": 47,
+      "baseline": {
+        "chave": "261032712ca99558ff117723bd2c7e201646f8f95054c0aa122c6917aeb91fd5",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/insumos/insumo-form.tsx",
+      "linhaNaBase": 160,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O card de escolha Insumo implementa seleção com composição própria.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-048",
+      "numero": 48,
+      "baseline": {
+        "chave": "f4c086d7a712ec1506b7c86781af65a337cf519499da9a0fc03c458449ce995c",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/insumos/insumo-form.tsx",
+      "linhaNaBase": 180,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O card de escolha Preparação é o par do ID47; preservar a distinção do domínio.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-049",
+      "numero": 49,
+      "baseline": {
+        "chave": "359d1f4faa9c830ccef9a3218ff26e9651d039c27f9d98f8129a4c95421caa6a",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/insumos/insumo-form.tsx",
+      "linhaNaBase": 403,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Cadastrar novo fornecedor é um botão textual nativo fornecido ao gatilho do diálogo.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-050",
+      "numero": 50,
+      "baseline": {
+        "chave": "e00ced58ac8d7da1752de34fa0d398a6436996c71035b1d8a0a5ff6382ff8800",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/insumos/insumos-table.tsx",
+      "linhaNaBase": 238,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão expande a linha de insumo, com nome/região próprios.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-051",
+      "numero": 51,
+      "baseline": {
+        "chave": "b4b92eaf36013fa8e829b9dbad1558ac78e7ed7a7a9d2aa12e6594e1293323da",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/insumos/insumos-table.tsx",
+      "linhaNaBase": 306,
+      "regra": "acao-compacta-sem-contexto",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Editar usa nome genérico; InsumoDialog apenas renderiza o gatilho recebido.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-052",
+      "numero": 52,
+      "baseline": {
+        "chave": "b5809f945b829b994df689a0dc1102f22d3e1d77fb2f2e19a8434c1887f4f30d",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/insumos/marcas-campo.tsx",
+      "linhaNaBase": 33,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Remover marca do rascunho usa X de 28px e hover primário, em vez do BotaoRemoverItem e hover destrutivo oficiais.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/remover-item.tsx",
+            "simbolo": "BotaoRemoverItem",
+            "descricao": "Remoção de rascunho com X neutro e hover destrutivo."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-053",
+      "numero": 53,
+      "baseline": {
+        "chave": "7515c7168045673d488616965ad4815795869d7ac2943b47240f0bb623f29dcb",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/inventario/contagem/excluir-contagem-dialog.tsx",
+      "linhaNaBase": 63,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Checkbox de ciência do estorno usa accent-red-600 local; existe Checkbox oficial.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-054",
+      "numero": 54,
+      "baseline": {
+        "chave": "4da99d364c61b31376516a5c20a7c545a81c4322d87595f9255a650c3800b424",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/inventario/perdas/page.tsx",
+      "linhaNaBase": 43,
+      "regra": "cor-local-em-botao",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Registrar perda aplica bg-red-600, hover vermelho e h-10! no Button; as variantes e dimensões oficiais são sobrescritas.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-055",
+      "numero": 55,
+      "baseline": {
+        "chave": "06db802dc10cee9ce2f6e6aa7f236884039ea89e21c3e020fbdd60da8cec8870",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/inventario/perdas/perdas-table.tsx",
+      "linhaNaBase": 89,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Cabeçalho de ordenação próprio usa botão nativo; existe SortableTableHead.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/table.tsx",
+            "simbolo": "SortableTableHead",
+            "descricao": "Cabeçalho ordenável oficial disponível."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-056",
+      "numero": 56,
+      "baseline": {
+        "chave": "dcb62b8a27b152532ca101f542d4d7d0d5785533bb887498b1959fd857fec181",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/inventario/posicao-atual-table.tsx",
+      "linhaNaBase": 265,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão expande a linha de posição de estoque, com nome/região associados.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-057",
+      "numero": 57,
+      "baseline": {
+        "chave": "fff3f8d3c59095309e0e503acfcfa6e5e32a12b14b85e225591f521e69b8c914",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/inventario/posicao-atual-table.tsx",
+      "linhaNaBase": 311,
+      "regra": "acao-compacta-sem-nome",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P1",
+      "loteRecomendado": "L1",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "MoreVertical não tem nome no Button nem no DropdownMenuTrigger que o renderiza.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Acrescentar nomes contextuais a editar, excluir, adicionar e menus, preservando aparência e callbacks.",
+      "validacaoRequerida": "Nome renderizado por papel/DOM, associação ao item, teclado, bloqueios e comparação visual do consumidor com fixtures.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-058",
+      "numero": 58,
+      "baseline": {
+        "chave": "7d01ce148b86a00371fb6a97e75207d6655c26c732ea9c0d1885146695e497ce",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "linhaNaBase": 424,
+      "regra": "acao-compacta-sem-nome",
+      "classificacao": "falso_positivo_confirmado",
+      "classificacaoDescricao": "Falso positivo confirmado por composição",
+      "prioridade": "P3",
+      "loteRecomendado": "L4",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "DialogClose fornece aria-label=\"Fechar nota\" e title nas linhas 421–423 ao Button de render; o analisador inspeciona apenas o nó interno.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+            "linha": 421,
+            "simbolo": "DialogClose",
+            "descricao": "Props do wrapper fornecem o nome do Button renderizado."
+          },
+          {
+            "arquivo": "src/components/ui/dialog.tsx",
+            "simbolo": "DialogClose",
+            "descricao": "Wrapper oficial delega as props à primitiva."
+          }
+        ]
+      },
+      "proximaAcao": "Resolver props do wrapper oficial no analisador e retirar apenas entradas efetivamente resolvidas após validação.",
+      "validacaoRequerida": "Testes positivos para IDs 58/84/85, caso negativo ID 57 ainda detectado, nome no DOM e ausência de dispensa genérica de render.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Comprovar resolução do wrapper no analisador e nome no DOM; retirar só a entrada resolvida, mantendo casos negativos."
+    },
+    {
+      "id": "DSV-059",
+      "numero": 59,
+      "baseline": {
+        "chave": "ac2554f5479b8db3a1d15b9f35d63b285239e00245ce8e8bce5d153470567ef0",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "linhaNaBase": 747,
+      "regra": "cor-local-em-botao",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L6",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "A recusa de nota conserva vermelho fiscal local; revisar EX-DOM-01 e a manifestação antes de consolidar.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/inventario.md",
+            "referencia": "EX-DOM-01",
+            "descricao": "Cores e estados fiscais exigem revisão pelo domínio, sem autorização para overrides administrativos arbitrários."
+          }
+        ]
+      },
+      "proximaAcao": "Revisar a apresentação de aceite/recusa à luz de EX-DOM-01, preservando manifestação e efeitos do domínio.",
+      "validacaoRequerida": "Contrato do domínio e referências equivalentes, claro/escuro, foco/contraste composto, confirmações e mocks. Sem SEFAZ ou documentos reais.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-060",
+      "numero": 60,
+      "baseline": {
+        "chave": "b1ee6c344c5d4c49cb8021f5eb4e5e9274c2ace1b1cb7cc84f9aa0a864b444f0",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "linhaNaBase": 758,
+      "regra": "cor-local-em-botao",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L6",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O aceite de nota sobrescreve outline com verde local; a semântica fiscal deve ser preservada sob EX-DOM-01.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/inventario.md",
+            "referencia": "EX-DOM-01",
+            "descricao": "Cores e estados fiscais exigem revisão pelo domínio, sem autorização para overrides administrativos arbitrários."
+          }
+        ]
+      },
+      "proximaAcao": "Revisar a apresentação de aceite/recusa à luz de EX-DOM-01, preservando manifestação e efeitos do domínio.",
+      "validacaoRequerida": "Contrato do domínio e referências equivalentes, claro/escuro, foco/contraste composto, confirmações e mocks. Sem SEFAZ ou documentos reais.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-061",
+      "numero": 61,
+      "baseline": {
+        "chave": "d559483547bb1660f28cfc62134b9b1758bcbd1197ad3bde7ee62ff6e19cfd14",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "linhaNaBase": 793,
+      "regra": "cor-local-em-botao",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L6",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O confirmador de aceite usa verde local; falta mapear a apresentação fiscal ao catálogo sem alterar o consumidor preservado.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/inventario.md",
+            "referencia": "EX-DOM-01",
+            "descricao": "Cores e estados fiscais exigem revisão pelo domínio, sem autorização para overrides administrativos arbitrários."
+          }
+        ]
+      },
+      "proximaAcao": "Revisar a apresentação de aceite/recusa à luz de EX-DOM-01, preservando manifestação e efeitos do domínio.",
+      "validacaoRequerida": "Contrato do domínio e referências equivalentes, claro/escuro, foco/contraste composto, confirmações e mocks. Sem SEFAZ ou documentos reais.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-062",
+      "numero": 62,
+      "baseline": {
+        "chave": "96b517ba3793d2d2e78aa7737e06508dd80b9fc21e979d2417f15845787f9d96",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "linhaNaBase": 822,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Radio Não reconheço pertence a fieldset/legend, tem label e name por nota; falta RadioGroup oficial equivalente.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui",
+            "descricao": "Não foi encontrado RadioGroup oficial nesta base; os radios existentes preservam fieldset/legend/label/name."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-063",
+      "numero": 63,
+      "baseline": {
+        "chave": "79c644b2008dda03e360d750aa2eb1ae7fea1116db716004a7c4e363fadfeb9f",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
+      "linhaNaBase": 832,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Radio Reconheço, mas operação não realizada compartilha grupo, rótulo e bloqueio com o ID62.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui",
+            "descricao": "Não foi encontrado RadioGroup oficial nesta base; os radios existentes preservam fieldset/legend/label/name."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-064",
+      "numero": 64,
+      "baseline": {
+        "chave": "ff639d45b51ae8e8ea24c2a75633ec94f4235feacfdb36fdabffe04f007a6d2f",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/perfil/avatar-dropzone.tsx",
+      "linhaNaBase": 35,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O avatar acionável integra a área de upload de foto, com nome e geometria próprios.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-065",
+      "numero": 65,
+      "baseline": {
+        "chave": "63b3da8cd1913ed193ef31866943144064189bc32f78e8caea87ccdedaa4bad9",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/perfil/avatar-dropzone.tsx",
+      "linhaNaBase": 58,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Trocar foto é ação textual comum em botão nativo; Button link é equivalente.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-066",
+      "numero": 66,
+      "baseline": {
+        "chave": "90fca61cf1b7b025b42362c28487b393d50f47a4e8d0c51c9c8cbfbd4a0b862d",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/perfil/avatar-dropzone.tsx",
+      "linhaNaBase": 67,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O input file oculto é acionado pelos controles do avatar e conserva formato, bloqueio e callback.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-067",
+      "numero": 67,
+      "baseline": {
+        "chave": "8f0385f6940e0957fe46da24c14360688790178713468c12ef71f0df1f957bc4",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/producao/etiquetas/etiquetas-client.tsx",
+      "linhaNaBase": 171,
+      "regra": "confirmacao-sem-semantica",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Confirmar usa secondary; é uma confirmação de saída física e sua semântica deve ser revisada preservando status e permissão.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-068",
+      "numero": 68,
+      "baseline": {
+        "chave": "b3bdd0b6dd207f89c88b0e79516b0b9b8a4f29cdec539d2104d735dd3e99fa90",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/producao/etiquetas/gestao-validades.tsx",
+      "linhaNaBase": 77,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O card de período contém indicadores, data, seleção e aria-pressed; falta variante fiel.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-069",
+      "numero": 69,
+      "baseline": {
+        "chave": "b1c04a68036153403b98052623a51a04971385251476564afe288de7c245ac83",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/producao/etiquetas/gestao-validades.tsx",
+      "linhaNaBase": 88,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O card acionável de etiqueta contém composição e status próprios; não substituir por Button genérico.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-070",
+      "numero": 70,
+      "baseline": {
+        "chave": "e2fda40c2bc490143b8c9978618d6f815b69f1f5662d7ce1b62bc185e4f9aea3",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/producao/etiquetas/painel-impressao-guiado.tsx",
+      "linhaNaBase": 59,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "BotaoCard é um seletor especializado do fluxo guiado de impressão, com seleção e altura próprias.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-071",
+      "numero": 71,
+      "baseline": {
+        "chave": "7df95262932ee46b11fa6fc91c9b9c773b1712d58c3d2fa118147c30f73d7ad7",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/producao/etiquetas/pontos-impressao.tsx",
+      "linhaNaBase": 58,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Checkbox Ativo do ponto de impressão duplica a primitiva oficial.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-072",
+      "numero": 72,
+      "baseline": {
+        "chave": "b3f85f49480cc0fb53a80c14a0864cb1ee54afd11199935e8ff24b116ea39747",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/producao/etiquetas/pontos-impressao.tsx",
+      "linhaNaBase": 58,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Checkbox Ponto padrão duplica a primitiva oficial, na mesma linha do ID71.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-073",
+      "numero": 73,
+      "baseline": {
+        "chave": "047ac86f20063d4286a9dff2b56e4451ea66baccd5244079b2b5bd6b6e23f52f",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/producao/etiquetas/pontos-impressao.tsx",
+      "linhaNaBase": 61,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Checkbox de confirmação de Wi-Fi duplica a primitiva; preservar os bloqueios sem operar equipamento ou rede.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-074",
+      "numero": 74,
+      "baseline": {
+        "chave": "70aa32bc80bef5d6b97408ef566ebbe109b40d8db24aac41e2a2612c89208903",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/producao/etiquetas/responsavel-etiqueta.tsx",
+      "linhaNaBase": 30,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Checkbox Informar outro nome controla o rascunho do responsável; existe Checkbox equivalente.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-075",
+      "numero": 75,
+      "baseline": {
+        "chave": "64a38a051ca9ef34ce442abbcbc31f9850f3558ad1e4fbd2cd681d0cf88a590e",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/catalogo/catalogo-client.tsx",
+      "linhaNaBase": 45,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão expande grupo na tabela do catálogo, com nome e região associados.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-076",
+      "numero": 76,
+      "baseline": {
+        "chave": "105cef32218c191bae89a6657257e69295b851bbad17a6a6c01dfae35d942ec8",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/catalogo/linha-complemento.tsx",
+      "linhaNaBase": 14,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O expansor compacto abre a composição do complemento e participa da grade existente.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-077",
+      "numero": 77,
+      "baseline": {
+        "chave": "2da0bb5af115d1f98b1e70fa04d34294d92063c8e03e00596a602f7820eaaa36",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/catalogo/linha-complemento.tsx",
+      "linhaNaBase": 15,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O nome do complemento também expande a composição; preservar os dois alvos e a grade.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-078",
+      "numero": 78,
+      "baseline": {
+        "chave": "e11447a7344356e61c2ec22e3a724ca1d8c61b05670987c216a2aeb3dee4e289",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/clientes/clientes-client.tsx",
+      "linhaNaBase": 130,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão expande detalhes do cliente conforme a família de linhas existente, com nome/região.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-079",
+      "numero": 79,
+      "baseline": {
+        "chave": "a5e1d1e82f320d1ccb055f12d7cefbe34d8e56e9451a84254158857e5ad4951d",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/componentes.tsx",
+      "linhaNaBase": 15,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O wrapper Check implementa checkbox nativo; há Checkbox oficial, mas a migração precisa preservar a API onChange e seus consumidores.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/checkbox.tsx",
+            "simbolo": "Checkbox",
+            "descricao": "Primitiva existente; compatibilidade de eventos e formulário precisa ser validada."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-080",
+      "numero": 80,
+      "baseline": {
+        "chave": "96a05e34456e94ee7cc8745e237b40e19661e0dfe02af3e7b28c9edd631c792a",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/fiscal/fiscal-client.tsx",
+      "linhaNaBase": 19,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Observações fiscais usam textarea nativo com limite; existe Textarea oficial.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/textarea.tsx",
+            "simbolo": "Textarea",
+            "descricao": "Primitiva existente; preservar limites, rótulos e mensagens."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-081",
+      "numero": 81,
+      "baseline": {
+        "chave": "5bdf801b24c8a1e8ce6df656d34cbaad3ebbd1ae50123cbf535c5f2587c8a0b5",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/fiscal/fiscal-produto-editor.tsx",
+      "linhaNaBase": 12,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Orientação contábil usa textarea nativo com limite; existe Textarea oficial.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/textarea.tsx",
+            "simbolo": "Textarea",
+            "descricao": "Primitiva existente; preservar limites, rótulos e mensagens."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-082",
+      "numero": 82,
+      "baseline": {
+        "chave": "af2b83bebe6dcd0f06d7be4b4fe8d70038a7f53f876fe8ae6b87f9a3ce9d9893",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/formas-pagamento/formas-pagamento-client.tsx",
+      "linhaNaBase": 102,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Observações de forma de pagamento usam textarea nativo; preservar limite e mensagens ao reutilizar.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/textarea.tsx",
+            "simbolo": "Textarea",
+            "descricao": "Primitiva existente; preservar limites, rótulos e mensagens."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-083",
+      "numero": 83,
+      "baseline": {
+        "chave": "099c76a02dae9960c037e0d019457941cf2dbcab0b534e5f384002e45fc1201f",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/importacao/importacao-client.tsx",
+      "linhaNaBase": 56,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O seletor nativo do pacote JSON tem label, accept e bloqueio durante processamento; avaliar contrato de upload.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-084",
+      "numero": 84,
+      "baseline": {
+        "chave": "4ee2fb9a0bdd8fe1e6d9ef8dec4b1385ec5a1de9f062b2572f7defc96eba8bae",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/pedidos/gestor-client.tsx",
+      "linhaNaBase": 158,
+      "regra": "acao-compacta-sem-nome",
+      "classificacao": "falso_positivo_confirmado",
+      "classificacaoDescricao": "Falso positivo confirmado por composição",
+      "prioridade": "P3",
+      "loteRecomendado": "L4",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "DropdownMenuTrigger fornece Mais ações do pedido #... ao Button de render na própria linha 158; o nome existe na composição.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/dropdown-menu.tsx",
+            "linha": 17,
+            "simbolo": "DropdownMenuTrigger",
+            "descricao": "Wrapper oficial repassa props ao MenuPrimitive.Trigger."
+          }
+        ]
+      },
+      "proximaAcao": "Resolver props do wrapper oficial no analisador e retirar apenas entradas efetivamente resolvidas após validação.",
+      "validacaoRequerida": "Testes positivos para IDs 58/84/85, caso negativo ID 57 ainda detectado, nome no DOM e ausência de dispensa genérica de render.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Comprovar resolução do wrapper no analisador e nome no DOM; retirar só a entrada resolvida, mantendo casos negativos."
+    },
+    {
+      "id": "DSV-085",
+      "numero": 85,
+      "baseline": {
+        "chave": "97feec79850ad99341cbd78c6633aad5063f479df3ca677a9dccf5f515cc7ae9",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/pedidos/gestor-client.tsx",
+      "linhaNaBase": 215,
+      "regra": "acao-compacta-sem-nome",
+      "classificacao": "falso_positivo_confirmado",
+      "classificacaoDescricao": "Falso positivo confirmado por composição",
+      "prioridade": "P3",
+      "loteRecomendado": "L4",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "DropdownMenuTrigger fornece Mais opções de pedidos ao Button de render na linha 215; o nome existe na composição.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/dropdown-menu.tsx",
+            "linha": 17,
+            "simbolo": "DropdownMenuTrigger",
+            "descricao": "Wrapper oficial repassa props ao MenuPrimitive.Trigger."
+          }
+        ]
+      },
+      "proximaAcao": "Resolver props do wrapper oficial no analisador e retirar apenas entradas efetivamente resolvidas após validação.",
+      "validacaoRequerida": "Testes positivos para IDs 58/84/85, caso negativo ID 57 ainda detectado, nome no DOM e ausência de dispensa genérica de render.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Comprovar resolução do wrapper no analisador e nome no DOM; retirar só a entrada resolvida, mantendo casos negativos."
+    },
+    {
+      "id": "DSV-086",
+      "numero": 86,
+      "baseline": {
+        "chave": "fe6bc8082fac345a1d112794b47fe484e30b4a6b203a7a8fbe2ee3423f580c04",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/produtos/foto-campo.tsx",
+      "linhaNaBase": 11,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L5",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O input file de foto possui label/aria-label, formatos, limite e pendência; avaliar contrato de upload preservando callbacks.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Estabelecer contratos específicos para infraestrutura de upload e grupos exclusivos antes de migração ou exceção.",
+      "validacaoRequerida": "Label, ref/clique, seleção e limpeza com arquivos fictícios; exclusividade, name, FormData e teclado dos radios. Sem importação real.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-087",
+      "numero": 87,
+      "baseline": {
+        "chave": "4e59d85658aa380df6499731ef1f1eeb27adc5a41db806b61463992eaf811d53",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/produtos/produtos-client.tsx",
+      "linhaNaBase": 88,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "A linha com foto e texto expande produto; tem composição e semântica próprias.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-088",
+      "numero": 88,
+      "baseline": {
+        "chave": "18267f6cbc702b9270a1f9c29de06c24d999f2729e0d64aba5c0357158b13356",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/produtos/produtos-client.tsx",
+      "linhaNaBase": 124,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L8",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O cabeçalho expande grupo vinculado, com alça, nome e conteúdo associados.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Inventariar a composição especializada e sua geometria antes de extrair variante fiel ou propor exceção.",
+      "validacaoRequerida": "Seleção/expansão/arrasto, exclusividade e propagação; conteúdo longo, temas, reflow, toque e estados. Não substituir por Button genérico.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-089",
+      "numero": 89,
+      "baseline": {
+        "chave": "6c407cb1fa0831169159f22d132a5920557d6f19e5c32c01a569bd6b72596bc6",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/produtos/produtos-client.tsx",
+      "linhaNaBase": 156,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Descrição comercial usa textarea nativo; existe Textarea oficial e limite explícito.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/textarea.tsx",
+            "simbolo": "Textarea",
+            "descricao": "Primitiva existente; preservar limites, rótulos e mensagens."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-090",
+      "numero": 90,
+      "baseline": {
+        "chave": "279d53016c313fe7af0728abf5be5f90ca712bea61bfc22ff6a4d5154093a377",
+        "quantidade": 1
+      },
+      "arquivo": "src/app/(protegido)/vendas/produtos/produtos-client.tsx",
+      "linhaNaBase": 179,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L2",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Observações operacionais usam textarea nativo; existe Textarea oficial e limite explícito.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/textarea.tsx",
+            "simbolo": "Textarea",
+            "descricao": "Primitiva existente; preservar limites, rótulos e mensagens."
+          }
+        ]
+      },
+      "proximaAcao": "Reutilizar Checkbox e Textarea oficiais onde há equivalência evidente, preservando rascunho e APIs.",
+      "validacaoRequerida": "Estado, label, onChange/onCheckedChange, valores enviados, limites, pendência, erros e consumidores do wrapper Check.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-091",
+      "numero": 91,
+      "baseline": {
+        "chave": "49e54d13aa35c32725418f55968d11f57ed7378e9ca22ec2e8199235a8b666c0",
+        "quantidade": 1
+      },
+      "arquivo": "src/components/cadastro-rapido-insumo-dialog.tsx",
+      "linhaNaBase": 67,
+      "regra": "controle-nativo",
+      "classificacao": "candidato_real",
+      "classificacaoDescricao": "Candidato real de contrato",
+      "prioridade": "P2",
+      "loteRecomendado": "L3",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O gatilho textual de cadastro rápido de insumo usa botão nativo; Button link é equivalente.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Consolidar ações comuns, cores e ordenação sem trocar consequências do domínio ou redesenhar consumidores.",
+      "validacaoRequerida": "Callbacks e permissões preservados, intenção semântica, estados, SortableTableHead, geometria e capturas comparáveis. Impressão somente simulada.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Corrigir a ocorrência com validação do consumidor; retirar só a dívida comprovadamente resolvida."
+    },
+    {
+      "id": "DSV-092",
+      "numero": 92,
+      "baseline": {
+        "chave": "7bc156297aff7e5c92f5369fb0d3d56035b5f484edbe00b577e0772157bfb21c",
+        "quantidade": 1
+      },
+      "arquivo": "src/components/campo-busca.tsx",
+      "linhaNaBase": 26,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L7",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Limpar busca faz parte do CampoBusca oficial, com nome próprio; conferir alvos de toque antes de formalizar o alcance.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Confirmar o alcance dos componentes oficiais e registrar contratos específicos, sem tratá-los como cópias por tela.",
+      "validacaoRequerida": "Imports/consumidores, semântica, nomes, portais, teclado, pendência e alvos de toque. Nenhuma liberação por pasta inteira.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-093",
+      "numero": 93,
+      "baseline": {
+        "chave": "1e9024dc3f3fb35b5a386d98d77d4e0c5855e610db65ab9a9e194d64b8e0539c",
+        "quantidade": 1
+      },
+      "arquivo": "src/components/campo-senha.tsx",
+      "linhaNaBase": 12,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L7",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "Mostrar/ocultar senha compõe Input e área lateral própria, com nome, estado e controles associados.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Confirmar o alcance dos componentes oficiais e registrar contratos específicos, sem tratá-los como cópias por tela.",
+      "validacaoRequerida": "Imports/consumidores, semântica, nomes, portais, teclado, pendência e alvos de toque. Nenhuma liberação por pasta inteira.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-094",
+      "numero": 94,
+      "baseline": {
+        "chave": "67999cc0fe484cb914b67b7f1aeb88e6a28687e691015e2f8c93c1013c5bab9b",
+        "quantidade": 1
+      },
+      "arquivo": "src/components/design-system/central-design.tsx",
+      "linhaNaBase": 54,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L7",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O seletor de categoria da Central tem seleção, situação e densidade próprios; preservar a navegação do laboratório.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Qualidade visual em novas telas",
+            "descricao": "Matriz de intenção, nomes contextuais e preservação dos consumidores."
+          }
+        ]
+      },
+      "proximaAcao": "Confirmar o alcance dos componentes oficiais e registrar contratos específicos, sem tratá-los como cópias por tela.",
+      "validacaoRequerida": "Imports/consumidores, semântica, nomes, portais, teclado, pendência e alvos de toque. Nenhuma liberação por pasta inteira.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-095",
+      "numero": 95,
+      "baseline": {
+        "chave": "bdd7db3fb352ecb736f2bba0da7bbabee957b695329d83c3ce926fab14064cdb",
+        "quantidade": 1
+      },
+      "arquivo": "src/components/layout/grupo-navegacao.tsx",
+      "linhaNaBase": 48,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L7",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão implementa o expansor do GrupoNavegacao oficial já documentado; não é uma cópia por tela.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "Navegação agrupada sem página própria",
+            "descricao": "Contrato vigente do componente compartilhado; não equivale a aprovação visual humana."
+          }
+        ]
+      },
+      "proximaAcao": "Confirmar o alcance dos componentes oficiais e registrar contratos específicos, sem tratá-los como cópias por tela.",
+      "validacaoRequerida": "Imports/consumidores, semântica, nomes, portais, teclado, pendência e alvos de toque. Nenhuma liberação por pasta inteira.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-096",
+      "numero": 96,
+      "baseline": {
+        "chave": "fd6b95a86042fb2b905e41052b04f6c8857309c947893a4cb72e6d8031bad356",
+        "quantidade": 1
+      },
+      "arquivo": "src/components/layout/module-switcher.tsx",
+      "linhaNaBase": 27,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L7",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O elemento nativo recebe nome, semântica e estilos do DropdownMenuTrigger do ModuleSwitcher; preservar modo recolhido e portal.",
+        "fontesComplementares": [
+          {
+            "arquivo": "src/components/ui/dropdown-menu.tsx",
+            "linha": 17,
+            "simbolo": "DropdownMenuTrigger",
+            "descricao": "Wrapper oficial repassa props ao MenuPrimitive.Trigger."
+          }
+        ]
+      },
+      "proximaAcao": "Confirmar o alcance dos componentes oficiais e registrar contratos específicos, sem tratá-los como cópias por tela.",
+      "validacaoRequerida": "Imports/consumidores, semântica, nomes, portais, teclado, pendência e alvos de toque. Nenhuma liberação por pasta inteira.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-097",
+      "numero": 97,
+      "baseline": {
+        "chave": "803063c624b4b92632ee9fecbdf57c12a4711d1f3db7ef9bd32abdb8faad7996",
+        "quantidade": 1
+      },
+      "arquivo": "src/components/lista-ordenavel.tsx",
+      "linhaNaBase": 50,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L7",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão é a alça da ListaOrdenavel oficial, com captura de ponteiro, teclado e nome próprios.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "ordenacao",
+            "descricao": "Contrato vigente do componente compartilhado; não equivale a aprovação visual humana."
+          }
+        ]
+      },
+      "proximaAcao": "Confirmar o alcance dos componentes oficiais e registrar contratos específicos, sem tratá-los como cópias por tela.",
+      "validacaoRequerida": "Imports/consumidores, semântica, nomes, portais, teclado, pendência e alvos de toque. Nenhuma liberação por pasta inteira.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    },
+    {
+      "id": "DSV-098",
+      "numero": 98,
+      "baseline": {
+        "chave": "46d59e254573b7533ed84be17e089311ab7c26028877907bbb3aac5dc0eb1053",
+        "quantidade": 1
+      },
+      "arquivo": "src/components/status-ativo.tsx",
+      "linhaNaBase": 14,
+      "regra": "controle-nativo",
+      "classificacao": "excecao_candidata",
+      "classificacaoDescricao": "Exceção candidata",
+      "prioridade": "P3",
+      "loteRecomendado": "L7",
+      "evidencia": {
+        "tipo": "fonte_estatica",
+        "descricao": "O botão é o StatusAtivo oficial, com role=switch, nome, estado, bloqueio, pendência e feedback próprios.",
+        "fontesComplementares": [
+          {
+            "arquivo": "docs/design-system/padroes.md",
+            "referencia": "status-ativo",
+            "descricao": "Contrato vigente do componente compartilhado; não equivale a aprovação visual humana."
+          }
+        ]
+      },
+      "proximaAcao": "Confirmar o alcance dos componentes oficiais e registrar contratos específicos, sem tratá-los como cópias por tela.",
+      "validacaoRequerida": "Imports/consumidores, semântica, nomes, portais, teclado, pendência e alvos de toque. Nenhuma liberação por pasta inteira.",
+      "validacaoVisualExecutada": false,
+      "aprovacaoHumanaDaExcecao": false,
+      "condicaoParaAlterarBaseline": "Aprovar contrato/exceção de alcance preciso e sua validação, ou implementar variante fiel validada; não apagar por classificação estática."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+import {createRoot} from "react-dom/client";
+import {ThemeProvider} from "@/components/theme-provider";
+import {Sidebar} from "@/components/layout/sidebar";
+import {CabecalhoConteudo} from "@/components/layout/cabecalho-conteudo";
+import {ProvedorAcesso} from "@/components/layout/acesso-contexto";
+import {UsuariosPermissoes} from "@/app/(protegido)/configuracoes/usuarios/usuarios-permissoes";
+import {Toaster} from "@/components/ui/sonner";
+import {dados} from "./usuarios-acoes";
+import "@/app/globals.css";
+createRoot(document.getElementById("root")!).render(<ThemeProvider attribute="class" defaultTheme="light" enableSystem><ProvedorAcesso acesso={{admin:true,permissoes:{},excecoes:{}}}><div className="estrutura-sistema"><Sidebar/><div className="painel-sistema"><CabecalhoConteudo sessao={{nome:"Allan Abrunhosa",email:"allan@example.invalid",admin:true,perfilNome:"Administrador"}}/><main className="conteudo-sistema"><UsuariosPermissoes inicial={dados}/></main></div></div><Toaster/></ProvedorAcesso></ThemeProvider>);

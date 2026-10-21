@@ -1,0 +1,4 @@
+*.pdf binary
+*.png binary
+conector-raspberry/*.sh text eol=lf
+conector-raspberry/*.service text eol=lf

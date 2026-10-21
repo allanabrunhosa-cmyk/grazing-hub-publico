@@ -1,0 +1,109 @@
+{
+  "tipo": "PREVIA_DE_PROPOSTAS_NAO_APROVADA",
+  "geradoEm": "2026-10-13T02:26:31.185Z",
+  "runtime": "Referência privada substituída por exemplo sintético",
+  "banco": "Referência privada substituída por exemplo sintético",
+  "producaoBloqueada": true,
+  "transmissaoExecutada": false,
+  "pilotos": [
+    {
+      "documentoId": "registro-sintetico-33",
+      "modelo": 55,
+      "ambiente": 2,
+      "valor": "10.00",
+      "revisaoPedido": 1,
+      "hashSnapshot": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "hashPayloadFiscal": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "estado": "SEM_EMISSOR",
+      "montagemConcluida": true,
+      "aprovacaoInterna": false,
+      "versoes": [
+        {
+          "regraId": "registro-sintetico-36",
+          "alvo": "PRODUTO",
+          "versaoId": "registro-sintetico-40",
+          "revisao": 2,
+          "conteudoHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "fundamentacaoHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "aprovacaoHash": null
+        },
+        {
+          "regraId": "registro-sintetico-38",
+          "alvo": "OPERACAO",
+          "versaoId": "registro-sintetico-41",
+          "revisao": 1,
+          "conteudoHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "fundamentacaoHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "aprovacaoHash": null
+        },
+        {
+          "regraId": "registro-sintetico-34",
+          "alvo": "EMPRESA",
+          "versaoId": "registro-sintetico-42",
+          "revisao": 1,
+          "conteudoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "fundamentacaoHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "aprovacaoHash": null
+        }
+      ],
+      "pendenciasLocais": [
+        {
+          "campo": "ORIGEM",
+          "motivo": "Preparação local nacional comprovada; antes de aprovar origem0, confirmar que não há composição importada relevante que exija outro código. Este fato residual não é decidido pelo nome do produto."
+        }
+      ],
+      "pendenciasExternas": []
+    },
+    {
+      "documentoId": "registro-sintetico-43",
+      "modelo": 65,
+      "ambiente": 2,
+      "valor": "10.00",
+      "revisaoPedido": 1,
+      "hashSnapshot": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "hashPayloadFiscal": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "estado": "SEM_EMISSOR",
+      "montagemConcluida": true,
+      "aprovacaoInterna": false,
+      "versoes": [
+        {
+          "regraId": "registro-sintetico-44",
+          "alvo": "PRODUTO",
+          "versaoId": "registro-sintetico-45",
+          "revisao": 2,
+          "conteudoHash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "fundamentacaoHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "aprovacaoHash": null
+        },
+        {
+          "regraId": "registro-sintetico-46",
+          "alvo": "OPERACAO",
+          "versaoId": "registro-sintetico-47",
+          "revisao": 1,
+          "conteudoHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "fundamentacaoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "aprovacaoHash": null
+        },
+        {
+          "regraId": "registro-sintetico-48",
+          "alvo": "EMPRESA",
+          "versaoId": "registro-sintetico-49",
+          "revisao": 1,
+          "conteudoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "fundamentacaoHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "aprovacaoHash": null
+        }
+      ],
+      "pendenciasLocais": [
+        {
+          "campo": "ORIGEM",
+          "motivo": "Preparação local nacional comprovada; antes de aprovar origem0, confirmar que não há composição importada relevante que exija outro código. Este fato residual não é decidido pelo nome do produto."
+        }
+      ],
+      "pendenciasExternas": [
+        "Conferir CSC e identificador de homologação da NFC-e."
+      ]
+    }
+  ],
+  "notaExportacao": "Exemplo exclusivamente sintético. IDs, hashes e cadastro não identificam a operação real. Nenhum conteúdo deste arquivo concede aprovação ou permite transmissão."
+}

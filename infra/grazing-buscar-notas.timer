@@ -1,0 +1,11 @@
+[Unit]
+Description=Processamento da fila SEFAZ a cada cinco minutos
+
+[Timer]
+OnCalendar=*-*-* *:0/5:00
+AccuracySec=1min
+Persistent=false
+Unit=grazing-buscar-notas.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,51 @@
+"use client";
+import { useContext, useRef, useState } from "react";
+import { PedidoPopupContext } from "./modal-pedido";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { GrupoAcoes } from "@/components/padroes-operacionais";
+import { previaFiscalSaidaAction } from "./fiscal-actions";
+import { SelecaoFormulario } from "@/components/ui/select";
+import type { PreviaTributacao } from "@/lib/tributacao/tipos";
+import { ConteudoPreviaTributacao } from "./previa-tributacao";
+export type ResumoFiscalSaida = { id: string; versaoPedido: number; status: string; ambiente: string; provedor: string | null; tentativas: number; ultimoErro: string | null; referenciaProvedor: string | null; chaveFiscal: string | null; numero: string | null; serie: string | null; protocolo: string | null; protocoloCancelamento?: string | null; formatoImpressao?: "PDF" | "HTML" | null; xmlCancelamentoDisponivel?: boolean; revisaoFiscal?: number; eventos?: { id: string; tipo: string; createdAt: Date | string }[] };
+const nomes: Record<string, string> = { SEM_EMISSOR: "Emissor não configurado", PREPARADO: "Solicitação preparada", PROCESSANDO: "Em processamento", INCERTO: "Resultado incerto — consultar emissor", PENDENTE_CONFERENCIA: "Conferência necessária", AUTORIZADO: "Autorizado pelo emissor", REJEITADO: "Rejeitado pelo emissor", CANCELADO: "Cancelamento fiscal confirmado" };
+export function FiscalPedido({ pedidoId, versao, confirmado, documentos, somentePrevia = false }: { pedidoId: string; versao: number; confirmado: boolean; editar: boolean; configurado: boolean; documentos: ResumoFiscalSaida[]; somentePrevia?: boolean }) {
+  const popup = useContext(PedidoPopupContext);
+  const trava = useRef(false);
+  const gatilhoPrevia = useRef<HTMLButtonElement>(null);
+  const [ocupado, setOcupado] = useState(false), [erro, setErro] = useState("");
+  const [previa, setPrevia] = useState<{ pedidoId: string; versao: number; dados: PreviaTributacao } | null>(null);
+  const [modelo, setModelo] = useState<"55" | "65">("65");
+  const [enquadramento, setEnquadramento] = useState({ pedidoId, versao, finalidade: "", indicadorIe: "", indicadorPresenca: "" });
+  const contexto = enquadramento.pedidoId === pedidoId && enquadramento.versao === versao ? enquadramento : { pedidoId, versao, finalidade: "", indicadorIe: "", indicadorPresenca: "" };
+  function mudarContexto(campo: "finalidade" | "indicadorIe" | "indicadorPresenca", valor: string) { setEnquadramento({ ...contexto, [campo]: valor }); }
+  function opcoesFiscais() {
+    if (!contexto.finalidade || !contexto.indicadorIe || !contexto.indicadorPresenca || (modelo === "55" && contexto.indicadorPresenca === "4")) return null;
+    return { consumidorFinal: contexto.finalidade === "FINAL", indicadorIe: Number(contexto.indicadorIe) as 1 | 2 | 9, indicadorPresenca: Number(contexto.indicadorPresenca) as 1 | 2 | 3 | 4 | 5 | 9 };
+  }
+  async function calcularPrevia() {
+    if (popup?.temAlteracoes()) { setErro("Salve ou descarte as alterações comerciais antes de calcular a prévia."); return; }
+    const opcoes = opcoesFiscais();
+    if (!opcoes) { setErro("Informe finalidade fiscal, indicador de IE e presença desta operação para calcular a prévia."); return; }
+    if (trava.current) return; trava.current = true; setOcupado(true); setErro("");
+    try { const r = await previaFiscalSaidaAction(pedidoId, versao, { modelo, ...opcoes }); if ("erro" in r) setErro(r.erro ?? "A ação não foi confirmada."); else { setPrevia({ pedidoId, versao, dados: r.previa }); } }
+    catch { setErro("Não foi possível calcular a prévia. Nenhum documento foi transmitido."); }
+    finally { trava.current = false; setOcupado(false); }
+  }
+  return <Card><CardHeader><CardTitle>Fiscal de saída</CardTitle><CardDescription>Prévia local e histórico preservados. A transmissão individual ocorre somente no painel Emitir nota fiscal do pedido.</CardDescription></CardHeader><CardContent className="space-y-4">
+    {confirmado && <div className="space-y-3"><div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4"><div className="min-w-0 space-y-1"><Label htmlFor={`modelo-previa-${pedidoId}`}>Modelo da prévia fiscal</Label><SelecaoFormulario id={`modelo-previa-${pedidoId}`} aria-label="Modelo da prévia fiscal" disabled={ocupado} value={modelo} onValueChange={v => { setModelo(v as "55" | "65"); if (v === "55" && contexto.indicadorPresenca === "4") mudarContexto("indicadorPresenca", ""); }}><option value="55">NF-e · modelo 55</option><option value="65">NFC-e · modelo 65</option></SelecaoFormulario></div>
+      <div className="min-w-0 space-y-1"><Label htmlFor={`finalidade-fiscal-${pedidoId}`}>Finalidade do adquirente</Label><SelecaoFormulario id={`finalidade-fiscal-${pedidoId}`} aria-label="Finalidade fiscal do adquirente" disabled={ocupado} value={contexto.finalidade} onValueChange={v => mudarContexto("finalidade", v)}><option value="">Selecione a finalidade</option><option value="FINAL">Uso final</option><option value="REVENDA">Revenda</option></SelecaoFormulario></div>
+      <div className="min-w-0 space-y-1"><Label htmlFor={`ie-fiscal-${pedidoId}`}>Indicador de IE</Label><SelecaoFormulario id={`ie-fiscal-${pedidoId}`} aria-label="Indicador de IE fiscal" disabled={ocupado} value={contexto.indicadorIe} onValueChange={v => mudarContexto("indicadorIe", v)}><option value="">Selecione o indicador</option><option value="1">Contribuinte ICMS · 1</option><option value="2">Contribuinte isento · 2</option><option value="9">Não contribuinte · 9</option></SelecaoFormulario></div>
+      <div className="min-w-0 space-y-1"><Label htmlFor={`presenca-fiscal-${pedidoId}`}>Presença na operação</Label><SelecaoFormulario id={`presenca-fiscal-${pedidoId}`} aria-label="Indicador de presença fiscal" disabled={ocupado} value={contexto.indicadorPresenca} onValueChange={v => mudarContexto("indicadorPresenca", v)}><option value="">Selecione a presença</option><option value="1">Presencial no estabelecimento · 1</option><option value="2">Não presencial, internet · 2</option><option value="3">Não presencial, telefone · 3</option>{modelo === "65" && <option value="4">NFC-e com entrega a domicílio · 4</option>}<option value="5">Presencial fora do estabelecimento · 5</option><option value="9">Não presencial, outros · 9</option></SelecaoFormulario></div></div>
+      <p className="text-xs text-muted-foreground">São dados exclusivos desta operação fiscal. CNPJ ou inscrição estadual não determinam, por si, uso final ou revenda. O servidor valida compatibilidade com modelo, destino e cadastro.</p><Button ref={gatilhoPrevia} type="button" variant="outline" disabled={ocupado} onClick={() => void calcularPrevia()}>{ocupado ? "Aguarde…" : "Calcular prévia fiscal"}</Button></div>}
+    {!somentePrevia && !documentos.length && <p className="text-sm text-muted-foreground">Nenhuma solicitação de saída preparada.</p>}
+    {!somentePrevia && documentos.map(d => <div key={d.id} className="space-y-2 rounded-xl border p-3"><p className="font-semibold">Revisão {d.versaoPedido} · {nomes[d.status] ?? d.status}</p><p className="text-sm text-muted-foreground">{d.provedor ?? "Sem emissor"} · {d.ambiente === "NAO_CONFIGURADO" ? "Ambiente não configurado" : d.ambiente} · Tentativas: {d.tentativas}</p>{d.numero && <p className="text-sm break-words">Número {d.numero} · Série {d.serie ?? "Não informada"} · Protocolo {d.protocolo}</p>}{d.protocoloCancelamento && <p className="text-sm break-words">Protocolo de cancelamento: {d.protocoloCancelamento}</p>}{d.chaveFiscal && <p className="text-sm break-all">Chave: {d.chaveFiscal}</p>}{d.ultimoErro && <p role="status" className="text-sm text-destructive">{d.ultimoErro}</p>}
+      {["AUTORIZADO", "CANCELADO"].includes(d.status) && <GrupoAcoes><Button variant="outline" nativeButton={false} role="link" render={<a href={`/api/fiscal-saida/${d.id}/arquivo?tipo=xml`} />}>Baixar XML</Button>{d.formatoImpressao === "HTML" ? <Button variant="outline" nativeButton={false} role="link" render={<a href={`/api/fiscal-saida/${d.id}/arquivo?tipo=html`} />}>Baixar impressão NFC-e (HTML)</Button> : <Button variant="outline" nativeButton={false} role="link" render={<a href={`/api/fiscal-saida/${d.id}/arquivo?tipo=pdf`} />}>Baixar PDF</Button>}{d.status === "CANCELADO" && d.xmlCancelamentoDisponivel && <Button variant="outline" nativeButton={false} role="link" render={<a href={`/api/fiscal-saida/${d.id}/arquivo?tipo=cancelamento`} />}>Baixar XML do cancelamento</Button>}</GrupoAcoes>}
+      {d.eventos && <details><summary className="cursor-pointer text-sm">Histórico fiscal</summary><ul className="mt-2 space-y-1 text-sm text-muted-foreground">{d.eventos.map(e => <li key={e.id}>{({ PREPARADO: "Solicitação preparada", ENVIAR: "Envio solicitado", CONSULTAR: "Consulta solicitada", CANCELAR: "Cancelamento solicitado", RETORNO: "Resposta do emissor registrada", RETORNO_IGNORADO: "Resposta anterior preservada no histórico", RESULTADO_INCERTO: "Resultado incerto: consulta necessária", ENVIO_INTERROMPIDO: "Envio interrompido por alteração do pedido", ARQUIVOS_PROVEDOR: "Documentos obtidos do emissor" } as Record<string, string>)[e.tipo] ?? "Evento fiscal"} · {new Date(e.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</li>)}</ul></details>}
+    </div>)}{erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
+    <Dialog open={!!previa && previa.pedidoId === pedidoId && previa.versao === versao} protegerAlteracoes={false} onOpenChange={aberto => { if (!aberto) setPrevia(null); }}><DialogContent className="sm:max-w-5xl" finalFocus={gatilhoPrevia}><DialogHeader><DialogTitle>Prévia fiscal do pedido</DialogTitle><DialogDescription>Enquadramento resolvido no servidor para esta revisão, com memória de cálculo e pendências da operação.</DialogDescription></DialogHeader>{previa && <ConteudoPreviaTributacao previa={previa.dados} />}</DialogContent></Dialog>
+  </CardContent></Card>;
+}

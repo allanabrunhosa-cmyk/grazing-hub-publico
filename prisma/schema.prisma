@@ -1,0 +1,3416 @@
+// Vendas mantém identidade comercial independente de insumos e fornecedores.
+model IdentidadeExternaVenda {
+  id String @id @default(cuid())
+  origem String
+  loja String
+  entidade String
+  chave String
+  destinoId String
+  resumoOrigem String
+  dadosOrigem Json
+  versaoDestino Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([origem, loja, entidade, chave])
+  @@index([entidade, destinoId])
+}
+
+model FotoProdutoVenda {
+  id String @id @default(cuid())
+  dados Bytes
+  mime String
+  criadoPorId String
+  createdAt DateTime @default(now())
+}
+
+model ClienteVenda {
+  id String @id @default(cuid())
+  nome String
+  primeiroNome String?
+  sobrenome String?
+  razaoSocial String?
+  inscricaoEstadual String?
+  dataNascimento DateTime? @db.Date
+  tipo String @default("PF")
+  documento String? @unique
+  email String?
+  telefone String?
+  contato String?
+  nomeContato String?
+  sobrenomeContato String?
+  observacoes String?
+  formasPagamentoHabilitadas Json?
+  boletoDiasAposEntrega Int?
+  limiteCreditoAberto Decimal? @default(50000) @db.Decimal(12,2)
+  enderecos Json @default("[]")
+  entregaPadrao Json?
+  ativo Boolean @default(true)
+  versao Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  unificadoEmId String?
+  unificadoEm ClienteVenda? @relation("ClientesUnificados", fields: [unificadoEmId], references: [id], onDelete: Restrict)
+  clientesUnificados ClienteVenda[] @relation("ClientesUnificados")
+  contatosEmpresa ContatoClienteVenda[] @relation("ContatosDaEmpresa")
+  contatosOriginados ContatoClienteVenda[] @relation("OrigemDoContato")
+  pedidosVenda PedidoVenda[]
+  movimentosCredito CreditoClienteMovimento[]
+  @@index([ativo, nome])
+  @@index([unificadoEmId])
+}
+
+// Uma empresa comprovada por CNPJ conserva cada pessoa e sua proveniência.
+model ContatoClienteVenda {
+  id String @id @default(cuid())
+  clienteId String
+  cliente ClienteVenda @relation("ContatosDaEmpresa", fields: [clienteId], references: [id], onDelete: Restrict)
+  clienteOrigemId String?
+  clienteOrigem ClienteVenda? @relation("OrigemDoContato", fields: [clienteOrigemId], references: [id], onDelete: Restrict)
+  nome String
+  primeiroNome String?
+  sobrenome String?
+  email String?
+  telefone String?
+  origem String
+  chaveOrigem String
+  proveniencia Json @default("{}")
+  ativo Boolean @default(true)
+  versao Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([clienteId, origem, chaveOrigem])
+  @@index([clienteOrigemId])
+}
+
+model CategoriaVenda {
+  id String @id @default(cuid())
+  nome String @unique
+  ordem Int @default(0)
+  ativo Boolean @default(true)
+  versao Int @default(1)
+  produtos ProdutoCategoriaVenda[]
+}
+
+model ProdutoVenda {
+  id String @id @default(cuid())
+  nome String
+  especificacao String?
+  descricao String?
+  tipo String @default("PADRAO")
+  classificacao String @default("PRINCIPAL")
+  classificacoes String[] @default(["PRINCIPAL"])
+  preco Decimal @default(0) @db.Decimal(12,2)
+  // Arquivo legado: os fluxos comerciais usam somente preco.
+  precoComplemento Decimal? @db.Decimal(12,2)
+  tempoPreparoMinutos Int?
+  slotsEntrega Int?
+  tipoEmbalagemId String?
+  tipoEmbalagem TipoEmbalagemVenda? @relation(fields: [tipoEmbalagemId], references: [id], onDelete: Restrict)
+  grupoFiscalId String?
+  grupoFiscal GrupoFiscalVenda? @relation(fields: [grupoFiscalId], references: [id], onDelete: SetNull)
+  codigo String? @unique
+  unidade String @default("UN")
+  fotoUrl String?
+  observacoes String?
+  modoPreparo String?
+  fiscal Json @default("{}")
+  fiscalRevisado Boolean @default(false)
+  ativo Boolean @default(true)
+  versao Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  categorias ProdutoCategoriaVenda[]
+  grupos ProdutoGrupoVenda[]
+  precos PrecoProdutoVenda[]
+  componentes ComponenteProdutoVenda[]
+  comoOpcao OpcaoComplementoVenda[]
+  itensPedidoVenda ItemPedidoVenda[]
+  regrasBrasilNfe RegraFiscalBrasilNfe[]
+  @@index([ativo, nome])
+}
+
+model TipoEmbalagemVenda {
+  id String @id @default(cuid())
+  nome String
+  ativo Boolean @default(true)
+  versao Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  produtos ProdutoVenda[]
+  @@index([ativo, nome])
+}
+
+model ProdutoCategoriaVenda {
+  produtoId String
+  categoriaId String
+  ordem Int @default(0)
+  produto ProdutoVenda @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  categoria CategoriaVenda @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  @@id([produtoId, categoriaId])
+  @@index([categoriaId, ordem])
+}
+
+model GrupoComplementoVenda {
+  id String @id @default(cuid())
+  nome String @unique
+  tipo String @default("COMPOSICAO")
+  minimo Int @default(0)
+  // null é ilimitado; não substituir por 99 ou 100.
+  maximo Int?
+  repetir Boolean @default(true)
+  ativo Boolean @default(true)
+  versao Int @default(1)
+  categoriaId String?
+  categoria CategoriaGrupoComplementoVenda? @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  opcoes OpcaoComplementoVenda[]
+  produtos ProdutoGrupoVenda[]
+}
+
+model CategoriaGrupoComplementoVenda {
+  id String @id @default(cuid())
+  nome String @unique
+  ordem Int @default(0)
+  ativo Boolean @default(true)
+  versao Int @default(1)
+  grupos GrupoComplementoVenda[]
+}
+
+model CanalVenda {
+  id    String @id @default(cuid())
+  nome  String @unique
+  ordem Int    @default(0)
+  versao Int @default(1)
+  categoriaDevolucaoId String?
+  categoriaDevolucao CategoriaFinanceira? @relation("CanalDevolucao", fields: [categoriaDevolucaoId], references: [id], onDelete: Restrict)
+  categoriaReceitaId String?
+  categoriaReceita CategoriaFinanceira? @relation(fields: [categoriaReceitaId], references: [id], onDelete: Restrict)
+  pedidosVenda PedidoVenda[]
+}
+
+// O pedido é a origem comercial; efeitos financeiros, fiscais e de estoque ficam fora do M1.
+model PedidoVenda {
+  ifood PedidoIfood?
+  modoFinanceiro String @default("HUB")
+  // Corte de criação: zero preserva contratos anteriores, sem backfill.
+  versaoFinanceiro Int @default(0)
+  fusoHorario String @default("America/Sao_Paulo")
+  referenciaOrigem String?
+  referenciaEstabelecimento String?
+  referenciaPedido String?
+  id String @id @default(cuid())
+  numero Int @unique @default(autoincrement())
+  clienteId String?
+  cliente ClienteVenda? @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  canalId String?
+  canal CanalVenda? @relation(fields: [canalId], references: [id], onDelete: Restrict)
+  canalNomeSnapshot String?
+  origem String @default("INTERNO")
+  chaveCriacao String @unique
+  hashCriacao String
+  status String @default("RASCUNHO")
+  statusOperacional String @default("PENDENTE")
+  versao Int @default(1)
+  atendimento String?
+  prazo String?
+  // Data civil comercial. Null conserva o contrato de pedidos anteriores.
+  dataCompra DateTime? @db.Date
+  previsaoData DateTime? @db.Date
+  previsaoJanela String?
+  confirmadoEm DateTime?
+  entregueEm DateTime?
+  canceladoEm DateTime?
+  rascunho Json?
+  compradorSnapshot Json?
+  cobrancaSnapshot Json?
+  destinatarioSnapshot Json?
+  enderecoSnapshot Json?
+  entregaSnapshot Json?
+  custoEntregaEstimado Decimal? @db.Decimal(14,2)
+  custoEntregaEfetivo Decimal? @db.Decimal(14,2)
+  prestadorEntregaId String?
+  prestadorEntrega Fornecedor? @relation("PrestadorEntrega", fields: [prestadorEntregaId], references: [id], onDelete: Restrict)
+  observacoes String?
+  formaPagamentoInformada String?
+  pagamentoInformadoSnapshot Json?
+  subtotal Decimal @default(0) @db.Decimal(14,2)
+  desconto Decimal @default(0) @db.Decimal(14,2)
+  frete Decimal @default(0) @db.Decimal(14,2)
+  outrosCustos Decimal @default(0) @db.Decimal(14,2)
+  total Decimal @default(0) @db.Decimal(14,2)
+  criadoPorId String
+  criadoPor Usuario @relation("PedidoVendaCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  itens ItemPedidoVenda[]
+  historico HistoricoPedidoVenda[]
+  lancamentosFinanceiros LancamentoFinanceiro[]
+  historicoFinanceiro HistoricoFinanceiroPedido[]
+  pagamentosExternos PagamentoExternoPedido[]
+  tratamentosFinanceiros TratamentoFinanceiroPedido[]
+  movimentosCreditoAplicado CreditoClienteMovimento[] @relation("CreditoAplicadoPedido")
+  documentosSaida DocumentoFiscalSaida[]
+  custosFinanceirosEntrega VinculoCustoEntrega[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([clienteId, createdAt])
+  @@index([canalId, confirmadoEm])
+  @@index([status, confirmadoEm])
+  @@index([dataCompra])
+  @@index([statusOperacional, previsaoData])
+  @@unique([referenciaOrigem, referenciaEstabelecimento, referenciaPedido])
+}
+
+// Saída fiscal é independente das notas recebidas e dos títulos financeiros.
+model DocumentoFiscalSaida {
+  id String @id @default(cuid())
+  pedidoId String
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  versaoPedido Int
+  revisaoFiscal Int @default(1)
+  versaoPayload Int @default(1)
+  payload Json
+  hashPayload String
+  criadoPorId String
+  criadoPor Usuario @relation("FiscalSaidaAutor", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  criadoPorNome String
+  ambiente String @default("NAO_CONFIGURADO")
+  provedor String?
+  status String @default("SEM_EMISSOR")
+  acao String?
+  tentativas Int @default(0)
+  proximaTentativa DateTime?
+  leaseToken String?
+  leaseAte DateTime?
+  ultimoErro String?
+  referenciaProvedor String?
+  ultimaSequencia Int @default(-1)
+  ultimaSequenciaObservada Int @default(0)
+  modeloDocumento Int?
+  chaveFiscal String?
+  numero String?
+  serie String?
+  protocolo String?
+  protocoloCancelamento String?
+  cancelamentoPendente Boolean @default(false)
+  xml String? @db.Text
+  xmlCancelamento String? @db.Text
+  html String? @db.Text
+  pdf Bytes?
+  motivoCancelamento String?
+  eventos EventoFiscalSaida[]
+  planoBrasilNfe PlanoFiscalBrasilNfe?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([pedidoId, versaoPedido, revisaoFiscal])
+  @@unique([provedor, ambiente, referenciaProvedor])
+  @@index([acao, proximaTentativa])
+}
+
+model EventoFiscalSaida {
+  id String @id @default(cuid())
+  documentoId String
+  documento DocumentoFiscalSaida @relation(fields: [documentoId], references: [id], onDelete: Restrict)
+  chave String @unique
+  tipo String
+  dados Json
+  createdAt DateTime @default(now())
+  @@index([documentoId, createdAt])
+}
+
+model VinculoCustoEntrega {
+  id String @id @default(cuid())
+  pedidoId String
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  lancamentoId String
+  lancamento LancamentoFinanceiro @relation(fields: [lancamentoId], references: [id], onDelete: Restrict)
+  valor Decimal @db.Decimal(14,2)
+  snapshot Json
+  criadoPorId String
+  createdAt DateTime @default(now())
+  desvinculadoEm DateTime?
+  @@index([pedidoId, desvinculadoEm])
+  @@index([lancamentoId, desvinculadoEm])
+}
+
+model ItemPedidoVenda {
+  reservas ReservaPedido[]
+  id String @id @default(cuid())
+  pedidoId String
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  produtoId String?
+  produto ProdutoVenda? @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  versaoPedido Int
+  ordem Int
+  vigente Boolean @default(true)
+  quantidade Decimal @db.Decimal(20,6)
+  observacoes String?
+  unidadeSnapshot String
+  produtoSnapshot Json
+  escolhasSnapshot Json
+  composicaoSnapshot Json?
+  estadoComposicao String
+  precoOriginal Decimal @db.Decimal(14,2)
+  precoAplicado Decimal @db.Decimal(14,2)
+  acrescimos Decimal @db.Decimal(14,2)
+  desconto Decimal @default(0) @db.Decimal(14,2)
+  totalLinha Decimal @db.Decimal(14,2)
+  @@unique([pedidoId, versaoPedido, ordem])
+  @@index([produtoId])
+  @@index([pedidoId, vigente])
+}
+
+model HistoricoPedidoVenda {
+  id String @id @default(cuid())
+  pedidoId String
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  tipo String
+  chaveOperacao String @unique
+  hashOperacao String
+  usuarioId String
+  usuario Usuario @relation("HistoricoPedidoVendaAutor", fields: [usuarioId], references: [id], onDelete: Restrict)
+  usuarioNome String
+  versaoAnterior Int?
+  versaoNova Int
+  motivo String?
+  antes Json?
+  depois Json
+  createdAt DateTime @default(now())
+  @@index([pedidoId, createdAt])
+}
+
+model GrupoFiscalVenda {
+  id String @id @default(cuid())
+  codigo String? @unique
+  nome String @unique
+  fiscal Json @default("{}")
+  ativo Boolean @default(true)
+  versao Int @default(1)
+  produtos ProdutoVenda[]
+  regrasBrasilNfe RegraFiscalBrasilNfe[]
+}
+
+// Complementos fiscais versionados; não substituem a fotografia comercial ou a fila.
+model RegraFiscalBrasilNfe {
+  id String @id @default(cuid())
+  lojaId String @default("singleton")
+  loja ConfiguracaoLoja @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  modelo Int
+  operacao String
+  alvo String
+  produtoId String?
+  produto ProdutoVenda? @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  grupoId String?
+  grupo GrupoFiscalVenda? @relation(fields: [grupoId], references: [id], onDelete: Restrict)
+  revisao Int @default(0)
+  versoes VersaoRegraFiscalBrasilNfe[]
+  createdAt DateTime @default(now())
+  @@index([lojaId, modelo, operacao, alvo])
+}
+
+model VersaoRegraFiscalBrasilNfe {
+  id String @id @default(cuid())
+  regraId String
+  regra RegraFiscalBrasilNfe @relation(fields: [regraId], references: [id], onDelete: Restrict)
+  revisao Int
+  estado String
+  // Somente versões legadas. Novas decisões usam fundamento e revisão interna reais.
+  referenciaConfirp String?
+  fundamentacaoFiscal Json?
+  fundamentacaoHash String?
+  autorNome String?
+  aprovacaoInterna Json?
+  aprovacaoHash String?
+  vigenteDesde String @db.VarChar(10)
+  vigenteAte String? @db.VarChar(10)
+  responsavelId String
+  responsavel Usuario @relation("RegraBrasilNfeResponsavel", fields: [responsavelId], references: [id], onDelete: Restrict)
+  emitenteHash String
+  versaoCadastro Int?
+  fiscalCadastroHash String?
+  conteudo Json
+  conteudoHash String
+  planos ItemPlanoFiscalBrasilNfe[]
+  createdAt DateTime @default(now())
+  @@unique([regraId, revisao])
+  @@index([regraId, estado, vigenteDesde])
+}
+
+model PlanoFiscalBrasilNfe {
+  id String @id @default(cuid())
+  documentoId String @unique
+  documento DocumentoFiscalSaida @relation(fields: [documentoId], references: [id], onDelete: Restrict)
+  modelo Int
+  ambiente String @default("HOMOLOGACAO")
+  hashPayload String
+  revisaoPedido Int
+  emitenteHash String
+  parametros Json
+  parametrosHash String
+  verificadoEm String @db.VarChar(10)
+  responsavelId String
+  responsavel Usuario @relation("PlanoBrasilNfeResponsavel", fields: [responsavelId], references: [id], onDelete: Restrict)
+  versoes ItemPlanoFiscalBrasilNfe[]
+  createdAt DateTime @default(now())
+}
+
+model ItemPlanoFiscalBrasilNfe {
+  id String @id @default(cuid())
+  planoId String
+  plano PlanoFiscalBrasilNfe @relation(fields: [planoId], references: [id], onDelete: Restrict)
+  papel String
+  versaoId String
+  versao VersaoRegraFiscalBrasilNfe @relation(fields: [versaoId], references: [id], onDelete: Restrict)
+  @@unique([planoId, papel])
+}
+
+// Conteúdo/hash imutáveis; ativação e análise são eventos auditados.
+model VersaoEstruturaFiscal {
+  id String @id @default(cuid())
+  tipo String
+  chave String
+  versao Int
+  vigenciaInicio DateTime @db.Date
+  status String @default("RASCUNHO")
+  dados Json
+  hash String
+  justificativa String
+  fontes Json
+  criadoPorId String
+  criadoPorNome String
+  chaveOperacao String @unique
+  hashOperacao String
+  createdAt DateTime @default(now())
+  eventos EventoEstruturaFiscal[]
+  @@unique([tipo, chave, versao])
+  @@index([tipo, chave, status, vigenciaInicio])
+}
+
+model EventoEstruturaFiscal {
+  id String @id @default(cuid())
+  versaoId String
+  versao VersaoEstruturaFiscal @relation(fields: [versaoId], references: [id], onDelete: Restrict)
+  tipo String
+  chaveOperacao String @unique
+  usuarioId String
+  usuarioNome String
+  dados Json
+  createdAt DateTime @default(now())
+  @@index([versaoId, createdAt])
+}
+
+model OpcaoComplementoVenda {
+  id String @id @default(cuid())
+  grupoId String
+  grupo GrupoComplementoVenda @relation(fields: [grupoId], references: [id], onDelete: Restrict)
+  nome String
+  preco Decimal @default(0) @db.Decimal(12,2)
+  produtoId String?
+  produto ProdutoVenda? @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  // Quantidade de unidades do produto/composição por escolha.
+  quantidade Decimal @default(1) @db.Decimal
+  composicao Json?
+  usarPrecoPadrao Boolean @default(false)
+  ordem Int @default(0)
+  ativo Boolean @default(true)
+  @@index([grupoId, ordem])
+  @@index([produtoId])
+}
+
+model ProdutoGrupoVenda {
+  produtoId String
+  grupoId String
+  produto ProdutoVenda @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  grupo GrupoComplementoVenda @relation(fields: [grupoId], references: [id], onDelete: Restrict)
+  ordem Int @default(0)
+  usarPadrao Boolean @default(true)
+  opcoesExcluidas String[] @default([])
+  ajustesOpcoes Json?
+  minimo Int @default(0)
+  maximo Int?
+  @@id([produtoId, grupoId])
+  @@index([grupoId])
+}
+
+model PrecoProdutoVenda {
+  // Arquivo legado anterior ao preço único; sem leitura/escrita comercial vigente.
+  produtoId String
+  canal String
+  preco Decimal @db.Decimal(12,2)
+  precoPromocional Decimal? @db.Decimal(12,2)
+  ativo Boolean @default(true)
+  produto ProdutoVenda @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  @@id([produtoId, canal])
+}
+
+model ComponenteProdutoVenda {
+  id String @id @default(cuid())
+  produtoId String
+  produto ProdutoVenda @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  insumoId String
+  insumo Insumo @relation(fields: [insumoId], references: [id], onDelete: Restrict)
+  observacaoPorcao String?
+  porcao Json?
+  exibirFicha     Boolean @default(true)
+  quantidade Decimal @db.Decimal
+  unidade UnidadeMedida
+  ordem Int @default(0)
+  @@unique([produtoId, insumoId])
+  @@index([insumoId])
+}
+
+model HistoricoCadastroVenda {
+  id String @id @default(cuid())
+  entidade String
+  registroId String
+  usuarioId String
+  usuarioNome String
+  antes Json?
+  depois Json
+  createdAt DateTime @default(now())
+  @@index([entidade, registroId, createdAt])
+}
+
+// Condições de recebimento de Vendas; independentes das formas de pagamento de fornecedores.
+model FormaPagamentoVenda {
+  id String @id @default(cuid())
+  nome String @unique
+  tipo String
+  taxaPercentual Decimal @default(0) @db.Decimal(5,2)
+  taxaFixa Decimal @default(0) @db.Decimal(12,2)
+  prazoDias Int @default(0)
+  inicioPrazo String @default("PAGAMENTO")
+  contagemPrazo String @default("CORRIDOS")
+  vencimentoFlexivel Boolean @default(false)
+  permiteParcelamento Boolean @default(false)
+  maximoParcelas Int @default(1)
+  faixasTaxa Json @default("[]")
+  observacoes String?
+  ativo Boolean @default(true)
+  versao Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lancamentosPedido LancamentoFinanceiro[]
+  @@index([ativo, nome])
+}
+
+// Identidade MCP usa Usuario e ConfiguracaoLoja existentes. Não é outro tenant.
+model McpConfiguracao {
+  id String @id @default("singleton")
+  ativo Boolean @default(false)
+  diagnostico Json?
+  diagnosticadoEm DateTime?
+  updatedAt DateTime @updatedAt
+}
+
+model McpCliente {
+  id String @id @default(uuid())
+  nome String
+  redirectUris String[]
+  ativo Boolean @default(true)
+  createdAt DateTime @default(now())
+  autorizacoes McpAutorizacao[]
+}
+
+model McpPerfil {
+  id String @id @default(cuid())
+  nome String @unique
+  descricao String
+  escopos String[]
+  ativo Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  autorizacoes McpAutorizacao[]
+}
+
+model McpAutorizacao {
+  id String @id @default(uuid())
+  nome String
+  usuarioId String
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  lojaId String @default("singleton")
+  loja ConfiguracaoLoja @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  clienteId String
+  cliente McpCliente @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  // Referência histórica, sem administração ou autoridade no fluxo v2.
+  perfilId String?
+  perfil McpPerfil? @relation(fields: [perfilId], references: [id], onDelete: Restrict)
+  modeloAcesso Int @default(2)
+  escopos String[]
+  restricoes Json
+  situacao String @default("PREPARADA")
+  versao Int @default(0)
+  consentidaEm DateTime?
+  ultimoUsoEm DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  codigos McpCodigoOAuth[]
+  tokens McpToken[]
+  @@index([usuarioId, clienteId, situacao])
+}
+
+model McpSolicitacaoOAuth {
+  id String @id @default(uuid())
+  parametros Json
+  expiraEm DateTime
+  consumidaEm DateTime?
+  @@index([expiraEm])
+}
+
+model McpCodigoOAuth {
+  hash String @id
+  autorizacaoId String
+  autorizacao McpAutorizacao @relation(fields: [autorizacaoId], references: [id], onDelete: Restrict)
+  versao Int
+  sessaoVersao Int
+  permissoesHash String
+  redirectUri String
+  challenge String
+  escopos String[]
+  restricoes Json
+  emissor String
+  destinatario String
+  expiraEm DateTime
+  consumidoEm DateTime?
+  @@index([expiraEm])
+}
+
+model McpToken {
+  hash String @id
+  autorizacaoId String
+  autorizacao McpAutorizacao @relation(fields: [autorizacaoId], references: [id], onDelete: Restrict)
+  versao Int
+  sessaoVersao Int
+  permissoesHash String
+  escopos String[]
+  restricoes Json
+  emissor String
+  destinatario String
+  expiraEm DateTime
+  @@index([expiraEm])
+}
+
+model McpEvento {
+  id String @id @default(uuid())
+  correlacao String
+  usuarioId String?
+  clienteId String?
+  autorizacaoId String?
+  acao String
+  ferramenta String?
+  resultado String
+  duracaoMs Int
+  registros String[] @default([])
+  createdAt DateTime @default(now())
+  @@index([createdAt])
+  @@index([autorizacaoId, createdAt])
+}
+
+model McpOperacao {
+  id String @id @default(uuid())
+  autorizacaoId String
+  usuarioId String
+  ferramenta String
+  chaveHash String
+  conteudoHash String
+  entrada Json
+  referencias Json
+  proposta Json
+  estado String @default("PREPARADA")
+  aprovadaEm DateTime?
+  expiraEm DateTime
+  resultado Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([autorizacaoId, ferramenta, chaveHash])
+  @@index([usuarioId, estado, expiraEm])
+  @@index([expiraEm])
+}
+
+model McpLimite {
+  chave String @id
+  quantidade Int @default(1)
+  expiraEm DateTime
+  @@index([expiraEm])
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum TipoProdutoGlobal {
+  INSUMO
+  PRODUTO_INTERMEDIARIO
+}
+
+// Tipo do documento recebido na Distribuição DFe da SEFAZ:
+// RES_NFE  = resumo (ainda sem o XML completo — libera com o evento de Ciência da Operação)
+// PROC_NFE = nota completa, já autorizada
+enum TipoDocumentoSefaz {
+  RES_NFE
+  PROC_NFE
+}
+
+// As 4 respostas possíveis da Manifestação do Destinatário (códigos SEFAZ entre parênteses).
+enum TipoManifestacao {
+  CIENCIA_DA_OPERACAO         // 210210
+  CONFIRMACAO_DA_OPERACAO     // 210200
+  DESCONHECIMENTO_DA_OPERACAO // 210220
+  OPERACAO_NAO_REALIZADA      // 210240 — exige justificativa
+}
+
+enum OrigemNfse {
+  NACIONAL
+  MUNICIPAL
+  ARQUIVO
+}
+
+enum StatusNfse {
+  PENDENTE
+  ACEITA
+  RECUSADA
+  LANCADA
+  CANCELADA
+  IGNORADA
+}
+
+enum UnidadeMedida {
+  KG
+  G
+  L
+  ML
+  UN
+  CX
+  PCT
+  FD
+  DZ
+  ROLO
+  MACO
+  CACHO
+  PORCAO
+  METADE
+  BALDE
+  GALAO
+  PECA
+  BAG
+  GARRAFA
+  LATA
+}
+
+enum TipoEstoque {
+  SECO
+  REFRIGERADO
+  CONGELADO
+}
+
+enum StatusPedidoCompra {
+  RASCUNHO
+  ENVIADO
+  CONFIRMADO
+  RECEBIDO_PARCIAL
+  RECEBIDO_TOTAL
+  CANCELADO
+}
+
+enum TipoAnexoPedido {
+  ORCAMENTO
+  NOTA_FISCAL
+  OUTRO
+}
+
+enum TipoDivergencia {
+  FALTOU
+  VEIO_ERRADO
+  FORA_DO_PRAZO
+  QUALIDADE
+}
+
+enum TipoRecebimento {
+  PARCIAL
+  TOTAL
+}
+
+enum TipoMovimentacaoEstoque {
+  ENTRADA_COMPRA
+  SAIDA_CONSUMO
+  SAIDA_PERDA
+  AJUSTE_ENTRADA // contagem encontrou mais estoque do que o sistema esperava
+  AJUSTE_SAIDA // contagem encontrou menos estoque do que o sistema esperava
+}
+
+enum MotivoPerda {
+  VALIDADE_VENCIDA
+  QUEBRA
+  ERRO_PRODUCAO
+  FURTO
+  OUTRO
+}
+
+enum StatusContagem {
+  EM_ANDAMENTO
+  FINALIZADO
+  // Só contagens ainda EM_ANDAMENTO podem ser excluídas (nenhum ajuste de estoque
+  // foi aplicado ainda) — nunca é removida do banco, só marcada e some da lista ativa,
+  // continuando visível no histórico com esse status.
+  EXCLUIDO
+}
+
+// Os 11 grupos do waterfall gerencial do DRE (referência: módulo financeiro da Nina).
+// Fixos por design — é o que sustenta a matemática dos subtotais do relatório
+// (Faturamento Líquido, Margem de Contribuição, LOAI, EBITDA, Resultado Líquido).
+// O que o usuário edita de verdade são as CategoriaFinanceira dentro de cada grupo.
+enum GrupoDre {
+  RECEITA_BRUTA
+  DEDUCOES_RECEITA
+  CMV
+  DESPESAS_VARIAVEIS
+  FOLHA_PAGAMENTO
+  DESPESAS_OPERACIONAIS
+  INVESTIMENTOS
+  DESPESAS_FINANCEIRAS
+  DEPRECIACAO_AMORTIZACAO
+  RECEITAS_NAO_OPERACIONAIS
+  DESPESAS_NAO_OPERACIONAIS
+}
+
+enum TipoLancamento {
+  RECEITA
+  DESPESA
+}
+
+enum StatusLancamento {
+  PENDENTE
+  BAIXADO
+  CANCELADO
+}
+
+enum TipoMovimentacaoBancaria {
+  ENTRADA
+  SAIDA
+  AJUSTE
+}
+
+enum ConservacaoEtiqueta {
+  SECO
+  REFRIGERADO
+  CONGELADO
+  APOS_ABERTO
+}
+
+enum TamanhoEtiqueta {
+  MM_60X40
+  MM_60X60
+}
+
+enum StatusTrabalhoEtiqueta {
+  PREPARADO
+  ENVIANDO
+  ENVIADO_AO_DISPOSITIVO
+  ENVIO_INCERTO
+  EXPORTADO
+  FALHA
+  CONFIRMADO_PELO_OPERADOR
+}
+
+enum TransporteEtiqueta {
+  ZEBRA_BROWSER_PRINT
+  ARQUIVO_ZPL
+}
+
+enum ResultadoTentativaEtiqueta {
+  INICIADA
+  SUCESSO
+  FALHA
+  INCERTO
+}
+
+// ============================================================
+// PESSOAS (responsáveis por ações no sistema)
+// ============================================================
+
+model Usuario {
+  responsavelEtiquetaHabilitado Boolean @default(true)
+  regrasBrasilNfe VersaoRegraFiscalBrasilNfe[] @relation("RegraBrasilNfeResponsavel")
+  planosBrasilNfe PlanoFiscalBrasilNfe[] @relation("PlanoBrasilNfeResponsavel")
+  autorizacoesMcp McpAutorizacao[]
+  documentosSaida DocumentoFiscalSaida[] @relation("FiscalSaidaAutor")
+  producoesPreparacao ProducaoPreparacao[] @relation("ProducaoPreparacaoAutor")
+  codigosVinculoImpressao CodigoVinculoImpressao[] @relation("CodigoVinculoCriadoPor")
+  enviosPontoImpressao EnvioPontoImpressao[] @relation("EnvioPontoSolicitadoPor")
+  enviosPontoConfirmados EnvioPontoImpressao[] @relation("EnvioPontoConfirmadoPor")
+  cartoesResponsavel CartaoCredito[] @relation("ResponsavelCartao")
+  itensFaturaResponsavel ItemFaturaCartao[] @relation("ResponsavelItemCartao")
+  id        String   @id @default(cuid())
+  nome      String
+  email     String   @unique
+  perfilAcessoId String?
+  perfilAcesso PerfilAcesso? @relation(fields: [perfilAcessoId], references: [id], onDelete: Restrict)
+  permissoesPersonalizadas Json @default("{}")
+  sessaoVersao Int @default(0)
+  excluidoEm DateTime?
+  senhaHash String
+  senhaDefinida Boolean @default(true)
+  emailVerificadoEm DateTime?
+  admin     Boolean  @default(false)
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fotoData     Bytes?
+  fotoMimeType String?
+
+  pedidosCriados          PedidoCompra[]         @relation("PedidoCriadoPor")
+  recebimentosFeitos      Recebimento[]          @relation("RecebimentoResponsavel")
+  perdasRegistradas       Perda[]                @relation("PerdaResponsavel")
+  perdasExcluidas         PerdaExclusao[]
+  contagensResponsavel    InventarioContagem[]   @relation("ContagemResponsavel")
+  contagensExcluidas      InventarioContagem[]   @relation("ContagemExcluidaPor")
+  movimentacoes           MovimentacaoEstoque[]  @relation("MovimentacaoCriadaPor")
+  entradasAvulsasCompra   EntradaAvulsaCompra[]  @relation("EntradaAvulsaCriadaPor")
+  certificadosAtualizados CertificadoDigital[]   @relation("CertificadoAtualizadoPor")
+  lancamentosCriados      LancamentoFinanceiro[] @relation("LancamentoCriadoPor")
+  insumosEtiquetaAtualizados Insumo[] @relation("InsumoEtiquetaAtualizadoPor")
+  trabalhosEtiquetaEmitidos TrabalhoEtiqueta[] @relation("TrabalhoEtiquetaEmitidoPor")
+  tentativasEtiquetaSolicitadas TentativaEtiqueta[] @relation("TentativaEtiquetaSolicitadaPor")
+  eventosAuditoriaEtiqueta EventoAuditoriaEtiqueta[] @relation("EventoEtiquetaRegistradoPor")
+  rascunhosDesign RascunhoDesign[] @relation("RascunhoDesignAutor")
+  versoesDesign VersaoDesign[] @relation("VersaoDesignAutor")
+  eventosDesign EventoDesign[] @relation("EventoDesignAutor")
+  recuperacaoSenha        RecuperacaoSenha?
+  pedidosVendaCriados PedidoVenda[] @relation("PedidoVendaCriadoPor")
+  pagamentosExternosPedido PagamentoExternoPedido[] @relation("PagamentoExternoPedidoAutor")
+  repassesPagamentoPedido RepassePagamentoPedido[] @relation("RepassePagamentoPedidoAutor")
+  tratamentosFinanceirosPedido TratamentoFinanceiroPedido[] @relation("TratamentoFinanceiroPedidoAutor")
+  movimentosCreditoCriados CreditoClienteMovimento[] @relation("CreditoMovimentoAutor")
+  historicosPedidoVenda HistoricoPedidoVenda[] @relation("HistoricoPedidoVendaAutor")
+  historicosFinanceirosPedido HistoricoFinanceiroPedido[]
+}
+
+// Apenas hash do segredo; o link original nunca é persistido.
+model RecuperacaoSenha {
+  usuarioId String @id
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tokenHash String @unique
+  email String
+  sessaoVersao Int
+  expiraEm DateTime
+  utilizadaEm DateTime?
+  criadaEm DateTime @default(now())
+}
+
+// Chaves HMAC, sem endereços de e-mail em texto aberto.
+model LimiteAutenticacao {
+  chave String @id
+  tentativas Int @default(1)
+  inicioEm DateTime
+  ultimaEm DateTime
+  @@index([inicioEm])
+}
+
+// Configuração privada de infraestrutura. Nunca incluir em consultas/DTOs públicos.
+model ConfiguracaoEmail {
+  id String @id @default("singleton")
+  host String
+  porta Int
+  usuario String
+  senhaCifrada String
+  remetente String
+  origem String
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================================
+// CONFIGURAÇÕES DA LOJA (linha única — id fixo "singleton")
+// ============================================================
+
+model UsoMapaEntrega {
+  id String @id
+  quantidade Int @default(0)
+  expiraEm DateTime
+  @@index([expiraEm])
+}
+
+model ConfiguracaoLoja {
+  regrasBrasilNfe RegraFiscalBrasilNfe[]
+  brasilNfe ConfiguracaoBrasilNfe?
+  autorizacoesMcp McpAutorizacao[]
+  entregas Json?
+  entregasAntesSlots Json?
+  enderecoEstruturado Json?
+  versaoEntregas Int @default(0)
+  horariosPedidos Json?
+  versaoHorariosPedidos Int @default(0)
+  pedidosLiberacao Json?
+  id           String   @id @default("singleton")
+  nome         String?
+  cnpj         String?
+  endereco     String?
+  telefone     String?
+  emailContato String?
+  fusoHorario String @default("America/Sao_Paulo")
+  maximoCopiasEtiqueta Int @default(30)
+  updatedAt    DateTime @updatedAt
+
+  trabalhosEtiqueta TrabalhoEtiqueta[]
+  perfisImpressora PerfilImpressora[]
+  eventosAuditoriaEtiqueta EventoAuditoriaEtiqueta[]
+  pontosImpressao PontoImpressao[]
+  codigosVinculo CodigoVinculoImpressao[]
+  enviosPonto EnvioPontoImpressao[]
+  configuracaoDesign ConfiguracaoDesign?
+}
+
+// Marco 1: configurações administrativas; nenhum habilitador de transmissão.
+model ConfiguracaoBrasilNfe {
+  id String @id @default("singleton")
+  lojaId String @unique @default("singleton")
+  loja ConfiguracaoLoja @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  ambiente String @default("HOMOLOGACAO")
+  tokenCifrado String?
+  userTokenCifrado String?
+  versao Int @default(1)
+  diagnostico Json?
+  emitenteHash String?
+  diagnosticoIniciadoEm DateTime?
+  preRequisitos Json?
+  preRequisitosEmitenteHash String?
+  preRequisitosIniciadoEm DateTime?
+  eventos EventoConfiguracaoBrasilNfe[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EventoConfiguracaoBrasilNfe {
+  id String @id @default(cuid())
+  configuracaoId String
+  configuracao ConfiguracaoBrasilNfe @relation(fields: [configuracaoId], references: [id], onDelete: Restrict)
+  usuarioId String
+  tipo String
+  dados Json
+  createdAt DateTime @default(now())
+  @@index([configuracaoId, createdAt])
+}
+
+// Estado único do tema visual. Valores editáveis ficam em rascunho; somente um snapshot
+// imutável de VersaoDesign é aplicado à operação.
+model ConfiguracaoDesign {
+  id                  String             @id @default("singleton")
+  lojaId              String             @unique @default("singleton")
+  loja                ConfiguracaoLoja   @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+  versaoPublicadaId   String?            @unique
+  versaoPublicada     VersaoDesign?      @relation("VersaoDesignPublicada", fields: [versaoPublicadaId], references: [id], onDelete: SetNull)
+  revisaoPublicada    Int                @default(0)
+  rascunho            RascunhoDesign?
+  versoes             VersaoDesign[]     @relation("VersoesDesign")
+  eventos             EventoDesign[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+model RascunhoDesign {
+  id              String             @id @default(cuid())
+  configuracaoId  String             @unique
+  configuracao    ConfiguracaoDesign @relation(fields: [configuracaoId], references: [id], onDelete: Cascade)
+  valores         Json
+  revisao         Int                @default(1)
+  versaoBase      Int                @default(0)
+  autorId         String
+  autor           Usuario            @relation("RascunhoDesignAutor", fields: [autorId], references: [id], onDelete: Restrict)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+enum TipoVersaoDesign {
+  PUBLICACAO
+  RESTAURACAO
+}
+
+model VersaoDesign {
+  id                      String              @id @default(cuid())
+  configuracaoId          String
+  configuracao            ConfiguracaoDesign  @relation("VersoesDesign", fields: [configuracaoId], references: [id], onDelete: Cascade)
+  numero                  Int
+  valores                 Json
+  schemaVersao            Int                 @default(1)
+  tipo                    TipoVersaoDesign
+  motivo                  String
+  autorId                 String
+  autor                   Usuario             @relation("VersaoDesignAutor", fields: [autorId], references: [id], onDelete: Restrict)
+  versaoOrigemId          String?
+  versaoOrigem            VersaoDesign?       @relation("VersaoDesignOrigem", fields: [versaoOrigemId], references: [id], onDelete: Restrict)
+  restauracoes            VersaoDesign[]      @relation("VersaoDesignOrigem")
+  publicadaEmConfiguracao ConfiguracaoDesign? @relation("VersaoDesignPublicada")
+  chaveIdempotencia       String              @unique
+  createdAt               DateTime            @default(now())
+
+  @@unique([configuracaoId, numero])
+  @@index([configuracaoId, createdAt])
+}
+
+enum AcaoEventoDesign {
+  RASCUNHO_SALVO
+  PUBLICADO
+  RESTAURADO
+}
+
+model EventoDesign {
+  id              String             @id @default(cuid())
+  configuracaoId  String
+  configuracao    ConfiguracaoDesign @relation(fields: [configuracaoId], references: [id], onDelete: Cascade)
+  acao            AcaoEventoDesign
+  autorId         String
+  autor           Usuario            @relation("EventoDesignAutor", fields: [autorId], references: [id], onDelete: Restrict)
+  revisao         Int?
+  versaoId        String?
+  detalhes        Json?
+  createdAt       DateTime           @default(now())
+
+  @@index([configuracaoId, createdAt])
+}
+
+// Certificado digital A1 (.pfx) usado nas chamadas à SEFAZ — guardado cifrado no banco
+// pra não depender de remontar o secret do Docker a cada deploy. Linha única, igual
+// ConfiguracaoLoja. Sem certificado cadastrado aqui, o sistema cai no fallback das
+// variáveis de ambiente (ver src/lib/sefaz/certificado.ts).
+model CertificadoDigital {
+  id              String    @id @default("singleton")
+  arquivoNome     String
+  arquivoData     Bytes
+  senhaCifrada    String
+  titular         String?
+  validoAte       DateTime?
+  atualizadoPorId String?
+  atualizadoPor   Usuario?  @relation("CertificadoAtualizadoPor", fields: [atualizadoPorId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// ============================================================
+// LOCAL DE ESTOQUE (hoje só um; estrutura já pronta pra mais de um no futuro)
+// ============================================================
+
+model LocalEstoque {
+  producoesPreparacao ProducaoPreparacao[]
+  reservasPedido ReservaPedido[]
+  id        String   @id @default(cuid())
+  nome      String   @unique
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  saldos        SaldoEstoque[]
+  movimentacoes MovimentacaoEstoque[]
+  perdas        Perda[]
+  contagens     InventarioContagem[]
+}
+
+// ============================================================
+// 1. COMPRAS
+// ============================================================
+
+model Fornecedor {
+  entregasPrestadas PedidoVenda[] @relation("PrestadorEntrega")
+  itensFaturaCartao ItemFaturaCartao[]
+  regrasCartao RegraCartao[]
+  id          String  @id @default(cuid())
+  tipoCadastro TipoCadastroFornecedor @default(FORNECEDOR)
+  nome        String
+  razaoSocial String?
+  cnpj        String? @unique
+  cpf         String? @unique
+  email       String?
+  site        String?
+  contatoNome String?
+  telefone    String?
+
+  prazoPagamentoDias Int?
+  prazoEntregaDias   Int?
+
+  observacoes String?
+
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  canaisPedido    CanalPedido[]
+  formasPagamento FormaPagamento[]
+
+  insumosPrincipais   Insumo[]           @relation("FornecedorPrincipal")
+  insumosHomologados  InsumoFornecedor[]
+  pedidosCompra       PedidoCompra[]
+  cotacoes            Cotacao[]
+  lancamentos         LancamentoFinanceiro[]
+  notasVinculos       FornecedorNotaVinculo[]
+  entradasAvulsasCompra EntradaAvulsaCompra[]
+  notasFiscaisServico NotaFiscalServico[]
+}
+
+enum TipoCadastroFornecedor {
+  FORNECEDOR
+  BENEFICIARIO
+}
+
+// Associação explícita, reutilizada pelo CNPJ do XML nas próximas notas.
+model FornecedorNotaVinculo {
+  cnpj          String     @id
+  fornecedorId  String
+  fornecedor    Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  notaOrigemId  String
+  usuarioId     String
+  atualizacao   Json
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([fornecedorId])
+}
+
+// Listas simples e extensíveis pelo próprio usuário (sem precisar mexer no código
+// pra adicionar um canal ou forma de pagamento novo — por isso não são enum).
+model CanalPedido {
+  id        String   @id @default(cuid())
+  nome      String   @unique
+  createdAt DateTime @default(now())
+
+  fornecedores Fornecedor[]
+}
+
+model FormaPagamento {
+  id        String   @id @default(cuid())
+  nome      String   @unique
+  createdAt DateTime @default(now())
+
+  fornecedores Fornecedor[]
+  lancamentos  LancamentoFinanceiro[]
+}
+
+// Listas simples e editáveis pelo próprio usuário (categoria e centro de custo do
+// catálogo global), no mesmo espírito de CanalPedido/FormaPagamento em Fornecedor.
+model Categoria {
+  id        String   @id @default(cuid())
+  nome      String   @unique
+  createdAt DateTime @default(now())
+  // Ordem exclusiva da Tabela de Porções; novas categorias ficam ao final.
+  ordemPorcoes Int @default(2147483647)
+  versaoOrdemPorcoes Int @default(1)
+
+  insumos Insumo[]
+}
+
+model CentroCusto {
+  itensFaturaCartao ItemFaturaCartao[]
+  regrasCartao RegraCartao[]
+  id        String   @id @default(cuid())
+  nome      String   @unique
+  createdAt DateTime @default(now())
+
+  insumos              Insumo[]
+  categoriasFinanceiras CategoriaFinanceira[]
+}
+
+model Insumo {
+  producoes ProducaoPreparacao[]
+  reservasPedido ReservaPedido[]
+  id   String            @id @default(cuid())
+  nome String
+  especificacao String?
+  tipo TipoProdutoGlobal @default(INSUMO)
+
+  categoriaId String?
+  categoria   Categoria? @relation(fields: [categoriaId], references: [id])
+
+  categoriaFinanceiraId String?
+  categoriaFinanceira CategoriaFinanceira? @relation(fields: [categoriaFinanceiraId], references: [id], onDelete: Restrict)
+
+  unidade     UnidadeMedida
+  tipoEstoque TipoEstoque?
+
+  centroCustoId String?
+  centroCusto   CentroCusto? @relation(fields: [centroCustoId], references: [id])
+
+  marca     String?
+  // Marcas aprovadas para este insumo; marca mantém a primeira para compatibilidade.
+  marcasHomologadas String[] @default([])
+  codigoEan String?
+
+  fotoData     Bytes?
+  fotoMimeType String?
+
+  perecivel          Boolean @default(false)
+  validadePadraoDias Int?
+
+  // Configuração operacional de etiquetas na própria fonte de catálogo. Vale
+  // tanto para INSUMO quanto para PRODUTO_INTERMEDIARIO (preparação).
+  etiquetaHabilitada Boolean @default(false)
+  validadeSecoDias Int?
+  validadeRefrigeradoDias Int?
+  validadeCongeladoDias Int?
+  validadeAposAbertoDias Int?
+  conservacaoEtiquetaPadrao ConservacaoEtiqueta?
+  versaoConfiguracaoEtiqueta Int @default(1)
+  etiquetaAtualizadaPorId String?
+  etiquetaAtualizadaPor Usuario? @relation("InsumoEtiquetaAtualizadoPor", fields: [etiquetaAtualizadaPorId], references: [id])
+
+  // sempre na unidade escopo do insumo
+  estoqueMinimo Decimal  @default(0) @db.Decimal(12, 3)
+  estoqueMaximo Decimal? @db.Decimal(12, 3)
+
+  custoMedio Decimal @default(0) @db.Decimal(12, 4)
+
+  fornecedorPrincipalId String?
+  fornecedorPrincipal   Fornecedor? @relation("FornecedorPrincipal", fields: [fornecedorPrincipalId], references: [id])
+  fornecedoresHomologados InsumoFornecedor[]
+  conversoes ConversaoInsumo[]
+  porcoes PorcaoInsumo[]
+
+  observacoes String?
+
+  // só relevante quando tipo = PRODUTO_INTERMEDIARIO
+  rendimentoQuantidade Decimal?       @db.Decimal(12, 3)
+  rendimentoUnidade    UnidadeMedida?
+  modoPreparo           Json           @default("[]")
+  tempoPreparoMinutos Int?
+
+  ativo     Boolean  @default(true)
+  // Exclusão do catálogo preserva a identidade referenciada pelo histórico.
+  excluidoEm DateTime?
+  excluidoPorId String?
+  exclusaoSnapshot Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  itensPedido     PedidoCompraItem[]
+  cotacoes        Cotacao[]
+  saldos          SaldoEstoque[]
+  movimentacoes   MovimentacaoEstoque[]
+  perdas          Perda[]
+  itensInventario InventarioItem[]
+  itensNotaFiscal   NotaFiscalItem[]
+  codigosFornecedor InsumoCodigoFornecedor[]
+  trabalhosEtiqueta TrabalhoEtiqueta[]
+  componentesVenda ComponenteProdutoVenda[]
+
+  // composição (receita) quando este item é um Produto Intermediário
+  componentes ComposicaoInsumo[] @relation("ComposicaoPai")
+  // em quais Produtos Intermediários este item é usado como componente
+  usadoEm     ComposicaoInsumo[] @relation("ComposicaoComponente")
+
+  @@index([tipo])
+  @@index([categoriaId])
+  @@index([centroCustoId])
+  @@index([etiquetaHabilitada, tipo])
+  @@index([excluidoEm])
+  @@index([categoriaFinanceiraId])
+}
+
+// ============================================================
+// 7. PRODUCAO — ETIQUETAS DE MANIPULACAO
+// ============================================================
+
+// O perfil documenta a mídia homologada. A seleção concreta do dispositivo fica
+// no Browser Print do computador da cozinha e nunca expõe a USB para a VPS.
+model PerfilImpressora {
+  id String @id @default(cuid())
+  lojaId String
+  loja ConfiguracaoLoja @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  nome String
+  fabricante String @default("Zebra")
+  modelo String?
+  dpi Int @default(203)
+  linguagem String @default("ZPL")
+  planejamentoRaspberry Json?
+  suporta60x40 Boolean @default(true)
+  suporta60x60 Boolean @default(true)
+  ativo Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tentativas TentativaEtiqueta[]
+
+  @@index([lojaId, ativo])
+}
+
+model ResponsavelEtiqueta {
+  id String @id @default(cuid())
+  lojaId String @default("singleton")
+  nome String @db.VarChar(120)
+  ativo Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([lojaId, ativo])
+}
+
+model TrabalhoEtiqueta {
+  copiasBaixadas Int @default(0)
+  id String @id @default(cuid())
+  chaveIdempotencia String
+  lojaId String
+  loja ConfiguracaoLoja @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  insumoId String
+  insumo Insumo @relation(fields: [insumoId], references: [id], onDelete: Restrict)
+
+  produtoNome String
+  categoriaNome String?
+  unidade String
+  prazoDias Int
+  configuracaoVersao Int
+  lojaNome String
+  lojaCnpj String?
+  lojaEndereco String?
+  fusoHorario String
+  resolucaoDpi Int
+
+  conservacao ConservacaoEtiqueta
+  quantidade Decimal? @db.Decimal(12, 3)
+  lote String?
+  marcaFornecedor String?
+  sif String?
+  validadeOriginal String?
+  codigoRastreio String
+  responsavelManipulacao String
+  emitidoPorId String
+  emitidoPor Usuario @relation("TrabalhoEtiquetaEmitidoPor", fields: [emitidoPorId], references: [id])
+  manipuladoEm DateTime
+  validoAte DateTime
+  tamanho TamanhoEtiqueta
+  mostrarHora Boolean @default(true)
+  copias Int
+  versaoTemplate Int @default(1)
+  zpl String
+  hashPayload String
+  status StatusTrabalhoEtiqueta @default(PREPARADO)
+  confirmadoEm DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tentativas TentativaEtiqueta[]
+  enviosPonto EnvioPontoImpressao[]
+
+  @@unique([lojaId, chaveIdempotencia])
+  @@index([lojaId, createdAt])
+  @@index([insumoId, createdAt])
+  @@index([lojaId, validoAte, id])
+  @@index([emitidoPorId, createdAt])
+}
+
+enum EstadoEnvioPonto {
+  PENDENTE
+  RESERVADO
+  ENVIADO_USB
+  FALHA
+  INCERTO
+  CONFIRMADO
+}
+
+model PontoImpressao {
+  excluidoEm DateTime?
+  id String @id @default(cuid())
+  lojaId String
+  loja ConfiguracaoLoja @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  nome String
+  icone String @default("impressora")
+  ativo Boolean @default(true)
+  padrao Boolean @default(false)
+  dispositivo DispositivoImpressao?
+  codigos CodigoVinculoImpressao[]
+  envios EnvioPontoImpressao[]
+  mudancasWifi MudancaWifiPonto[]
+  impressoraSelecionadaId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lojaId, ativo])
+}
+
+enum EstadoMudancaWifiPonto {
+  PENDENTE
+  ENTREGUE
+  CONFIRMADA
+  REVERTIDA
+  FALHA
+  EXPIRADA
+}
+
+model MudancaWifiPonto {
+  id String @id @default(cuid())
+  pontoId String
+  ponto PontoImpressao @relation(fields: [pontoId], references: [id], onDelete: Restrict)
+  ssid String
+  segredoCifrado String?
+  estado EstadoMudancaWifiPonto @default(PENDENTE)
+  expiraEm DateTime
+  entregueEm DateTime?
+  finalizadoEm DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([pontoId, estado, createdAt])
+}
+
+model CodigoVinculoImpressao {
+  id String @id @default(cuid())
+  lojaId String
+  loja ConfiguracaoLoja @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  pontoId String
+  ponto PontoImpressao @relation(fields: [pontoId], references: [id], onDelete: Restrict)
+  codigoHash String @unique
+  tentativas Int @default(0)
+  expiraEm DateTime
+  usadoEm DateTime?
+  criadoPorId String
+  criadoPor Usuario @relation("CodigoVinculoCriadoPor", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+
+  @@index([pontoId, expiraEm])
+}
+
+model LimiteVinculoImpressao {
+  chave String @id
+  tentativas Int @default(0)
+  expiraEm DateTime
+  @@index([expiraEm])
+}
+
+model DispositivoImpressao {
+  id String @id @default(cuid())
+  pontoId String @unique
+  ponto PontoImpressao @relation(fields: [pontoId], references: [id], onDelete: Restrict)
+  tokenHash String @unique
+  hostname String?
+  modelo String?
+  sistema String?
+  arquitetura String?
+  usbImpressoras Json?
+  impressoraDetectada Boolean @default(false)
+  wifiSsid String?
+  wifiFrequenciaMhz Int?
+  wifiRedes Json?
+  wifiEndereco String?
+  ethernetEndereco String?
+  vistoEm DateTime?
+  revogadoEm DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EnvioPontoImpressao {
+  id String @id @default(cuid())
+  origemMcpOperacaoId String?
+  lojaId String
+  loja ConfiguracaoLoja @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  pontoId String
+  ponto PontoImpressao @relation(fields: [pontoId], references: [id], onDelete: Restrict)
+  trabalhoId String?
+  trabalho TrabalhoEtiqueta? @relation(fields: [trabalhoId], references: [id], onDelete: Restrict)
+  solicitadoPorId String
+  solicitadoPor Usuario @relation("EnvioPontoSolicitadoPor", fields: [solicitadoPorId], references: [id], onDelete: Restrict)
+  chaveIdempotencia String
+  tipo String @default("ETIQUETA")
+  reimpressao Boolean @default(false)
+  zpl String
+  estado EstadoEnvioPonto @default(PENDENTE)
+  reservadaEm DateTime?
+  reservaAte DateTime?
+  finalizadoEm DateTime?
+  confirmadoEm DateTime?
+  confirmadoPorId String?
+  confirmadoPor Usuario? @relation("EnvioPontoConfirmadoPor", fields: [confirmadoPorId], references: [id], onDelete: Restrict)
+  detalhe String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lojaId, chaveIdempotencia])
+  @@index([pontoId, estado, createdAt])
+  @@index([trabalhoId, createdAt])
+  @@index([origemMcpOperacaoId])
+}
+
+model TentativaEtiqueta {
+  id String @id @default(cuid())
+  trabalhoId String
+  trabalho TrabalhoEtiqueta @relation(fields: [trabalhoId], references: [id], onDelete: Restrict)
+  perfilImpressoraId String?
+  perfilImpressora PerfilImpressora? @relation(fields: [perfilImpressoraId], references: [id], onDelete: SetNull)
+  solicitadoPorId String
+  solicitadoPor Usuario @relation("TentativaEtiquetaSolicitadaPor", fields: [solicitadoPorId], references: [id])
+  transporte TransporteEtiqueta
+  resultado ResultadoTentativaEtiqueta
+  dispositivoNome String?
+  erro String?
+  createdAt DateTime @default(now())
+  finalizadoEm DateTime?
+
+  @@index([trabalhoId, createdAt])
+  @@index([solicitadoPorId, createdAt])
+}
+
+model EventoAuditoriaEtiqueta {
+  id String @id @default(cuid())
+  lojaId String
+  loja ConfiguracaoLoja @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  entidade String
+  entidadeId String
+  acao String
+  detalhes Json?
+  usuarioId String
+  usuario Usuario @relation("EventoEtiquetaRegistradoPor", fields: [usuarioId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([lojaId, createdAt])
+  @@index([entidade, entidadeId])
+}
+
+model ConversaoInsumo {
+  id String @id @default(cuid())
+  insumoId String
+  insumo Insumo @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  unidade UnidadeMedida
+  // Uma unidade alternativa corresponde a este fator na unidade principal do insumo.
+  fator Decimal @db.Decimal(15, 6)
+
+  @@unique([insumoId, unidade])
+}
+
+// Atalho de preenchimento: as fichas mantêm quantidade e nome como snapshots.
+model PorcaoInsumo {
+  id String @id @default(cuid())
+  insumoId String
+  insumo Insumo @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  nome String @db.VarChar(120)
+  nomeNormalizado String @db.VarChar(120)
+  quantidade Decimal @db.Decimal(18, 9)
+  quantidadeMedida Decimal? @db.Decimal(18, 9)
+  unidadeMedida String? @db.VarChar(100)
+  unidade UnidadeMedida
+  versao Int @default(1)
+  excluidoEm DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([insumoId, unidade, nomeNormalizado])
+  @@index([insumoId, excluidoEm])
+}
+
+// Sem FK para a porção: exclusão do insumo não apaga a trilha de auditoria.
+model HistoricoPorcaoInsumo {
+  id String @id @default(cuid())
+  porcaoId String
+  autorId String
+  autorNome String
+  acao String
+  antes Json?
+  depois Json?
+  createdAt DateTime @default(now())
+
+  @@index([porcaoId, createdAt])
+}
+
+// Snapshots independentes dos cadastros para conservar a trilha de ordenação.
+model HistoricoOrdemCategoriasPorcoes {
+  id String @id @default(cuid())
+  autorId String
+  autorNome String
+  antes Json
+  depois Json
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Fornecedores homologados (aprovados) de um Insumo — inclui o próprio
+// fornecedor principal (Insumo.fornecedorPrincipalId) como um dos vínculos,
+// mais os alternativos. Usado pra liberar o combobox de insumo em Compras
+// pro fornecedor alternativo também, não só o principal.
+model InsumoFornecedor {
+  id           String     @id @default(cuid())
+  insumoId     String
+  insumo       Insumo     @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  fornecedorId String
+  fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([insumoId, fornecedorId])
+  @@index([fornecedorId])
+}
+
+// Bill of materials: os itens (Insumo ou Produto Intermediário) que compõem
+// um Produto Intermediário, com a quantidade de cada um.
+model ComposicaoInsumo {
+  id String @id @default(cuid())
+
+  produtoId String
+  produto   Insumo @relation("ComposicaoPai", fields: [produtoId], references: [id], onDelete: Cascade)
+
+  componenteId String
+  componente   Insumo @relation("ComposicaoComponente", fields: [componenteId], references: [id])
+
+  quantidade Decimal @db.Decimal(18, 9)
+  observacaoPorcao String?
+  porcao Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([produtoId, componenteId])
+  @@index([produtoId])
+  @@index([componenteId])
+}
+
+model PedidoCompra {
+  id     String @id @default(cuid())
+  numero Int    @unique @default(autoincrement())
+
+  fornecedorId String?
+  fornecedor   Fornecedor? @relation(fields: [fornecedorId], references: [id])
+  fornecedorAvulso String?
+  usoConsumo Boolean @default(false)
+
+  dataPedido      DateTime           @default(now())
+  previsaoEntrega DateTime?
+  status          StatusPedidoCompra @default(RASCUNHO)
+  observacoes     String?
+  excluidoEm      DateTime?
+
+  criadoPorId String?
+  criadoPor   Usuario? @relation("PedidoCriadoPor", fields: [criadoPorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  itens        PedidoCompraItem[]
+  anexos       PedidoCompraAnexo[]
+  recebimentos Recebimento[]
+  historico PedidoCompraHistorico[]
+}
+
+// Auditoria imutável das mudanças de situação, com identidade da sessão e motivo.
+model PedidoCompraHistorico {
+  id String @id @default(cuid())
+  pedidoId String
+  pedido PedidoCompra @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  statusAnterior StatusPedidoCompra
+  statusNovo StatusPedidoCompra
+  motivo String
+  acao String @default("ALTERACAO_STATUS")
+  usuarioId String
+  usuarioNome String
+  criadoEm DateTime @default(now())
+
+  @@index([pedidoId, criadoEm])
+}
+
+model PedidoCompraItem {
+  id String @id @default(cuid())
+
+  pedidoId String
+  pedido   PedidoCompra @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  insumoId String?
+  insumo   Insumo? @relation(fields: [insumoId], references: [id])
+  descricao String?
+  // Edições preservam as linhas antigas referenciadas pelas conferências.
+  ativo Boolean @default(true)
+
+  quantidade Decimal @db.Decimal(12, 3)
+  // Unidade em que o item foi de fato comprado — pode ser diferente da unidade de
+  // estoque do Insumo (ex: compra em CX de algo cujo saldo é controlado em KG).
+  // A conversão pro estoque, se precisar, é feita manualmente na Entrada Avulsa.
+  unidadeCompra UnidadeMedida
+  // Cópia da conversão confirmada no pedido; alterações no cadastro não mudam o histórico.
+  fatorConversao Decimal? @db.Decimal(15, 6)
+  unidadePrincipal UnidadeMedida?
+  // O Lovable (site anterior do usuário) nunca pede preço na hora de criar o pedido —
+  // fica opcional aqui também, pré-preenchido na UI a partir da Cotação mais recente ou
+  // do custo médio do Insumo, sempre editável.
+  precoUnitario Decimal? @db.Decimal(12, 4)
+  precoTotal    Decimal? @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  itensRecebidos RecebimentoItem[]
+
+  @@index([pedidoId])
+  @@index([insumoId])
+}
+
+model PedidoCompraAnexo {
+  id String @id @default(cuid())
+
+  pedidoId String
+  pedido   PedidoCompra @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+
+  tipo        TipoAnexoPedido
+  nomeArquivo String
+  url         String
+  createdAt   DateTime        @default(now())
+}
+
+// Histórico de preço do mesmo insumo entre fornecedores diferentes
+model Cotacao {
+  id String @id @default(cuid())
+
+  insumoId String
+  insumo   Insumo @relation(fields: [insumoId], references: [id])
+
+  fornecedorId String
+  fornecedor   Fornecedor @relation(fields: [fornecedorId], references: [id])
+
+  precoUnitario Decimal  @db.Decimal(12, 4) // na unidade de compra do insumo
+  data          DateTime @default(now())
+  observacao    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([insumoId])
+  @@index([fornecedorId])
+}
+
+model Recebimento {
+  id String @id @default(cuid())
+
+  pedidoId String
+  pedido   PedidoCompra @relation(fields: [pedidoId], references: [id])
+
+  dataRecebimento DateTime        @default(now())
+  reabertoEm DateTime?
+  tipo            TipoRecebimento // reflete no status do pedido (RECEBIDO_TOTAL ou RECEBIDO_PARCIAL)
+
+  // Quem recebeu fisicamente a mercadoria pode não ter login no sistema (ex: auxiliar de
+  // produção) — texto livre, separado de responsavelId, que audita quem operou a
+  // confirmação no sistema quando essa pessoa está logada.
+  responsavelNome String
+  responsavelId   String?
+  responsavel     Usuario? @relation("RecebimentoResponsavel", fields: [responsavelId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  itens RecebimentoItem[]
+}
+
+model RecebimentoItem {
+  id String @id @default(cuid())
+
+  recebimentoId String
+  recebimento   Recebimento @relation(fields: [recebimentoId], references: [id], onDelete: Cascade)
+
+  pedidoItemId String
+  pedidoItem   PedidoCompraItem @relation(fields: [pedidoItemId], references: [id])
+
+  quantidadeRecebida Decimal   @db.Decimal(12, 3) // na unidade de compra do insumo
+  lote               String?
+  validade           DateTime?
+  qualidadeOk        Boolean   @default(true)
+  observacao         String?
+
+  createdAt DateTime @default(now())
+
+  divergencias RecebimentoDivergencia[]
+  movimentacao MovimentacaoEstoque?
+
+  @@index([recebimentoId])
+}
+
+model RecebimentoDivergencia {
+  id String @id @default(cuid())
+
+  recebimentoItemId String
+  recebimentoItem   RecebimentoItem @relation(fields: [recebimentoItemId], references: [id], onDelete: Cascade)
+
+  tipo      TipoDivergencia
+  descricao String?
+  createdAt DateTime        @default(now())
+}
+
+// ============================================================
+// 2. ESTOQUE
+// ============================================================
+
+model SaldoEstoque {
+  id String @id @default(cuid())
+
+  insumoId String
+  insumo   Insumo @relation(fields: [insumoId], references: [id])
+
+  localId String
+  local   LocalEstoque @relation(fields: [localId], references: [id])
+
+  quantidadeAtual Decimal  @default(0) @db.Decimal // na unidade de uso
+  createdAt       DateTime @default(now())
+  atualizadoEm    DateTime @updatedAt
+
+  @@unique([insumoId, localId])
+}
+
+model MovimentacaoEstoque {
+  entradaAvulsaRegistroId String?
+  entradaAvulsaRegistro EntradaAvulsaRegistro? @relation("MovimentosEntradaAvulsa", fields: [entradaAvulsaRegistroId], references: [id], onDelete: Restrict)
+  registroAvulsoLegado EntradaAvulsaRegistro? @relation("OrigemAvulsaLegada")
+  estornoDeId String? @unique
+  estornoDe MovimentacaoEstoque? @relation("EstornoCompra", fields: [estornoDeId], references: [id], onDelete: Restrict)
+  estornoCompra MovimentacaoEstoque? @relation("EstornoCompra")
+  producaoPreparacaoId String?
+  producaoPreparacao ProducaoPreparacao? @relation(fields: [producaoPreparacaoId], references: [id], onDelete: Restrict)
+  ajusteContagem InventarioItem? @relation("AjusteContagem")
+  estornoContagem InventarioItem? @relation("EstornoContagem")
+  id String @id @default(cuid())
+
+  insumoId String
+  insumo   Insumo @relation(fields: [insumoId], references: [id])
+
+  localId String
+  local   LocalEstoque @relation(fields: [localId], references: [id])
+
+  tipo       TipoMovimentacaoEstoque
+  quantidade Decimal                 @db.Decimal // sempre positiva, na unidade de uso; o `tipo` define entrada ou saída
+
+  // custo unitário aplicado nesta entrada (quando conhecido) — trilha de auditoria de por
+  // que o custo médio do Insumo mudou; nunca preenchido em movimentações de saída
+  custoUnitario Decimal? @db.Decimal(12, 4)
+
+  // Campos de compra/pagamento — só preenchidos em entradas avulsas do tipo "compra
+  // simples"; reservados pra sincronizar com o futuro módulo de Contas a Pagar.
+  valorTotal     Decimal?  @db.Decimal(14, 2)
+  dataVencimento DateTime?
+  pago           Boolean   @default(false)
+  dataPagamento  DateTime?
+
+  origemRecebimentoItemId String?          @unique
+  origemRecebimentoItem   RecebimentoItem? @relation(fields: [origemRecebimentoItemId], references: [id])
+
+  origemPerdaId String? @unique
+  origemPerda   Perda?  @relation(fields: [origemPerdaId], references: [id])
+  exclusaoPerda PerdaExclusao?
+
+  entradaAvulsaCompraId String?
+  entradaAvulsaCompra   EntradaAvulsaCompra? @relation(fields: [entradaAvulsaCompraId], references: [id], onDelete: Restrict)
+
+  observacao String?
+
+  criadoPorId String?
+  criadoPor   Usuario? @relation("MovimentacaoCriadaPor", fields: [criadoPorId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  lancamentoFinanceiro LancamentoFinanceiro?
+  notaFiscalItem       NotaFiscalItem?
+
+  @@index([insumoId])
+  @@index([localId])
+  @@index([tipo])
+  @@index([createdAt])
+  @@index([entradaAvulsaCompraId])
+  @@index([entradaAvulsaRegistroId])
+  @@index([producaoPreparacaoId])
+}
+
+// Produção física explícita; fotografia separada do custo teórico e das etiquetas.
+model ProducaoPreparacao {
+  id String @id @default(cuid())
+  preparacaoId String
+  preparacao Insumo @relation(fields: [preparacaoId], references: [id], onDelete: Restrict)
+  localId String
+  local LocalEstoque @relation(fields: [localId], references: [id], onDelete: Restrict)
+  quantidade Decimal @db.Decimal(18,6)
+  data DateTime
+  snapshot Json
+  motivo String
+  chaveOperacao String @unique
+  hashOperacao String
+  criadoPorId String
+  criadoPor Usuario @relation("ProducaoPreparacaoAutor", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  correcao Json?
+  corrigidoEm DateTime?
+  movimentos MovimentacaoEstoque[]
+  createdAt DateTime @default(now())
+  @@index([preparacaoId, data])
+}
+
+// Cabeçalho auditável de compra sem NF-e, com custos finais já rateados nos movimentos.
+model EntradaAvulsaCompra {
+  registro EntradaAvulsaRegistro?
+  id                   String   @id @default(cuid())
+  fornecedorId         String
+  fornecedor           Fornecedor @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
+  dataEntrada           DateTime
+  valorProdutos         Decimal  @db.Decimal(14, 2)
+  frete                 Decimal  @default(0) @db.Decimal(14, 2)
+  desconto              Decimal  @default(0) @db.Decimal(14, 2)
+  valorOutrosCustos     Decimal  @default(0) @db.Decimal(14, 2)
+  outrosCustos          Json
+  valorTotal            Decimal  @db.Decimal(14, 2)
+  dataVencimento        DateTime?
+  pago                  Boolean  @default(false)
+  dataPagamento         DateTime?
+  observacao            String?
+  criadoPorId           String?
+  criadoPor             Usuario? @relation("EntradaAvulsaCriadaPor", fields: [criadoPorId], references: [id], onDelete: SetNull)
+  createdAt              DateTime @default(now())
+
+  movimentacoes         MovimentacaoEstoque[]
+  lancamentoFinanceiro  LancamentoFinanceiro?
+
+  @@index([fornecedorId])
+  @@index([dataEntrada])
+}
+
+// Documento operacional; quantidades físicas continuam exclusivamente no ledger.
+model EntradaAvulsaRegistro {
+  id String @id @default(cuid())
+  numero Int @unique @default(autoincrement())
+  compraId String? @unique
+  compra EntradaAvulsaCompra? @relation(fields: [compraId], references: [id], onDelete: Restrict)
+  movimentoLegadoId String? @unique
+  movimentoLegado MovimentacaoEstoque? @relation("OrigemAvulsaLegada", fields: [movimentoLegadoId], references: [id], onDelete: Restrict)
+  tipo String
+  dataEntrada DateTime
+  criadoPorId String
+  criadoPorNome String
+  snapshot Json
+  versao Int @default(1)
+  chaveOperacao String @unique
+  hashOperacao String
+  createdAt DateTime @default(now())
+  movimentos MovimentacaoEstoque[] @relation("MovimentosEntradaAvulsa")
+  versoes EntradaAvulsaVersao[]
+  @@index([dataEntrada])
+  @@index([criadoPorId])
+}
+
+model EntradaAvulsaVersao {
+  id String @id @default(cuid())
+  registroId String
+  registro EntradaAvulsaRegistro @relation(fields: [registroId], references: [id], onDelete: Restrict)
+  versao Int
+  autorId String
+  autorNome String
+  antes Json?
+  depois Json
+  diferencas Json
+  ajustes Json
+  chaveOperacao String @unique
+  hashOperacao String
+  createdAt DateTime @default(now())
+  @@unique([registroId, versao])
+}
+
+model Perda {
+  id String @id @default(cuid())
+
+  insumoId String
+  insumo   Insumo @relation(fields: [insumoId], references: [id])
+
+  localId String
+  local   LocalEstoque @relation(fields: [localId], references: [id])
+
+  motivo        MotivoPerda
+  motivoPersonalizado String?
+  categoriaPerdaId String?
+  categoriaPerda CategoriaPerda? @relation(fields: [categoriaPerdaId], references: [id], onDelete: Restrict)
+  unidade       UnidadeMedida
+  quantidade    Decimal     @db.Decimal // na unidade de uso
+  valorEstimado Decimal     @db.Decimal(12, 2)
+  observacao    String?
+  data          DateTime    @default(now())
+
+  responsavelId String?
+  responsavel   Usuario? @relation("PerdaResponsavel", fields: [responsavelId], references: [id])
+  responsavelNome String?
+  excluidaEm DateTime?
+
+  createdAt DateTime @default(now())
+
+  movimentacao MovimentacaoEstoque?
+  exclusao PerdaExclusao?
+
+  @@index([insumoId])
+  @@index([motivo])
+  @@index([categoriaPerdaId])
+  @@index([excluidaEm, data])
+}
+
+model CategoriaPerda {
+  id String @id @default(cuid())
+  nome String
+  ativo Boolean @default(true)
+  codigoLegado MotivoPerda? @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  perdas Perda[]
+}
+
+// Exclusão lógica com estorno: mantém o lançamento original e a autoria da correção.
+model PerdaExclusao {
+  id String @id @default(cuid())
+  perdaId String @unique
+  perda Perda @relation(fields: [perdaId], references: [id], onDelete: Restrict)
+  motivo String
+  responsavelId String
+  responsavel Usuario @relation(fields: [responsavelId], references: [id], onDelete: Restrict)
+  responsavelNome String
+  createdAt DateTime @default(now())
+  movimentacaoId String @unique
+  movimentacao MovimentacaoEstoque @relation(fields: [movimentacaoId], references: [id], onDelete: Restrict)
+  quantidade Decimal @db.Decimal
+  unidade UnidadeMedida
+
+  @@index([createdAt])
+}
+
+model InventarioContagem {
+  id String @id @default(cuid())
+
+  localId String
+  local   LocalEstoque @relation(fields: [localId], references: [id])
+
+  dataContagem DateTime       @default(now())
+  status       StatusContagem @default(EM_ANDAMENTO)
+  finalizadaEm DateTime?
+  excluidaEm DateTime?
+  excluidaPorId String?
+  excluidaPor Usuario? @relation("ContagemExcluidaPor", fields: [excluidaPorId], references: [id], onDelete: Restrict)
+  excluidaPorNome String?
+  motivoExclusao String?
+  ajustesEstornados Boolean @default(false)
+
+  responsavelId String?
+  responsavel   Usuario? @relation("ContagemResponsavel", fields: [responsavelId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  itens InventarioItem[]
+}
+
+model InventarioItem {
+  id String @id @default(cuid())
+
+  contagemId String
+  contagem   InventarioContagem @relation(fields: [contagemId], references: [id], onDelete: Cascade)
+
+  insumoId String
+  insumo   Insumo @relation(fields: [insumoId], references: [id])
+
+  quantidadeSistema Decimal @db.Decimal // saldo no momento da contagem (unidade de uso) — nunca exposto ao cliente enquanto EM_ANDAMENTO
+  quantidadeContada Decimal @db.Decimal
+  contado           Boolean @default(false) // true assim que o usuário salva um valor pra esta linha (distingue "não digitado ainda" de "confirmou igual ao sistema")
+  ajustado          Boolean @default(false)
+  unidadeAjuste UnidadeMedida?
+  movimentoAjusteId String? @unique
+  movimentoAjuste MovimentacaoEstoque? @relation("AjusteContagem", fields: [movimentoAjusteId], references: [id], onDelete: Restrict)
+  movimentoEstornoId String? @unique
+  movimentoEstorno MovimentacaoEstoque? @relation("EstornoContagem", fields: [movimentoEstornoId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([contagemId])
+}
+
+// ============================================================
+// 3. FINANCEIRO — Plano de Contas, Lançamentos, Contas a Pagar/Receber, Bancário
+// ============================================================
+
+// Plano de contas editável: nome + a que grupo do DRE pertence, com um Centro de
+// Custo opcional (mesma tabela usada por Insumo) só como tag de organização.
+model CategoriaFinanceira {
+  canaisDevolucao CanalVenda[] @relation("CanalDevolucao")
+  canaisVenda CanalVenda[]
+  itensFaturaCartao ItemFaturaCartao[]
+  regrasCartao RegraCartao[]
+  id            String   @id @default(cuid())
+  nome          String
+  grupo         GrupoDre
+  centroCustoId String?
+  centroCusto   CentroCusto? @relation(fields: [centroCustoId], references: [id])
+  ativo         Boolean  @default(true)
+  excluidoEm    DateTime?
+  createdAt     DateTime @default(now())
+  paiId         String?
+  pai           CategoriaFinanceira? @relation("HierarquiaCategorias", fields: [paiId], references: [id], onDelete: Restrict)
+  subcategorias CategoriaFinanceira[] @relation("HierarquiaCategorias")
+
+  lancamentos LancamentoFinanceiro[]
+  itensNotaFiscal NotaFiscalItem[]
+  insumos Insumo[]
+
+  @@index([paiId])
+  @@index([grupo])
+  @@index([excluidoEm])
+}
+
+model ContaBancaria {
+  cartoes CartaoCredito[]
+  referenciaOfx String? @unique
+  importacoesExtrato ImportacaoExtrato[]
+  transacoesExtrato TransacaoExtrato[]
+  id           String   @id @default(cuid())
+  nome         String   @unique
+  saldoInicial Decimal  @default(0) @db.Decimal(14, 2)
+  dataSaldoInicial DateTime? @db.Date
+  ativo        Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  lancamentos   LancamentoFinanceiro[]
+  movimentacoes MovimentacaoBancaria[]
+  repassesPedido RepassePagamentoPedido[]
+}
+
+model LancamentoFinanceiro {
+  custosEntrega VinculoCustoEntrega[]
+  itemFaturaId String?
+  itemFatura ItemFaturaCartao? @relation(fields: [itemFaturaId], references: [id], onDelete: Restrict)
+  liquidacoesCartao LiquidacaoCartao[]
+  cartaoCreditoId String?
+  cartaoCredito CartaoCredito? @relation(fields: [cartaoCreditoId], references: [id], onDelete: Restrict)
+  vinculoExtrato VinculoExtrato?
+  id        String         @id @default(cuid())
+  tipo      TipoLancamento
+  descricao String
+  valor     Decimal        @db.Decimal(14, 2)
+
+  categoriaId String
+  categoria   CategoriaFinanceira @relation(fields: [categoriaId], references: [id])
+
+  // Mês do fato gerador — é o que o DRE em modo Competência usa.
+  dataCompetencia DateTime
+  // Default = dataCompetencia quando não informado. É o que aparece em Contas a Pagar/Receber.
+  dataVencimento DateTime
+  status         StatusLancamento @default(PENDENTE)
+  // Preenchido só na baixa — é o que o DRE em modo Caixa usa.
+  dataPagamento DateTime?
+
+  contaBancariaId String?
+  contaBancaria   ContaBancaria? @relation(fields: [contaBancariaId], references: [id])
+
+  formaPagamentoId String?
+  formaPagamento   FormaPagamento? @relation(fields: [formaPagamentoId], references: [id])
+
+  // Despesa com fornecedor cadastrado usa fornecedorId; receita (ou despesa avulsa sem
+  // fornecedor) usa o texto livre em contraparteNome — mesmo padrão do Recebimento
+  // (responsavelNome livre + responsavelId opcional).
+  fornecedorId    String?
+  fornecedor      Fornecedor? @relation(fields: [fornecedorId], references: [id])
+  contraparteNome String?
+
+  // Agrupa as parcelas quando o lançamento é criado via "repetir por N meses".
+  recorrenciaGrupoId String?
+
+  // Origem comercial de Pedidos. Cada fragmento financeiro tem chave estável própria;
+  // a parcela raiz preserva a condição original após uma baixa parcial.
+  pedidoVendaId String?
+  pedidoVenda PedidoVenda? @relation(fields: [pedidoVendaId], references: [id], onDelete: Restrict)
+  pedidoEfeitoChave String?
+  pedidoParcelaRaiz String?
+  pedidoValorOriginal Decimal? @db.Decimal(14, 2)
+  formaPagamentoVendaId String?
+  formaPagamentoVenda FormaPagamentoVenda? @relation(fields: [formaPagamentoVendaId], references: [id], onDelete: Restrict)
+  pedidoFormaSnapshot Json?
+  pedidoQuitadoCredito Boolean @default(false)
+
+  // Liga com a Entrada Avulsa (Compra Simples) que originou este lançamento — fecha o
+  // loop do dado que já existia em MovimentacaoEstoque.valorTotal/dataVencimento/pago.
+  origemMovimentacaoEstoqueId String?              @unique
+  origemMovimentacaoEstoque   MovimentacaoEstoque? @relation(fields: [origemMovimentacaoEstoqueId], references: [id])
+
+  origemEntradaAvulsaCompraId String?               @unique
+  origemEntradaAvulsaCompra   EntradaAvulsaCompra?  @relation(fields: [origemEntradaAvulsaCompraId], references: [id], onDelete: Restrict)
+
+  observacoes String?
+
+  criadoPorId String?
+  criadoPor   Usuario? @relation("LancamentoCriadoPor", fields: [criadoPorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movimentacaoBancaria MovimentacaoBancaria?
+  pagamentosExternosPedido PagamentoExternoPedido[]
+  repassePagamentoPedido RepassePagamentoPedido?
+  repasseTaxaPedido RepassePagamentoPedido? @relation("RepasseTaxaPedido")
+  devolucaoPedido TratamentoFinanceiroPedido? @relation("TratamentoDevolucaoLancamento")
+  alocacoesTratamentoOrigem AlocacaoTratamentoPedido[] @relation("TratamentoOrigemTitulo")
+  notaFiscalItemLancamento NotaFiscalItemLancamento?
+  notaFiscalServicoLancamento NotaFiscalServicoLancamento?
+
+  @@index([tipo])
+  @@index([status])
+  @@index([categoriaId])
+  @@index([dataVencimento])
+  @@index([dataCompetencia])
+  @@index([recorrenciaGrupoId])
+  @@index([itemFaturaId])
+  @@index([cartaoCreditoId, dataVencimento])
+  @@unique([pedidoVendaId, pedidoEfeitoChave])
+  @@index([pedidoVendaId, pedidoParcelaRaiz])
+}
+
+model HistoricoFinanceiroPedido {
+  id String @id @default(cuid())
+  pedidoId String
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  chaveOperacao String @unique
+  hashOperacao String
+  tipo String
+  usuarioId String
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+  usuarioNome String
+  detalhes Json
+  createdAt DateTime @default(now())
+  @@index([pedidoId, createdAt])
+}
+
+// Evidência de cobrança externa; não representa nova receita nem baixa bancária.
+model PagamentoExternoPedido {
+  id String @id @default(cuid())
+  pedidoId String
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  tituloId String
+  titulo LancamentoFinanceiro @relation(fields: [tituloId], references: [id], onDelete: Restrict)
+  tipo String
+  status String
+  valorBruto Decimal @db.Decimal(14,2)
+  parcelasCliente Int?
+  referenciaExterna String?
+  documentoExterno String?
+  vencimentoExterno DateTime? @db.Date
+  confirmadoEm DateTime?
+  taxa Decimal? @db.Decimal(14,2)
+  valorLiquido Decimal? @db.Decimal(14,2)
+  previsaoRepasse DateTime?
+  repassadoEm DateTime?
+  evidencia String
+  criadoPorId String
+  criadoPor Usuario @relation("PagamentoExternoPedidoAutor", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  chaveOperacao String @unique
+  hashOperacao String
+  createdAt DateTime @default(now())
+  repasses RepassePagamentoPedido[]
+  alocacoesTratamento AlocacaoTratamentoPedido[]
+  @@index([pedidoId, status])
+  @@index([tituloId, status])
+  @@unique([tipo, referenciaExterna])
+}
+
+model RepassePagamentoPedido {
+  id String @id @default(cuid())
+  pagamentoId String
+  pagamento PagamentoExternoPedido @relation(fields: [pagamentoId], references: [id], onDelete: Restrict)
+  valorBruto Decimal @db.Decimal(14,2)
+  taxa Decimal @db.Decimal(14,2)
+  valorLiquido Decimal @db.Decimal(14,2)
+  data DateTime
+  contaBancariaId String
+  contaBancaria ContaBancaria @relation(fields: [contaBancariaId], references: [id], onDelete: Restrict)
+  lancamentoId String @unique
+  lancamento LancamentoFinanceiro @relation(fields: [lancamentoId], references: [id], onDelete: Restrict)
+  taxaLancamentoId String? @unique
+  taxaLancamento LancamentoFinanceiro? @relation("RepasseTaxaPedido", fields: [taxaLancamentoId], references: [id], onDelete: Restrict)
+  evidencia String
+  chaveOperacao String @unique
+  hashOperacao String
+  criadoPorId String
+  criadoPor Usuario @relation("RepassePagamentoPedidoAutor", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@index([pagamentoId, createdAt])
+}
+
+model TratamentoFinanceiroPedido {
+  id String @id @default(cuid())
+  pedidoId String
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  tipo String
+  status String
+  valor Decimal @db.Decimal(14,2)
+  retido Decimal @default(0) @db.Decimal(14,2)
+  reduzVenda Boolean @default(false)
+  motivo String?
+  referenciaPolitica String?
+  referenciaComunicacao String?
+  escolhaClienteEm DateTime?
+  evidenciaConclusao String?
+  concluidoEm DateTime?
+  devolucaoLancamentoId String? @unique
+  devolucaoLancamento LancamentoFinanceiro? @relation("TratamentoDevolucaoLancamento", fields: [devolucaoLancamentoId], references: [id], onDelete: Restrict)
+  chaveOperacao String @unique
+  hashOperacao String
+  criadoPorId String
+  criadoPor Usuario @relation("TratamentoFinanceiroPedidoAutor", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  alocacoes AlocacaoTratamentoPedido[]
+  movimentosCredito CreditoClienteMovimento[]
+  @@index([pedidoId, status])
+}
+
+model AlocacaoTratamentoPedido {
+  id String @id @default(cuid())
+  tratamentoId String
+  tratamento TratamentoFinanceiroPedido @relation(fields: [tratamentoId], references: [id], onDelete: Restrict)
+  origemTituloId String
+  origemTitulo LancamentoFinanceiro @relation("TratamentoOrigemTitulo", fields: [origemTituloId], references: [id], onDelete: Restrict)
+  origemPagamentoExternoId String?
+  origemPagamentoExterno PagamentoExternoPedido? @relation(fields: [origemPagamentoExternoId], references: [id], onDelete: Restrict)
+  valor Decimal @db.Decimal(14,2)
+  devolucao Decimal @default(0) @db.Decimal(14,2)
+  retencao Decimal @default(0) @db.Decimal(14,2)
+  credito Decimal @default(0) @db.Decimal(14,2)
+  @@index([origemTituloId])
+  @@index([origemPagamentoExternoId])
+}
+
+model CreditoClienteMovimento {
+  id String @id @default(cuid())
+  clienteId String
+  cliente ClienteVenda @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+  tipo String
+  valor Decimal @db.Decimal(14,2)
+  reduzVenda Boolean @default(false)
+  tratamentoId String?
+  tratamento TratamentoFinanceiroPedido? @relation(fields: [tratamentoId], references: [id], onDelete: Restrict)
+  pedidoAplicacaoId String?
+  pedidoAplicacao PedidoVenda? @relation("CreditoAplicadoPedido", fields: [pedidoAplicacaoId], references: [id], onDelete: Restrict)
+  origemMovimentoId String?
+  origemMovimento CreditoClienteMovimento? @relation("CreditoReversao", fields: [origemMovimentoId], references: [id], onDelete: Restrict)
+  reversoes CreditoClienteMovimento[] @relation("CreditoReversao")
+  motivo String?
+  referenciaComunicacao String?
+  data DateTime
+  chaveOperacao String @unique
+  hashOperacao String
+  criadoPorId String
+  criadoPor Usuario @relation("CreditoMovimentoAutor", fields: [criadoPorId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@index([clienteId, createdAt])
+  @@index([tratamentoId])
+  @@index([pedidoAplicacaoId])
+  @@index([origemMovimentoId])
+}
+
+// Nota fiscal de serviço recebida. O manifesto usa a mesma sessão, certificado
+// A1, permissões e banco do manifesto de NF-e, mas mantém o documento separado
+// porque NFS-e não possui os itens de produto nem a chave de 44 dígitos da NF-e.
+model NotaFiscalServico {
+  id                String   @id @default(cuid())
+  identificador     String   @unique // chave nacional ou hash do XML municipal
+  chaveAcesso       String?  @unique
+  nsu               String?
+  origem            OrigemNfse
+  importadaManualmente Boolean @default(false)
+  status            StatusNfse @default(PENDENTE)
+  xml               String?  @db.Text
+  numero            String?
+  serie             String?
+  codigoVerificacao String?
+  prestadorCnpj     String?
+  prestadorNome     String?
+  prestadorDados    Json?
+  tomadorCnpj       String?
+  tomadorNome       String?
+  tomadorDados      Json?
+  valorServico      Decimal? @db.Decimal(14, 2)
+  valorLiquido      Decimal? @db.Decimal(14, 2)
+  valorIss          Decimal? @db.Decimal(14, 2)
+  dataEmissao       DateTime?
+  dataCompetencia   DateTime?
+  municipioCodigo   String?
+  municipioNome     String?
+  uf                String?
+  fornecedorId      String?
+  fornecedor        Fornecedor? @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
+  observacoes       String?
+  criadoPorId       String?
+  criadoPorNome     String?
+  canceladaEm       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  eventos           EventoNfse[]
+  lancamentos       NotaFiscalServicoLancamento[]
+
+  @@index([dataEmissao])
+  @@index([prestadorCnpj])
+  @@index([status])
+  @@index([nsu])
+}
+
+model EventoNfse {
+  id            String   @id @default(cuid())
+  notaFiscalId  String?
+  notaFiscal    NotaFiscalServico? @relation(fields: [notaFiscalId], references: [id], onDelete: SetNull)
+  identificador String
+  chaveAcesso   String?
+  nsu           String?
+  tipo          String?
+  xml           String?  @db.Text
+  criadoPorNome String?
+  createdAt     DateTime @default(now())
+
+  @@unique([identificador])
+  @@index([chaveAcesso])
+  @@index([notaFiscalId])
+}
+
+model NotaFiscalServicoLancamento {
+  id                   String   @id @default(cuid())
+  notaFiscalServicoId  String
+  notaFiscalServico    NotaFiscalServico @relation(fields: [notaFiscalServicoId], references: [id], onDelete: Restrict)
+  lancamentoFinanceiroId String @unique
+  lancamentoFinanceiro  LancamentoFinanceiro @relation(fields: [lancamentoFinanceiroId], references: [id], onDelete: Restrict)
+  criadoPorId           String?
+  criadoPorNome         String?
+  createdAt             DateTime @default(now())
+}
+
+// Cursor independente da distribuição de NF-e. O ADN NFS-e possui NSU próprio
+// e não deve compartilhar ou avançar o cursor da SEFAZ.
+model NfseDistribuicaoEstado {
+  ultimaBuscaAutomaticaEm DateTime?
+  proximaBuscaAutomaticaEm DateTime?
+  resultadoBuscaAutomatica String?
+  id                  String   @id @default(cuid())
+  cnpj                String   @unique
+  nsuConsulta         String   @default("0")
+  ultimaExecucaoEm    DateTime?
+  proximaBuscaEm      DateTime?
+  emConsulta          Boolean  @default(false)
+  ultimoStatus        String?
+  ultimoMotivo        String?
+  resultadoExecucao   String?
+  ultimaRespostaJson  Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// Extrato da conta — criado automaticamente ao baixar um Lançamento (1:1). Também
+// permite ajuste manual avulso (tipo AJUSTE) sem lançamento associado, pra correção de saldo.
+model MovimentacaoBancaria {
+  pagamentoFatura PagamentoFaturaCartao?
+  id              String                   @id @default(cuid())
+  contaBancariaId String
+  contaBancaria   ContaBancaria            @relation(fields: [contaBancariaId], references: [id])
+  tipo            TipoMovimentacaoBancaria
+  valor           Decimal                  @db.Decimal(14, 2)
+  data            DateTime                 @default(now())
+  descricao       String
+
+  lancamentoId String?               @unique
+  lancamento   LancamentoFinanceiro? @relation(fields: [lancamentoId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([contaBancariaId])
+}
+
+// Arquivo bancário é evidência externa: importar nunca cria baixa nem afeta saldo/DRE.
+model ImportacaoExtrato {
+  id String @id @default(cuid())
+  contaBancariaId String
+  contaBancaria ContaBancaria @relation(fields: [contaBancariaId], references: [id], onDelete: Restrict)
+  nomeArquivo String
+  hashArquivo String
+  formato String
+  referenciaOfx String?
+  autorId String
+  autorNome String
+  createdAt DateTime @default(now())
+  transacoes TransacaoExtrato[]
+  @@unique([contaBancariaId, hashArquivo])
+}
+
+model TransacaoExtrato {
+  faturasSelecionadas FaturaCartao[] @relation("SelecaoFatura")
+  pagamentoFatura PagamentoFaturaCartao?
+  id String @id @default(cuid())
+  contaBancariaId String
+  contaBancaria ContaBancaria @relation(fields: [contaBancariaId], references: [id], onDelete: Restrict)
+  importacaoId String
+  importacao ImportacaoExtrato @relation(fields: [importacaoId], references: [id], onDelete: Restrict)
+  chave String
+  impressao String
+  identificador String?
+  data DateTime @db.Date
+  descricao String
+  valor Decimal @db.Decimal(14, 2)
+  conciliadaEm DateTime?
+  conciliadaPorNome String?
+  createdAt DateTime @default(now())
+  vinculos VinculoExtrato[]
+  historico HistoricoConciliacao[]
+  @@unique([contaBancariaId, chave])
+  @@index([contaBancariaId, data])
+  @@index([contaBancariaId, impressao])
+}
+
+model VinculoExtrato {
+  lancamentoId String @id
+  lancamento LancamentoFinanceiro @relation(fields: [lancamentoId], references: [id], onDelete: Restrict)
+  transacaoId String
+  transacao TransacaoExtrato @relation(fields: [transacaoId], references: [id], onDelete: Restrict)
+  @@index([transacaoId])
+}
+
+model HistoricoConciliacao {
+  id String @id @default(cuid())
+  transacaoId String
+  transacao TransacaoExtrato @relation(fields: [transacaoId], references: [id], onDelete: Restrict)
+  acao String
+  autorId String
+  autorNome String
+  motivo String?
+  detalhes Json
+  createdAt DateTime @default(now())
+  @@index([transacaoId, createdAt])
+}
+
+// ============================================================
+// 4. SEFAZ — Distribuição de NF-e (DistribuicaoDFe)
+// ============================================================
+
+// Estado da consulta incremental por CNPJ (cursor de NSU + janela de bloqueio).
+// Um CNPJ = uma linha; ultNSU sempre com 15 dígitos, como a SEFAZ exige.
+model SefazDistribuicaoEstado {
+  id     String @id @default(cuid())
+  cnpj   String @unique
+  ultNSU String @default("000000000000000")
+  // Retomada remota; ultNSU conserva a cobertura local sem lacunas.
+  nsuConsulta String @default("000000000000000")
+  proximaBuscaEm DateTime?
+  ultimaExecucaoEm DateTime?
+  resultadoExecucao String?
+
+  // Preenchido quando a última consulta voltou cStat 137 (sem novidade) ou 656
+  // (uso indevido) — enquanto não passar desse horário, não tenta de novo.
+  bloqueadoAte DateTime?
+  ultimoCStat  String?
+  ultimoMotivo String?
+
+  // Indicador visual; a exclusão mútua usa advisory lock liberado ao cair a conexão.
+  emConsulta Boolean @default(false)
+
+  // Uma tentativa agendada por dia em Brasília; não altera o cursor da distribuição.
+  ultimaBuscaAutomaticaEm DateTime?
+  resultadoBuscaAutomatica String? @db.Text
+
+  // Resposta auditável. Um ultNSU explícito no 656 pode atualizar nsuConsulta
+  // junto com lacunas duráveis; ultNSU só cobre documentos efetivamente recebidos.
+  ultimaRespostaXml String? @db.Text
+  ultNSUResposta    String?
+  maxNSUResposta    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Auditoria permanente de toda vez que o cursor (ultNSU) de um CNPJ foi avançado
+// manualmente fora do fluxo normal de sincronização (ex: recuperação pós-656 usando
+// o ultNSUResposta que a própria SEFAZ informou). Cada linha aqui representa uma
+// decisão humana explícita, nunca uma ação automática do sistema.
+model SefazDistribuicaoCursorHistorico {
+  id           String   @id @default(cuid())
+  cnpj         String
+  ultNSUAntes  String
+  ultNSUDepois String
+  motivo       String
+  criadoEm     DateTime @default(now())
+
+  @@index([cnpj])
+}
+
+// Uma linha por documento distribuído, dedupado pela chave de acesso (44 dígitos).
+model NotaFiscalRecebida {
+  id          String             @id @default(cuid())
+  chaveAcesso String             @unique
+  nsu         String
+  tipo        TipoDocumentoSefaz
+
+  // XML completo (só quando tipo = PROC_NFE; resumo ainda não tem o XML inteiro)
+  xml String? @db.Text
+  xmlProximaTentativaEm DateTime?
+  xmlTentativas Int @default(0)
+  xmlUltimoMotivo String?
+  cienciaJaExistenteEm DateTime?
+
+  fornecedorCnpj String?
+  fornecedorNome String?
+  valorTotal     Decimal?  @db.Decimal(14, 2)
+  dataEmissao    DateTime?
+
+  // Cache de leitura — a fonte de verdade é o histórico em ManifestacaoNFe.
+  ultimaManifestacao TipoManifestacao?
+  manifestacoes      ManifestacaoNFe[]
+
+  itens       NotaFiscalItem[]
+  duplicatas  NotaFiscalDuplicata[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tipo])
+  @@index([fornecedorCnpj])
+}
+
+// Histórico de manifestações enviadas por nota — uma nota pode ter mais de uma
+// ao longo do tempo (ex.: Ciência primeiro, Confirmação depois). Guarda também
+// as tentativas que falharam, com o cStat/motivo devolvido pela SEFAZ.
+model ManifestacaoNFe {
+  id           String             @id @default(cuid())
+  notaFiscalId String
+  notaFiscal   NotaFiscalRecebida @relation(fields: [notaFiscalId], references: [id])
+
+  tipo          TipoManifestacao
+  justificativa String? // obrigatória (mín. 15 caracteres) só pra OPERACAO_NAO_REALIZADA
+
+  sucesso   Boolean @default(false)
+  protocolo String? // nProt devolvido pela SEFAZ quando aceito
+  cStat     String?
+  xMotivo   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([notaFiscalId])
+}
+
+enum StatusConciliacaoItem {
+  PENDENTE
+  CONCILIADO
+  IGNORADO
+}
+
+// Pra onde o valor de um item conciliado vai: ESTOQUE gera MovimentacaoEstoque (via
+// Insumo); USO_E_CONSUMO não entra em estoque, só vira despesa financeira direta numa
+// CategoriaFinanceira escolhida (ex: gás, material de escritório, manutenção).
+enum DestinoItemNota {
+  ESTOQUE
+  USO_E_CONSUMO
+}
+
+// Um item (produto) dentro de uma NF-e recebida — extraído do XML sob demanda, só
+// quando o usuário abre a tela de conciliação daquela nota (nunca durante a
+// sincronização com a SEFAZ). Conciliar um item gera MovimentacaoEstoque +
+// LancamentoFinanceiro (ver confirmarConciliacaoNotaAction).
+model NotaFiscalItem {
+  id String @id @default(cuid())
+
+  notaFiscalId String
+  notaFiscal   NotaFiscalRecebida @relation(fields: [notaFiscalId], references: [id], onDelete: Cascade)
+
+  // Dados brutos do <det>/<prod> do XML — nunca editados, só exibidos.
+  numeroItem              Int
+  codigoProdutoFornecedor String
+  descricaoProduto        String
+  codigoEan               String?
+  ncm                     String?
+  cfop                    String?
+  unidadeComercial        String // texto livre do fornecedor (uCom) — só informativo, sem conversão automática
+  quantidadeComercial     Decimal  @db.Decimal(14, 4)
+  valorUnitarioComercial  Decimal? @db.Decimal(14, 4)
+  valorTotalItem          Decimal  @db.Decimal(14, 2)
+
+  status StatusConciliacaoItem @default(PENDENTE)
+  destino DestinoItemNota      @default(ESTOQUE)
+
+  insumoId String?
+  insumo   Insumo? @relation(fields: [insumoId], references: [id])
+
+  // Só relevante quando destino = USO_E_CONSUMO — a despesa vai direto pra essa
+  // categoria, sem passar por Insumo/MovimentacaoEstoque.
+  categoriaFinanceiraId String?
+  categoriaFinanceira   CategoriaFinanceira? @relation(fields: [categoriaFinanceiraId], references: [id])
+
+  // Preenchidos só na confirmação — o que de fato foi lançado (pode divergir do XML:
+  // conversão manual de unidade, ajuste de valor por rateio).
+  quantidadeConciliada Decimal? @db.Decimal(12, 3)
+  valorTotalConciliado Decimal? @db.Decimal(14, 2)
+  composicaoCusto Json?
+
+  movimentacaoEstoqueId String?              @unique
+  movimentacaoEstoque   MovimentacaoEstoque? @relation(fields: [movimentacaoEstoqueId], references: [id])
+
+  // 1 linha por LancamentoFinanceiro gerado a partir deste item — pode ser mais de 1
+  // quando a nota tem mais de uma duplicata (parcela), já que o valor do item é
+  // rateado proporcionalmente entre elas.
+  lancamentos NotaFiscalItemLancamento[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([notaFiscalId, numeroItem])
+  @@index([notaFiscalId])
+  @@index([insumoId])
+  @@index([status])
+  @@index([categoriaFinanceiraId])
+}
+
+// Parcelas de pagamento da nota (<cobr>/<dup> do XML, ou 1 parcela sintética se a nota
+// não tiver <cobr>) — extraídas junto com os itens, mas editáveis pelo usuário antes de
+// confirmar a conciliação (por isso viram tabela própria já na primeira leitura, ao
+// contrário dos itens, que são só-leitura do XML).
+model NotaFiscalDuplicata {
+  formaPagamento String @default("BOLETO")
+  cartaoCreditoId String?
+  cartaoCredito CartaoCredito? @relation(fields: [cartaoCreditoId], references: [id], onDelete: Restrict)
+  dataCompra DateTime? @db.Date
+  parcelaCartao Int @default(1)
+  id String @id @default(cuid())
+
+  notaFiscalId String
+  notaFiscal   NotaFiscalRecebida @relation(fields: [notaFiscalId], references: [id], onDelete: Cascade)
+
+  numero         String
+  dataVencimento DateTime
+  valor          Decimal  @db.Decimal(14, 2)
+
+  lancamentos NotaFiscalItemLancamento[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([notaFiscalId])
+}
+
+// 1 linha por LancamentoFinanceiro gerado a partir de um item de nota — como cada item
+// agora pode virar N lançamentos (1 por duplicata), este é o elo que
+// LancamentoFinanceiro.origemMovimentacaoEstoqueId (1:1, inalterado) não consegue mais
+// expressar sozinho quando há mais de 1 duplicata.
+model NotaFiscalItemLancamento {
+  id String @id @default(cuid())
+
+  notaFiscalItemId String
+  notaFiscalItem   NotaFiscalItem @relation(fields: [notaFiscalItemId], references: [id], onDelete: Cascade)
+
+  notaFiscalDuplicataId String
+  notaFiscalDuplicata   NotaFiscalDuplicata @relation(fields: [notaFiscalDuplicataId], references: [id], onDelete: Restrict)
+
+  lancamentoFinanceiroId String               @unique
+  lancamentoFinanceiro   LancamentoFinanceiro @relation(fields: [lancamentoFinanceiroId], references: [id], onDelete: Cascade)
+
+  valor Decimal @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+
+  @@index([notaFiscalItemId])
+  @@index([notaFiscalDuplicataId])
+}
+
+// Memória permanente fornecedor+código do produto → Insumo, pra pré-conciliar
+// automaticamente as próximas notas do mesmo fornecedor. Usa o CNPJ como texto (não
+// FK pra Fornecedor) porque a nota pode chegar de um emitente ainda não cadastrado —
+// é justamente aí que memorizar o vínculo é mais valioso.
+model InsumoCodigoFornecedor {
+  fatorConversao Decimal? @db.Decimal(15, 6)
+  unidadeComercial String?
+  unidadeEstoque UnidadeMedida?
+  id String @id @default(cuid())
+
+  fornecedorCnpj String
+  codigoProduto  String
+
+  insumoId String
+  insumo   Insumo @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([fornecedorCnpj, codigoProduto])
+  @@index([insumoId])
+}
+
+model SefazLoteRecebido {
+  id String @id
+  cnpj String
+  tipoConsulta String
+  referencia String
+  resposta Json
+  recebidoEm DateTime @default(now())
+  processadoEm DateTime?
+  erro String?
+  @@index([cnpj, processadoEm])
+}
+model SefazDocumentoRecebido {
+  id String @id @default(cuid())
+  cnpj String
+  nsu String
+  schema String
+  xml String @db.Text
+  recebidoEm DateTime @default(now())
+  @@unique([cnpj, nsu])
+}
+model SefazLacuna {
+  id String @id @default(cuid())
+  cnpj String
+  inicio String
+  fim String
+  proximo String
+  tentativas Int @default(0)
+  ultimoMotivo String?
+  proximaTentativaEm DateTime @default(now())
+  criadoEm DateTime @default(now())
+  concluidaEm DateTime?
+  @@unique([cnpj, inicio, fim])
+  @@index([cnpj, concluidaEm, proximaTentativaEm])
+}
+model SefazConsultaPontual {
+  id String @id @default(cuid())
+  cnpj String
+  criadaEm DateTime @default(now())
+  @@index([cnpj, criadaEm])
+}
+
+model PerfilAcesso {
+  id String @id @default(cuid())
+  nome String @unique
+  descricao String?
+  sistema String? @unique
+  permissoes Json @default("{}")
+  usuarios Usuario[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model HistoricoAcesso {
+  id String @id @default(cuid())
+  autorId String
+  entidade String
+  entidadeId String
+  acao String
+  antes Json?
+  depois Json?
+  createdAt DateTime @default(now())
+  @@index([entidade, entidadeId, createdAt])
+}
+
+// Índice de consulta por autor: referências conservam os payloads nas auditorias de origem.
+// Sem FK de autoria/entidade para preservar a identidade após exclusão lógica ou manutenção.
+model AtividadeUsuario {
+  id String @id @default(dbgenerated("(gen_random_uuid())::text"))
+  sequencia BigInt @unique @default(autoincrement())
+  ocorridoEm DateTime @default(now()) @db.Timestamptz(3)
+  autorId String?
+  autorNome String? @db.VarChar(120)
+  atorTipo String @db.VarChar(16)
+  atorReferencia String? @db.VarChar(120)
+  iniciadorId String?
+  origem String @db.VarChar(20)
+  modulo String @db.VarChar(40)
+  recurso String @db.VarChar(100)
+  acao String @db.VarChar(100)
+  entidade String @db.VarChar(80)
+  entidadeId String? @db.VarChar(160)
+  usuarioAfetadoId String?
+  resumo String @db.VarChar(240)
+  resultado String @db.VarChar(20)
+  categoria String @db.VarChar(20)
+  correlacaoId String? @db.VarChar(160)
+  deduplicacao String? @unique @db.VarChar(200)
+  fonteTabela String? @db.VarChar(80)
+  fonteId String? @db.VarChar(160)
+  antes Json?
+  depois Json?
+  lojaId String?
+
+  @@unique([fonteTabela, fonteId])
+  @@index([autorId, ocorridoEm(sort: Desc), id(sort: Desc)])
+  @@index([usuarioAfetadoId, ocorridoEm(sort: Desc), id(sort: Desc)])
+}
+
+// Fotografia permanente do cancelamento integral; origem é NF-e/compra avulsa/movimento legado.
+model CancelamentoCompra {
+  id String @id @default(cuid())
+  chaveOrigem String @unique
+  token String
+  autorId String
+  autorNome String
+  motivo String @db.VarChar(255)
+  resumo Json
+  createdAt DateTime @default(now())
+}
+
+model CartaoCredito {
+  emissor String?
+  bandeira String?
+  final String? @db.VarChar(4)
+  limite Decimal? @db.Decimal(14, 2)
+  observacoes String?
+  responsavelId String?
+  responsavel Usuario? @relation("ResponsavelCartao", fields: [responsavelId], references: [id], onDelete: Restrict)
+  toleranciaDias Int @default(5)
+  faturas FaturaCartao[]
+  parcelamentos ParcelamentoCartao[]
+  regras RegraCartao[]
+  id String @id @default(cuid())
+  nome String @unique
+  contaBancariaId String
+  contaBancaria ContaBancaria @relation(fields: [contaBancariaId], references: [id], onDelete: Restrict)
+  diaFechamento Int
+  diaVencimento Int
+  ativo Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  duplicatas NotaFiscalDuplicata[]
+  lancamentos LancamentoFinanceiro[]
+  @@index([contaBancariaId])
+}
+
+// Evidência importada não é despesa. As despesas continuam no livro financeiro existente.
+model FaturaCartao {
+  transacaoSelecionadaId String?
+  transacaoSelecionada TransacaoExtrato? @relation("SelecaoFatura", fields: [transacaoSelecionadaId], references: [id], onDelete: Restrict)
+  @@index([transacaoSelecionadaId])
+  id String @id @default(cuid())
+  cartaoId String
+  cartao CartaoCredito @relation(fields: [cartaoId], references: [id], onDelete: Restrict)
+  competencia String @db.VarChar(7)
+  inicio DateTime @db.Date
+  fim DateTime @db.Date
+  fechamento DateTime @db.Date
+  vencimento DateTime @db.Date
+  totalInformado Decimal @db.Decimal(14, 2)
+  estado String @default("REVISAO")
+  versao Int @default(1)
+  canceladaEm DateTime?
+  autorId String
+  autorNome String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  arquivos ArquivoFaturaCartao[]
+  itens ItemFaturaCartao[]
+  pagamentos PagamentoFaturaCartao[]
+  historico HistoricoCartao[]
+  @@unique([cartaoId, competencia])
+  @@index([vencimento, estado])
+}
+
+model ArquivoFaturaCartao {
+  id String @id @default(cuid())
+  faturaId String
+  fatura FaturaCartao @relation(fields: [faturaId], references: [id], onDelete: Restrict)
+  nome String
+  hash String
+  formato String
+  dados Bytes
+  autorId String
+  createdAt DateTime @default(now())
+  itens ItemFaturaCartao[]
+  @@unique([faturaId, hash])
+}
+
+model ItemFaturaCartao {
+  id String @id @default(cuid())
+  faturaId String
+  fatura FaturaCartao @relation(fields: [faturaId], references: [id], onDelete: Restrict)
+  arquivoId String
+  arquivo ArquivoFaturaCartao @relation(fields: [arquivoId], references: [id], onDelete: Restrict)
+  linha Int
+  identidade String
+  textoOriginal String @db.Text
+  descricaoOriginal String
+  descricaoNormalizada String
+  descricaoLancamento String?
+  estabelecimentoOriginal String
+  estabelecimentoNormalizado String
+  valorOriginal Decimal @db.Decimal(14, 2)
+  valor Decimal @db.Decimal(14, 2)
+  moeda String @default("BRL")
+  dataCompra DateTime @db.Date
+  dataApresentacao DateTime? @db.Date
+  dataCompetencia DateTime @db.Date
+  tipo String @default("COMPRA")
+  parcela Int @default(1)
+  totalParcelas Int @default(1)
+  parcelamentoId String?
+  parcelamento ParcelamentoCartao? @relation(fields: [parcelamentoId], references: [id], onDelete: Restrict)
+  estornoDeId String?
+  estornoDe ItemFaturaCartao? @relation("EstornoCompra", fields: [estornoDeId], references: [id], onDelete: Restrict)
+  estornos ItemFaturaCartao[] @relation("EstornoCompra")
+  compensadoComId String? @unique
+  compensadoCom ItemFaturaCartao? @relation("CompensacaoItens", fields: [compensadoComId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  compensadoPor ItemFaturaCartao? @relation("CompensacaoItens")
+  fornecedorId String?
+  fornecedor Fornecedor? @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
+  categoriaId String?
+  categoria CategoriaFinanceira? @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  centroCustoId String?
+  centroCusto CentroCusto? @relation(fields: [centroCustoId], references: [id], onDelete: Restrict)
+  responsavelId String?
+  responsavel Usuario? @relation("ResponsavelItemCartao", fields: [responsavelId], references: [id], onDelete: Restrict)
+  portadorOriginal String?
+  documento String?
+  estado String @default("REVISAR")
+  sugestao Json?
+  regraId String?
+  regra RegraCartao? @relation(fields: [regraId], references: [id], onDelete: Restrict)
+  observacoes String?
+  revisado Boolean @default(false)
+  ignoradoEm DateTime?
+  lancamentos LancamentoFinanceiro[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([faturaId, identidade])
+  @@unique([arquivoId, linha])
+  @@index([faturaId, estado, dataCompra])
+  @@index([estabelecimentoNormalizado, dataCompra])
+  @@index([parcelamentoId, parcela])
+  @@index([fornecedorId])
+}
+
+model ParcelamentoCartao {
+  id String @id @default(cuid())
+  cartaoId String
+  cartao CartaoCredito @relation(fields: [cartaoId], references: [id], onDelete: Restrict)
+  chave String
+  descricao String
+  totalParcelas Int
+  valorCompraInformado Decimal? @db.Decimal(14, 2)
+  createdAt DateTime @default(now())
+  itens ItemFaturaCartao[]
+  @@unique([cartaoId, chave])
+}
+
+model RegraCartao {
+  id String @id @default(cuid())
+  nome String
+  texto String
+  modo String @default("EXATO")
+  prioridade Int @default(0)
+  cartaoId String?
+  cartao CartaoCredito? @relation(fields: [cartaoId], references: [id], onDelete: Restrict)
+  tipo String?
+  valorMinimo Decimal? @db.Decimal(14, 2)
+  valorMaximo Decimal? @db.Decimal(14, 2)
+  fornecedorId String?
+  fornecedor Fornecedor? @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
+  categoriaId String
+  categoria CategoriaFinanceira @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  centroCustoId String?
+  centroCusto CentroCusto? @relation(fields: [centroCustoId], references: [id], onDelete: Restrict)
+  ativa Boolean @default(true)
+  versao Int @default(1)
+  origem String @default("EXPLICITA")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  itens ItemFaturaCartao[]
+  @@index([ativa, cartaoId, prioridade])
+}
+
+// Um pagamento gera um único movimento bancário, sem lançamento de despesa adicional.
+model PagamentoFaturaCartao {
+  id String @id @default(cuid())
+  faturaId String
+  fatura FaturaCartao @relation(fields: [faturaId], references: [id], onDelete: Restrict)
+  transacaoId String? @unique
+  transacao TransacaoExtrato? @relation(fields: [transacaoId], references: [id], onDelete: Restrict)
+  movimentoId String? @unique
+  movimento MovimentacaoBancaria? @relation(fields: [movimentoId], references: [id], onDelete: Restrict)
+  valor Decimal @db.Decimal(14, 2)
+  data DateTime @db.Date
+  contaIdOriginal String
+  transacaoIdOriginal String
+  autorId String
+  autorNome String
+  revertidoEm DateTime?
+  createdAt DateTime @default(now())
+  liquidacoes LiquidacaoCartao[]
+  @@index([faturaId, revertidoEm, data])
+}
+
+// Rateio assinado em centavos: estorno abate a mesma natureza de despesa, não receita.
+model LiquidacaoCartao {
+  id String @id @default(cuid())
+  pagamentoId String
+  pagamento PagamentoFaturaCartao @relation(fields: [pagamentoId], references: [id], onDelete: Restrict)
+  lancamentoId String
+  lancamento LancamentoFinanceiro @relation(fields: [lancamentoId], references: [id], onDelete: Restrict)
+  valor Decimal @db.Decimal(14, 2)
+  @@unique([pagamentoId, lancamentoId])
+  @@index([lancamentoId])
+}
+
+model HistoricoCartao {
+  id String @id @default(cuid())
+  faturaId String?
+  fatura FaturaCartao? @relation(fields: [faturaId], references: [id], onDelete: Restrict)
+  alvoId String
+  acao String
+  autorId String
+  autorNome String
+  motivo String?
+  antes Json?
+  depois Json?
+  origem String @default("HUB")
+  createdAt DateTime @default(now())
+  @@index([faturaId, createdAt])
+  @@index([alvoId, createdAt])
+}
+
+// Alocação física por item/versionamento; movimentos continuam no livro de estoque.
+model ReservaPedido {
+ id String @id @default(cuid())
+ itemId String
+ item ItemPedidoVenda @relation(fields: [itemId], references: [id], onDelete: Restrict)
+ localId String
+ local LocalEstoque @relation(fields: [localId], references: [id], onDelete: Restrict)
+ insumoId String
+ insumo Insumo @relation(fields: [insumoId], references: [id], onDelete: Restrict)
+ loteExecucao String
+ quantidadeItem Decimal @db.Decimal(20,6)
+ quantidade Decimal @db.Decimal
+ reservada Decimal @db.Decimal
+ consumida Decimal @default(0) @db.Decimal
+ liberada Decimal @default(0) @db.Decimal
+ retornada Decimal @default(0) @db.Decimal
+ perdida Decimal @default(0) @db.Decimal
+ snapshot Json
+ createdAt DateTime @default(now())
+ @@unique([loteExecucao, insumoId])
+ @@index([insumoId, localId])
+ @@index([itemId])
+}
+
+// Integração da conta local: não presume modelo multiempresa no HUB.
+model IntegracaoIfood {
+  id String @id @default(cuid())
+  contaId String @default("singleton")
+  ambiente String @unique
+  modalidade String
+  clientId String
+  ativo Boolean @default(false)
+  tokenCifrado String?
+  refreshCifrado String?
+  tokenExpiraEm DateTime?
+  autorizacaoUsuarioId String?
+  autorizacaoSessaoVersao Int?
+  autorizacaoId String?
+  verificadorCifrado String?
+  autorizacaoExpiraEm DateTime?
+  ultimoErro String?
+  criadoPorId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lojas LojaIfood[]
+}
+model LojaIfood {
+  modoOperacao String @default("OPERACAO")
+  pilotoAte DateTime?
+  principalClientId String?
+  pilotoEnquadramentoReferencia String?
+  pilotoPresencaReferencia String?
+  financeiroConfig Json?
+  versaoFinanceiroConfig Int @default(1)
+  id String @id @default(cuid())
+  integracaoId String
+  integracao IntegracaoIfood @relation(fields: [integracaoId], references: [id], onDelete: Restrict)
+  ambiente String
+  merchantId String
+  nome String
+  canalId String
+  autorizada Boolean @default(false)
+  ativa Boolean @default(false)
+  ultimaAutorizacao DateTime?
+  ultimoPolling DateTime?
+  ultimoRecebimento DateTime?
+  proximoPolling DateTime @default(now())
+  leaseToken String?
+  leaseAte DateTime?
+  ultimoErro String?
+  eventos EventoIfood[]
+  pedidos PedidoIfood[]
+  acoesMerchant AcaoMerchantIfood[]
+  @@unique([ambiente, merchantId])
+  @@index([ativa, proximoPolling])
+}
+// Cada evento é também sua tarefa durável. ACK não depende de concluir o processamento.
+model EventoIfood {
+  id String @id @default(cuid())
+  lojaId String
+  loja LojaIfood @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  externoId String
+  pedidoExternoId String?
+  codigo String
+  codigoCompleto String
+  ocorridoEm DateTime
+  recebidoEm DateTime @default(now())
+  metadataCifrada String
+  ackEm DateTime?
+  estado String @default("PENDENTE")
+  tentativas Int @default(0)
+  proximaTentativa DateTime @default(now())
+  erro String?
+  @@unique([lojaId, externoId])
+  @@index([estado, proximaTentativa])
+}
+model PedidoIfood {
+  acompanhamento Boolean @default(false)
+  id String @id @default(cuid())
+  lojaId String
+  loja LojaIfood @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  externoId String
+  pedidoId String @unique
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  estadoRemoto String @default("DESCONHECIDO")
+  ultimoEventoEm DateTime?
+  modalidade String
+  entregaPor String?
+  inicioPreparo DateTime?
+  snapshotCifrado String
+  pendencia String?
+  financeiroPendente Boolean @default(true)
+  disputaCifrada String?
+  revisaoPendente Boolean @default(false)
+  disputaId String?
+  disputaAte DateTime?
+  acoes AcaoIfood[]
+  @@unique([lojaId, externoId])
+}
+model AcaoIfood {
+  origemMcpOperacaoId String?
+  id String @id @default(cuid())
+  pedidoIfoodId String
+  pedidoIfood PedidoIfood @relation(fields: [pedidoIfoodId], references: [id], onDelete: Restrict)
+  acao String
+  revisao Int
+  chave String @unique
+  hash String
+  corpoCifrado String?
+  autorId String
+  sessaoVersao Int
+  estado String @default("PENDENTE")
+  tentativas Int @default(0)
+  proximaTentativa DateTime @default(now())
+  enviadaEm DateTime?
+  erro String?
+  createdAt DateTime @default(now())
+  @@unique([pedidoIfoodId, acao, revisao])
+  @@index([estado, proximaTentativa])
+}
+// Comandos Merchant não pertencem a um pedido. Reutilizam workers e auditoria,
+// com envio durável e leitura oficial posterior para conferir o resultado.
+model AcaoMerchantIfood {
+  id String @id @default(cuid())
+  lojaId String
+  loja LojaIfood @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  chave String @unique
+  hash String
+  acao String
+  corpo Json
+  antes Json
+  resultado Json?
+  autorId String
+  sessaoVersao Int
+  estado String @default("PENDENTE")
+  tentativas Int @default(0)
+  proximaTentativa DateTime @default(now())
+  enviadaEm DateTime?
+  erro String?
+  createdAt DateTime @default(now())
+  @@index([estado, proximaTentativa])
+  @@index([lojaId, createdAt])
+}
+
+// Identidade permanente do legado. Usa a sequência dos registros de entrada.
+model NumeroEntradaAvulsaLegada {
+  origem String @id
+  numero Int @unique @default(dbgenerated("nextval('\"EntradaAvulsaRegistro_numero_seq\"'::regclass)"))
+}

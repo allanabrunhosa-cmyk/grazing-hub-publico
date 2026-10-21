@@ -1,0 +1,23 @@
+[Unit]
+Description=Grazing Etiquetas - conector USB
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=grazing-print
+Group=grazing-print
+SupplementaryGroups=lp
+ExecStart=/usr/bin/python3 /opt/grazing-etiquetas/grazing_connector.py
+Restart=always
+RestartSec=15
+StateDirectory=grazing-etiquetas
+StateDirectoryMode=0700
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=false
+ReadWritePaths=/var/lib/grazing-etiquetas /etc/NetworkManager/system-connections /run
+
+[Install]
+WantedBy=multi-user.target

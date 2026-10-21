@@ -1,0 +1,48 @@
+"use client";
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { AcompanhamentoConfigIfood } from "./acompanhamento-config";
+import { FinanceiroConfigIfood } from "./financeiro-config";
+import { OperacaoMerchantIfood } from "./merchant-ifood";
+import { DetalhesMerchantIfood } from "./merchant-detalhes-ifood";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GrupoAcoes } from "@/components/padroes-operacionais";
+import type { consultarIntegracoes, consultarEstadoLoja } from "@/lib/ifood/configuracao";
+import { estadoLojaIfoodAction, renovarAutorizacaoIfoodAction, retomarEventosIfoodAction, configurarIfoodAction, iniciarVinculoIfoodAction, concluirVinculoIfoodAction, listarLojasIfoodAction, vincularLojaIfoodAction, ativarLojaIfoodAction } from "./actions";
+
+type Dados = Awaited<ReturnType<typeof consultarIntegracoes>>;
+function Campo({ nome, valor, mudar, opcoes }: { nome: string; valor: string; mudar: (v: string) => void; opcoes: { id: string; nome: string }[] }) {
+  return <Label className="grid gap-2">{nome}<Select value={valor} onValueChange={v => mudar(v ?? "")} items={Object.fromEntries(opcoes.map(o => [o.id,o.nome]))}><SelectTrigger aria-label={nome}><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{opcoes.map(o => <SelectItem key={o.id} value={o.id}>{o.nome}</SelectItem>)}</SelectContent></Select></Label>;
+}
+export function ConfiguracaoIfood({ dados, canais, formas = [] }: { formas?: {id:string;nome:string}[]; dados: Dados; canais: { id: string; nome: string }[] }) {
+  const router = useRouter(), trava = useRef(false), [ocupado, start] = useTransition();
+  const [ambiente, setAmbiente] = useState("TESTE"), [modalidade, setModalidade] = useState(""), [mensagem, setMensagem] = useState("");
+  const [lojas, setLojas] = useState<Record<string,{ id: string; nome: string }[]>>({});
+  const [estados, setEstados] = useState<Record<string, Awaited<ReturnType<typeof consultarEstadoLoja>>>>({});
+  const [merchant, setMerchant] = useState(""), [canal, setCanal] = useState("");
+  const [vinculo, setVinculo] = useState<{ integracao: string; id: string; userCode: string; verificationUrl: string; expiraEm: string } | null>(null), [codigo, setCodigo] = useState("");
+  function executar(fn: () => Promise<{ erro?: string; ok?: boolean }>, sucesso: string) {
+    if (trava.current) return; trava.current = true;
+    start(async () => { try { const r = await fn(); setMensagem(r.erro ?? sucesso); if (!r.erro) router.refresh(); } catch { setMensagem("Falha de conexão. Atualize para conferir o resultado."); } finally { trava.current = false; } });
+  }
+  return <div className="grid min-w-0 gap-4 break-words"><p>Use uma loja de teste criada no Portal iFood. Cadastre as credenciais somente no servidor. Autoaceite e movimentação de estoque permanecem desligados.</p>
+    <Card><CardHeader><CardTitle>Aplicativo autorizado</CardTitle></CardHeader><CardContent><fieldset disabled={ocupado} className="grid min-w-0 gap-4 sm:grid-cols-2">
+      <Campo nome="Ambiente" valor={ambiente} mudar={setAmbiente} opcoes={[{id:"TESTE",nome:"Teste"},{id:"PRODUCAO",nome:"Produção — exige liberação no servidor"}]} />
+      <Campo nome="Modalidade cadastrada no Portal iFood" valor={modalidade} mudar={setModalidade} opcoes={[{id:"CENTRALIZADO",nome:"Centralizado"},{id:"DISTRIBUIDO",nome:"Distribuído"}]} />
+      <Button disabled={!modalidade} onClick={() => executar(() => configurarIfoodAction(ambiente,modalidade), "Configuração salva; confira a autorização efetiva.")}>Salvar configuração</Button>
+    </fieldset></CardContent></Card>
+    {dados.length === 0 && <p role="status">Nenhum aplicativo configurado. Crie o aplicativo Food/PDV e a loja de teste no Portal iFood para iniciar o vínculo.</p>}
+    {dados.map(i => <Card key={i.id}><CardHeader><CardTitle>{i.ambiente} · {i.modalidade}</CardTitle></CardHeader><CardContent className="grid gap-4">
+      <p>Autenticação: {i.autenticada ? "válida" : "pendente"} · Execução: {i.transporteLiberado ? "liberada no servidor" : "desligada no servidor"}</p>{i.ultimoErro && <p role="alert">{i.ultimoErro}</p>}
+      <GrupoAcoes className="min-w-0 flex-wrap" alinhamento="inicio" nome="Vínculo iFood">{i.modalidade === "DISTRIBUIDO" && <Button variant="outline" disabled={ocupado} onClick={() => executar(async () => { const r = await iniciarVinculoIfoodAction(i.id); if ("userCode" in r) setVinculo({ ...r, integracao:i.id }); return r; }, "Código de vínculo gerado.")}>Gerar código de vínculo</Button>}<Button variant="outline" disabled={ocupado} onClick={() => executar(async () => { const r=await listarLojasIfoodAction(i.id); if ("lojas" in r) setLojas(v=>({...v,[i.id]:r.lojas})); return r; }, "Autorização consultada. Se a permissão mudou, gere novo token após a propagação no portal.")}>Consultar lojas autorizadas</Button><Button variant="outline" disabled={ocupado} onClick={()=>executar(()=>renovarAutorizacaoIfoodAction(i.id),"Token renovado e autorização efetiva conferida. Mudanças podem levar até dez minutos no iFood.")}>Atualizar permissões</Button></GrupoAcoes>
+      {vinculo?.integracao === i.id && <fieldset disabled={ocupado} className="grid min-w-0 gap-3"><p>Digite <strong>{vinculo.userCode}</strong> no <a href={vinculo.verificationUrl} target="_blank" rel="noreferrer">Portal do Parceiro</a>. Depois informe o código de autorização retornado. Válido até {new Date(vinculo.expiraEm).toLocaleString("pt-BR")}.</p><Label className="grid min-w-0 gap-2">Código de autorização<Input autoComplete="off" maxLength={512} value={codigo} onChange={e=>setCodigo(e.target.value.replace(/[^a-zA-Z0-9_-]/g,"").slice(0,512))} /></Label><Button onClick={()=>executar(async()=>{const r=await concluirVinculoIfoodAction(i.id,vinculo.id,codigo);if(!("erro" in r)){setCodigo("");setVinculo(null);}return r;},"Autorização concluída. Consulte as lojas disponíveis.")}>Concluir autorização</Button></fieldset>}
+      {lojas[i.id] && <fieldset disabled={ocupado} className="grid min-w-0 gap-3 sm:grid-cols-2"><Campo nome="Loja autorizada" valor={merchant} mudar={setMerchant} opcoes={lojas[i.id]} /><Campo nome="Canal do gestor" valor={canal} mudar={setCanal} opcoes={canais}/><Button disabled={!merchant || !canal} onClick={()=>executar(()=>vincularLojaIfoodAction(i.id,merchant,canal),"Loja vinculada; recepção permanece desligada até ativação explícita.")}>Vincular loja</Button></fieldset>}
+      {i.lojas.map(l=><div key={l.id} className="grid gap-2 border-t pt-3"><h3 className="font-medium">{l.nome}</h3>{l.acompanhamento && <p role="status">Acompanhamento — Takeat · janela até {l.pilotoAte ? new Date(l.pilotoAte).toLocaleString("pt-BR") : "não definida"}. Comandos e efeitos operacionais bloqueados.</p>}<p>{l.autorizada?"Loja autorizada":"Autorização pendente"} · {l.ativa?"Recepção habilitada":"Recepção pausada"}</p><DetalhesMerchantIfood lojaId={l.id} permitido={l.autorizada && l.recepcaoLiberada} bloqueado={ocupado} /><p className="text-sm">Última consulta: {l.ultimoPolling?new Date(l.ultimoPolling).toLocaleString("pt-BR"):"não realizada"} · Último evento: {l.ultimoRecebimento?new Date(l.ultimoRecebimento).toLocaleString("pt-BR"):"não recebido"}</p><p className="text-sm">Pendências: {l.pendentes} · Falhas: {l.falhas} · Ações aguardando confirmação: {l.reconciliacoes}</p><Button variant="outline" disabled={ocupado || !l.autorizada || !l.recepcaoLiberada} onClick={()=>executar(async()=>{setEstados(v=>{const copia={...v};delete copia[l.id];return copia;});const r=await estadoLojaIfoodAction(l.id);if("estado" in r)setEstados(v=>({...v,[l.id]:r.estado}));return r;},"Estado operacional consultado no iFood.")}>Consultar estado da loja</Button>{estados[l.id]&&<div role="status"><p>Estado no iFood · consulta em {new Date(estados[l.id].consultadoEm).toLocaleString("pt-BR")}</p>{estados[l.id].operacoes.length===0?<p>Nenhuma operação informada pelo iFood.</p>:estados[l.id].operacoes.map((o,n)=><p key={n}>{o.operacao} · {o.canal}: {o.estado} · {o.disponivel?"Aceita pedidos":"Não aceita pedidos"}{o.validacoes.map(v=><span key={v.id} className="block text-sm">{v.id}: {v.estado}</span>)}</p>)}</div>}{l.maisAntiga&&<p>Pendência mais antiga: {new Date(l.maisAntiga).toLocaleString("pt-BR")}</p>}{l.erro&&<p role="alert">{l.erro}</p>}<Button variant="outline" disabled={ocupado || (!l.ativa && !l.recepcaoLiberada)} onClick={()=>executar(()=>ativarLojaIfoodAction(l.id,!l.ativa),l.ativa?"Recepção pausada.":"Recepção habilitada. Confira o processo em segundo plano e a chegada de pedidos de teste.")}>{l.ativa?"Pausar recepção":"Ativar recepção"}</Button><AcompanhamentoConfigIfood lojaId={l.id} ativa={l.ativa} />{!l.acompanhamento && <FinanceiroConfigIfood key={`${l.id}:${l.versaoFinanceiroConfig}`} lojaId={l.id} versao={l.versaoFinanceiroConfig} inicial={l.financeiroConfig} formas={formas} />}{!l.acompanhamento && <OperacaoMerchantIfood lojaId={l.id} ambiente={i.ambiente} />}{l.falhas>0 && <><p className="text-sm">Após corrigir a causa indicada, retome os eventos preservados. Pedidos existentes serão reutilizados.</p><Button variant="outline" disabled={ocupado||!l.autorizada||!l.ativa} onClick={()=>executar(()=>retomarEventosIfoodAction(l.id),"Eventos com falha recolocados na fila.")}>Retomar eventos com falha</Button></>}</div>)}
+    </CardContent></Card>)}
+    {mensagem&&<p role="status" aria-live="polite">{mensagem}</p>}
+  </div>;
+}

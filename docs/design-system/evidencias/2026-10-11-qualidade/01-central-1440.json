@@ -1,0 +1,11 @@
+{
+  "problemas": [],
+  "verificacoes": {
+    "alvosCompactos": 0,
+    "botoesVisiveis": 59,
+    "camposVisiveis": 1,
+    "gruposAcoes": 0,
+    "overflowDocumento": true,
+    "ponteiroGrosso": false
+  }
+}

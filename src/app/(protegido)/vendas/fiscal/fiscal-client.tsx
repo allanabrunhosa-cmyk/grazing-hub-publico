@@ -1,0 +1,18 @@
+"use client";
+import { useState } from "react";
+import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { CamposFiscais } from "./fiscal-produto-editor";
+import { salvarFiscalVendaAction } from "../actions";
+import { Check, Vazio, CabecalhoVendas, EditorVenda } from "../componentes";
+type ProdutoFiscal = { id: string; nome: string; versao: number; fiscal: Record<string, string>; fiscalRevisado: boolean; ativo: boolean };
+export function FiscalProdutos({ produtos, editar }: { produtos: ProdutoFiscal[]; editar: boolean }) {
+  const [busca, setBusca] = useState(""); const [pendentes, setPendentes] = useState(true); const [atual, setAtual] = useState<ProdutoFiscal | null>(null);
+  const lista = produtos.filter(p => (!pendentes || !p.fiscalRevisado) && p.nome.toLowerCase().includes(busca.toLowerCase()));
+  return <div className="space-y-5"><CabecalhoVendas titulo="Fiscal dos produtos" descricao="Cadastro revisável. Esta seção não emite notas nem calcula a tributação de uma operação." /><div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">Não copie classificações de produtos parecidos. Mantenha como pendente até confirmar características e evidências técnicas. “Revisado” registra uma conferência interna, não homologação fiscal automática.</div><div className="flex flex-wrap items-center gap-4"><div className="flex items-center gap-2"><Search className="size-4 text-muted-foreground" /><Input aria-label="Buscar produto fiscal" placeholder="Buscar produto" value={busca} onChange={e => setBusca(e.target.value)} /></div><Check checked={pendentes} onChange={e => setPendentes(e.target.checked)}>Somente pendentes ({produtos.filter(p => !p.fiscalRevisado).length})</Check></div>{!lista.length ? <Vazio>Nenhum produto neste filtro.</Vazio> : <div className="divide-y rounded-2xl border bg-card">{lista.map(p => <div key={p.id} className="flex items-center gap-3 p-4"><div className="flex-1"><h2 className="font-medium">{p.nome}{!p.ativo && <span className="text-xs text-muted-foreground"> · Inativo</span>}</h2><p className="mt-1 text-xs text-muted-foreground">NCM {p.fiscal.ncm || "não informado"} · CFOP {p.fiscal.cfop || "não informado"}</p></div><span className={`rounded-full px-2 py-1 text-xs ${p.fiscalRevisado ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>{p.fiscalRevisado ? "Revisado" : "Pendente"}</span>{editar && <Button aria-label={`Editar fiscal de ${p.nome}`} onClick={() => setAtual(structuredClone(p))} variant="editar" size="icon-sm" />}</div>)}</div>}{atual && <EditorFiscal inicial={atual} fechar={() => setAtual(null)} />}</div>;
+}
+function EditorFiscal({ inicial, fechar }: { inicial: ProdutoFiscal; fechar: () => void }) {
+  const [fiscal, setFiscal] = useState(inicial.fiscal); const [revisado, setRevisado] = useState(inicial.fiscalRevisado);
+  return <EditorVenda titulo={`Fiscal · ${inicial.nome}`} descricao="Campos vazios permanecem pendentes. Nenhuma classificação será inferida pelo sistema." fechar={fechar} salvar={() => salvarFiscalVendaAction(inicial.id, inicial.versao, fiscal, revisado)}><CamposFiscais fiscal={fiscal} revisado={revisado} mudar={v => { setFiscal(v); setRevisado(false); }} /><Check checked={revisado} onChange={e => setRevisado(e.target.checked)}>Dados conferidos para o cadastro deste produto</Check><p className="text-xs text-muted-foreground">A conferência exige NCM, origem, CFOP, CSOSN ou CST ICMS, PIS e COFINS. Outras exigências dependem da operação e do emissor. Salve sem marcar para manter como pendente.</p></EditorVenda>;
+}

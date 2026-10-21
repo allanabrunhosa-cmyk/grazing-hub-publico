@@ -1,0 +1,84 @@
+/* Composição de Pedidos: primitives, tipografia e tokens da Central. */
+.gestor-pedidos { container-type: inline-size; container-name: gestor; }
+.gestor-cabecalho { position: relative; min-width: 0; padding-block: .25rem 0; }
+.gestor-barra { min-height: 3.5rem; align-items: center; }
+.gestor-barra > [role="group"] { align-items: center; gap: .5rem; max-width: calc(100% - 20rem); flex-wrap: nowrap; }
+.gestor-barra h1 { font-size: 2rem; line-height: 1.2; }
+.gestor-consulta-principal { display: flex; align-items: center; gap: .5rem; min-width: 0; flex: 0 1 28rem; }
+.gestor-visualizacao { min-height: var(--ds-controle-altura); min-width: 8rem; flex-shrink: 0; }
+.gestor-barra .gestor-busca { flex: 1 1 14rem; min-width: 10rem; max-width: 18rem; }
+.gestor-consulta { flex-shrink: 0; gap: .125rem; align-items: center; }
+.gestor-quadros-rolagem { overflow-x: auto; padding-bottom: .25rem; }
+.gestor-quadros { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .75rem; min-width: 66rem; height: max(30rem, calc(100dvh - 16.75rem)); }
+.gestor-status, .gestor-coluna { --processo-cor: var(--muted-foreground); --processo-fundo: var(--muted); }
+.gestor-status[data-status="RASCUNHO"] { --processo-cor: var(--warning); --processo-fundo: var(--warning-bg); }
+.gestor-status[data-etapa="novo"], .gestor-coluna[data-etapa="novo"] { --processo-cor: var(--ds-processo-rota); --processo-fundo: var(--ds-processo-rota-fundo); }
+.gestor-status[data-etapa="preparo"], .gestor-coluna[data-etapa="preparo"] { --processo-cor: var(--warning); --processo-fundo: var(--warning-bg); }
+.gestor-status[data-etapa="pronto"], .gestor-coluna[data-etapa="pronto"] { --processo-cor: var(--success); --processo-fundo: var(--success-bg); }
+.gestor-status[data-etapa="rota"], .gestor-coluna[data-etapa="rota"] { --processo-cor: var(--ds-processo-rota); --processo-fundo: var(--ds-processo-rota-fundo); }
+.gestor-status[data-etapa="entregues"], .gestor-coluna[data-etapa="entregues"] { --processo-cor: var(--ds-processo-entregue); --processo-fundo: var(--ds-processo-entregue-fundo); }
+.gestor-coluna { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--border); border-radius: var(--ds-cartao-raio); background: color-mix(in srgb, var(--processo-fundo) 30%, var(--card)); overflow: hidden; }
+.gestor-coluna-cabecalho { display: flex; align-items: center; gap: .5rem; height: 4.5rem; min-height: 4.5rem; flex-shrink: 0; padding: .75rem .625rem; background: color-mix(in srgb, var(--processo-fundo) 55%, var(--card)); }
+.gestor-coluna-cabecalho > svg { width: 1.5rem; height: 1.5rem; flex-shrink: 0; color: var(--processo-cor); }
+.gestor-coluna-cabecalho > div { flex: 1; min-width: 0; }
+.gestor-coluna-cabecalho h2 { font-size: .875rem; line-height: 1.2; font-weight: 600; }
+.gestor-coluna-cabecalho p { margin-top: .25rem; font-size: .6875rem; line-height: 1.3; color: var(--muted-foreground); }
+.gestor-coluna-cabecalho > [data-slot="badge"] { border: 0; background: var(--processo-fundo); color: var(--processo-cor); min-width: 1.5rem; min-height: 1.5rem; justify-content: center; }
+.gestor-coluna-pedidos { min-height: 0; overflow-y: auto; padding: 0 .25rem .5rem; display: flex; flex-direction: column; gap: .5rem; scrollbar-width: thin; }
+.gestor-coluna-vazia { display: grid; align-content: center; flex: 1; padding: 2rem 1rem; text-align: center; color: var(--muted-foreground); }
+.gestor-cartao { position: relative; gap: 0; padding-block: 0; overflow: visible; background: var(--card); box-shadow: none; }
+.gestor-cartao-conteudo { display: grid; gap: .5rem; padding: .75rem; border-radius: var(--ds-cartao-raio); text-decoration: none; }
+.gestor-cartao-conteudo:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.gestor-cartao-topo { display: flex; align-items: center; min-height: var(--ds-controle-altura-compacta); padding-inline-end: 6.625rem; }
+.gestor-numero { font-size: 1rem; font-weight: 650; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.gestor-cartao-cliente { display: grid; gap: .125rem; min-width: 0; }
+.gestor-destinatario { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted-foreground); font-size: .6875rem; line-height: 1.3; }
+.gestor-cartao-agenda { display: flex; align-items: flex-start; gap: .375rem; color: var(--muted-foreground); font-size: .6875rem; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.gestor-cartao-agenda svg { width: .875rem; height: .875rem; flex-shrink: 0; }
+.gestor-cartao-agenda > span { min-width: 0; overflow-wrap: anywhere; }
+.gestor-cliente { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; font-weight: 500; line-height: 1.25; }
+.gestor-cartao-tipo { display: flex; align-items: center; justify-content: space-between; gap: .375rem; font-size: .75rem; color: var(--muted-foreground); }
+.gestor-cartao-tipo > :first-child { display: flex; gap: .375rem; align-items: center; }
+.gestor-cartao-tipo svg { width: 1rem; height: 1rem; }
+.gestor-cartao-produtos { display: flex; align-items: center; justify-content: space-between; gap: .25rem; min-width: 0; }
+.gestor-cartao-valor { font-size: .8125rem; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gestor-cartao-menu { position: absolute; top: .375rem; right: .375rem; }
+.gestor-cartao-acoes { flex-wrap: nowrap; gap: .25rem; }
+.gestor-pedidos .gestor-cartao[data-selecionado] { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.gestor-miniaturas { display: flex; align-items: center; flex-wrap: wrap; gap: .375rem; min-width: 0; padding: .125rem 0; }
+.gestor-miniatura { position: relative; width: 2rem; height: 2rem; flex-shrink: 0; border-radius: var(--ds-controle-raio); background: var(--muted); }
+.gestor-miniatura img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.gestor-miniatura > span[role="img"] { display: grid; place-items: center; width: 100%; height: 100%; color: var(--muted-foreground); }
+.gestor-miniatura svg { width: 1rem; height: 1rem; }
+.gestor-miniatura .gestor-miniatura-quantidade { position: absolute; top: -.25rem; right: -.25rem; min-width: 1rem; height: 1rem; padding: 0 .1875rem; border: 1px solid var(--card); background: var(--primary); color: var(--primary-foreground); justify-content: center; font-size: .5625rem; line-height: 1; font-weight: 600; }
+.gestor-miniatura-mais { display: grid; place-items: center; min-width: 1.75rem; height: 2rem; border-radius: var(--ds-controle-raio); color: var(--muted-foreground); background: var(--muted); font-size: .6875rem; }
+.gestor-status-rotulo { color: var(--processo-cor); background: var(--processo-fundo); border-color: transparent; }
+.gestor-filtros-status { padding-block: .5rem .25rem; gap: .5rem; }
+.gestor-filtros-status button { min-height: 2.25rem; padding-inline: .875rem; font-size: .75rem; }
+.gestor-filtros-status button > span:last-child { display: grid; place-items: center; min-width: 1.375rem; padding-inline: .125rem; background: var(--muted); color: var(--foreground); border-radius: var(--ds-botao-raio); font-size: .6875rem; }
+.gestor-filtros-status button:nth-child(2), .gestor-filtros-status button:nth-child(5) { --processo-cor: var(--ds-processo-rota); --processo-fundo: var(--ds-processo-rota-fundo); }
+.gestor-filtros-status button:nth-child(3) { --processo-cor: var(--warning); --processo-fundo: var(--warning-bg); }
+.gestor-filtros-status button:nth-child(4) { --processo-cor: var(--success); --processo-fundo: var(--success-bg); }
+.gestor-filtros-status button:nth-child(6) { --processo-cor: var(--ds-processo-entregue); --processo-fundo: var(--ds-processo-entregue-fundo); }
+.gestor-filtros-status button:nth-child(7) { --processo-cor: var(--destructive); --processo-fundo: color-mix(in srgb, var(--destructive) 10%, var(--card)); }
+.gestor-filtros-status button[aria-pressed="false"] { color: var(--processo-cor); background: color-mix(in srgb, var(--processo-fundo) 45%, var(--card)); }
+.gestor-filtros-status button[aria-pressed="false"] > span:last-child { color: var(--processo-cor); background: var(--processo-fundo); }
+.gestor-evento { border-inline-start: .25rem solid var(--processo-cor); background: var(--processo-fundo); border-radius: var(--ds-controle-raio); padding: .5rem; }
+.gestor-calendario-rolagem { overflow-x: auto; }
+.gestor-calendario { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-width: 64rem; border-block-start: 1px solid var(--border); border-inline-start: 1px solid var(--border); }
+.gestor-dia { min-width: 0; min-height: 10rem; border-inline-end: 1px solid var(--border); border-block-end: 1px solid var(--border); padding: .5rem; background: var(--card); }
+.gestor-dia-pedidos { display: grid; align-content: start; gap: .5rem; max-height: 24rem; overflow-y: auto; scrollbar-width: thin; }
+.gestor-dia-vazio { background: var(--muted); }
+.gestor-lista { min-width: 70rem; }
+.gestor-lista td { vertical-align: middle; padding-block: .875rem; font-size: .8125rem; }
+.gestor-lista .gestor-texto-coluna { min-width: 10rem; max-width: 18rem; white-space: normal; overflow-wrap: anywhere; }
+.gestor-lista tr[data-selecionado] { background: var(--accent); }
+.gestor-lista tr[data-selecionado] > :first-child { box-shadow: inset 2px 0 var(--primary); }
+@media (pointer: coarse) { .gestor-pedidos button[data-acao-gestor], .gestor-cartao-menu button { min-width: 2.75rem; min-height: 2.75rem; } .gestor-cartao-topo { min-height: 2.75rem; padding-inline-end: 9rem; } .gestor-quadros { min-width: 74rem; } }
+@media (max-width: 1279px) { .gestor-barra > [role="group"] { max-width: none; width: 100%; flex-wrap: wrap; } .gestor-barra .gestor-busca { max-width: none; flex-grow: 1; } }
+@container gestor (max-width: 1050px) { .gestor-barra > [role="group"] { max-width: none; width: 100%; flex-wrap: wrap; } .gestor-barra .gestor-busca { max-width: none; flex-grow: 1; } }
+@media (max-width: 640px) { .gestor-consulta-principal { flex-basis: 100%; } .gestor-barra .gestor-busca { min-width: 0; } .gestor-novo { margin-inline-start: auto; } }
+@media (forced-colors: active) { .gestor-status-rotulo, .gestor-coluna-cabecalho { color: CanvasText; } .gestor-pedidos .gestor-cartao[data-selecionado] { border-color: Highlight; outline: 1px solid Highlight; } }
+
+.gestor-lista-identificador, .gestor-itens-lista { display: flex; align-items: center; flex-wrap: wrap; gap: .375rem; }
+.gestor-referencia { display: inline-block; max-width: 6rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

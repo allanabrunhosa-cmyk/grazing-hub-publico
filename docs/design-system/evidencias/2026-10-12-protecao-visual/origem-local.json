@@ -1,0 +1,214 @@
+{
+  "aviso": "Inspeção local Windows com alterações de fixture ainda não commitadas; não são referências aprovadas nem comparáveis ao baseline Linux. O CI registra a revisão imutável de seu checkout.",
+  "imagens": [
+    {
+      "arquivo": "chromium-320-claro-fino-controles.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "claro",
+      "layout": {
+        "largura": 320,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": false,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "2f1df2da91435ebd68d18e3d50ffdda9cd275623d43d0179b59efc736a45e95d"
+    },
+    {
+      "arquivo": "chromium-390-claro-fino-controles.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "claro",
+      "layout": {
+        "largura": 390,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": false,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "5e9bc58865d7372f7c0d36e75ede6259d2d060a5fae2851f375e4e832eff512c"
+    },
+    {
+      "arquivo": "chromium-768-claro-fino-controles.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "claro",
+      "layout": {
+        "largura": 768,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": false,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "4cfc3743a2f97db19fed31704fed0b9439c8b5c216a6c90b6fea938c180e39a1"
+    },
+    {
+      "arquivo": "chromium-1440-claro-fino-controles.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "claro",
+      "layout": {
+        "largura": 1440,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": false,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "c6f714d7a1187eb504306521ce3baf3b57261c6a19b8a15136049a4d99d94a90"
+    },
+    {
+      "arquivo": "chromium-390-escuro-toque-controles.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "escuro",
+      "layout": {
+        "largura": 390,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": true,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "6f7279380e4a98028726a3cc6544389030b37a03ee386e42a79b9595273ae80b"
+    },
+    {
+      "arquivo": "chromium-390-escuro-toque-formulario.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "escuro",
+      "layout": {
+        "largura": 390,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": true,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "b29cffe01f0aa8f06da052a0d1f387beb7af6592e35444fadd5f37e7198c3925"
+    },
+    {
+      "arquivo": "chromium-320-claro-fino-tabela.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "claro",
+      "layout": {
+        "largura": 320,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": false,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "9a76d6213c427cb9dfeca310956f5819058e6671ab52ccd9ee91582d4d0f27fa"
+    },
+    {
+      "arquivo": "chromium-390-claro-fino-filtros.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "claro",
+      "layout": {
+        "largura": 390,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": false,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "10cd25c43a97959910461405109ca57169d26761dac16e0d6e1e6809bd4a6baa"
+    },
+    {
+      "arquivo": "chromium-768-claro-fino-dialogo-painel.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "claro",
+      "layout": {
+        "largura": 768,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": false,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "f3bbdb64ce0360a68d5b3f38b3b807be4782506485ad12bbeeae4c9345b4f87d"
+    },
+    {
+      "arquivo": "chromium-1440-claro-fino-lateral.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "claro",
+      "layout": {
+        "largura": 1440,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": false,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "e00b2a0d5e5622ebe1460b2cffedb02deb6164b4fac8f5b000326c2ae2f53dbb"
+    },
+    {
+      "arquivo": "chromium-390-escuro-toque-estados.png",
+      "estado": "Em revisão",
+      "commitBase": "a6c915f75ff9f1a43847c414493ac8c88f75d0e3",
+      "alteracoesLocais": true,
+      "ambiente": "win32-x64-playwright-1.64.0",
+      "chromium": "156.0.8078.4",
+      "caso": "normal",
+      "tema": "escuro",
+      "layout": {
+        "largura": 390,
+        "altura": 900,
+        "dpr": 1,
+        "ponteiroGrosso": true,
+        "fonte": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif",
+        "fontes": "loaded"
+      },
+      "sha256": "a5a59b00e34d055f50303e45780a40ae07619bd8d968df3ddc72ececa5cdbf61"
+    }
+  ]
+}

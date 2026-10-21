@@ -1,0 +1,11 @@
+"use client";
+import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { encerrarPedidoManualAction } from "./actions";
+export function EncerramentoManual({ id, versao, estado }: { id: string; versao: number; estado: "DECLINADO" | "ESTORNADO" }) {
+  const router = useRouter(), chave = useRef("");
+  const [motivo, setMotivo] = useState(""), [referencia, setReferencia] = useState(""), [mensagem, setMensagem] = useState(""), [ocupado, iniciar] = useTransition();
+  return <details className="rounded-xl border bg-card p-4"><summary className="cursor-pointer font-medium">{estado === "DECLINADO" ? "Declinar orçamento" : "Registrar estorno externo"}</summary><div className="mt-3 space-y-3"><p className="text-sm">{estado === "ESTORNADO" ? "Confirme somente se o dinheiro já foi devolvido externamente. Este registro encerra o fluxo ativo, preserva o histórico e não executa transferência bancária." : "Encerra o orçamento não aprovado, preservando seu histórico."}</p><label className="grid gap-1">Motivo<Input maxLength={1000} value={motivo} onChange={e => { setMotivo(e.target.value); chave.current = ""; }} /></label>{estado === "ESTORNADO" && <label className="grid gap-1">Comprovante ou referência da devolução externa<Input maxLength={500} value={referencia} onChange={e => { setReferencia(e.target.value); chave.current = ""; }} /></label>}<Button type="button" variant="outline" disabled={ocupado || !motivo.trim() || (estado === "ESTORNADO" && !referencia.trim())} aria-busy={ocupado || undefined} onClick={() => iniciar(async () => { chave.current ||= crypto.randomUUID(); try { const r = await encerrarPedidoManualAction(id, versao, estado, motivo, referencia, chave.current); if ("erro" in r) setMensagem(r.erro!); else { setMensagem("Registro salvo."); router.refresh(); } } catch { setMensagem("Resultado não confirmado. Reabra para conferir antes de repetir."); } })}>{ocupado ? "Salvando…" : estado === "ESTORNADO" ? "Confirmar devolução externa e marcar Estornado" : "Confirmar Declinado"}</Button>{mensagem && <p role={mensagem === "Registro salvo." ? "status" : "alert"} className={mensagem === "Registro salvo." ? "text-sm text-success" : "text-sm text-destructive"}>{mensagem}</p>}</div></details>;
+}
