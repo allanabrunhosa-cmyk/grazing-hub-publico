@@ -1,4 +1,5 @@
 import "server-only";
+import { rejeicaoFiscalCorrigivel } from "../rejeicao";
 import { createHash } from "node:crypto";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -305,7 +306,7 @@ export async function prepararEmissaoPedidoBrasilNfe(pedidoId: string, versaoPed
   const selecoes = opcoesInternas.somenteVersoesAtivas === true ? [] : await selecionarPropostasPedido(pedidoId, sessao);
   // Rejeição certa pode originar outra revisão; a tentativa rejeitada permanece
   // imutável. Identidade autorizada, lease e resultado incerto nunca são liberados.
-  const rejeicaoCerta = preservado?.status === "REJEITADO" && !preservado.acao && !preservado.leaseToken && !preservado.chaveFiscal && !preservado.protocolo && !preservado.cancelamentoPendente;
+  const rejeicaoCerta = rejeicaoFiscalCorrigivel(preservado) && !preservado?.acao && !preservado?.leaseToken;
   const d = preservado && !rejeicaoCerta && (objeto(preservado.payload).versao === 1 || preservado.tentativas || preservado.acao || !["SEM_EMISSOR", "PREPARADO"].includes(preservado.status)) ? preservado : await prepararFiscalSaida(pedidoId, versaoPedido, sessao, String(modelo) as "55" | "65", { ambiente, consumidorFinal: true, ...(indicadorPresencaPreparacao === undefined ? {} : { indicadorPresenca: indicadorPresencaPreparacao }), ...(pagamentoCartaoNaoIntegrado ? { pagamentoCartaoNaoIntegrado: true } : {}), ...(selecoes.length ? { revisaoConsolidada: true, versoesRevisao: selecoes } : {}) }), payload = objeto(d.payload);
   const pendencias = await montarPlanoAutomaticamente(d.id, modelo, ambiente, sessao);
   const tributacao = objeto(payload.tributacao);

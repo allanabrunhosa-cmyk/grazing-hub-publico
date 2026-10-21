@@ -1,4 +1,5 @@
 import "server-only";
+import { descricaoProdutoNfe } from "@/lib/fiscal-saida/brasilnfe/texto-xml";
 import { identidadeFiscalCobranca } from "@/lib/vendas/cliente-cobranca";
 import { Prisma } from "@/generated/prisma/client";
 import type { SessaoAtual } from "@/lib/session";
@@ -119,9 +120,9 @@ async function calcularPreviaPedidoBase(tx: Prisma.TransactionClient, p: PedidoF
   // permite tpIntegra=2; não fabrica adquirente, bandeira ou autorização.
   // No contrato Brasil NFe, TipoIntegracao=false significa pagamento sem TEF.
   const cartaoNfce = modelo === "65" && ["03", "04"].includes(forma ?? "");
-  const pagamentoCartaoNaoIntegrado = cartaoNfce && opcoes.pagamentoCartaoNaoIntegrado === true && perfil?.uf === "SP";
-  if (cartaoNfce && opcoes.pagamentoCartaoNaoIntegrado !== true) pendencia("Pagamento com cartão: confirme se o pagamento foi processado fora do HUB, sem integração (POS ou link externo). O sistema não possui os dados de uma transação integrada.");
-  if (cartaoNfce && opcoes.pagamentoCartaoNaoIntegrado === true && perfil?.uf !== "SP") pendencia("Pagamento com cartão não integrado: este fluxo está validado somente para emitente de São Paulo. Confira as exigências da UF do emitente antes de emitir NFC-e.");
+  // O HUB não captura transações TEF. Informar o meio comercial não comprova recebimento.
+  const pagamentoCartaoNaoIntegrado = cartaoNfce && perfil?.uf === "SP";
+  if (cartaoNfce && perfil?.uf !== "SP") pendencia("Pagamento com cartão não integrado: este fluxo está validado somente para emitente de São Paulo. Confira as exigências da UF do emitente antes de emitir NFC-e.");
   const doc = String(comprador.documento ?? "").replace(/\D/g, "");
   if (modelo === "55" && (!/^\d{11}$|^\d{14}$/.test(doc) || !String(comprador.nome ?? "").trim())) pendencia("NF-e exige documento e identificação fiscal do destinatário.");
   const destinatario = resolverDestinatarioBrasilNfe({ modelo: Number(modelo) as 55 | 65, indicadorPresenca: presenca, comprador: { ...comprador, indicadorIe }, cobranca: p.cobrancaSnapshot, consumidorFinal });
@@ -129,7 +130,7 @@ async function calcularPreviaPedidoBase(tx: Prisma.TransactionClient, p: PedidoF
   const pesos = previa.linhas.map(l => l.valor);
   const rateio = (v: Prisma.Decimal) => pesos.length && v.gt(0) ? ratearFiscal(v.toFixed(2), pesos.map(x => new Prisma.Decimal(x).gt(0) ? x : "0.000001")) : pesos.map(() => "0.00");
   const fretes = rateio(p.frete); const custos = rateio(p.outrosCustos);
-  const documento: DocumentoBrasilNfe = { ModeloDocumento: Number(modelo) as 55 | 65, TipoAmbiente: opcoes.ambiente === "PRODUCAO" ? 1 : 2, NaturezaOperacao: "Venda de mercadorias", Finalidade: 1, IndicadorPresenca: presenca, ConsumidorFinal: consumidorFinal, ValorTotal: p.total.toFixed(2), Pagamentos: forma ? [{ FormaPagamento: forma, VlPago: p.total.toFixed(2), ...(pagamentoCartaoNaoIntegrado ? { TipoIntegracao: false } : {}) }] : [], Produtos: previa.linhas.map((l, n) => ({ NmProduto: l.nome.slice(0, 120), CodProdutoServico: l.produtoId, NCM: l.ncm, EAN: l.gtin ?? "", ...(l.cest ? { CEST: l.cest } : {}), OrigemProduto: Number(l.origem), CFOP: Number(l.cfop), UnidadeComercial: l.unidade, UnidadeComercialTributavel: l.unidade, Quantidade: l.quantidade, QuantidadeTributavel: l.quantidade, ValorUnitario: new Prisma.Decimal(l.valor).div(l.quantidade).toFixed(10), ValorUnitarioTributavel: new Prisma.Decimal(l.valor).div(l.quantidade).toFixed(10), ValorTotal: l.valor, ValorFrete: fretes[n], ValorOutrasDespesas: custos[n], Imposto: traduzirImpostosBrasilNfe(l) })), ...(doc ? { Cliente: { CpfCnpj: doc, NmCliente: String(comprador.nome ?? ""), IndicadorIe: consumidorFinal ? 9 as const : 1 as const } } : {}) };
+  const documento: DocumentoBrasilNfe = { ModeloDocumento: Number(modelo) as 55 | 65, TipoAmbiente: opcoes.ambiente === "PRODUCAO" ? 1 : 2, NaturezaOperacao: "Venda de mercadorias", Finalidade: 1, IndicadorPresenca: presenca, ConsumidorFinal: consumidorFinal, ValorTotal: p.total.toFixed(2), Pagamentos: forma ? [{ FormaPagamento: forma, VlPago: p.total.toFixed(2), ...(pagamentoCartaoNaoIntegrado ? { TipoIntegracao: false } : {}) }] : [], Produtos: previa.linhas.map((l, n) => ({ NmProduto: descricaoProdutoNfe(l.nome), CodProdutoServico: l.produtoId, NCM: l.ncm, EAN: l.gtin ?? "", ...(l.cest ? { CEST: l.cest } : {}), OrigemProduto: Number(l.origem), CFOP: Number(l.cfop), UnidadeComercial: l.unidade, UnidadeComercialTributavel: l.unidade, Quantidade: l.quantidade, QuantidadeTributavel: l.quantidade, ValorUnitario: new Prisma.Decimal(l.valor).div(l.quantidade).toFixed(10), ValorUnitarioTributavel: new Prisma.Decimal(l.valor).div(l.quantidade).toFixed(10), ValorTotal: l.valor, ValorFrete: fretes[n], ValorOutrasDespesas: custos[n], Imposto: traduzirImpostosBrasilNfe(l) })), ...(doc ? { Cliente: { CpfCnpj: doc, NmCliente: String(comprador.nome ?? ""), IndicadorIe: consumidorFinal ? 9 as const : 1 as const } } : {}) };
   previa.linhas.forEach((linha, indice) => { if (linha.fci?.situacao === "EXIGIDA" && linha.fci.numero) documento.Produtos[indice].nFCI = linha.fci.numero; });
   const indicacoes = [...new Set(previa.linhas.flatMap(l => l.justificativas.filter(j => /Imposto Recolhido por Substitui/i.test(j))))];
   if (indicacoes.length) documento.Observacao = indicacoes.join("; ").slice(0, 5000);
