@@ -2,6 +2,7 @@
 
 import { useContext, useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { rejeicaoFiscalCorrigivel } from "@/lib/fiscal-saida/rejeicao";
 import { useRouter } from "next/navigation";
 import { CircleAlert, CircleCheck, CircleX, FileCode2, FileDown, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -73,13 +74,12 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
   const [modelo, setModelo] = useState<55 | 65>(modeloSugerido), [erro, setErro] = useState("");
   const [pendencias, setPendencias] = useState<PendenciaEmissao[]>([]);
   const [presenca, setPresenca] = useState<IndicadorPresenca | null>(null), [exigePresenca, setExigePresenca] = useState(false);
-  const [cartaoNaoIntegrado, setCartaoNaoIntegrado] = useState(false), [exigeCartao, setExigeCartao] = useState(false);
   const [conferirAntesDeRepetir, setConferirAntesDeRepetir] = useState(false);
   const [cancelando, setCancelando] = useState<DocumentoPedido | null>(null), [justificativa, setJustificativa] = useState("");
   const [cancelamentosIniciados, setCancelamentosIniciados] = useState<string[]>([]);
   const [resultadoLocal, setResultadoLocal] = useState<{ documento: DocumentoPedido; base: string | undefined } | null>(null);
   const [ocupado, iniciar] = useTransition();
-  const trava = useRef(false), modeloResumoId = useId(), presencaId = useId(), cartaoId = useId(), justificativaId = useId();
+  const trava = useRef(false), modeloResumoId = useId(), presencaId = useId(), justificativaId = useId();
   const bloquearSaida = popup?.bloquearSaida;
   useEffect(() => { bloquearSaida?.("fiscal", ocupado); return () => bloquearSaida?.("fiscal", false); }, [ocupado, bloquearSaida]);
   const documentos = resultadoLocal && JSON.stringify(fiscal.documentos.find(d => d.id === resultadoLocal.documento.id)) === resultadoLocal.base
@@ -87,9 +87,10 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
   const atual = documentos.find(d => d.ambiente === "PRODUCAO" && (d.status === "AUTORIZADO" || incerto(d)))
     ?? documentos.find(d => d.ambiente === "PRODUCAO" && d.versaoPedido === versao)
     ?? documentos.find(d => d.versaoPedido === versao) ?? documentos[0];
-  const rejeicaoCorrigivel = atual?.status === "REJEITADO" && !atual.chaveFiscal && !atual.protocolo && !atual.cancelamentoPendente;
+  const rejeicaoCorrigivel = rejeicaoFiscalCorrigivel(atual);
   const possuiResultadoProdutivo = Boolean(!rejeicaoCorrigivel && atual?.ambiente === "PRODUCAO" && (atual.tentativas > 0 || atual.chaveFiscal || atual.protocolo || atual.referenciaProvedor || incerto(atual) || ["AUTORIZADO", "REJEITADO", "DENEGADO", "CANCELADO"].includes(atual.status)));
   const podeEmitir = fiscal.editar && confirmado && !possuiResultadoProdutivo;
+  const mostrarControles = fiscal.editar && confirmado && (atual?.ambiente !== "PRODUCAO" || !["AUTORIZADO", "CANCELADO", "DENEGADO"].includes(atual?.status ?? ""));
   function guardarResultado(documento: DocumentoPedido) {
     setResultadoLocal({ documento, base: JSON.stringify(fiscal.documentos.find(d => d.id === documento.id)) });
   }
@@ -105,15 +106,14 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
       setPendencias([]);
       // Uma resposta perdida nunca autoriza um novo envio pelo navegador.
       setConferirAntesDeRepetir(true);
-      const r = await emitirNotaPedidoDiretaBrasilNfeAction({ pedidoId, versaoPedido: versao, modelo, ...(presenca === null ? {} : { indicadorPresenca: presenca }), ...(modelo === 65 && cartaoNaoIntegrado ? { pagamentoCartaoNaoIntegrado: true as const } : {}) });
+      const r = await emitirNotaPedidoDiretaBrasilNfeAction({ pedidoId, versaoPedido: versao, modelo, ...(presenca === null ? {} : { indicadorPresenca: presenca }) });
       if (r.documento) guardarResultado(r.documento);
       if ("erro" in r) {
         setErro(r.erro ?? "A emissão não foi confirmada. Consulte o resultado fiscal.");
         setPendencias("pendencias" in r ? r.pendencias ?? [] : []);
         setExigePresenca("exigeEscolhaPresenca" in r && r.exigeEscolhaPresenca === true);
-        setExigeCartao("exigeEscolhaCartao" in r && r.exigeEscolhaCartao === true);
         setConferirAntesDeRepetir(r.conferirAntesDeRepetir !== false);
-      } else { setConferirAntesDeRepetir(r.conferirAntesDeRepetir); setExigePresenca(false); setExigeCartao(false); }
+      } else { setConferirAntesDeRepetir(r.conferirAntesDeRepetir); setExigePresenca(false); }
       router.refresh();
     });
   }
@@ -150,7 +150,7 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
   return <Card size="sm" role="region" aria-label="Nota fiscal" aria-busy={ocupado} data-fiscal-status={atual?.status} className="pedido-detalhe-secao pedido-detalhe-fiscal">
     <CardHeader className="pedido-detalhe-rotulo"><h2><FileText aria-hidden="true" />Fiscal</h2>{atual && <IdentificacaoDocumento documento={atual} />}</CardHeader>
     <CardContent className="space-y-3">
-      {podeEmitir && (!conferirAntesDeRepetir || ocupado) && <>
+      {mostrarControles && <>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
           <div className="grid min-w-0 gap-1">
             <Label htmlFor={modeloResumoId}>Modelo da nota</Label>
@@ -158,22 +158,16 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
               <option value="65">NFC-e (65)</option><option value="55">NF-e (55)</option>
             </SelecaoFormulario>
           </div>
-          <Button type="button" variant="entrada" aria-label={`Emitir ${modeloNome(modelo)}`} onClick={emitir} disabled={ocupado || exigePresenca && presenca === null || modelo === 65 && exigeCartao && !cartaoNaoIntegrado}><FileText aria-hidden="true" />Emitir</Button>
+          <Button type="button" variant="entrada" aria-label={`Emitir ${modeloNome(modelo)}`} onClick={emitir} disabled={ocupado || !podeEmitir || conferirAntesDeRepetir || exigePresenca && presenca === null}><FileText aria-hidden="true" />Emitir</Button>
         </div>
-        <p className="text-xs text-muted-foreground">Emissão em produção. O botão envia a nota para autorização da SEFAZ.</p>
+        <p className="text-xs text-muted-foreground">{!podeEmitir || conferirAntesDeRepetir ? "Consulte o resultado da tentativa anterior para liberar uma nova emissão com segurança. Você pode selecionar o modelo enquanto aguarda." : "Emissão em produção. O botão envia a nota para autorização da SEFAZ."}</p>
         {exigePresenca && <div className="grid gap-1">
           <Label htmlFor={presencaId}>Como a venda foi realizada?</Label>
           <SelecaoFormulario id={presencaId} value={presenca === null ? "" : String(presenca)} disabled={ocupado} onValueChange={v => setPresenca(opcoesPresenca.find(o => String(o.valor) === v && (modelo === 65 || o.valor !== 4))?.valor ?? null)}>
             <option value="">Selecione o canal efetivo da venda</option>{opcoesPresenca.filter(o => modelo === 65 || o.valor !== 4).map(o => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
           </SelecaoFormulario>
         </div>}
-        {modelo === 65 && exigeCartao && <div className="grid gap-1">
-          <Label htmlFor={cartaoId}>Integração do pagamento com cartão</Label>
-          <SelecaoFormulario id={cartaoId} value={cartaoNaoIntegrado ? "nao-integrado" : ""} disabled={ocupado} onValueChange={v => setCartaoNaoIntegrado(v === "nao-integrado")}>
-            <option value="">Selecione como o cartão foi processado</option><option value="nao-integrado">Não integrado ao sistema (POS)</option>
-          </SelecaoFormulario>
-          <p className="text-xs text-muted-foreground">Selecione somente se o cartão foi processado fora do HUB. Pagamentos integrados exigem os dados reais da transação.</p>
-        </div>}
+
       </>}
       {ocupado && <p role="status" className="text-sm text-muted-foreground">Processando a ação fiscal. Aguarde o resultado…</p>}
       {atual && <DadosDocumento documento={atual} editar={fiscal.editar} ocupado={ocupado} consultar={consultar} arquivos={arquivos} cancelar={cancelamentosIniciados.includes(atual.id) ? undefined : pedirCancelamento} mostrarIdentificacao={false} />}

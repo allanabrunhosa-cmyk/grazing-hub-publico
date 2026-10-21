@@ -368,3 +368,37 @@ As capturas usam dados sintéticos e permanecem Em revisão visual.
 Os lotes usam plano privado, backup íntegro, hash aprovado, transação, auditoria e recibo
 idempotente. Arquivos reais permanecem privados na VPS. Não houve emissão, cancelamento,
 troca de certificado/CSC, habilitação automática ou alteração no fluxo de notas recebidas.
+
+## Descrição XML, pagamento comercial e nova tentativa — 21/10/2026
+
+`brasilnfe/texto-xml.ts` normaliza apenas a representação fiscal de `xProd`. Converte
+travessões e aspas tipográficas, compõe acentos em NFC, compacta espaços e limita a
+descrição a 120 caracteres. Os montadores de `tributacao/pedidos.ts` e
+`brasilnfe/payload-local.ts` usam esse contrato. `validarSnapshotBrasilNfe` recusa
+caracteres que continuem incompatíveis com TString e identifica o produto/campo.
+Nomes comerciais, fotografias históricas, preços e tributos não são regravados.
+
+O pagamento fiscal usa a forma comercial e o total da venda. Não exige recebimento,
+captura, repasse, baixa de título ou quitação. O HUB não integra TEF; no alcance
+validado de São Paulo, cartão em NFC-e usa `TipoIntegracao=false` sem nova pergunta
+de confirmação. Não inventa adquirente, bandeira ou autorização de cartão.
+As demais exigências fiscais e o alcance por UF permanecem no servidor.
+
+Na consulta ao emissor, uma rejeição única `Status=3`, `Emitida=false`, sem protocolo,
+com identidade conferida e código interno zero só é recuperável quando o motivo
+comprova a falha XML de `xProd`. Somente uma categoria local atravessa o cliente;
+`DsStatusResposta`, XML e texto livre externo não vão para eventos ou mensagens.
+Código zero isolado, duplicidade, ausência e histórico ambíguo continuam em conferência.
+Autorização anterior prevalece; a consulta nunca transmite uma nota.
+
+Uma chave gerada para XML rejeitado não equivale a autorização. Rejeição comprovada
+e sem protocolo pode gerar outra revisão/identidade. A tentativa anterior permanece
+íntegra. `rejeicao.ts` compartilha esse critério entre preparação, ação direta e UI.
+Resultado incerto mantém seletor e botão visíveis; o botão fica desabilitado até
+conferir a tentativa existente. Rejeição corrigível libera nova tentativa ou troca
+55/65. Autorização, denegação, cancelamento e permissões conservam suas proteções.
+
+Validação usa testes de contrato, PostgreSQL local e HTTP fictício. As capturas da
+prévia de Pedidos são consultivas e permanecem **Em revisão visual**. O diagnóstico
+de produção consulta somente a tentativa existente; não emite, cancela ou altera
+configuração fiscal externa.

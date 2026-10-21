@@ -68,15 +68,15 @@ describe("Cartão no snapshot fiscal v2 por modelo e ambiente", () => {
     const p = massa(); p.formaPagamentoInformada = tipo; p.pagamentoInformadoSnapshot = { tipo, formaId: "cartao-exclusivamente-sintetico", parcelas: 1 };
     const antes = JSON.stringify(p);
     const r = await calcularPreviaPedido(tx, p, modelo, { ambiente, consumidorFinal: true, indicadorIe: 9, indicadorPresenca: 1 });
-    expect(r.pendencias.includes(pendenciaCartao)).toBe(modelo === "65");
+    expect(r.pendencias).not.toContain(pendenciaCartao);
     expect(r.pendencias).toContain("Revisão de parâmetros ainda pendente.");
     expect(r.pendencias).toContain("Linhas fiscais não fecham com subtotal menos desconto do pedido.");
     expect(r.apto).toBe(false);
-    expect(r.documento.Pagamentos).toEqual([{ FormaPagamento: codigo, VlPago: "165.00" }]);
+    expect(r.documento.Pagamentos).toEqual([{ FormaPagamento: codigo, VlPago: "165.00", ...(modelo === "65" ? { TipoIntegracao: false } : {}) }]);
     expect(r.documento.ValorTotal).toBe("165.00"); expect(JSON.stringify(p)).toBe(antes);
   });
   it.each(pagamentosCartao.flatMap(pagamento => (["HOMOLOGACAO", "PRODUCAO"] as const).map(ambiente => ({ ...pagamento, ambiente }))))
-  ("NFC-e/$codigo/$ambiente registra somente a confirmação explícita de pagamento não integrado", async ({ tipo, codigo, ambiente }) => {
+  ("NFC-e/$codigo/$ambiente mantém a representação de cartão externo sem exigir quitação", async ({ tipo, codigo, ambiente }) => {
     const p = massa(); p.formaPagamentoInformada = tipo; p.pagamentoInformadoSnapshot = { tipo, formaId: "cartao-exclusivamente-sintetico", parcelas: 1 };
     const antes = JSON.stringify(p);
     const r = await calcularPreviaPedido(tx, p, "65", { ambiente, consumidorFinal: true, indicadorIe: 9, indicadorPresenca: 1, pagamentoCartaoNaoIntegrado: true });

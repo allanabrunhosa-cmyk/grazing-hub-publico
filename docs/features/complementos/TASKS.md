@@ -62,6 +62,12 @@ antigo que tentaria renomear a categoria do site após a separação. As 28
 integrações passaram novamente com essa asserção; ESLint e diff aprovados.
 O CI desse ajuste deve passar antes da publicação.
 
+Conciliação com `94d72d2a107f4b2c4deadca595eed40e328e1db8` (PR fiscal #3),
+sem conflitos nem alteração da SQL de Complementos: 141 testes aprovados em
+oito arquivos, cobrindo composição/disponibilidade e os consumidores fiscais
+de Pedidos. O plano anterior apontou somente a migration de Complementos.
+A publicação exige conferir novamente a imagem e o backup após o avanço fiscal.
+
 > Exportação pública: dados cadastrais, identificadores de registros e valores comerciais alterados neste documento são exemplos sintéticos. Os registros operacionais originais permanecem privados; esta versão não concede aprovação fiscal ou operacional.
 
 - [x] Banco, validação e persistência; migration isolada e conflitos.

@@ -7,6 +7,7 @@ export type IdentidadeConsultaBrasilNfe = IdentidadeFiscalSaida & { emitenteCnpj
 export type RequisicaoConsultaBrasilNfe = { IdentificadorInterno: string; TipoAmbiente: 1 | 2; ModeloDocumento: ModeloDocumentoBrasilNfe; RetornarArquivos: false };
 export const codigoAmbienteBrasilNfe = (ambiente: IdentidadeFiscalSaida["ambiente"]): 1 | 2 => ambiente === "PRODUCAO" ? 1 : 2;
 export type EvidenciaNotaBrasilNfe = {
+  motivoValidacaoXml?: "DESCRICAO_PRODUTO";
   identificadorInterno: string; modelo: ModeloDocumentoBrasilNfe; ambiente: 1 | 2; situacaoFornecedor: number;
   codigoResposta: number | null; emitida: boolean; emitenteComprovado: boolean;
   chave: string | null; numero: string | null; serie: string | null; protocolo: string | null;
@@ -95,7 +96,8 @@ function nota(v: unknown, i: IdentidadeConsultaBrasilNfe): EvidenciaNotaBrasilNf
   if (chave) { conferirChaveBrasilNfe(chave, i); conferirNumeroSerieChaveBrasilNfe(chave, numero, serie); }
   if (n.CnpjEmissor != null && normalizarCnpjBrasilNfe(n.CnpjEmissor) !== i.emitenteCnpj) throw new ErroConsultaBrasilNfe("IDENTIDADE_DIVERGENTE");
   conferirSituacaoNotaConsultaBrasilNfe({ Status: Number(n.Status), Emitida: n.Emitida, CodStatusResposta: n.CodStatusResposta == null ? null : Number(n.CodStatusResposta), Chave: chave, Numero: numero, Serie: serie, NumeroProtocolo: protocolo });
-  return { identificadorInterno: i.documentoId, modelo: i.modeloDocumento, ambiente: codigoAmbienteBrasilNfe(i.ambiente), situacaoFornecedor: Number(n.Status), codigoResposta: n.CodStatusResposta == null ? null : Number(n.CodStatusResposta), emitida: n.Emitida, emitenteComprovado: !!chave || n.CnpjEmissor != null, chave, numero, serie, protocolo };
+  return { identificadorInterno: i.documentoId, modelo: i.modeloDocumento, ambiente: codigoAmbienteBrasilNfe(i.ambiente), situacaoFornecedor: Number(n.Status), codigoResposta: n.CodStatusResposta == null ? null : Number(n.CodStatusResposta), emitida: n.Emitida, emitenteComprovado: !!chave || n.CnpjEmissor != null, chave, numero, serie, protocolo,
+    ...(n.motivoValidacaoXml === "DESCRICAO_PRODUTO" ? { motivoValidacaoXml: n.motivoValidacaoXml } : {}) };
 }
 /** Consulta é evidência administrativa, sem evento/sequência inventados. Todos os
  * resultados anteriores são considerados: rejeição mais recente não libera nova

@@ -51,12 +51,12 @@ describe("Um clique produtivo por pedido, sem parâmetros fiscais privilegiados 
     expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ pendencias: p.pendencias, conferirAntesDeRepetir: false });
     expect(s.emitir).not.toHaveBeenCalled();
   });
-  it("exige decisão explícita do cartão e a encaminha sem inventar transação integrada", async () => {
-    const p = previa(); p.pendencias = [{ campo: "tributacao", mensagem: "Pagamento com cartão: confirme se o pagamento foi processado fora do HUB, sem integração (POS ou link externo).", href: "" }]; s.preparar.mockResolvedValueOnce(p);
-    expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ exigeEscolhaCartao: true, conferirAntesDeRepetir: false }); expect(s.emitir).not.toHaveBeenCalled();
-    await emitirNotaPedidoDiretaBrasilNfe({ ...entrada, pagamentoCartaoNaoIntegrado: true }, sessao);
-    expect(s.preparar.mock.calls[1][5]).toEqual({ pagamentoCartaoNaoIntegrado: true }); expect(s.emitir).toHaveBeenCalledTimes(1);
+  it("envia o cartão comercial sem exigir declaração de quitação", async () => {
+    expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ ok: true });
+    expect(s.emitir).toHaveBeenCalledTimes(1);
+    expect(s.preparar.mock.calls[0][5]).toEqual({});
   });
+
   it("resultado incerto de outra revisão bloqueia retry e mantém o documento para consulta", async () => {
     const p = previa(); p.pendencias = [{ campo: "duplicidade", mensagem: "Existe tentativa desta venda neste ambiente.", href: "" }]; s.preparar.mockResolvedValue(p);
     const incerto = documento({ id: "documento-anterior", status: "INCERTO", referenciaProvedor: null, chaveFiscal: null, protocolo: null }); s.documentos.mockResolvedValue([incerto]);

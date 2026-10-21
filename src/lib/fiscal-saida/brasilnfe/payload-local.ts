@@ -1,4 +1,5 @@
 import "server-only";
+import { descricaoProdutoNfe, PADRAO_DESCRICAO_PRODUTO_NFE } from "./texto-xml";
 import { Prisma } from "@/generated/prisma/client";
 import { validarSnapshotBrasilNfe } from "../brasil-nfe";
 import { gtinFiscalBrasilNfeValido } from "./gtin";
@@ -183,7 +184,7 @@ export function prepararPayloadLocalBrasilNfe(documento: DocumentoPreparacaoLoca
     let cest: string | undefined;
     if (cestAplicavel) cest = texto(fiscal.cest, `${prefixo}.CEST`, 7, /^\d{7}$/);
     else if (fiscal.cest) falha(`${prefixo}.CEST`, "DIVERGENTE", "CEST preenchido contradiz a não aplicabilidade informada; revisar a decisão.");
-    return { CodProdutoServico: texto(i.produtoId, `${prefixo}.CodProdutoServico`, 60, /^[a-zA-Z0-9_-]+$/), NmProduto: texto(produto.nome, `${prefixo}.NmProduto`, 120), UnidadeComercial: texto(i.unidade, `${prefixo}.UnidadeComercial`, 6, /^[A-Za-z0-9]{1,6}$/), Quantidade: q, ValorUnitario: unitario.toFixed(2), ValorTotal: bruto.toFixed(2), ValorDesconto: desconto.toFixed(2), ValorFrete: "0.00", ValorOutrasDespesas: "0.00", NCM: ncm, ...(cest ? { CEST: cest } : {}), EAN: ean, CFOP: cfop, OrigemProduto: origem ? Number(origem) : -1, UnidadeComercialTributavel: texto(fiscal.unidadeTributavel, `${prefixo}.UnidadeComercialTributavel`, 6, /^[A-Za-z0-9]{1,6}$/), QuantidadeTributavel: qt.toFixed(4), ValorUnitarioTributavel: vt.toFixed(10), Imposto: imposto };
+    return { CodProdutoServico: texto(i.produtoId, `${prefixo}.CodProdutoServico`, 60, /^[a-zA-Z0-9_-]+$/), NmProduto: texto(typeof produto.nome === "string" ? descricaoProdutoNfe(produto.nome) : produto.nome, `${prefixo}.NmProduto`, 120, PADRAO_DESCRICAO_PRODUTO_NFE), UnidadeComercial: texto(i.unidade, `${prefixo}.UnidadeComercial`, 6, /^[A-Za-z0-9]{1,6}$/), Quantidade: q, ValorUnitario: unitario.toFixed(2), ValorTotal: bruto.toFixed(2), ValorDesconto: desconto.toFixed(2), ValorFrete: "0.00", ValorOutrasDespesas: "0.00", NCM: ncm, ...(cest ? { CEST: cest } : {}), EAN: ean, CFOP: cfop, OrigemProduto: origem ? Number(origem) : -1, UnidadeComercialTributavel: texto(fiscal.unidadeTributavel, `${prefixo}.UnidadeComercialTributavel`, 6, /^[A-Za-z0-9]{1,6}$/), QuantidadeTributavel: qt.toFixed(4), ValorUnitarioTributavel: vt.toFixed(10), Imposto: imposto };
   });
   referenciaItem = {};
   // RV I04-10 do MOC/NT2015.002: transformação somente fiscal do ambiente2.

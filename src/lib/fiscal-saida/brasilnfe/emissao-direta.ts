@@ -1,4 +1,5 @@
 import "server-only";
+import { rejeicaoFiscalCorrigivel } from "../rejeicao";
 import type { SessaoAtual } from "@/lib/session";
 import { consultarFiscalSaida } from "../servico";
 import { consultarEmissaoPedidoBrasilNfe, emitirNotaPedidoBrasilNfe, prepararEmissaoPedidoBrasilNfe, type PendenciaEmissaoPedidoBrasilNfe } from "./operacional";
@@ -38,7 +39,7 @@ function possuiResultado(documento: DocumentoPedido): boolean {
 function exigeConferencia(documento: DocumentoPedido): boolean {
   // Uma rejeição certa não autoriza reenviar a mesma identidade. Ela permite
   // preparar outra revisão, sem tratar tentativas históricas como incerteza atual.
-  return possuiResultado(documento) && !(documento.status === "REJEITADO" && !documento.chaveFiscal && !documento.protocolo && !documento.cancelamentoPendente);
+  return possuiResultado(documento) && !(rejeicaoFiscalCorrigivel(documento));
 }
 
 /** Recupera somente o resumo protegido. Nunca prepara, aprova ou transmite. */
@@ -70,7 +71,7 @@ export async function emitirNotaPedidoDiretaBrasilNfe(entrada: unknown, sessao: 
     { ...(e.indicadorPresenca === undefined ? {} : { indicadorPresenca: e.indicadorPresenca }), ...(e.pagamentoCartaoNaoIntegrado === true ? { pagamentoCartaoNaoIntegrado: true } : {}) }, { somenteVersoesAtivas: true });
   const pendencias = [...previa.pendencias];
   const exigeEscolhaPresenca = previa.contextoOperacao?.exigeEscolhaPresenca === true;
-  const exigeEscolhaCartao = e.modelo === 65 && pendencias.some(p => p.mensagem.includes("Pagamento com cartão: confirme se"));
+  const exigeEscolhaCartao = false;
   if (exigeEscolhaPresenca && !pendencias.some(p => p.campo === "indicadorPresenca")) pendencias.push({ campo: "indicadorPresenca", mensagem: "Informe como a venda foi realizada no campo Presença do comprador. Retirada não comprova atendimento presencial.", href: "" });
   const revisao = previa.revisaoConsolidada;
   if (revisao?.pendente) pendencias.push({ campo: "revisaoConsolidada", mensagem: "A configuração fiscal deste produto aguarda aprovação. Revise as classificações e regras fiscais na cobertura fiscal antes de emitir.", href: "/financeiro/fiscal/cobertura" });

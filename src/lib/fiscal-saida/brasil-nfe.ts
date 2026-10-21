@@ -9,6 +9,7 @@ import { gtinValido } from "@/lib/tributacao/gtin";
 import { conferirFciFiscal, NUMERO_FCI_FISCAL } from "@/lib/tributacao/fci";
 import { validarLayoutRtc, type SnapshotLayoutRtc } from "@/lib/tributacao/layout-rtc";
 import { exigirTransmissaoBrasilNfeLiberada } from "./brasilnfe/bloqueio-transmissao";
+import { PADRAO_DESCRICAO_PRODUTO_NFE } from "./brasilnfe/texto-xml";
 
 const BASE = "https://api.brasilnfe.com.br/services/";
 const LIMITE_RESPOSTA = 20 * 1024 * 1024;
@@ -81,7 +82,7 @@ export function validarSnapshotBrasilNfe(payload: Prisma.JsonValue, c: Pick<Conf
     const referencia = typeof nome === "string" && nome.trim() && nome.length <= 120 && !/[\p{C}<>]/u.test(nome) ? `Produto ${indice + 1} (${nome.trim()})` : `Produto ${indice + 1}`;
     try {
       const produto = objeto(entrada), imposto = objeto(produto.Imposto, "Configuração dos tributos"), icms = objeto(imposto.ICMS, "Configuração de ICMS");
-      texto(produto.NmProduto, 120, undefined, "Descrição"); texto(produto.CodProdutoServico, 60, undefined, "Código do produto");
+      texto(produto.NmProduto, 120, PADRAO_DESCRICAO_PRODUTO_NFE, "Descrição fiscal (xProd; caracteres compatíveis com o XML)"); texto(produto.CodProdutoServico, 60, undefined, "Código do produto");
       texto(produto.NCM, 8, /^\d{8}$/, "NCM (8 dígitos)");
       if (!gtinValido(produto.EAN)) throw new ErroValidacaoSnapshotBrasilNfe("GTIN da unidade vendida ausente ou inválido. Corrija o código e o dígito verificador, ou confirme a declaração SEM GTIN na classificação fiscal.");
       if (produto.CEST !== undefined) texto(produto.CEST, 7, /^\d{7}$/, "CEST (7 dígitos)");
