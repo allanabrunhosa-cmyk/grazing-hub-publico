@@ -67,6 +67,18 @@ export async function consultarResultadoEmissaoPedidoBrasilNfe(pedidoId: string,
  * Não aceita ambiente, credenciais, hashes ou autorização arbitrária do cliente. */
 export async function emitirNotaPedidoDiretaBrasilNfe(entrada: unknown, sessao: SessaoAtual): Promise<ResultadoEmissaoDiretaPedidoBrasilNfe> {
   const e = validarEntrada(entrada);
+  const local = await obterResultadoLocalEmissaoPedidoBrasilNfe(e.pedidoId, sessao);
+  if (local.conferirAntesDeRepetir) {
+    const d = local.documento!;
+    // Repetir o clique nunca repete um POST de resultado desconhecido. Primeiro
+    // consulta a identidade anterior; somente rejeição certa libera outra revisão.
+    if (!local.resultadoAmbiguo && ["AUTORIZADO", "CANCELADO", "DENEGADO"].includes(d.status)) return { ok: true, documento: d, conferirAntesDeRepetir: true };
+    const resultado = await consultarResultadoEmissaoPedidoBrasilNfe(e.pedidoId, sessao);
+    if (resultado.conferirAntesDeRepetir) {
+      if (resultado.documento && ["AUTORIZADO", "CANCELADO", "DENEGADO"].includes(resultado.documento.status)) return { ok: true, documento: resultado.documento, conferirAntesDeRepetir: true };
+      return { erro: "A tentativa anterior ainda não tem resultado fiscal confirmado. O sistema consultou essa tentativa e não enviou outra nota. Tente novamente para consultar o resultado; uma nova emissão só ocorre após confirmar a rejeição anterior.", pendencias: [], documento: resultado.documento, conferirAntesDeRepetir: true, exigeEscolhaPresenca: false, exigeEscolhaCartao: false };
+    }
+  }
   const previa = await prepararEmissaoPedidoBrasilNfe(e.pedidoId, e.versaoPedido, e.modelo, "PRODUCAO", sessao,
     { ...(e.indicadorPresenca === undefined ? {} : { indicadorPresenca: e.indicadorPresenca }), ...(e.pagamentoCartaoNaoIntegrado === true ? { pagamentoCartaoNaoIntegrado: true } : {}) }, { somenteVersoesAtivas: true });
   const pendencias = [...previa.pendencias];

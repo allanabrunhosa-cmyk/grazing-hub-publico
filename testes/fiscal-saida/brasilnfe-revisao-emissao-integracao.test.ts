@@ -174,14 +174,15 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
     await expect(emitirNotaPedidoBrasilNfe(c, sessao)).rejects.toThrow();
     expect(s.http).toHaveBeenCalledTimes(httpAntes + 2); expect(await efeitos()).toEqual({ financeiro: 0, estoque: 0, recebidas: 0 });
   }, 15000);
-  it("um clique produtivo prepara e emite NF-e55 sem uma segunda ação do cliente", async () => {
+  it("um clique produtivo do Site emite NF-e55 com Internet sem confirmação do canal", async () => {
     await propostas(); const p = await pedido(), httpAntes = s.http.mock.calls.length, ativacoesAntes = await ativacoes();
+    await s.prisma.pedidoVenda.update({ where: { id: p.id }, data: { canalNomeSnapshot: "Site" } });
     const rascunhosAntes = await s.prisma.versaoEstruturaFiscal.findMany({ where: { status: "RASCUNHO" }, orderBy: { id: "asc" } });
     s.http.mockResolvedValueOnce(response(empresa())).mockImplementationOnce(async (_url, init) => {
       expect(JSON.parse(String(init?.body))).toMatchObject({ ModeloDocumento: 55, TipoAmbiente: 1, IndicadorPresenca: 2, ConsumidorFinal: true });
       return response(retornoDireto(55, "41"));
     });
-    const r = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 55, indicadorPresenca: 2 }, sessao);
+    const r = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 55 }, sessao);
     expect(r).toMatchObject({ ok: true, documento: { status: "AUTORIZADO", modeloDocumento: 55, ambiente: "PRODUCAO", numero: "41" }, conferirAntesDeRepetir: true });
     expect(s.http.mock.calls.slice(httpAntes).map(v => String(v[0]))).toEqual(["https://api.brasilnfe.com.br/services/empresa/BuscarEmpresa", "https://api.brasilnfe.com.br/services/fiscal/EnviarNotaFiscal"]);
     expect(await ativacoes()).toBe(ativacoesAntes); expect(await s.prisma.versaoEstruturaFiscal.findMany({ where: { status: "RASCUNHO" }, orderBy: { id: "asc" } })).toEqual(rascunhosAntes);
@@ -246,15 +247,14 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
       Status: 3, Emitida: false, CodStatusResposta: 0, Chave: chaveRejeitada, Numero: "54", Serie: "7", NumeroProtocolo: null,
       DsStatusResposta: "Validação XML: xProd inválido. Pattern constraint failed. SEGREDO-SINTETICO-NAO-PERSISTIR",
     } }));
-    const recuperada = await consultarResultadoEmissaoPedidoBrasilNfe(p.id, sessao);
-    expect(recuperada).toMatchObject({ conferirAntesDeRepetir: false, documento: { status: "REJEITADO", chaveFiscal: chaveRejeitada, protocolo: null, ultimoErro: expect.stringContaining("xProd") } });
-    const rejeitada = await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: tentativa.documento!.id } });
-    expect(JSON.stringify(rejeitada)).not.toContain("SEGREDO-SINTETICO");
     s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response(retornoDireto(55, "55")));
     const nova = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 55, indicadorPresenca: 2 }, sessao);
     expect(nova).toMatchObject({ ok: true, documento: { status: "AUTORIZADO", modeloDocumento: 55 } });
+    const rejeitada = await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: tentativa.documento!.id } });
+    expect(rejeitada).toMatchObject({ status: "REJEITADO", chaveFiscal: chaveRejeitada, protocolo: null, ultimoErro: expect.stringContaining("xProd") });
+    expect(JSON.stringify(rejeitada)).not.toContain("SEGREDO-SINTETICO");
     expect(nova.documento!.id).not.toBe(rejeitada.id);
-    expect(await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: rejeitada.id } })).toEqual(rejeitada);
+    expect(s.http.mock.calls.slice(antesHttp).map(v => String(v[0]).split("/").pop())).toEqual(["BuscarEmpresa", "EnviarNotaFiscal", "ConsultarNotaFiscal", "BuscarEmpresa", "EnviarNotaFiscal"]);
     const envios = s.http.mock.calls.slice(antesHttp).filter(v => String(v[0]).endsWith("/EnviarNotaFiscal")).map(v => JSON.parse(String(v[1]?.body)));
     expect(envios).toHaveLength(2); expect(envios[0].Pagamentos).toMatchObject([{ FormaPagamento: "03", TipoIntegracao: false }]);
     expect(envios[1].Pagamentos).toMatchObject([{ FormaPagamento: "03" }]);

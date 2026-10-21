@@ -58,7 +58,7 @@ export async function emitirNotaPedidoDiretaBrasilNfeAction(entrada: unknown) {
     const local = await recuperarResultadoLocal(pedidoId, sessao);
     atualizarPedido();
     // Uma falha sem resposta pode ocorrer depois do POST. Não liberar novo envio.
-    return { erro: erroSeguro(e), documento: local?.documento ?? null, conferirAntesDeRepetir: true as const };
+    return { erro: erroSeguro(e), documento: local?.documento ?? null, conferirAntesDeRepetir: local?.conferirAntesDeRepetir ?? true };
   }
 }
 /** Recupera a tentativa do pedido, mesmo quando o navegador perdeu o documentoId. */

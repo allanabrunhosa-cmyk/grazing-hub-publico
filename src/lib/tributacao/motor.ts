@@ -151,7 +151,8 @@ export function calcularTributacao(contexto: ContextoFiscal, itens: ItemComercia
     if (new D(l.quantidade).decimalPlaces() > 4 || new D(l.quantidade).gte("100000000000")) adicionar(`${l.nome}: quantidade fiscal exige até 11 inteiros e 4 casas decimais; comprovar conversão de unidade antes de emitir, sem arredondar a quantidade comercial.`);
     if (new D(l.valor).div(l.quantidade).gte("100000000000")) adicionar(`${l.nome}: valor unitário fiscal excede 11 inteiros e 10 casas decimais; comprovar unidade/conversão sem alterar preço ou quantidade comerciais.`);
     const c = l.classificacaoResolvida ?? classificar(l.produtoId)!.dados as ClassificacaoFiscal;
-    if (!perfil || !c.ncm || c.origem === null || !c.grupo) { adicionar(`${l.nome}: NCM, origem, grupo e perfil devem estar comprovados.`); continue; }
+    const faltantes = [!c.ncm ? "NCM (8 dígitos)" : null, c.origem == null ? "Origem ICMS" : null, !c.grupo ? "grupo fiscal" : null, !perfil ? "perfil fiscal da empresa" : null].filter(Boolean);
+    if (!perfil || !c.ncm || c.origem == null || !c.grupo) { adicionar(`${l.nome}: falta preencher ${faltantes.join(" e ")}. Corrija a configuração fiscal antes de tentar novamente.`); continue; }
     if (!gtinValido(c.gtin)) adicionar(`${l.nome}: confirmar GTIN da unidade vendida e tributável, ou ausência comprovada de GTIN. Código de ingrediente/embalagem de compra não comprova o produto final.`);
     const classificacaoV = classificar(l.produtoId)!;
     const declaracao = c.fci?.situacao === "DISPENSADA_POR_DECLARACAO_RESPONSAVEL";

@@ -27,6 +27,16 @@ function lucroPresumido(): VersaoFiscalDto[] {
 }
 
 describe("motor tributário com catálogo e regras exclusivamente sintéticos", () => {
+  it.each([
+    { ncm: null, origem: "0" as const, esperado: "NCM (8 dígitos)", ausente: "Origem ICMS" },
+    { ncm: "19059090", origem: null, esperado: "Origem ICMS", ausente: "NCM (8 dígitos)" },
+  ])("identifica somente o campo ausente: $esperado", ({ ncm, origem, esperado, ausente }) => {
+    const vs = base().map(v => v.tipo === "CLASSIFICACAO" ? { ...v, dados: classificacao("produto", { ncm, origem }) } : v);
+    const r = calcularTributacao(contexto, [item()], vs);
+    expect(r.apto).toBe(false);
+    const motivo = r.pendencias.find(p => p.includes("falta preencher"));
+    expect(motivo).toContain(esperado); expect(motivo).not.toContain(ausente);
+  });
   it.each(["55", "65"] as const)("repasse FCI de mercadoria fracionada funciona no modelo%s sem apuração própria", modelo => {
     const fci = fciRepasseFicticia(), c = classificacao("produto", { natureza: "FRACIONADO", origem: "5", fci, fotografiaTecnica: fotografiaRepasse });
     const vs = base().map(versao => versao.tipo === "CLASSIFICACAO" ? { ...versao, dados: c } : versao.tipo === "REGRA" ? { ...versao, dados: regra({ cfop: "5102" }) } : versao);
