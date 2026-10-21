@@ -4,6 +4,7 @@ import type { IdentidadeFiscalSaida, RespostaFiscalSaida } from "../contrato";
 import { codigoAmbienteBrasilNfe, conferirChaveBrasilNfe, conferirIdentidadeBrasilNfe, conferirNumeroSerieChaveBrasilNfe, type EvidenciaConsultaBrasilNfe } from "./consulta";
 import type { RetornoEnvioBrasilNfe } from "./tipos-http";
 import { mensagemCodigoSefaz } from "./mensagens-sefaz";
+import { mensagemRejeicaoXmlNfe } from "./texto-xml";
 
 /** Códigos deste endpoint que comprovam rejeição de validação, sem autorização.
  * A lista curta é deliberada: duplicidade, indisponibilidade e código desconhecido
@@ -68,11 +69,12 @@ export function interpretarRecuperacaoFiscalBrasilNfe(evidencia: EvidenciaConsul
   }
   if (evidencia.encontrada && !autorizacoes.length && todas.length === 1 && evidencia.notaPrincipal
     && todas[0].situacaoFornecedor === 3 && todas[0].emitida === false && !todas[0].protocolo
-    && todas[0].emitenteComprovado && todas[0].codigoResposta !== null && rejeicoesConsultaComprovadas.has(todas[0].codigoResposta)) {
+    && todas[0].emitenteComprovado && todas[0].codigoResposta !== null
+    && (todas[0].codigoResposta === 0 && todas[0].motivoValidacaoXml === "DESCRICAO_PRODUTO" || rejeicoesConsultaComprovadas.has(todas[0].codigoResposta))) {
     const r = todas[0];
     if (r.chave) { conferirChaveBrasilNfe(r.chave, i); conferirNumeroSerieChaveBrasilNfe(r.chave, r.numero, r.serie); }
     return respostaFiscalBrasilNfe(i, { status: "REJEITADO", ...(r.chave ? { chave: r.chave, referencia: r.chave } : {}), ...(r.numero ? { numero: r.numero } : {}), ...(r.serie ? { serie: r.serie } : {}),
-      erro: r.codigoResposta === 181
+      erro: r.codigoResposta === 0 ? mensagemRejeicaoXmlNfe(r.motivoValidacaoXml) : r.codigoResposta === 181
         ? "SEFAZ rejeitou a nota: CNPJ do destinatário não cadastrado na Receita Federal (código 181). Corrigir o cenário e revisar nova transmissão; reenvio automático permanece bloqueado."
         : `${mensagemCodigoSefaz(r.codigoResposta, "EMISSAO")} Consulta identifica uma rejeição fiscal única. Revise os parâmetros aprovados; não reenviar automaticamente.` }, r.codigoResposta);
   }

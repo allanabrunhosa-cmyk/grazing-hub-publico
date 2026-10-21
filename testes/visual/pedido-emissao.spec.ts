@@ -3,7 +3,7 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const raiz = resolve(__dirname, "../..");
-const evidencia = resolve(raiz, ".tmp/emissao-direta-fiscal-20261021/visual");
+const evidencia = resolve(raiz, ".tmp/nfce-retentativa-20261021/visual");
 const porta = Number(process.env.FISCAL_PEDIDO_VISUAL_PORT ?? "4258");
 if (![4258, 4458].includes(porta)) throw new Error("Porta da prévia sintética fora do contrato local.");
 const origem = `http://127.0.0.1:${porta}`;
@@ -35,7 +35,7 @@ test("emissão direta mantém modelo, alinhamento, teclado e resultado no própr
   await writeFile(resolve(evidencia, `${info.project.name}.json`), JSON.stringify({ largura: info.project.metadata.largura, tema: info.project.metadata.tema, sintetico: true, auditoria }, null, 2));
 });
 
-test("pendência fiscal e cartão são corrigidos inline sem nova tela", async ({ page }, info) => {
+test("pendência fiscal é clara e cartão não exige conferência de quitação", async ({ page }, info) => {
   await page.route("**/*", rota => new URL(rota.request().url()).origin === origem ? rota.continue() : rota.abort());
   await page.goto(`/pedido-detalhe.html?fiscal=erro&tema=${info.project.metadata.tema}`);
   await page.getByRole("button", { name: "Emitir NFC-e", exact: true }).click();
@@ -48,10 +48,7 @@ test("pendência fiscal e cartão são corrigidos inline sem nova tela", async (
   const auditoria = await page.evaluate(fonte => (0, eval)(`(${fonte})(document)`), auditorFonte); expect(auditoria.problemas).toEqual([]);
   await page.goto(`/pedido-detalhe.html?fiscal=cartao&tema=${info.project.metadata.tema}`);
   await page.getByRole("button", { name: "Emitir NFC-e", exact: true }).click();
-  const campo = page.getByRole("combobox", { name: "Integração do pagamento com cartão", exact: true });
-  await expect(campo).toBeVisible(); await expect(page.getByRole("button", { name: "Emitir NFC-e", exact: true })).toBeDisabled();
-  await campo.press("Enter"); await page.getByRole("option", { name: "Não integrado ao sistema (POS)", exact: true }).click();
-  await page.getByRole("button", { name: "Emitir NFC-e", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Integração do pagamento com cartão", exact: true })).toHaveCount(0);
   await expect(page.getByText("Nota fiscal emitida com sucesso.", { exact: true })).toBeVisible();
 });
 
@@ -106,4 +103,25 @@ test("nota com cancelamento pendente mantém alerta e documentos sem repetir a s
   expect(auditoria.problemas).toEqual([]);
   await mkdir(evidencia, { recursive: true });
   await page.screenshot({ path: resolve(evidencia, `${info.project.name}-pendente.png`) });
+});
+
+test("incerteza preserva modelo/botão e rejeição consultada permite nova tentativa", async ({ page }, info) => {
+  await page.route("**/*", rota => new URL(rota.request().url()).origin === origem ? rota.continue() : rota.abort());
+  await page.goto(`/pedido-detalhe.html?fiscal=incerta&tema=${info.project.metadata.tema}`);
+  const fiscal = page.getByRole("region", { name: "Nota fiscal", exact: true });
+  const seletor = fiscal.getByRole("combobox", { name: "Modelo da nota", exact: true });
+  await seletor.scrollIntoViewIfNeeded();
+  await expect(fiscal.getByRole("button", { name: "Emitir NFC-e", exact: true })).toBeDisabled();
+  await seletor.press("Enter"); await page.getByRole("option", { name: "NF-e (55)", exact: true }).click();
+  await expect(fiscal.getByRole("button", { name: "Emitir NF-e", exact: true })).toBeDisabled();
+  await mkdir(evidencia, { recursive: true });
+  await page.screenshot({ path: resolve(evidencia, `${info.project.name}-incerta.png`), fullPage: true });
+  await fiscal.getByRole("button", { name: "Consultar resultado", exact: true }).click();
+  await expect(fiscal.getByRole("alert")).toContainText("xProd");
+  await expect(fiscal.getByRole("button", { name: "Emitir NF-e", exact: true })).toBeEnabled();
+  const auditorFonte = (await readFile(resolve(raiz, "scripts/auditar-interface.mjs"), "utf8")).replace(/^[\s\S]*?(export function auditarInterface)/, "function auditarInterface");
+  expect((await page.evaluate(fonte => (0, eval)(`(${fonte})(document)`), auditorFonte)).problemas).toEqual([]);
+  await page.screenshot({ path: resolve(evidencia, `${info.project.name}-rejeitada.png`), fullPage: true });
+  await fiscal.getByRole("button", { name: "Emitir NF-e", exact: true }).click();
+  await expect(page.getByText("Nota fiscal emitida com sucesso.", { exact: true })).toBeVisible();
 });

@@ -234,6 +234,33 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
     expect(nova.documento.id).not.toBe(original.id); expect(await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: original.id } })).toEqual(original);
     expect(s.http.mock.calls.slice(httpAntes).filter(v => String(v[0]).endsWith("/EnviarNotaFiscal")).map(v => JSON.parse(String(v[1]?.body)).IdentificadorInterno)).toEqual([original.id, nova.documento.id]);
   }, 15000);
+  it("consulta rejeição XML com chave e permite nova revisão/modelo sem exigir pagamento recebido", async () => {
+    const p = await pedido();
+    await s.prisma.pedidoVenda.update({ where: { id: p.id }, data: { formaPagamentoInformada: "CARTAO_CREDITO", pagamentoInformadoSnapshot: { tipo: "CARTAO_CREDITO" } } });
+    const antesHttp = s.http.mock.calls.length;
+    s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response({ formato: "resposta exclusivamente sintética fora do contrato" }));
+    const tentativa = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 65 }, sessao);
+    expect(tentativa.documento?.status).toBe("PENDENTE_CONFERENCIA");
+    const chaveRejeitada = retornoDireto(65, "54").ReturnNF.ChaveNF;
+    s.http.mockResolvedValueOnce(response({ status: 1, Encontrada: true, Historico: [], erros: [], avisos: [], Nota: {
+      ModeloDocumento: 65, IdentificadorInterno: tentativa.documento!.id, CodTipoAmbiente: 1,
+      Status: 3, Emitida: false, CodStatusResposta: 0, Chave: chaveRejeitada, Numero: "54", Serie: "7", NumeroProtocolo: null,
+      DsStatusResposta: "Validação XML: xProd inválido. Pattern constraint failed. SEGREDO-SINTETICO-NAO-PERSISTIR",
+    } }));
+    const recuperada = await consultarResultadoEmissaoPedidoBrasilNfe(p.id, sessao);
+    expect(recuperada).toMatchObject({ conferirAntesDeRepetir: false, documento: { status: "REJEITADO", chaveFiscal: chaveRejeitada, protocolo: null, ultimoErro: expect.stringContaining("xProd") } });
+    const rejeitada = await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: tentativa.documento!.id } });
+    expect(JSON.stringify(rejeitada)).not.toContain("SEGREDO-SINTETICO");
+    s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response(retornoDireto(55, "55")));
+    const nova = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 55, indicadorPresenca: 2 }, sessao);
+    expect(nova).toMatchObject({ ok: true, documento: { status: "AUTORIZADO", modeloDocumento: 55 } });
+    expect(nova.documento!.id).not.toBe(rejeitada.id);
+    expect(await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: rejeitada.id } })).toEqual(rejeitada);
+    const envios = s.http.mock.calls.slice(antesHttp).filter(v => String(v[0]).endsWith("/EnviarNotaFiscal")).map(v => JSON.parse(String(v[1]?.body)));
+    expect(envios).toHaveLength(2); expect(envios[0].Pagamentos).toMatchObject([{ FormaPagamento: "03", TipoIntegracao: false }]);
+    expect(envios[1].Pagamentos).toMatchObject([{ FormaPagamento: "03" }]);
+    expect(await efeitos()).toEqual({ financeiro: 0, estoque: 0, recebidas: 0 });
+  }, 15000);
   it("HTTP403 mostra o motivo seguro e preserva a tentativa incerta sem novo POST", async () => {
     const p = await pedido(), httpAntes = s.http.mock.calls.length;
     s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(new Response("Token=SEGREDO_SINTETICO_NAO_PUBLICAR", { status: 403 }));

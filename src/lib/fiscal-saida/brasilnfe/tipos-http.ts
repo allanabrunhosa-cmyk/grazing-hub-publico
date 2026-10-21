@@ -47,6 +47,7 @@ export type RequisicaoConsultaBrasilNfeHttp = {
 
 /** A evidência externa não é um evento ordenado do HUB nem autorização de reenvio. */
 export type NotaConsultadaBrasilNfe = {
+  motivoValidacaoXml?: "DESCRICAO_PRODUTO";
   ModeloDocumento: 55 | 65;
   IdentificadorInterno: string;
   CodTipoAmbiente: 1 | 2;

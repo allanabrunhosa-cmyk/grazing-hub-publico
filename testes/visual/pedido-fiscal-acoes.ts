@@ -12,14 +12,21 @@ export async function prepararEmissaoPedidoBrasilNfeAction(pedidoId: string, ver
   } };
 }
 export async function emitirNotaPedidoBrasilNfeAction() { return { erro: "A prévia de testes não transmite documentos." }; }
-export async function consultarEmissaoPedidoBrasilNfeAction() { return { erro: "A prévia de testes não consulta serviços externos." }; }
+export async function consultarEmissaoPedidoBrasilNfeAction() {
+  if (new URLSearchParams(location.search).get("fiscal") === "incerta") return { ok: true as const, documento: {
+    id: "documento-exclusivamente-sintetico", versaoPedido: 1, modeloDocumento: 65, status: "REJEITADO", ambiente: "PRODUCAO", provedor: "BRASIL_NFE", tentativas: 1,
+    ultimoErro: "O emissor rejeitou a descrição de um produto (xProd): caracteres incompatíveis com o XML fiscal. A nota não foi autorizada.",
+    referenciaProvedor: null, chaveFiscal: "0".repeat(44), numero: "101", serie: "7", protocolo: null, formatoImpressao: null, xmlDisponivel: false,
+  } };
+  return { erro: "A prévia de testes não consulta serviços externos." };
+}
 export async function obterDocumentosEmissaoPedidoBrasilNfeAction() { return { erro: "A prévia de testes não obtém arquivos externos." }; }
 export async function cancelarNotaPedidoBrasilNfeAction() { return { erro: "Cancelamento rejeitado: prazo legal encerrado. Código 501. Nenhuma operação externa foi realizada." }; }
 
 export async function emitirNotaPedidoDiretaBrasilNfeAction(entrada: { modelo: 55 | 65; versaoPedido: number; indicadorPresenca?: number; pagamentoCartaoNaoIntegrado?: true }) {
   const estado = new URLSearchParams(location.search).get("fiscal");
   if (estado === "rede") throw new Error("Falha exclusivamente sintética de conexão.");
-  if (estado === "erro" || estado === "presenca" && !entrada.indicadorPresenca || estado === "cartao" && !entrada.pagamentoCartaoNaoIntegrado) return {
+  if (estado === "erro" || estado === "presenca" && !entrada.indicadorPresenca) return {
     erro: "A nota não foi emitida. Corrija os pontos indicados.", documento: null, conferirAntesDeRepetir: false,
     exigeEscolhaPresenca: estado === "presenca", exigeEscolhaCartao: estado === "cartao",
     pendencias: [{ campo: estado === "presenca" ? "indicadorPresenca" : estado === "cartao" ? "pagamentoCartao" : "Produtos[0].NCM", mensagem: estado === "presenca" ? "Informe como a venda foi realizada. O canal não pode ser presumido." : estado === "cartao" ? "Pagamento com cartão: confirme se o pagamento foi processado fora do HUB." : "Caixa Grazing média: informe o NCM de oito dígitos na classificação fiscal do produto.", href: estado === "erro" ? "/financeiro/fiscal/cobertura" : null }],

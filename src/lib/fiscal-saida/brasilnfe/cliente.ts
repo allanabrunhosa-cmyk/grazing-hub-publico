@@ -1,5 +1,6 @@
 import "server-only";
 import { createHash } from "node:crypto";
+import { motivoValidacaoXmlNfe } from "./texto-xml";
 import { ETAPAS_CONTRATO_BRASILNFE, sanitizarMetadadosErroBrasilNfe } from "./diagnostico-http";
 import type { CategoriaDiagnosticoBrasilNfe, EtapaContratoBrasilNfe, MetadadosErroBrasilNfe } from "./diagnostico-http";
 import { guardarDetalhesTemporariosErroBrasilNfe, prepararDiagnosticoServicosBrasilNfe, observarEnvelopeConsultaNotaBrasilNfe } from "./detalhes-diagnostico";
@@ -208,6 +209,7 @@ function validarNota(valor: unknown, requisicao: RequisicaoConsultaBrasilNfeHttp
     Chave: digitos(dados.Chave, 44, 44), Numero: digitos(dados.Numero, 30),
     Serie: digitos(dados.Serie, 10), NumeroProtocolo: digitos(dados.NumeroProtocolo, 30),
     CodStatusResposta: codigo == null ? null : codigo as number,
+    ...(motivoValidacaoXmlNfe(dados.DsStatusResposta) ? { motivoValidacaoXml: motivoValidacaoXmlNfe(dados.DsStatusResposta) } : {}),
     DtEmissao: data(dados.DtEmissao), DtRecebimento: data(dados.DtRecebimento),
     ...(cnpjEmissor === undefined ? {} : { CnpjEmissor: cnpjEmissor }),
   };
