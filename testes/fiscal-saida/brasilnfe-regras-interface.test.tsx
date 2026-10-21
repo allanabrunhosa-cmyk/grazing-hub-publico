@@ -248,7 +248,7 @@ it("GTIN exige escolha da unidade final e limita código sem salvar automaticame
   await usuario.click(await screen.findByRole("option", { name: "Possui GTIN próprio" }));
   const campo = screen.getByLabelText("EAN / GTIN") as HTMLInputElement;
   expect(campo.value).toBe(""); expect(campo.maxLength).toBe(14);
-  expect(screen.getByText(/Confirme o código da unidade vendida/)).toBeTruthy();
+  expect(screen.queryByText(/Confirme o código da unidade vendida/)).toBeNull();
   await usuario.type(campo, "letras"); expect(campo.value).toBe("");
   await usuario.click(campo); await usuario.paste("0123456789012"); expect(campo.value).toBe("0123456789012");
   fireEvent.blur(campo); expect(acoes.salvar).not.toHaveBeenCalled(); expect(acoes.aprovar).not.toHaveBeenCalled();
