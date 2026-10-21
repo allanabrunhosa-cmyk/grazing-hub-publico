@@ -3,7 +3,7 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const raiz = resolve(__dirname, "../..");
-const evidencia = resolve(raiz, ".tmp/nfce-retentativa-20261021/visual");
+const evidencia = resolve(raiz, ".tmp/fiscal-site-retentativa-20261021/visual");
 const porta = Number(process.env.FISCAL_PEDIDO_VISUAL_PORT ?? "4258");
 if (![4258, 4458].includes(porta)) throw new Error("Porta da prévia sintética fora do contrato local.");
 const origem = `http://127.0.0.1:${porta}`;
@@ -40,7 +40,11 @@ test("pendência fiscal é clara e cartão não exige conferência de quitação
   await page.goto(`/pedido-detalhe.html?fiscal=erro&tema=${info.project.metadata.tema}`);
   await page.getByRole("button", { name: "Emitir NFC-e", exact: true }).click();
   const fiscal = page.getByRole("region", { name: "Nota fiscal", exact: true });
-  await expect(fiscal.getByRole("alert")).toContainText("Caixa Grazing média: informe o NCM de oito dígitos");
+  await expect(fiscal.getByRole("alert")).toContainText("Item 1 — Caixa Grazing média: falta preencher NCM (8 dígitos) e Origem ICMS");
+  await expect(fiscal.getByRole("button", { name: "Emitir NFC-e", exact: true })).toBeEnabled();
+  await fiscal.getByRole("button", { name: "Emitir NFC-e", exact: true }).click();
+  await expect(fiscal.getByRole("alert")).toContainText("Item 1 — Caixa Grazing média: falta preencher NCM (8 dígitos) e Origem ICMS");
+  await expect(fiscal.getByRole("button", { name: "Emitir NFC-e", exact: true })).toBeEnabled();
   await expect(fiscal.getByRole("link", { name: "Corrigir informação", exact: true })).toHaveAttribute("href", "/financeiro/fiscal/cobertura");
   await expect(page.getByRole("dialog", { name: "Emitir nota fiscal", exact: true })).toHaveCount(0);
   await fiscal.scrollIntoViewIfNeeded(); await page.screenshot({ path: resolve(evidencia, `${info.project.name}-erro.png`) });
@@ -111,9 +115,10 @@ test("incerteza preserva modelo/botão e rejeição consultada permite nova tent
   const fiscal = page.getByRole("region", { name: "Nota fiscal", exact: true });
   const seletor = fiscal.getByRole("combobox", { name: "Modelo da nota", exact: true });
   await seletor.scrollIntoViewIfNeeded();
-  await expect(fiscal.getByRole("button", { name: "Emitir NFC-e", exact: true })).toBeDisabled();
+  await expect(fiscal.getByRole("button", { name: "Emitir NFC-e", exact: true })).toBeEnabled();
   await seletor.press("Enter"); await page.getByRole("option", { name: "NF-e (55)", exact: true }).click();
-  await expect(fiscal.getByRole("button", { name: "Emitir NF-e", exact: true })).toBeDisabled();
+  await expect(fiscal.getByRole("button", { name: "Emitir NF-e", exact: true })).toBeEnabled();
+  await expect(page.getByRole("listbox")).toHaveCount(0);
   await mkdir(evidencia, { recursive: true });
   await page.screenshot({ path: resolve(evidencia, `${info.project.name}-incerta.png`), fullPage: true });
   await fiscal.getByRole("button", { name: "Consultar resultado", exact: true }).click();

@@ -59,7 +59,7 @@ describe("Um clique produtivo por pedido, sem parâmetros fiscais privilegiados 
 
   it("resultado incerto de outra revisão bloqueia retry e mantém o documento para consulta", async () => {
     const p = previa(); p.pendencias = [{ campo: "duplicidade", mensagem: "Existe tentativa desta venda neste ambiente.", href: "" }]; s.preparar.mockResolvedValue(p);
-    const incerto = documento({ id: "documento-anterior", status: "INCERTO", referenciaProvedor: null, chaveFiscal: null, protocolo: null }); s.documentos.mockResolvedValue([incerto]);
+    const incerto = documento({ id: "documento-anterior", status: "INCERTO", referenciaProvedor: null, chaveFiscal: null, protocolo: null }); s.documentos.mockResolvedValue([incerto]); s.consultar.mockResolvedValue(incerto);
     expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ documento: incerto, conferirAntesDeRepetir: true });
     expect(s.emitir).not.toHaveBeenCalled();
   });
@@ -90,6 +90,31 @@ describe("Um clique produtivo por pedido, sem parâmetros fiscais privilegiados 
   });
 });
 
+describe("Novo clique reconcilia antes de enviar", () => {
+  const incerto = () => documento({ status: "PENDENTE_CONFERENCIA", protocolo: null });
+  it("consulta resultado incerto e emite outra revisão somente após rejeição certa", async () => {
+    s.documentos.mockResolvedValue([incerto()]); s.consultar.mockResolvedValue(documento({ status: "REJEITADO", protocolo: null }));
+    expect(await emitirNotaPedidoDiretaBrasilNfe({ ...entrada, modelo: 55 }, sessao)).toHaveProperty("ok", true);
+    expect(s.consultar).toHaveBeenCalledExactlyOnceWith("documento-sintetico", sessao);
+    expect(s.preparar).toHaveBeenCalledTimes(1); expect(s.emitir).toHaveBeenCalledTimes(1);
+    expect(s.consultar.mock.invocationCallOrder[0]).toBeLessThan(s.preparar.mock.invocationCallOrder[0]);
+  });
+  it("consulta que recupera autorização não prepara nem envia outra nota", async () => {
+    s.documentos.mockResolvedValue([incerto()]); s.consultar.mockResolvedValue(documento());
+    expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ ok: true, documento: { status: "AUTORIZADO" } });
+    expect(s.preparar).not.toHaveBeenCalled(); expect(s.emitir).not.toHaveBeenCalled();
+  });
+  it("incerteza persistente devolve motivo e aceita nova consulta pelo mesmo clique", async () => {
+    s.documentos.mockResolvedValue([incerto()]); s.consultar.mockResolvedValue(incerto());
+    for (let i=0;i<2;i++) expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ erro: expect.stringContaining("não enviou outra nota"), conferirAntesDeRepetir: true });
+    expect(s.consultar).toHaveBeenCalledTimes(2); expect(s.preparar).not.toHaveBeenCalled(); expect(s.emitir).not.toHaveBeenCalled();
+  });
+  it("autorização existente não exige outra consulta nem transmissão", async () => {
+    s.documentos.mockResolvedValue([documento()]);
+    expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ ok: true, documento: { status: "AUTORIZADO" } });
+    expect(s.consultar).not.toHaveBeenCalled(); expect(s.emitir).not.toHaveBeenCalled();
+  });
+});
 describe("Recuperação da resposta perdida, sem repetir emissão", () => {
   it("não usa homologação como resultado do clique produtivo", async () => {
     s.documentos.mockResolvedValue([documento({ ambiente: "HOMOLOGACAO" })]);

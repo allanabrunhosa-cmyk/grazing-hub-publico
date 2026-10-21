@@ -1,4 +1,5 @@
 import "server-only";
+import { presencaAutomaticaPedido } from "@/lib/tributacao/pedidos";
 import { rejeicaoFiscalCorrigivel } from "../rejeicao";
 import { createHash } from "node:crypto";
 import { Prisma } from "@/generated/prisma/client";
@@ -301,7 +302,7 @@ export async function prepararEmissaoPedidoBrasilNfe(pedidoId: string, versaoPed
   const presencaValida = (v: unknown): v is NonNullable<ContextoPreparacaoFiscalPedido["indicadorPresenca"]> => typeof v === "number" && [1, 2, 3, 4, 5, 9].includes(v) && (modelo !== 55 || v !== 4);
   // A escolha já fotografada pertence somente a este pedido/revisão/modelo/ambiente.
   // Ela não substitui a escolha nova nem dispensa o recálculo fiscal vigente.
-  const indicadorPresencaPreparacao = contextoPreparacao.indicadorPresenca ?? (objeto(preservado?.payload).versao === 2 && documentoPreservado.ModeloDocumento === modelo && documentoPreservado.TipoAmbiente === (ambiente === "PRODUCAO" ? 1 : 2) && presencaValida(presencaPreservada) ? presencaPreservada : undefined);
+  const indicadorPresencaPreparacao = contextoPreparacao.indicadorPresenca ?? presencaAutomaticaPedido(p, String(modelo) as "55" | "65") ?? (objeto(preservado?.payload).versao === 2 && documentoPreservado.ModeloDocumento === modelo && documentoPreservado.TipoAmbiente === (ambiente === "PRODUCAO" ? 1 : 2) && presencaValida(presencaPreservada) ? presencaPreservada : undefined);
   const pagamentoCartaoNaoIntegrado = contextoPreparacao.pagamentoCartaoNaoIntegrado === true || modelo === 65 && objeto(preservado?.payload).versao === 2 && documentoPreservado.ModeloDocumento === modelo && documentoPreservado.TipoAmbiente === (ambiente === "PRODUCAO" ? 1 : 2) && objeto(objeto(preservado?.payload).tributacao).pagamentoCartaoNaoIntegrado === true;
   const selecoes = opcoesInternas.somenteVersoesAtivas === true ? [] : await selecionarPropostasPedido(pedidoId, sessao);
   // Rejeição certa pode originar outra revisão; a tentativa rejeitada permanece
@@ -317,9 +318,10 @@ export async function prepararEmissaoPedidoBrasilNfe(pedidoId: string, versaoPed
   let plano: Awaited<ReturnType<typeof obterComplementosAprovadosDocumentoBrasilNfe>> = null;
   try { plano = await obterComplementosAprovadosDocumentoBrasilNfe(d.id, sessao, { somentePrevia: true }); } catch (e) { if (e instanceof ErroRegraFiscalBrasilNfe) pendencias.push({ campo: e.campo, mensagem: e.message, href: linkRegras }); else throw e; }
   if (plano) pendencias.push(...plano.resultado.pendencias.map(p => {
-    const i = Array.isArray(payload.itens) ? payload.itens.find(v => objeto(v).id === p.itemId) : null;
+    const indice = Array.isArray(payload.itens) ? payload.itens.findIndex(v => objeto(v).id === p.itemId) : -1;
+    const i = indice >= 0 && Array.isArray(payload.itens) ? payload.itens[indice] : null;
     const nome = texto(objeto(objeto(i).produto).nome);
-    return { campo: p.campo, mensagem: `${nome ? `${nome}: ` : ""}${p.campo}: ${p.motivo}`, href: linkRegras };
+    return { campo: p.campo, mensagem: `${indice >= 0 ? `Item ${indice + 1} — ` : ""}${nome ? `${nome}: ` : ""}${p.campo}: ${p.motivo}`, href: linkRegras };
   }));
   if (plano && (plano.modelo !== modelo || plano.ambiente !== ambiente)) pendencias.push({ campo: "modelo", mensagem: "O documento processado pertence ao modelo e ambiente originais. Preserve o histórico e consulte esse contexto.", href: linkIntegracao });
   const h = await prisma.$transaction(tx => habilitacao(tx, ambiente));

@@ -29,7 +29,7 @@ export async function emitirNotaPedidoDiretaBrasilNfeAction(entrada: { modelo: 5
   if (estado === "erro" || estado === "presenca" && !entrada.indicadorPresenca) return {
     erro: "A nota não foi emitida. Corrija os pontos indicados.", documento: null, conferirAntesDeRepetir: false,
     exigeEscolhaPresenca: estado === "presenca", exigeEscolhaCartao: false,
-    pendencias: [{ campo: estado === "presenca" ? "indicadorPresenca" : "Produtos[0].NCM", mensagem: estado === "presenca" ? "Informe como a venda foi realizada. O canal não pode ser presumido." : "Caixa Grazing média: informe o NCM de oito dígitos na classificação fiscal do produto.", href: estado === "erro" ? "/financeiro/fiscal/cobertura" : null }],
+    pendencias: [{ campo: estado === "presenca" ? "indicadorPresenca" : "Produtos[0].NCM", mensagem: estado === "presenca" ? "Informe como a venda foi realizada. O canal não pode ser presumido." : "Item 1 — Caixa Grazing média: falta preencher NCM (8 dígitos) e Origem ICMS. Corrija a configuração fiscal antes de tentar novamente.", href: estado === "erro" ? "/financeiro/fiscal/cobertura" : null }],
   };
   return { ok: true as const, conferirAntesDeRepetir: true, documento: {
     id: "documento-exclusivamente-sintetico", versaoPedido: entrada.versaoPedido, modeloDocumento: entrada.modelo, status: "AUTORIZADO", ambiente: "PRODUCAO", provedor: "BRASIL_NFE", tentativas: 1, ultimoErro: null, referenciaProvedor: "referencia-exclusivamente-sintetica", chaveFiscal: "0".repeat(44), numero: "101", serie: "1", protocolo: "000000000000000", formatoImpressao: "PDF" as const, xmlDisponivel: true,

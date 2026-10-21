@@ -48,18 +48,18 @@ it("impede clique duplicado e bloqueia os controles durante a transmissão", asy
   concluir({ ok: true, documento: autorizada, conferirAntesDeRepetir: true });
   expect(await screen.findByText("Nota fiscal emitida com sucesso.")).toBeTruthy();
 });
-it.each(["INCERTO", "PENDENTE_CONFERENCIA", "PROCESSANDO", "DENEGADO", "CANCELADO"])("resultado produtivo %s permite consulta e não nova emissão", async status => {
+it.each(["INCERTO", "PENDENTE_CONFERENCIA", "PROCESSANDO", "DENEGADO", "CANCELADO"])("resultado produtivo %s mantém consulta e tentativa segura sem duplicar no navegador", async status => {
   sim.consultar.mockResolvedValue({ ok: true, documento: { ...documento, status, tentativas: 1 } });
   render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, status, tentativas: 1 }] }} />);
   if (["DENEGADO", "CANCELADO"].includes(status)) expect(screen.queryByRole("button", { name: /^Emitir/ })).toBeNull();
-  else { expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(true); expect(screen.getByRole("combobox", { name: "Modelo da nota" })).toBeTruthy(); }
+  else { expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false); expect(screen.getByRole("combobox", { name: "Modelo da nota" })).toBeTruthy(); }
   await userEvent.click(screen.getByRole("button", { name: "Consultar resultado" }));
   expect(sim.consultar).toHaveBeenCalledExactlyOnceWith(documento.id);
   expect(sim.emitir).not.toHaveBeenCalled(); expect(screen.queryByRole("dialog")).toBeNull();
 });
-it.each([{ referenciaProvedor: "referencia" }, { chaveFiscal: "1".repeat(44) }, { protocolo: "135260000000001" }])("preserva identidade externa e não oferece nova transmissão (%j)", identidade => {
+it.each([{ referenciaProvedor: "referencia" }, { chaveFiscal: "1".repeat(44) }, { protocolo: "135260000000001" }])("preserva identidade externa e permite clique para reconciliação no servidor (%j)", identidade => {
   render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, ...identidade }] }} />);
-  expect(screen.getByRole("combobox", { name: "Modelo da nota" })).toBeTruthy(); expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(true); expect(sim.emitir).not.toHaveBeenCalled();
+  expect(screen.getByRole("combobox", { name: "Modelo da nota" })).toBeTruthy(); expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false); expect(sim.emitir).not.toHaveBeenCalled();
 });
 it("autorização produtiva anterior prevalece sobre preparação de revisão nova", () => {
   render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, id: "nova" }, { ...autorizada, versaoPedido: 1 }] }} />);
@@ -82,10 +82,10 @@ it("mantém rejeição SEFAZ clara e nunca a apresenta como sucesso", async () =
   expect((await screen.findByRole("alert")).textContent).toContain("Nota duplicada");
   expect(screen.queryByText("Nota fiscal emitida com sucesso.")).toBeNull(); expect(screen.getByRole("button", { name: "Emitir NFC-e" })).toBeTruthy();
 });
-it("resposta perdida exige consultar o pedido antes de permitir tentar novamente", async () => {
+it("resposta perdida mantém Emitir habilitado para nova tentativa com consulta no servidor", async () => {
   sim.emitir.mockRejectedValue(new Error("rede")); render(<EmitirNotaPedido {...base} />); await clicarEmitir();
   expect((await screen.findByRole("alert")).textContent).toContain("conexão foi interrompida");
-  expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(true);
+  expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false);
   expect(screen.getByRole("combobox", { name: "Modelo da nota" })).toBeTruthy();
   await userEvent.click(screen.getByRole("button", { name: "Consultar resultado fiscal" }));
   expect(sim.consultarPedido).toHaveBeenCalledExactlyOnceWith(base.pedidoId);
@@ -102,10 +102,25 @@ it("presença faltante é escolhida inline sem inferir um canal", async () => {
   sim.emitir.mockResolvedValueOnce({ erro: "Informe como a venda foi realizada.", exigeEscolhaPresenca: true, conferirAntesDeRepetir: false });
   render(<EmitirNotaPedido {...base} modeloSugerido={55} />); await clicarEmitir();
   const campo = await screen.findByRole("combobox", { name: "Como a venda foi realizada?" });
-  expect(screen.getByRole("button", { name: "Emitir NF-e" }).hasAttribute("disabled")).toBe(true);
+  await waitFor(() => expect(screen.getByRole("button", { name: "Emitir NF-e" }).hasAttribute("disabled")).toBe(false));
   await userEvent.click(campo); expect(screen.queryByRole("option", { name: "NFC-e com entrega a domicílio" })).toBeNull();
   await userEvent.click(await screen.findByRole("option", { name: "Não presencial, internet" })); await clicarEmitir();
   expect(sim.emitir).toHaveBeenLastCalledWith({ pedidoId: base.pedidoId, versaoPedido: 2, modelo: 55, indicadorPresenca: 2 }); expect(screen.queryByRole("dialog")).toBeNull();
+});
+it("erro local permite corrigir e repetir sem consultar ou reabrir o pedido", async () => {
+  sim.emitir.mockResolvedValueOnce({ erro: "Corrija os campos.", conferirAntesDeRepetir: false, pendencias: [{ campo: "ncm", mensagem: "Item 1 — Produto sintético: falta preencher NCM (8 dígitos) e Origem ICMS.", href: null }] });
+  render(<EmitirNotaPedido {...base} />); await clicarEmitir();
+  expect((await screen.findByRole("alert")).textContent).toContain("Item 1 — Produto sintético: falta preencher NCM (8 dígitos) e Origem ICMS.");
+  await clicarEmitir(); expect(await screen.findByText("Nota fiscal emitida com sucesso.")).toBeTruthy();
+  expect(sim.emitir).toHaveBeenCalledTimes(2); expect(sim.consultarPedido).not.toHaveBeenCalled();
+});
+it("nova tentativa após resposta perdida mantém o modelo escolhido e delega reconciliação ao servidor", async () => {
+  sim.emitir.mockRejectedValueOnce(new Error("rede"));
+  render(<EmitirNotaPedido {...base} />); await clicarEmitir(); await screen.findByRole("alert");
+  await userEvent.click(screen.getByRole("combobox", { name: "Modelo da nota" }));
+  await userEvent.click(await screen.findByRole("option", { name: "NF-e (55)" }));
+  await clicarEmitir(); expect(await screen.findByText("Nota fiscal emitida com sucesso.")).toBeTruthy();
+  expect(sim.emitir).toHaveBeenLastCalledWith({ pedidoId: base.pedidoId, versaoPedido: 2, modelo: 55 });
 });
 it("não solicita quitação ou declaração extra de cartão na emissão", async () => {
   render(<EmitirNotaPedido {...base} />); await clicarEmitir();
@@ -117,7 +132,7 @@ it("não solicita quitação ou declaração extra de cartão na emissão", asyn
 it("mantém seletor na incerteza e libera emissão após consultar rejeição com chave sem protocolo", async () => {
   sim.consultar.mockResolvedValue({ ok: true, documento: { ...documento, status: "REJEITADO", tentativas: 1, chaveFiscal: "1".repeat(44), ultimoErro: "Descrição fiscal inválida (xProd)." } });
   render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, status: "PENDENTE_CONFERENCIA", tentativas: 1 }] }} />);
-  expect(screen.getByRole("button", { name: "Emitir NFC-e" }).hasAttribute("disabled")).toBe(true);
+  expect(screen.getByRole("button", { name: "Emitir NFC-e" }).hasAttribute("disabled")).toBe(false);
   await userEvent.click(screen.getByRole("combobox", { name: "Modelo da nota" }));
   await userEvent.click(await screen.findByRole("option", { name: "NF-e (55)" }));
   expect(sim.emitir).not.toHaveBeenCalled();
@@ -189,5 +204,5 @@ it("rejeição com chave permite outra revisão; protocolo impede nova transmiss
   rerender(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, status: "REJEITADO", tentativas: 1, chaveFiscal: "1".repeat(44) }] }} />);
   expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false);
   rerender(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, status: "REJEITADO", tentativas: 1, chaveFiscal: "1".repeat(44), protocolo: "123456" }] }} />);
-  expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(true); expect(sim.emitir).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false); expect(sim.emitir).not.toHaveBeenCalled();
 });

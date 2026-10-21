@@ -1,4 +1,5 @@
 import "server-only";
+import { apresentacaoCanalVenda } from "@/lib/vendas/canais-apresentacao";
 import { descricaoProdutoNfe } from "@/lib/fiscal-saida/brasilnfe/texto-xml";
 import { identidadeFiscalCobranca } from "@/lib/vendas/cliente-cobranca";
 import { Prisma } from "@/generated/prisma/client";
@@ -19,6 +20,12 @@ import type { ClassificacaoFiscal, ComportamentoFiscal, ComprovacaoFisicaFiscal,
 type PedidoFiscal = Prisma.PedidoVendaGetPayload<{ include: { itens: true } }>;
 type EscolhaSnapshot = { opcaoId: string; grupoId?: string; produtoId: string | null; opcaoNome: string; quantidade: number; multiplicador?: string; preco: string; unidadeProduto?: string; modoPreparoProduto?: string | null; composicaoFiscalComprovada?: boolean };
 export type OpcoesOperacaoFiscal = { consumidorFinal?: boolean; indicadorIe?: 1 | 2 | 9; indicadorPresenca?: 0 | 1 | 2 | 3 | 4 | 5 | 9; ambiente?: "HOMOLOGACAO" | "PRODUCAO"; pagamentoCartaoNaoIntegrado?: true };
+/** Usa o canal fotografado no fechamento, sem consultar o nome atual do cadastro.
+ * NFC-e com entrega conserva o indicador específico 4. */
+export function presencaAutomaticaPedido(p: Pick<PedidoFiscal, "atendimento" | "canalNomeSnapshot">, modelo: "55" | "65") {
+  if (modelo === "65" && p.atendimento === "ENTREGA") return 4;
+  return apresentacaoCanalVenda(p.canalNomeSnapshot).conhecido === "site" ? 2 : undefined;
+}
 function validarOpcoes(v: OpcoesOperacaoFiscal) {
   if (!v || typeof v !== "object" || v.consumidorFinal !== undefined && typeof v.consumidorFinal !== "boolean" || v.indicadorIe !== undefined && ![1, 2, 9].includes(v.indicadorIe) || v.indicadorPresenca !== undefined && ![0, 1, 2, 3, 4, 5, 9].includes(v.indicadorPresenca) || v.ambiente !== undefined && !["HOMOLOGACAO", "PRODUCAO"].includes(v.ambiente) || v.pagamentoCartaoNaoIntegrado !== undefined && v.pagamentoCartaoNaoIntegrado !== true) throw new ErroPedidoVenda("Contexto fiscal da operação inválido.");
 }
@@ -96,10 +103,10 @@ async function calcularPreviaPedidoBase(tx: Prisma.TransactionClient, p: PedidoF
   const uf = String(p.atendimento === "ENTREGA" ? endereco.uf ?? cobranca.uf ?? "" : perfil?.uf ?? "");
   const consumidorFinal = opcoes.consumidorFinal ?? !comprador.inscricaoEstadual;
   const indicadorIe = opcoes.indicadorIe ?? (comprador.inscricaoEstadual && comprador.inscricaoEstadual !== "ISENTO" ? 1 : 9);
-  const entregaNfce = modelo === "65" && p.atendimento === "ENTREGA";
   // Zero é apenas o marcador de uma fotografia ainda inapta. Retirada e canal
   // comercial não comprovam venda presencial; a pendência bloqueia seu envio.
-  const presenca = opcoes.indicadorPresenca ?? (entregaNfce ? 4 : 0);
+  const presencaAutomatica = presencaAutomaticaPedido(p, modelo);
+  const presenca = opcoes.indicadorPresenca ?? presencaAutomatica ?? 0;
   const temDeclaracaoAdministrativa = vigentes.some(v => v.tipo === "CLASSIFICACAO" && alcance.has(v.chave) && (v.dados as ClassificacaoFiscal).fci?.situacao === "DISPENSADA_POR_DECLARACAO_RESPONSAVEL");
   const previa = calcularTributacao({ data, estabelecimento: "singleton", ufDestino: uf, destinatario: indicadorIe === 1 ? "CONTRIBUINTE" : "CONSUMIDOR_FINAL", consumidorFinal, modelo, operacao: "VENDA", frete: p.frete.toFixed(2), outrosCustos: p.outrosCustos.toFixed(2), ...(temDeclaracaoAdministrativa ? { ambiente: opcoes.ambiente ?? "HOMOLOGACAO" } : {}) }, itens, vs, catalogo, tecnicasAtuais, insumos);
   if (revisao) previa.revisaoConsolidada = revisao.revisao;
@@ -110,7 +117,7 @@ async function calcularPreviaPedidoBase(tx: Prisma.TransactionClient, p: PedidoF
   if (modelo === "65" && !consumidorFinal) pendencia("NFC-e somente para consumidor final; venda para revenda exige NF-e.");
   if (modelo === "65" && indicadorIe !== 9) pendencia("NFC-e exige destinatário não contribuinte (indicador IE 9); utilize NF-e para contribuinte ou isento.");
   if (modelo === "55" && presenca === 4) pendencia("Indicador de presença 4 é específico de NFC-e com entrega; confirmar presença da NF-e.");
-  if (!entregaNfce && opcoes.indicadorPresenca === undefined) pendencia(`Confirmar presença/canal da operação ${modelo === "55" ? "NF-e" : "NFC-e"}; retirada ou atendimento comercial não comprovam presença fiscal.`);
+  if (presencaAutomatica === undefined && opcoes.indicadorPresenca === undefined) pendencia(`Confirmar presença/canal da operação ${modelo === "55" ? "NF-e" : "NFC-e"}; retirada ou atendimento comercial não comprovam presença fiscal.`);
   if (!new Prisma.Decimal(previa.totalMercadorias).equals(p.subtotal.minus(p.desconto))) pendencia("Linhas fiscais não fecham com subtotal menos desconto do pedido.");
   if (await tx.historicoPedidoVenda.count({ where: { pedidoId: p.id, tipo: "DOCUMENTO_FISCAL_EXTERNO" } })) pendencia("Pedido possui referência de emissão externa; confirme o resultado no Takeat/emissor antes de qualquer nova emissão.");
   const informado = objeto(p.pagamentoInformadoSnapshot); const formas: Record<string, string> = { DINHEIRO: "01", CARTAO_CREDITO: "03", CARTAO_DEBITO: "04", BOLETO: "15", PIX: "17" };
@@ -145,6 +152,11 @@ async function calcularPreviaPedidoBase(tx: Prisma.TransactionClient, p: PedidoF
     try { documentoCalculado = aplicarLayoutRtc(documento, rtc2027); }
     catch (erro) { pendencia(erro instanceof Error ? erro.message : "Mapeamento RTC incompatível com o documento."); rtc2027 = undefined; }
   }
+  // Acrescenta a posição comercial sem alterar o nome fotografado ou a linha fiscal.
+  previa.pendencias = previa.pendencias.map(mensagem => {
+    const indices = itens.flatMap((item, n) => mensagem.startsWith(`${item.nome}:`) || mensagem.startsWith(`${item.nome} /`) ? [n + 1] : []);
+    return indices.length ? `Item ${indices.join(", ")} — ${mensagem}` : mensagem;
+  });
   const snapshot: SnapshotTributacaoBrasilNfe & { previa: PreviaTributacao; perfilEmissor: string | null; revisaoConsolidada?: PreviaTributacao["revisaoConsolidada"] } = { apto: previa.apto, pendencias: previa.pendencias, emitenteCnpj: perfil?.cnpj ?? "", emitenteIE: perfil?.inscricaoEstadual ?? "", ...(previa.linhas.some(l => l.fci) ? { emitenteUf: perfil?.uf ?? "" } : {}), crt: perfil?.crt ?? 0, documento: documentoCalculado, previa, perfilEmissor: perfil?.emissor ?? null, ...(pagamentoCartaoNaoIntegrado ? { pagamentoCartaoNaoIntegrado: true } : {}), ...(revisao ? { revisaoConsolidada: revisao.revisao } : {}), ...(rtc2027 ? { rtc2027 } : {}) };
   return snapshot;
 }

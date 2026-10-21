@@ -53,7 +53,7 @@ function DadosDocumento({ documento: d, editar, ocupado, consultar, arquivos, ca
     {d.protocolo && <p className="text-xs break-all">Protocolo: {d.protocolo}</p>}
     {d.chaveFiscal && <p className="text-xs break-all">Chave: {d.chaveFiscal}</p>}
     {d.ultimoErro && <p role="alert" className="pedido-detalhe-fiscal-alerta text-sm text-destructive whitespace-pre-wrap break-words"><CircleAlert aria-hidden="true" className="size-4 shrink-0" /><span>{d.ultimoErro}</span></p>}
-    {incerto(d) && <p className="text-xs text-muted-foreground">Consulte este documento. Um resultado incerto impede novo envio.</p>}
+    {incerto(d) && <p className="text-xs text-muted-foreground">A tentativa anterior será consultada ao tentar novamente. Nenhuma nota será reenviada enquanto o resultado estiver incerto.</p>}
     {d.cancelamentoPendente && <p role="status" className="text-sm text-muted-foreground">Cancelamento aguardando confirmação. Consulte o resultado antes de qualquer nova ação.</p>}
     <GrupoAcoes nome="Ações da nota fiscal" alinhamento="inicio" className="flex-wrap">
       {editar && (d.tentativas > 0 || d.referenciaProvedor || d.chaveFiscal || d.protocolo || incerto(d)) && <Button type="button" variant="outline" disabled={ocupado} onClick={() => consultar(d.id)}><RefreshCw aria-hidden="true" />Consultar resultado</Button>}
@@ -89,7 +89,7 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
     ?? documentos.find(d => d.versaoPedido === versao) ?? documentos[0];
   const rejeicaoCorrigivel = rejeicaoFiscalCorrigivel(atual);
   const possuiResultadoProdutivo = Boolean(!rejeicaoCorrigivel && atual?.ambiente === "PRODUCAO" && (atual.tentativas > 0 || atual.chaveFiscal || atual.protocolo || atual.referenciaProvedor || incerto(atual) || ["AUTORIZADO", "REJEITADO", "DENEGADO", "CANCELADO"].includes(atual.status)));
-  const podeEmitir = fiscal.editar && confirmado && !possuiResultadoProdutivo;
+  const podeEmitir = fiscal.editar && confirmado;
   const mostrarControles = fiscal.editar && confirmado && (atual?.ambiente !== "PRODUCAO" || !["AUTORIZADO", "CANCELADO", "DENEGADO"].includes(atual?.status ?? ""));
   function guardarResultado(documento: DocumentoPedido) {
     setResultadoLocal({ documento, base: JSON.stringify(fiscal.documentos.find(d => d.id === documento.id)) });
@@ -98,10 +98,10 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
     if (popup?.temAlteracoes()) { setErro("Salve ou descarte as alterações do pedido antes da ação fiscal."); return; }
     if (trava.current) return;
     trava.current = true; setErro("");
-    iniciar(async () => { try { await operacao(); } catch { setConferirAntesDeRepetir(true); setErro("A conexão foi interrompida e o resultado não foi confirmado. Use Consultar resultado fiscal antes de tentar emitir novamente."); } finally { trava.current = false; } });
+    iniciar(async () => { try { await operacao(); } catch { setConferirAntesDeRepetir(true); setErro("A conexão foi interrompida e o resultado não foi confirmado. Clique em Emitir para consultar a tentativa anterior e tentar novamente com segurança."); } finally { trava.current = false; } });
   }
   function emitir() {
-    if (!podeEmitir || conferirAntesDeRepetir) return;
+    if (!podeEmitir) return;
     agir(async () => {
       setPendencias([]);
       // Uma resposta perdida nunca autoriza um novo envio pelo navegador.
@@ -158,9 +158,9 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
               <option value="65">NFC-e (65)</option><option value="55">NF-e (55)</option>
             </SelecaoFormulario>
           </div>
-          <Button type="button" variant="entrada" aria-label={`Emitir ${modeloNome(modelo)}`} onClick={emitir} disabled={ocupado || !podeEmitir || conferirAntesDeRepetir || exigePresenca && presenca === null}><FileText aria-hidden="true" />Emitir</Button>
+          <Button type="button" variant="entrada" aria-label={`Emitir ${modeloNome(modelo)}`} onClick={emitir} disabled={ocupado || !podeEmitir}><FileText aria-hidden="true" />Emitir</Button>
         </div>
-        <p className="text-xs text-muted-foreground">{!podeEmitir || conferirAntesDeRepetir ? "Consulte o resultado da tentativa anterior para liberar uma nova emissão com segurança. Você pode selecionar o modelo enquanto aguarda." : "Emissão em produção. O botão envia a nota para autorização da SEFAZ."}</p>
+        <p className="text-xs text-muted-foreground">{possuiResultadoProdutivo || conferirAntesDeRepetir ? "Clique em Emitir para tentar novamente. O sistema consulta a tentativa anterior antes de enviar outra nota, para evitar duplicidade." : "Emissão em produção. O botão envia a nota para autorização da SEFAZ."}</p>
         {exigePresenca && <div className="grid gap-1">
           <Label htmlFor={presencaId}>Como a venda foi realizada?</Label>
           <SelecaoFormulario id={presencaId} value={presenca === null ? "" : String(presenca)} disabled={ocupado} onValueChange={v => setPresenca(opcoesPresenca.find(o => String(o.valor) === v && (modelo === 65 || o.valor !== 4))?.valor ?? null)}>

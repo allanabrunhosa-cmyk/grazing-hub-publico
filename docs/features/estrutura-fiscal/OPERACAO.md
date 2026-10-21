@@ -394,11 +394,42 @@ Autorização anterior prevalece; a consulta nunca transmite uma nota.
 Uma chave gerada para XML rejeitado não equivale a autorização. Rejeição comprovada
 e sem protocolo pode gerar outra revisão/identidade. A tentativa anterior permanece
 íntegra. `rejeicao.ts` compartilha esse critério entre preparação, ação direta e UI.
-Resultado incerto mantém seletor e botão visíveis; o botão fica desabilitado até
-conferir a tentativa existente. Rejeição corrigível libera nova tentativa ou troca
-55/65. Autorização, denegação, cancelamento e permissões conservam suas proteções.
+Resultado incerto mantém seletor e botão disponíveis. Um novo clique em Emitir
+consulta primeiro a tentativa existente. Rejeição corrigível permite preparar outra
+revisão e emitir no modelo escolhido, 55/65, no mesmo clique. Resultado ainda incerto
+devolve uma mensagem clara e mantém a possibilidade de consultar novamente. Nunca
+repete o envio de uma identidade incerta. Autorização, denegação, cancelamento e permissões conservam suas proteções.
 
 Validação usa testes de contrato, PostgreSQL local e HTTP fictício. As capturas da
 prévia de Pedidos são consultivas e permanecem **Em revisão visual**. O diagnóstico
 de produção consulta somente a tentativa existente; não emite, cancela ou altera
 configuração fiscal externa.
+
+## Canal Site, campos por item e repetição do clique — 21/10/2026
+
+`presencaAutomaticaPedido` em `tributacao/pedidos.ts` usa o canal comercial
+fotografado no fechamento (`canalNomeSnapshot`). O alias exato Site determina
+Internet (indicador 2) para NF-e e para NFC-e com retirada. NFC-e com entrega
+conserva o indicador específico 4. Outros canais continuam exigindo a declaração
+quando não há um indicador automático comprovado. Não consultar o nome atual do
+cadastro para alterar uma venda histórica. Escolha explícita válida conserva
+precedência. Preparações novas usam esse contexto antes de uma escolha histórica;
+documentos já transmitidos preservam seus snapshots e suas identidades.
+
+O botão Emitir só fica indisponível durante a ação, por falta de permissão ou
+quando o pedido não está confirmado. Autorização, cancelamento confirmado e uso
+denegado apresentam o resultado e as ações correspondentes. A trava local evita
+cliques simultâneos; autorização, leases, hash e duplicidade permanecem no servidor.
+Perda de resposta não exige intervenção técnica para habilitar o botão. O próximo
+clique consulta a identidade anterior antes de qualquer nova preparação/envio.
+Consulta que recupera autorização mostra sucesso sem transmitir outra nota.
+Ausência no emissor, duplicidade e resultados ambíguos continuam sem reenvio cego.
+
+Pendências de NCM, Origem ICMS, grupo e perfil indicam separadamente os campos
+ausentes. O pedido inclui posição e nome do item, preservando também a descrição
+do componente quando existente. Erro local pode ser corrigido no cadastro e
+validado novamente pelo mesmo botão. Alterações fiscais informadas pelo usuário
+não são substituídas por valores fixos ou por dados de testes.
+
+Evidências fictícias e validações desta alteração:
+[canal Site e novas tentativas](evidencias/fiscal-site-retentativa-20261021/README.md).

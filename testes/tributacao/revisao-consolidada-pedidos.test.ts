@@ -24,6 +24,27 @@ beforeEach(() => {
   s.versoes.push({ id: "perfil-ficticio", tipo: "PERFIL", chave: "singleton", versao: 1, vigenciaInicio: "2026-01-01", status: "ATIVO", dados, hash: hashDeclaracaoFci(dados), fontes: ["FONTE-SINTETICA"], justificativa: "Perfil sintético", criadoPorNome: "Pessoa sintética", createdAt: "2026-01-01T12:00:00Z" });
   s.calcular.mockImplementation(contexto => ({ apto: false, pendencias: ["Revisão de parâmetros ainda pendente."], contexto, perfilId: "perfil-ficticio", regime: "SIMPLES_NACIONAL", linhas: [], totalMercadorias: "0.00", justificativas: [] }));
 });
+describe("Canal Site fotografado no pedido", () => {
+  it.each(["55", "65"] as const)("retirada do Site identifica Internet automaticamente no modelo%s", async modelo => {
+    const p = massa(); p.atendimento = "RETIRADA"; p.canalNomeSnapshot = " Site "; const antes = JSON.stringify(p);
+    const r = await calcularPreviaPedido(tx, p, modelo, { ambiente: "PRODUCAO", consumidorFinal: true });
+    expect(r.documento.IndicadorPresenca).toBe(2); expect(r.pendencias.some(p => /presença\/canal/.test(String(p)))).toBe(false); expect(JSON.stringify(p)).toBe(antes);
+  });
+  it("NF-e de entrega do Site usa Internet e NFC-e conserva entrega a domicílio", async () => {
+    const p = massa(); p.canalNomeSnapshot = "Site";
+    expect((await calcularPreviaPedido(tx, p, "55")).documento.IndicadorPresenca).toBe(2);
+    expect((await calcularPreviaPedido(tx, p, "65")).documento.IndicadorPresenca).toBe(4);
+  });
+  it.each(["Site parceiro", "GF", "iFood", null])("não presume Internet para canal%s", async canal => {
+    const p = massa(); p.atendimento = "RETIRADA"; p.canalNomeSnapshot = canal;
+    expect((await calcularPreviaPedido(tx, p, "55")).documento.IndicadorPresenca).toBe(0);
+  });
+  it("indica item e mantém cada campo fiscal faltante na mensagem", async () => {
+    s.calcular.mockImplementation(contexto => ({ apto: false, pendencias: ["Produto exclusivamente sintético: falta preencher NCM (8 dígitos) e Origem ICMS."], contexto, linhas: [], totalMercadorias: "139.00", justificativas: [] }));
+    const r = await calcularPreviaPedido(tx, massa(), "65");
+    expect(r.pendencias).toContain("Item 1 — Produto exclusivamente sintético: falta preencher NCM (8 dígitos) e Origem ICMS.");
+  });
+});
 describe("Montagem de revisão e identidade em homologação", () => {
   it("55/2 troca somente NmCliente antes do snapshot e conserva identificação/endereço comercial", async () => {
     const p = massa(), antes = structuredClone({ comprador: p.compradorSnapshot, cobranca: p.cobrancaSnapshot });
