@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -93,7 +93,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Homologação contro
     vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-12T15:00:00.000Z"));
     const url = new URL(process.env.DATABASE_URL!); if (!["127.0.0.1", "localhost"].includes(url.hostname) || !/^\/teste_/.test(url.pathname)) throw new Error("Banco exclusivamente sintético obrigatório.");
     banco = new Client({ connectionString: url.toString() }); await banco.connect(); await banco.query(`CREATE SCHEMA "${schema}"`); criado = true; await banco.query(`SET search_path TO "${schema}"`);
-    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(await prepararMigrationHubIsolada(banco, schema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     s.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${schema}` }, { schema }) });
     const perfil = await s.prisma.perfilAcesso.findUniqueOrThrow({ where: { sistema: "ADMINISTRADOR" } });
     const u = await s.prisma.usuario.create({ data: { nome: "Responsável exclusivamente fictício", email: "homologacao@example.invalid", senhaHash: "inutil", perfilAcessoId: perfil.id } });
@@ -104,7 +104,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Homologação contro
     s.pre.evidenciaPainel = { origem: "PAINEL_BRASIL_NFE", observadoEm: "2026-10-12T15:00:00.000Z", registradoEm: "2026-10-12T15:00:00.000Z", servicoNfeNfceAtivo: true, homologacaoInformadaPeloUsuario: true, certificadoValidade: "2026-11-07", csc: { homologacao: { codigo: false, identificador: false }, producao: { codigo: false, identificador: false } } };
     s.cliente = new ClienteBrasilNfe({ token: "token-exclusivo-fixture", userToken: "user-exclusivo-fixture" }, { fetch: s.transporte });
   }, 120000);
-  afterAll(async () => { await s.prisma?.$disconnect(); if (banco) { if (criado && /^teste_homologacao_[a-f0-9]{32}$/.test(schema)) await banco.query(`DROP SCHEMA "${schema}" CASCADE`); await banco.end(); } vi.useRealTimers(); });
+  afterAll(async () => { await s.prisma?.$disconnect(); if (banco) { if (criado && /^teste_homologacao_[a-f0-9]{32}$/.test(schema)) { await limparIntegracaoHubIsolada(banco, schema); await banco.query(`DROP SCHEMA "${schema}" CASCADE`); } await banco.end(); } vi.useRealTimers(); });
   it("preparo idempotente conserva snapshots e seis propostas, sem chamada externa ou efeitos alheios", async () => {
     const p = await prepararCenariosPilotoBrasilNfe(sessao), novamente = await prepararCenariosPilotoBrasilNfe(sessao);
     expect(p).toHaveLength(2); expect(p.map(v => v.documentoId)).toEqual(novamente.map(v => v.documentoId));

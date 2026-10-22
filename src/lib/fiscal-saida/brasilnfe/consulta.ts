@@ -25,6 +25,10 @@ export class ErroConsultaBrasilNfe extends Error {
     super(codigo === "IDENTIDADE_DIVERGENTE" ? "Documento retornado não corresponde ao emitente, ambiente, modelo ou identidade solicitados." : "Não foi possível comprovar o resultado fiscal da consulta Brasil NFe.");
     this.name = "ErroConsultaBrasilNfe";
     this.diagnosticoSeguro = sanitizarMetadadosErroBrasilNfe(metadados);
+    const http = this.diagnosticoSeguro?.httpStatus;
+    if (http != null && http !== 200) this.message += http === 403
+      ? " HTTP 403: o emissor recusou o acesso. Confira as permissões da integração."
+      : ` HTTP ${http}.`;
   }
 }
 function objeto(v: unknown) {

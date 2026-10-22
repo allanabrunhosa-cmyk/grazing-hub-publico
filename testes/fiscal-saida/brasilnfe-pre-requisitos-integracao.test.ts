@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -36,7 +36,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Pré-requisitos reai
   beforeAll(async () => {
     const url = new URL(process.env.DATABASE_URL!); if (!["127.0.0.1", "localhost"].includes(url.hostname) || !/^\/teste_/.test(url.pathname)) throw new Error("Somente banco sintético local");
     banco = new Client({ connectionString: url.toString() }); await banco.connect(); await banco.query(`CREATE SCHEMA "${schema}"`); criado = true; await banco.query(`SET search_path TO "${schema}"`);
-    for (const p of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(prepararSqlMigrationFiscal(p.name, await readFile(`prisma/migrations/${p.name}/migration.sql`, "utf8")));
+    for (const p of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(await prepararMigrationHubIsolada(banco, schema, p.name, await readFile(`prisma/migrations/${p.name}/migration.sql`, "utf8")));
     sim.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${schema}` }, { schema }) });
     const perfil = await sim.prisma.perfilAcesso.findUniqueOrThrow({ where: { sistema: "ADMINISTRADOR" } });
     const u = await sim.prisma.usuario.create({ data: { nome: "Admin fictício", email: "pre-m2@example.invalid", senhaHash: "inutil", perfilAcessoId: perfil.id } });
@@ -48,7 +48,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Pré-requisitos reai
     await sim.prisma.configuracaoBrasilNfe.upsert({ where: { id: "singleton" }, create: { id: "singleton", tokenCifrado: cifrar("TOKEN_SO_TESTE", "grazing-hub-brasilnfe-token-v1"), userTokenCifrado: cifrar("USERTOKEN_SO_TESTE", "grazing-hub-brasilnfe-usertoken-v1") }, update: { versao: 1, preRequisitos: Prisma.DbNull, preRequisitosEmitenteHash: null, preRequisitosIniciadoEm: null } });
     await sim.prisma.configuracaoLoja.update({ where: { id: "singleton" }, data: { nome: "Empresa fictícia", cnpj: "00000000000000" } });
   });
-  afterAll(async () => { await sim.prisma?.$disconnect(); if (banco) { if (criado && /^teste_brasilnfe_pre_[a-f0-9]{32}$/.test(schema)) await banco.query(`DROP SCHEMA "${schema}" CASCADE`); await banco.end(); } });
+  afterAll(async () => { await sim.prisma?.$disconnect(); if (banco) { if (criado && /^teste_brasilnfe_pre_[a-f0-9]{32}$/.test(schema)) { await limparIntegracaoHubIsolada(banco, schema); await banco.query(`DROP SCHEMA "${schema}" CASCADE`); } await banco.end(); } });
   it("registrar painel não chama API, altera segredo ou habilita emissão", async () => {
     const antes = await sim.prisma.configuracaoBrasilNfe.findUniqueOrThrow({ where: { id: "singleton" } });
     const r = await registrarEvidenciaPainelBrasilNfe(evidencia(), sessao);

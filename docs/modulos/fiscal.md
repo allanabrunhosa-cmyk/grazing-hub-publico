@@ -1,5 +1,10 @@
 # Fiscal
 
+Uma resposta de emissão inconclusiva dispara uma consulta da mesma identidade no
+próprio clique. A consulta pode recuperar a autorização sem outro envio. Guardas,
+permissões e histórico permanecem no serviço existente. Ver
+[recuperação imediata](../features/estrutura-fiscal/BRASIL_NFE.md#recuperação-imediata-do-resultado--22102026).
+
 Representação fiscal: `FiscalProdutoUnificado` oferece produto preparado, mercadoria e kit explícito.
 `salvarFiscalSimples` grava a escolha e os componentes comerciais na estrutura versionada.
 A auditoria não classifica um produto como kit pelo nome nem importa sua receita como linhas.

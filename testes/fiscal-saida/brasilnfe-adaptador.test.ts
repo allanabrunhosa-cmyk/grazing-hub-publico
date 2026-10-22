@@ -43,6 +43,9 @@ describe("Adaptador técnico Brasil NFe M1", () => {
     const a = new AdaptadorBrasilNfeM1(new ClienteBrasilNfe({ token: "token-sintetico-exclusivo-suite" }, { fetch: transporte }), identidadeFicticia.emitenteCnpj);
     const erro = await a.consultarEvidencias(identidadeFicticia).catch(e => e);
     expect(erro.diagnosticoSeguro).toMatchObject({ categoria: "HTTP", httpStatus: http });
+    expect(erro.message).toContain(`HTTP ${http}`);
+    if (http === 403) expect(erro.message).toContain("emissor recusou o acesso");
+    expect(erro.message).not.toMatch(/token-sintetico|causa externa/);
     expect(JSON.stringify(erro)).not.toMatch(/token-sintetico|causa externa|cause/);
   });
   it.each([0, 1, false])("observa status %s sem alterar o contrato da consulta ou conservar textos", async status => {

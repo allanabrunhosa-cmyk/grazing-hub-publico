@@ -81,12 +81,34 @@ describe("Um clique produtivo por pedido, sem parâmetros fiscais privilegiados 
     const p = previa(); if (guarda === "podeEmitir") p.podeEmitir = false; if (guarda === "hash") p.documento!.hashPayloadFiscal = null; if (guarda === "habilitacao") p.liberacaoTransmissao = { liberada: false, motivo: "Integração não habilitada para este modelo." }; if (guarda === "suspensao") p.controleManual = { suspensa: true, motivo: "Emissão suspensa." }; s.preparar.mockResolvedValue(p);
     expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toHaveProperty("erro"); expect(s.emitir).not.toHaveBeenCalled();
   });
-  it("rejeição certa e falha incerta preservam o resultado, sem consultar ou reenviar automaticamente", async () => {
-    for (const status of ["REJEITADO", "PENDENTE_CONFERENCIA"]) {
-      const resultado = documento({ status, ultimoErro: "Motivo exclusivamente sintético." }); s.emitir.mockResolvedValueOnce(resultado);
-      expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ ok: true, documento: resultado, conferirAntesDeRepetir: true });
-    }
-    expect(s.emitir).toHaveBeenCalledTimes(2); expect(s.consultar).not.toHaveBeenCalled();
+  it("rejeição certa preserva o motivo sem consultar ou reenviar automaticamente", async () => {
+    const resultado = documento({ status: "REJEITADO", ultimoErro: "Motivo exclusivamente sintético." }); s.emitir.mockResolvedValueOnce(resultado);
+    expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ ok: true, documento: resultado, conferirAntesDeRepetir: true });
+    expect(s.emitir).toHaveBeenCalledTimes(1); expect(s.consultar).not.toHaveBeenCalled();
+  });
+  it.each([55, 65] as const)("recupera autorização do modelo%s no mesmo clique após resposta inconclusiva", async modelo => {
+    const incerto = documento({ status: "PENDENTE_CONFERENCIA", protocolo: null, chaveFiscal: null, referenciaProvedor: null });
+    s.emitir.mockResolvedValue(incerto); s.consultar.mockResolvedValue(documento());
+    expect(await emitirNotaPedidoDiretaBrasilNfe({ ...entrada, modelo }, sessao)).toEqual({ ok: true, documento: documento(), conferirAntesDeRepetir: true });
+    expect(s.consultar).toHaveBeenCalledExactlyOnceWith(incerto.id, sessao);
+    expect(s.emitir).toHaveBeenCalledTimes(1); expect(s.preparar).toHaveBeenCalledTimes(1);
+    expect(s.emitir.mock.invocationCallOrder[0]).toBeLessThan(s.consultar.mock.invocationCallOrder[0]);
+  });
+  it.each(["PROCESSANDO", "INCERTO", "PENDENTE_CONFERENCIA"])("consulta uma vez após%s e mantém incerteza se não houver confirmação", async status => {
+    const incerto = documento({ status, protocolo: null }); s.emitir.mockResolvedValue(incerto); s.consultar.mockResolvedValue(incerto);
+    expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toEqual({ ok: true, documento: incerto, conferirAntesDeRepetir: true });
+    expect(s.consultar).toHaveBeenCalledExactlyOnceWith(incerto.id, sessao); expect(s.emitir).toHaveBeenCalledTimes(1);
+  });
+  it("rejeição recuperada permite corrigir depois, sem segunda transmissão no mesmo clique", async () => {
+    const incerto = documento({ status: "PENDENTE_CONFERENCIA", protocolo: null }); s.emitir.mockResolvedValue(incerto);
+    const rejeitado = documento({ status: "REJEITADO", protocolo: null }); s.consultar.mockResolvedValue(rejeitado);
+    expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toEqual({ ok: true, documento: rejeitado, conferirAntesDeRepetir: false });
+    expect(s.emitir).toHaveBeenCalledTimes(1); expect(s.preparar).toHaveBeenCalledTimes(1);
+  });
+  it("não contorna perda de permissão na consulta após o envio", async () => {
+    s.emitir.mockResolvedValue(documento({ status: "INCERTO", protocolo: null })); s.consultar.mockRejectedValue(new Error("Permissão recusada"));
+    await expect(emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).rejects.toThrow("Permissão recusada");
+    expect(s.emitir).toHaveBeenCalledTimes(1); expect(s.preparar).toHaveBeenCalledTimes(1);
   });
 });
 

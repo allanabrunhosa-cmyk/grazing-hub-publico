@@ -20,7 +20,7 @@ import { ClienteBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/cliente";
 import { preRequisitosBrasilNfeVazios } from "@/lib/fiscal-saida/brasilnfe/pre-requisitos-dominio";
 import { prepararEmissaoPedidoBrasilNfe, emitirNotaPedidoBrasilNfe, configurarHabilitacaoEmissaoBrasilNfe, consultarEmissaoPedidoBrasilNfe, obterDocumentosEmissaoPedidoBrasilNfe, type PreviaEmissaoPedidoBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/operacional";
 import { cancelarNotaPedidoBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/cancelamento";
-import { consultarResultadoEmissaoPedidoBrasilNfe, emitirNotaPedidoDiretaBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/emissao-direta";
+import { consultarResultadoEmissaoPedidoBrasilNfe, emitirNotaPedidoDiretaBrasilNfe, obterResultadoLocalEmissaoPedidoBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/emissao-direta";
 import { baixarArquivoFiscalSaida, consultarFiscalSaida } from "@/lib/fiscal-saida/servico";
 import { hashFiscal, registrarDeclaracaoGrazing1PelaInstrucao, salvarVersaoFiscal } from "@/lib/tributacao/servico";
 import { validarDadosFiscais } from "@/lib/tributacao/validacao";
@@ -61,6 +61,7 @@ function retornoDireto(modelo: 55 | 65, numero: string) {
   const serie = modelo === 55 ? "6" : "7";
   return { ReturnNF: { Numero: numero, Serie: serie, ChaveNF: `35261000000000000000${modelo}${serie.padStart(3, "0")}${numero.padStart(9, "0")}1000000010`, NumeroProtocolo: "90071992547409930001", CodTipoAmbiente: 1, CodStatusRespostaSefaz: 100, Ok: true }, Error: "", Avisos: [] };
 }
+const consultaAindaNaoLocalizada = () => response({ status: 1, Encontrada: false, Nota: null, Historico: [], erros: [{ codigo: "BR0008" }], avisos: [] });
 async function ativacoes() { return s.prisma.eventoEstruturaFiscal.count({ where: { tipo: "ATIVACAO", versao: { tipo: { in: ["CLASSIFICACAO", "REGRA"] } } } }); }
 let numeroCancelamento = 20;
 async function notaParaCancelar(modelo: 55 | 65 = 55, ambiente: "HOMOLOGACAO" | "PRODUCAO" = "HOMOLOGACAO") {
@@ -210,6 +211,32 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
     expect(foto.payload).toMatchObject({ tributacao: { pagamentoCartaoNaoIntegrado: true, documento: { Pagamentos: [{ TipoIntegracao: false }] } } });
     expect(await efeitos()).toEqual({ financeiro: 0, estoque: 0, recebidas: 0 });
   }, 15000);
+  it.each([55, 65] as const)("retorno inválido após autorização%s é recuperado no mesmo clique sem outro envio", async modelo => {
+    const p = await pedido(), httpAntes = s.http.mock.calls.length, numero = String(modelo + 1000), autorizado = retornoDireto(modelo, numero).ReturnNF;
+    let fotoEnviada: { hashPayload: string; payload: Prisma.JsonValue } | undefined;
+    s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response({ formato: "Retorno sintético não interpretável após o envio" })).mockImplementationOnce(async (_url, init) => {
+      const consulta = JSON.parse(String(init?.body));
+      expect(consulta).toMatchObject({ ModeloDocumento: modelo, TipoAmbiente: 1, RetornarArquivos: false });
+      fotoEnviada = await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: consulta.IdentificadorInterno }, select: { hashPayload: true, payload: true } });
+      return response({ status: 1, Encontrada: true, erros: [], avisos: [], Historico: [], Nota: {
+        IdentificadorInterno: consulta.IdentificadorInterno, ModeloDocumento: modelo, CodTipoAmbiente: 1,
+        Status: 1, Emitida: true, CodStatusResposta: 100, Chave: autorizado.ChaveNF, Numero: numero,
+        Serie: autorizado.Serie, NumeroProtocolo: autorizado.NumeroProtocolo,
+      } });
+    });
+    const r = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo, ...(modelo === 55 ? { indicadorPresenca: 2 as const } : {}) }, sessao);
+    expect(r).toMatchObject({ ok: true, documento: { status: "AUTORIZADO", numero, serie: autorizado.Serie, protocolo: autorizado.NumeroProtocolo, ultimoErro: null }, conferirAntesDeRepetir: true });
+    expect(s.http.mock.calls.slice(httpAntes).map(v => String(v[0]).split("/").pop())).toEqual(["BuscarEmpresa", "EnviarNotaFiscal", "ConsultarNotaFiscal"]);
+    const enviados = s.http.mock.calls.slice(httpAntes).filter(v => String(v[0]).endsWith("/EnviarNotaFiscal"));
+    expect(enviados).toHaveLength(1); expect(JSON.parse(String(enviados[0][1]?.body)).IdentificadorInterno).toBe(r.documento!.id);
+    expect(await s.prisma.documentoFiscalSaida.count({ where: { pedidoId: p.id } })).toBe(1);
+    expect(await s.prisma.eventoFiscalSaida.count({ where: { documentoId: r.documento!.id, tipo: "RESULTADO_INCERTO" } })).toBe(1);
+    expect(await s.prisma.eventoFiscalSaida.count({ where: { documentoId: r.documento!.id, tipo: "EMISSAO_MANUAL_CONSULTA_CONFIRMADA" } })).toBe(1);
+    expect(await obterResultadoLocalEmissaoPedidoBrasilNfe(p.id, sessao)).toMatchObject({ documento: { id: r.documento!.id, status: "AUTORIZADO" } });
+    expect(await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: r.documento!.id } })).toMatchObject(fotoEnviada!);
+    expect(s.http.mock.calls.slice(httpAntes)).toHaveLength(3);
+    expect(await efeitos()).toEqual({ financeiro: 0, estoque: 0, recebidas: 0 });
+  }, 15000);
   it("cliques diretos concorrentes autorizam um único POST do pedido", async () => {
     const p = await pedido(), httpAntes = s.http.mock.calls.length;
     s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response(retornoDireto(65, "43")));
@@ -238,7 +265,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
     const p = await pedido();
     await s.prisma.pedidoVenda.update({ where: { id: p.id }, data: { formaPagamentoInformada: "CARTAO_CREDITO", pagamentoInformadoSnapshot: { tipo: "CARTAO_CREDITO" } } });
     const antesHttp = s.http.mock.calls.length;
-    s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response({ formato: "resposta exclusivamente sintética fora do contrato" }));
+    s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response({ formato: "resposta exclusivamente sintética fora do contrato" })).mockResolvedValueOnce(consultaAindaNaoLocalizada());
     const tentativa = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 65 }, sessao);
     expect(tentativa.documento?.status).toBe("PENDENTE_CONFERENCIA");
     const chaveRejeitada = retornoDireto(65, "54").ReturnNF.ChaveNF;
@@ -254,7 +281,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
     expect(rejeitada).toMatchObject({ status: "REJEITADO", chaveFiscal: chaveRejeitada, protocolo: null, ultimoErro: expect.stringContaining("xProd") });
     expect(JSON.stringify(rejeitada)).not.toContain("SEGREDO-SINTETICO");
     expect(nova.documento!.id).not.toBe(rejeitada.id);
-    expect(s.http.mock.calls.slice(antesHttp).map(v => String(v[0]).split("/").pop())).toEqual(["BuscarEmpresa", "EnviarNotaFiscal", "ConsultarNotaFiscal", "BuscarEmpresa", "EnviarNotaFiscal"]);
+    expect(s.http.mock.calls.slice(antesHttp).map(v => String(v[0]).split("/").pop())).toEqual(["BuscarEmpresa", "EnviarNotaFiscal", "ConsultarNotaFiscal", "ConsultarNotaFiscal", "BuscarEmpresa", "EnviarNotaFiscal"]);
     const envios = s.http.mock.calls.slice(antesHttp).filter(v => String(v[0]).endsWith("/EnviarNotaFiscal")).map(v => JSON.parse(String(v[1]?.body)));
     expect(envios).toHaveLength(2); expect(envios[0].Pagamentos).toMatchObject([{ FormaPagamento: "03", TipoIntegracao: false }]);
     expect(envios[1].Pagamentos).toMatchObject([{ FormaPagamento: "03" }]);
@@ -263,7 +290,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
   it.each([600, 777, 383, 232])("novo clique consulta rejeição %s e permite trocar NF-e por NFC-e sem reenvio incerto", async codigo => {
     const numeroRejeitada = String(codigo + 100), numeroNova = String(codigo + 200);
     const p = await pedido(); await s.prisma.pedidoVenda.update({ where: { id: p.id }, data: { canalNomeSnapshot: "Site" } });
-    s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response({ contrato: "resposta sintética inválida" }));
+    s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(response({ contrato: "resposta sintética inválida" })).mockResolvedValueOnce(consultaAindaNaoLocalizada());
     const tentativa = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 55 }, sessao);
     expect(tentativa.documento?.status).toBe("PENDENTE_CONFERENCIA");
     const original = await s.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: tentativa.documento!.id } });
@@ -280,7 +307,8 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Revisão consolidada
   }, 15000);
   it("HTTP403 mostra o motivo seguro e preserva a tentativa incerta sem novo POST", async () => {
     const p = await pedido(), httpAntes = s.http.mock.calls.length;
-    s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(new Response("Token=SEGREDO_SINTETICO_NAO_PUBLICAR", { status: 403 }));
+    s.http.mockResolvedValueOnce(response(empresa())).mockResolvedValueOnce(new Response("Token=SEGREDO_SINTETICO_NAO_PUBLICAR", { status: 403 }))
+      .mockResolvedValueOnce(new Response("Token=SEGREDO_SINTETICO_NAO_PUBLICAR", { status: 403 })).mockResolvedValueOnce(new Response("", { status: 403 }));
     const r = await emitirNotaPedidoDiretaBrasilNfe({ pedidoId: p.id, versaoPedido: 1, modelo: 65 }, sessao);
     expect(r).toMatchObject({ ok: true, documento: { status: "PENDENTE_CONFERENCIA", ultimoErro: expect.stringContaining("HTTP 403") }, conferirAntesDeRepetir: true });
     if (!("ok" in r)) throw new Error("Tentativa incerta sintética não registrada.");
