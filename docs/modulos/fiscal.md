@@ -1,5 +1,10 @@
 # Fiscal
 
+Representação fiscal: `FiscalProdutoUnificado` oferece produto preparado, mercadoria e kit explícito.
+`salvarFiscalSimples` grava a escolha e os componentes comerciais na estrutura versionada.
+A auditoria não classifica um produto como kit pelo nome nem importa sua receita como linhas.
+Correções prospectivas preservam documentos e fotografias anteriores. Ver [representação](../features/fiscal-unificado/REPRESENTACAO.md).
+
 ## Manutenção unificada — 21/10/2026
 
 A entrada administrativa é `/financeiro/fiscal/configuracoes`. Ela reúne os serviços

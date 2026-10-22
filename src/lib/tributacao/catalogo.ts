@@ -143,11 +143,12 @@ export function criarMatrizFiscalCatalogo(catalogo: CatalogoAuditoriaFiscal, tab
     const escolhas = escolhasProduto(p, catalogo);
     const grupo = sugerirGrupoFiscal(p, catalogo.insumos);
     const declaracao = declaracoes.find(d => d.produtoId === p.id && d.natureza === "PREPARADO" && d.apresentacao === "PRONTO_CONSUMO" && d.descricao.trim() && d.fonte.trim() && /^\d{4}-\d{2}-\d{2}$/.test(d.data));
-    const natureza = naturezaSugerida(p, grupo, catalogo.insumos);
+    const natureza = declaracao ? "PREPARADO" : naturezaSugerida(p, grupo, catalogo.insumos);
     const soConfiguracao = !p.classificacoes.includes("PRINCIPAL") && escolhas.length > 0 && escolhas.every(e => e.comportamento === "INCLUIDO");
-    const cesta = !declaracao && /cesta/.test(normalizar(p.nome));
-    const tratamento = soConfiguracao ? "OPCAO_CONFIGURACAO" : cesta ? "KIT_COMPOSTO" : "NORMAL";
-    const simples = composicao.length === 1 && composicao[0].tipo === "INSUMO" && natureza !== "PREPARADO" && tratamento !== "KIT_COMPOSTO";
+    // Nome comercial e receita não comprovam venda de mercadorias separadas.
+    // Kits exigem classificação explícita; a auditoria não os cria por palavras no nome.
+    const tratamento = soConfiguracao ? "OPCAO_CONFIGURACAO" : "NORMAL";
+    const simples = composicao.length === 1 && composicao[0].tipo === "INSUMO" && natureza !== "PREPARADO";
     const candidatos = simples ? composicao[0].ncmEntrada : [];
     const atual = textoFiscal(p, "ncm");
     const ncm = /^\d{8}$/.test(atual) ? atual : candidatos.length === 1 ? candidatos[0] : null;
@@ -178,7 +179,6 @@ export function criarMatrizFiscalCatalogo(catalogo: CatalogoAuditoriaFiscal, tab
     if (declaracao) evidencias.push(`DECLARACAO_OPERACIONAL:${declaracao.data}:${declaracao.fonte}:${declaracao.descricao}`);
     if (grupo === "GF01") pendencias.push(declaracao ? "Preparação pronta para consumo comprovada por declaração operacional; obter formulação quantitativa e características determinantes para aplicar RGI/notas legais/NESH ao produto final." :
       "Distinguir preparação alimentar final de conjunto de mercadorias: confirmar cortes, mistura/preparo, proporções e apresentação para classificação legal da tábua.");
-    if (tratamento === "KIT_COMPOSTO") pendencias.push("Confirmar natureza de kit/cesta e discriminar produtos comerciais com quantidades e pesos de rateio; insumos da receita não viram linhas automaticamente.");
     if (grupo === "GF12") pendencias.push("Definir serviço efetivamente prestado, município e código de serviço; separar alimentos e verificar emissor NFS-e real.");
     if (escolhas.some(e => e.comportamento === "INTEGRADO_A_ANALISAR")) pendencias.push("Definir por vínculo se extra cobrado integra a preparação ou constitui mercadoria vendida separadamente.");
     if (escolhas.some(e => e.comportamento === "APRESENTACAO_A_ANALISAR")) pendencias.push("Definir se apresentação/embalagem é acessória ao produto ou mercadoria separada, com valor correspondente.");

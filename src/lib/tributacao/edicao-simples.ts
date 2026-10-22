@@ -13,7 +13,8 @@ import { camposDoProduto, camposDaRegra, regraDoGrupo, type ContextoEdicaoFiscal
 import { consultarFichaFiscal } from "./manutencao";
 import type { ClassificacaoFiscal, PerfilFiscal, RegraFiscal, TributoConfigurado, VersaoFiscalDto, TipoVersaoFiscal } from "./tipos";
 
-export type EdicaoFiscalSimples = { produtoId: string; classificacaoId: string | null; regraId: string | null; contexto: ContextoEdicaoFiscal; grupoFiscalId: string | null; fiscal: Record<string, string>; herdarOrigemGrupo: boolean; usarImpostosGrupo?: boolean; chaveOperacao: string };
+export type RepresentacaoFiscalSimples = "PRODUTO_PREPARADO" | "PRODUTO" | "KIT";
+export type EdicaoFiscalSimples = { produtoId: string; classificacaoId: string | null; regraId: string | null; contexto: ContextoEdicaoFiscal; grupoFiscalId: string | null; fiscal: Record<string, string>; herdarOrigemGrupo: boolean; usarImpostosGrupo?: boolean; representacao?: RepresentacaoFiscalSimples; componentesKit?: ClassificacaoFiscal["componentesKit"]; chaveOperacao: string };
 export type EdicaoGrupoFiscalSimples = { id: string; versao: number; nome: string; ativo: boolean; regraId: string | null; contexto: ContextoEdicaoFiscal; fiscal: Record<string, string>; chaveOperacao: string };
 export type EdicaoEmpresaFiscalSimples = { perfilId: string; crt: 1 | 2 | 3 | 4; regime: PerfilFiscal["regime"]; inscricaoEstadual: string; chaveOperacao: string };
 const motivo = "Alteração fiscal informada e salva pelo responsável no cadastro.";
@@ -88,6 +89,7 @@ async function iniciar(tx: Prisma.TransactionClient, sessao: SessaoAtual, op: st
 }
 export async function salvarFiscalSimples(e: EdicaoFiscalSimples, sessao: SessaoAtual) {
   campos(e.fiscal, e.chaveOperacao); contexto(e.contexto); textoFiscal(e.produtoId, "Produto", 100);
+  if (e.representacao !== undefined && !["PRODUTO_PREPARADO", "PRODUTO", "KIT"].includes(e.representacao)) throw new ErroEstruturaFiscal("Representação fiscal inválida.");
   return prisma.$transaction(async tx => {
     const { repetida, vs, perfil } = await iniciar(tx, sessao, e.chaveOperacao, hashFiscal(e));
     if (repetida) return;
@@ -97,9 +99,26 @@ export async function salvarFiscalSimples(e: EdicaoFiscalSimples, sessao: Sessao
     if (resolucao.conflito) throw new ErroEstruturaFiscal("Há duas configurações para esta operação. Nenhum valor foi alterado.");
     const rv = resolucao.efetiva;
     if ((cv?.id ?? null) !== e.classificacaoId || cv && (rv?.id ?? null) !== e.regraId) throw new ErroEstruturaFiscal("O cadastro foi atualizado. Reabra a aba Fiscal antes de salvar.");
+    if (e.representacao && (!c.produtoId || c.tratamento === "OPCAO_CONFIGURACAO" || c.natureza === "SERVICO")) throw new ErroEstruturaFiscal("A representação aplica-se somente a produtos de NF-e/NFC-e.");
+    const corrigirKit = c.tratamento === "KIT_COMPOSTO" && !!e.representacao && e.representacao !== "KIT";
     if (e.herdarOrigemGrupo && (!e.grupoFiscalId || !regraDoGrupo(vs, e.grupoFiscalId, c.grupo, e.contexto, perfil!).efetiva || !(regraDoGrupo(vs, e.grupoFiscalId, c.grupo, e.contexto, perfil!).efetiva!.dados as RegraFiscal).origem)) throw new ErroEstruturaFiscal("Preencha a origem ICMS no grupo ou informe a origem do produto.");
     const nova: ClassificacaoFiscal = { ...c, grupoFiscalId: e.grupoFiscalId, herdarOrigemGrupo: e.herdarOrigemGrupo };
-    if (c.tratamento === "NORMAL" && c.natureza !== "SERVICO") {
+    if (e.representacao) {
+      nova.tratamento = e.representacao === "KIT" ? "KIT_COMPOSTO" : "NORMAL";
+      nova.natureza = e.representacao === "PRODUTO_PREPARADO" ? "PREPARADO" : c.natureza === "FRACIONADO" && !corrigirKit ? "FRACIONADO" : "REVENDA";
+      if (e.grupoFiscalId) nova.grupo = null;
+      if (nova.tratamento !== c.tratamento || nova.natureza !== c.natureza) {
+        // Somente a nova versão muda. Classificação, receitas e documentos anteriores permanecem íntegros.
+        delete nova.analiseNcm; delete nova.ncmAplicabilidade; delete nova.configuracaoNcm;
+        delete nova.fotografiaTecnica; delete nova.receitaFiscalDocumentada; delete nova.baseSemIngredientesComprovada;
+        nova.evidencias = [...nova.evidencias, e.representacao === "KIT" ? "Responsável definiu kit com mercadorias, quantidades e rateio explícitos; ingredientes não são importados da ficha técnica." : "Responsável definiu produto em uma linha fiscal; ingredientes integram o produto final, sem discriminação como kit."];
+      }
+      if (e.representacao === "KIT") {
+        if (!Array.isArray(e.componentesKit) || !e.componentesKit.length) throw new ErroEstruturaFiscal("Kit: adicione as mercadorias vendidas separadamente, com quantidade e valor para rateio.");
+        nova.componentesKit = e.componentesKit; nova.ncm = null; nova.origem = null; nova.cest = null; delete nova.fci;
+      } else delete nova.componentesKit;
+    }
+    if (nova.tratamento === "NORMAL" && nova.natureza !== "SERVICO") {
       if (!c.configuracaoNcm) nova.ncm = e.fiscal.ncm || null; nova.origem = e.fiscal.origem || null; nova.cest = !c.cest && (resolucao.efetiva?.dados as RegraFiscal | undefined)?.grupoFiscalId && (resolucao.efetiva?.dados as RegraFiscal).cest === e.fiscal.cest ? null : e.fiscal.cest || null; nova.gtin = e.fiscal.ean || null; nova.unidade = e.fiscal.unidadeTributavel;
       if (nova.ncm !== c.ncm) delete nova.analiseNcm;
     }
@@ -110,7 +129,7 @@ export async function salvarFiscalSimples(e: EdicaoFiscalSimples, sessao: Sessao
       if (!nova.gtin) throw new ErroEstruturaFiscal("Confirme o GTIN do produto ou selecione Não possui · SEM GTIN.");
     }
     if (!cv || !isDeepStrictEqual(nova, c)) await aplicar(tx, "CLASSIFICACAO", e.produtoId, nova, `${e.chaveOperacao}-classe`, sessao, hashFiscal(e));
-    if (c.tratamento !== "NORMAL" || c.natureza === "SERVICO") return;
+    if (nova.tratamento !== "NORMAL" || nova.natureza === "SERVICO") return;
     const anterior = rv?.dados as RegraFiscal | undefined;
     if (e.usarImpostosGrupo && anterior?.produtoId === e.produtoId) {
       await aplicar(tx, "REGRA", rv!.chave, { ...anterior, habilitada: false }, `${e.chaveOperacao}-regra`, sessao, hashFiscal(e)); return;
@@ -123,7 +142,9 @@ export async function salvarFiscalSimples(e: EdicaoFiscalSimples, sessao: Sessao
     delete r.origem;
     r.produtoId = e.produtoId; r.grupo = null; r.grupoFiscalId = null; r.ncm = null; r.natureza = null;
     // A exceção conserva o alcance da regra mostrada, inclusive 55/65 quando genérica.
-    if (!base) r.modelo = e.contexto.modelo;
+    // O cadastro anterior de um agrupador não diferenciava 55/65. A correção
+    // explícita conserva esses impostos na mesma operação interna dos dois modelos.
+    if (!base && !corrigirKit) r.modelo = e.contexto.modelo;
     const chave = base?.produtoId === e.produtoId ? rv!.chave : `produto-${e.produtoId.replace(/^INSUMO:/, "i-")}-${e.contexto.ufDestino}-${e.contexto.destinatario === "CONTRIBUINTE" ? "C" : "F"}-${e.contexto.modelo}`;
     await aplicar(tx, "REGRA", chave, r, `${e.chaveOperacao}-regra`, sessao, hashFiscal(e));
   }, { timeout: 30000 });

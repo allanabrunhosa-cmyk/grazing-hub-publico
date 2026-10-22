@@ -1,5 +1,7 @@
 # Fiscal unificado — telas simples
 
+Representação explícita de produto ou kit na aba Fiscal: [correção e verificações de 22/10](REPRESENTACAO.md).
+
 Produtos → Fiscal conserva a grade de campos. Grupos fiscais conserva os cartões e
 o editor em janela. Financeiro → Fiscal → Configurações apresenta Empresa, Brasil NFe,
 Certificado digital e Configurações da nota.

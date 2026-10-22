@@ -725,3 +725,7 @@ Evidências e limitações em docs/features/bi-vendas/TASKS.md. Não promove bas
 ## Fiscal simples — 22/10/2026 — Em revisão
 
 Produtos preserva a grade de CamposClassificacaoFiscal. Grupos preserva os cartões e EditorVenda, sem NCM. Vínculos preserva a tabela com abas de produtos/complementos. Configurações conserva quatro blocos. Salvar usa serviços versionados no servidor, sem etapas de rascunho/revisão na tela. Sem variante ou token novo. Evidências e limitações em [Fiscal unificado](../features/fiscal-unificado/TASKS.md). Capturas anteriores não foram promovidas.
+
+A representação do produto usa SelecaoFormulario. Componentes do kit usam Combobox,
+Campo, Input com seis casas decimais e BotaoRemoverItem discreto. A seção conserva
+a abertura ao adicionar produtos. Sem variante ou token novo. [Capturas sintéticas](../features/fiscal-unificado/REPRESENTACAO.md), Em revisão.

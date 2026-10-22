@@ -14,6 +14,11 @@ function base(produtos: ProdutoAuditoriaFiscal[]): CatalogoAuditoriaFiscal {
 }
 
 describe("auditoria e cobertura do catálogo fiscal", () => {
+  it.each(["Cesta de café", "Kit de café", "Preparação pronta"])("o nome %s não define kit nem discrimina ingredientes", nome => {
+    const c = base([produto("produto-ficticio", { nome, componentes: [{ insumoId: "queijo", quantidade: "0.1", unidade: "KG" }] })]);
+    expect(criarMatrizFiscalCatalogo(c)[0].classificacao).toMatchObject({ tratamento: "NORMAL" });
+    expect(criarMatrizFiscalCatalogo(c)[0].classificacao.componentesKit).toBeUndefined();
+  });
   it("rastreia identidade sem inventar SKU e exclui cadastros inativos", () => {
     const m = criarMatrizFiscalCatalogo(base([produto("ativo"), produto("inativo", { ativo: false })]));
     expect(m).toHaveLength(1);
@@ -45,7 +50,7 @@ describe("auditoria e cobertura do catálogo fiscal", () => {
     expect(m[0].classificacao.evidencias.some(e => e.includes("DECLARACAO_OPERACIONAL"))).toBe(true);
     expect(m[0].classificacao.pendencias.some(e => e.startsWith("Distinguir preparação"))).toBe(false);
     expect(m[0].classificacao.pendencias.some(e => e.includes("RGI"))).toBe(true);
-    expect(m[1].classificacao.tratamento).toBe("KIT_COMPOSTO");
+    expect(m[1].classificacao.tratamento).toBe("NORMAL");
   });
   it("uma escolha de sabor cobrada continua configuração do principal", () => {
     const c = base([produto("sabor", { classificacoes: ["OPCAO"] })]);
@@ -68,9 +73,9 @@ describe("auditoria e cobertura do catálogo fiscal", () => {
   it("não converte ingredientes de cesta em componentes fiscais comerciais", () => {
     const c = base([produto("cesta", { nome: "Cesta de café", componentes: [{ insumoId: "queijo", quantidade: "0.1", unidade: "KG" }] })]);
     const l = criarMatrizFiscalCatalogo(c)[0];
-    expect(l.classificacao.tratamento).toBe("KIT_COMPOSTO");
+    expect(l.classificacao.tratamento).toBe("NORMAL");
     expect(l.classificacao.componentesKit).toBeUndefined();
-    expect(l.classificacao.pendencias.some(e => e.includes("pesos de rateio"))).toBe(true);
+    expect(l.classificacao.pendencias.some(e => e.includes("pesos de rateio"))).toBe(false);
   });
   it("origem da NF de entrada não é copiada à venda do revendedor", () => {
     const c = base([produto("brie", { componentes: [{ insumoId: "queijo", quantidade: "0.1", unidade: "KG" }] })]);

@@ -1,5 +1,7 @@
 # Execução — simplificação de 22/10/2026
 
+A correção posterior de preparação e a opção visível Kit estão em [REPRESENTACAO](REPRESENTACAO.md), com seus resultados próprios.
+
 - [x] Restaurar cartões, tabela e formulário de campos das telas anteriores.
 - [x] Grupos sem NCM, GTIN ou unidade; apenas impostos e campos condicionais necessários.
 - [x] Salvar aplica no motor na mesma transação. Versões e auditoria ficam nos bastidores.
