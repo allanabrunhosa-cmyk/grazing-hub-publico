@@ -13,11 +13,12 @@ import { EditorNumeracaoFiscal, HistoricoNumeracaoFiscal, type AcaoAtualizarNume
 
 const datas = (v: string | null) => v ? `${new Date(v).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} (Brasília)` : "Não conferida";
 const ESTADOS = { NAO_CONSULTADA: "Consulta ainda não realizada", CONCLUIDA: "Consulta concluída", FALHOU: "Consulta não concluída", OBSOLETA: "Consulta anterior desatualizada" } as const;
-export function NumeracaoFiscal({ inicial, consultar, podeConsultar, atualizar, certificado }: {
+export function NumeracaoFiscal({ inicial, consultar, podeConsultar, atualizar, certificado, semCabecalho = false }: {
   inicial: NumeracaoFiscalBrasilNfeDto; podeConsultar: boolean;
   consultar: (entrada: { versao: number }) => Promise<{ ok: true; dados: NumeracaoFiscalBrasilNfeDto } | { erro: string }>;
   atualizar?: AcaoAtualizarNumeracao;
   certificado?: ReactNode;
+  semCabecalho?: boolean;
 }) {
   const [leitura, definirLeitura] = useState({ base: inicial, dados: inicial }), [erro, definirErro] = useState(""), [consultando, definirConsultando] = useState(false);
   if (leitura.base !== inicial) definirLeitura({ base: inicial, dados: inicial });
@@ -48,9 +49,9 @@ export function NumeracaoFiscal({ inicial, consultar, podeConsultar, atualizar, 
   const detalhe = sanitizarMetadadosErroBrasilNfe(falha)?.itemNumeracao;
   const foraEscopo = dados.consulta.situacao === "CONCLUIDA" && typeof dados.consulta.itensForaEscopo === "number" && Number.isSafeInteger(dados.consulta.itensForaEscopo) && dados.consulta.itensForaEscopo > 0 && dados.consulta.itensForaEscopo <= 1000 ? dados.consulta.itensForaEscopo : null;
   return <div className="space-y-5">
-    <BarraAcoes titulo="Configurações" descricao="Ajuste a numeração das notas e administre o certificado digital.">
+    {!semCabecalho && <BarraAcoes titulo="Configurações" descricao="Ajuste a numeração das notas e administre o certificado digital.">
       <Button variant="outline" nativeButton={false} render={<Link href="/financeiro/fiscal" />}>Visão geral</Button>
-    </BarraAcoes>
+    </BarraAcoes>}
     <Card className="vidro-painel"><CardHeader><CardTitle>{dados.emitente.nome ?? "Emitente não cadastrado"}</CardTitle><CardDescription>CNPJ {dados.emitente.cnpj ?? "não informado"} · Última consulta: {datas(dados.consulta.consultadoEm)}</CardDescription></CardHeader>
       <CardContent className="space-y-4"><div className="flex flex-wrap items-center justify-between gap-3"><Badge variant={dados.consulta.situacao === "CONCLUIDA" ? "success" : "warning"}>{ESTADOS[dados.consulta.situacao]}</Badge><GrupoAcoes>{podeConsultar && <Button variant="outline" disabled={consultando || atualizando || dados.versaoConfiguracao < 1} onClick={() => void conferir()}>{consultando ? "Consultando…" : "Consultar numeração"}</Button>}</GrupoAcoes></div>
       {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}

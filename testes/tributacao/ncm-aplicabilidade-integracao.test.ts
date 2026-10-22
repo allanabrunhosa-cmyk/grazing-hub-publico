@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { readFile, readdir, mkdir, writeFile, rm } from "node:fs/promises";
@@ -26,7 +26,7 @@ import { fotografarMateriais } from "@/lib/tributacao/receita-material";
 import { resolverNcmConfiguracao } from "@/lib/tributacao/ncm-configuracao";
 import { executarCliClassificacao } from "../../scripts/estrutura-fiscal-classificacao-catalogo";
 
-const schema = `teste_aplicabilidade_fiscal_${randomUUID().replaceAll("-", "")}`;
+const schema = `teste_ncm_aplic_${randomUUID().replaceAll("-", "")}`;
 let banco: Client | undefined, criado = false, sessao: SessaoAtual, produtoId: string, perfilId: string;
 const legado = { ncm: "19059090", cfop: "5102", cest: "1234567", ean: "SEM GTIN", observacoes: "Nota anterior fictícia" };
 function classificacao(id: string | null = produtoId, extra: Partial<ClassificacaoFiscal> = {}): ClassificacaoFiscal {
@@ -74,7 +74,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Aplicabilidad
     banco = new Client({ connectionString: url.toString(), connectionTimeoutMillis: 10000 }); await banco.connect();
     if (!["127.0.0.1", "::1"].includes((await banco.query("SELECT host(inet_server_addr()) AS host")).rows[0].host)) throw new Error("Servidor fictício não local.");
     await banco.query(`CREATE SCHEMA "${schema}"`); criado = true; await banco.query(`SET search_path TO "${schema}"`);
-    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(await prepararMigrationHubIsolada(banco, schema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     sim.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${schema}` }, { schema }) });
     perfilId = (await sim.prisma.perfilAcesso.findUniqueOrThrow({ where: { sistema: "ADMINISTRADOR" } })).id;
     await sim.prisma.grupoFiscalVenda.create({ data: { id: "aux-kit-ficticio", codigo: "KIT_COMPOSTO", nome: "Kit auxiliar fictício" } });
@@ -86,7 +86,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Aplicabilidad
   });
   afterAll(async () => {
     await sim.prisma?.$disconnect();
-    if (criado && /^teste_aplicabilidade_fiscal_[a-f0-9]{32}$/.test(schema)) await banco!.query(`DROP SCHEMA "${schema}" CASCADE`);
+    if (criado && /^teste_ncm_aplic_[a-f0-9]{32}$/.test(schema)) { await limparIntegracaoHubIsolada(banco!, schema); await banco!.query(`DROP SCHEMA "${schema}" CASCADE`); }
     await banco?.end();
   });
 

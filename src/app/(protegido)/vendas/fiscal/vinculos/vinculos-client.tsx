@@ -3,8 +3,9 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FiscalProdutoEditor } from "../fiscal-produto-editor";
+import { Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SeletorFiscal } from "@/components/fiscal/seletor-fiscal";
 import { SelecaoFormulario } from "@/components/ui/select";
@@ -14,28 +15,33 @@ import { AcoesEdicao } from "@/components/padroes-operacionais";
 import { validarFiscal } from "@/lib/vendas/dominio";
 import { salvarFiscalVendaAction } from "../../actions";
 import { CabecalhoVendas, Vazio } from "../../componentes";
-import { sugerirModeloFiscal, type GrupoFiscalVinculo } from "../fiscal-produto-editor";
+import { herdarParametrosFiscais as sugerirModeloFiscal } from "@/lib/tributacao/heranca";
+import type { GrupoFiscalVinculo } from "../fiscal-produto-editor";
 import { DetalhesAnaliseNcm, ncmDiscriminadoPorEscolha, type AnaliseCadastroNcm } from "@/components/fiscal/analise-ncm";
 
 export type ItemFiscal = {
   id: string; nome: string; codigo: string | null; fotoUrl: string | null;
   categorias: { id: string; nome: string; ativo: boolean }[]; classificacoes: string[]; ativo: boolean;
   versao: number; fiscal: Record<string, string>; fiscalRevisado: boolean; grupoFiscalId: string | null;
+  ncmEditavel?: boolean;
+  ncmNaoAplicavel?: boolean;
   analiseFiscal?: AnaliseCadastroNcm;
+  referenciaFiscal?: { classificacaoId: string | null; regraId: string | null; contexto: import("@/lib/tributacao/campos-simples").ContextoEdicaoFiscal };
 };
 type Rascunho = { base: ItemFiscal; fiscal: Record<string, string>; grupoFiscalId: string | null };
 type Filtro = "TODOS" | "PREENCHIDO" | "PENDENTES";
 type ColunaOrdenavel = "produto" | "categoria";
 const filtros: { valor: Filtro; titulo: string }[] = [{ valor: "TODOS", titulo: "Todos" }, { valor: "PREENCHIDO", titulo: "Preenchido" }, { valor: "PENDENTES", titulo: "Pendentes" }];
 const normalizar = (valor: string) => valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-const semNcm = (p: ItemFiscal) => p.analiseFiscal?.ncmAplicabilidade === "NAO_APLICAVEL";
+const semNcm = (p: ItemFiscal) => p.ncmNaoAplicavel || p.analiseFiscal?.ncmAplicabilidade === "NAO_APLICAVEL";
 const porEscolha = (p: ItemFiscal) => ncmDiscriminadoPorEscolha(p.analiseFiscal);
 const analiseConcluida = (a: AnaliseCadastroNcm["analiseNcm"]) => !!a && a.confianca !== "BAIXA" && !a.pendenciasNcm.length;
 const preenchido = (p: ItemFiscal) => Boolean(p.grupoFiscalId) && (semNcm(p) ? analiseConcluida(p.analiseFiscal?.analiseNcm) : porEscolha(p) ? p.analiseFiscal!.configuracaoNcm!.cenarios.every(c => analiseConcluida(c.analiseNcm)) : /^\d{8}$/.test(p.fiscal.ncm ?? "")) && (p.analiseFiscal?.configuracaoNcm?.gruposEquivalentes ?? []).every(g => analiseConcluida(g.analiseNcm));
 const alterado = (r: Rascunho | undefined) => !!r && (r.grupoFiscalId !== r.base.grupoFiscalId || JSON.stringify(r.fiscal) !== JSON.stringify(r.base.fiscal));
 
-export function VinculosFiscais({ produtos, grupos, editar }: { produtos: ItemFiscal[]; grupos: GrupoFiscalVinculo[]; editar: boolean }) {
+export function VinculosFiscais({ produtos, grupos, editar, produtoInicial }: { produtos: ItemFiscal[]; grupos: GrupoFiscalVinculo[]; editar: boolean; produtoInicial?: string }) {
   const router = useRouter();
+  const [aberto, setAberto] = useState(produtoInicial);
   const [busca, setBusca] = useState("");
   const [abaSelecionada, setAbaSelecionada] = useState("produtos");
   const [filtro, setFiltro] = useState<Filtro>("TODOS");
@@ -45,7 +51,7 @@ export function VinculosFiscais({ produtos, grupos, editar }: { produtos: ItemFi
   const [erros, setErros] = useState<Record<string, string>>({});
   const [salvando, setSalvando] = useState<Record<string, boolean>>({});
   const trava = useRef(new Set<string>());
-  const itens = produtos.map(p => confirmados[p.id] && confirmados[p.id].versao > p.versao ? confirmados[p.id] : p);
+  const itens = produtos.map(p => confirmados[p.id] && confirmados[p.id].versao >= p.versao ? confirmados[p.id] : p);
   const abas = [
     { valor: "produtos", titulo: "Produtos", itens: itens.filter(p => p.classificacoes.includes("PRINCIPAL")) },
     { valor: "complementos", titulo: "Complementos", itens: itens.filter(p => p.classificacoes.some(c => c === "COMPLEMENTO" || c === "OPCAO")) },
@@ -75,16 +81,17 @@ export function VinculosFiscais({ produtos, grupos, editar }: { produtos: ItemFi
     catch (erro) { setErros(anteriores => ({ ...anteriores, [id]: erro instanceof Error ? erro.message : "Confira o NCM informado." })); return; }
     trava.current.add(id); setSalvando(anteriores => ({ ...anteriores, [id]: true })); setErros(anteriores => ({ ...anteriores, [id]: "" }));
     try {
-      const resposta = await salvarFiscalVendaAction(id, r.base.versao, fiscal, false, r.grupoFiscalId);
+      const resposta = await salvarFiscalVendaAction(id, r.base.versao, fiscal, false, r.grupoFiscalId, r.base.referenciaFiscal);
       if ("erro" in resposta) { setErros(anteriores => ({ ...anteriores, [id]: resposta.erro ?? "Não foi possível salvar. Tente novamente." })); return; }
-      setConfirmados(anteriores => ({ ...anteriores, [id]: { ...r.base, versao: resposta.versao, fiscal, fiscalRevisado: false, grupoFiscalId: r.grupoFiscalId } }));
+      setConfirmados(anteriores => ({ ...anteriores, [id]: { ...r.base, versao: resposta.versao, referenciaFiscal: resposta.referenciaFiscal ?? r.base.referenciaFiscal, fiscal, fiscalRevisado: false, grupoFiscalId: r.grupoFiscalId } }));
       setRascunhos(anteriores => ({ ...anteriores, [id]: undefined }));
       router.refresh();
     } catch { setErros(anteriores => ({ ...anteriores, [id]: "Não foi possível salvar. Seu preenchimento foi mantido. Tente novamente." })); }
     finally { trava.current.delete(id); setSalvando(anteriores => ({ ...anteriores, [id]: false })); }
   }
   return <div className="space-y-5">
-    <CabecalhoVendas titulo="Vínculos fiscais" descricao="NCM individual, grupos e fundamentos da classificação. Correções técnicas e vigências ficam no painel de cobertura."><Button nativeButton={false} render={<a href="/financeiro/fiscal/cobertura" />} variant="outline">Cobertura e versões</Button></CabecalhoVendas>
+    {aberto && <FiscalProdutoEditor produto={produtos.find(p => p.id === aberto) ?? { id: aberto, nome: "Dados fiscais", versao: 0 }} grupos={grupos} fechar={() => setAberto(undefined)} aoSalvar={() => router.refresh()} />}
+    <CabecalhoVendas titulo="Vínculos fiscais" descricao="NCM individual e grupo fiscal dos produtos e complementos."></CabecalhoVendas>
     <p className="text-xs text-muted-foreground">Preenchido inclui os casos fundamentados de NCM não aplicável e de classificação conforme escolha. A prévia do pedido verifica também as regras e a aptidão para emissão.</p>
     {!editar && <p className="text-sm text-muted-foreground">Somente consulta neste cadastro.</p>}
     <Tabs value={abaSelecionada} onValueChange={valor => setAbaSelecionada(String(valor))}>
@@ -118,7 +125,7 @@ export function VinculosFiscais({ produtos, grupos, editar }: { produtos: ItemFi
                 }}>
                   <TableCell className="whitespace-normal"><div className="flex items-center gap-3"><span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted">{p.fotoUrl ? <img src={p.fotoUrl} alt={`Foto de ${p.nome}`} className="h-full w-full object-cover" loading="lazy" /> : <Package className="size-6 text-muted-foreground" aria-label="Sem foto" />}</span><div className="min-w-0"><div className="break-words font-medium">{p.nome}</div><div className="text-xs text-muted-foreground">{p.codigo || "Sem código"}{!p.ativo && " · Inativo"}</div></div></div></TableCell>
                   <TableCell className="break-words whitespace-normal">{p.categorias.length ? p.categorias.map(c => `${c.nome}${c.ativo ? "" : " (inativa)"}`).join(", ") : "Sem categoria"}</TableCell>
-                  <TableCell className="whitespace-normal">{semNcm(p) ? <div><span>NCM não aplicável</span>{fiscal.ncm && <p className="mt-1 text-xs text-muted-foreground">Identidade anterior: {fiscal.ncm}</p>}</div> : porEscolha(p) ? <span>Conforme escolha</span> : editar ? <SeletorFiscal nome={`NCM de ${p.nome}`} valor={fiscal.ncm ?? ""} disabled={ocupado} aria-describedby={ajuda} contexto={{ tabela: "ncm" }} mudar={ncm => { if (ncm !== (fiscal.ncm ?? "")) mudar(p, atual => ({ ...atual, fiscal: { ...atual.fiscal, ncm } })); }} /> : <span className="font-mono">{fiscal.ncm || "Não informado"}</span>}<div id={ajuda} className="text-xs">{erro ? <span role="alert" className="mt-1 block text-destructive">{erro}</span> : <span role="status" className="sr-only">{ocupado ? "Salvando…" : mudou ? "Alteração não salva" : confirmados[p.id] ? "Salvo" : preenchido(p) ? "Preenchido" : "Pendente"}</span>}</div><DetalhesAnaliseNcm valor={p.analiseFiscal} divergente={Boolean(p.analiseFiscal && !semNcm(p) && !porEscolha(p) && p.analiseFiscal.ncm !== (fiscal.ncm || null))} /></TableCell>
+                  <TableCell className="whitespace-normal">{semNcm(p) ? <div><span>NCM não aplicável</span>{fiscal.ncm && <p className="mt-1 text-xs text-muted-foreground">Identidade anterior: {fiscal.ncm}</p>}</div> : porEscolha(p) ? <span>Conforme escolha</span> : editar && p.ncmEditavel !== false ? <SeletorFiscal nome={`NCM de ${p.nome}`} valor={fiscal.ncm ?? ""} disabled={ocupado} aria-describedby={ajuda} contexto={{ tabela: "ncm" }} mudar={ncm => { if (ncm !== (fiscal.ncm ?? "")) mudar(p, atual => ({ ...atual, fiscal: { ...atual.fiscal, ncm } })); }} /> : <span className="font-mono">{p.ncmEditavel === false ? "Conforme composição" : fiscal.ncm || "Não informado"}</span>}<div id={ajuda} className="text-xs">{erro ? <span role="alert" className="mt-1 block text-destructive">{erro}</span> : <span role="status" className="sr-only">{ocupado ? "Salvando…" : mudou ? "Alteração não salva" : confirmados[p.id] ? "Salvo" : preenchido(p) ? "Preenchido" : "Pendente"}</span>}</div><DetalhesAnaliseNcm valor={p.analiseFiscal} divergente={Boolean(p.analiseFiscal && !semNcm(p) && !porEscolha(p) && p.analiseFiscal.ncm !== (fiscal.ncm || null))} /></TableCell>
                   <TableCell className="whitespace-normal">{editar ? <SelecaoFormulario aria-label={`Grupo fiscal de ${p.nome}`} aria-describedby={ajuda}  value={grupoId ?? ""} disabled={ocupado} onValueChange={valor => {
                     const id = valor || null; const modelo = grupos.find(g => g.id === id);
                     mudar(p, atual => ({ ...atual, grupoFiscalId: id, fiscal: modelo ? sugerirModeloFiscal(modelo.fiscal, atual.fiscal) : atual.fiscal }));

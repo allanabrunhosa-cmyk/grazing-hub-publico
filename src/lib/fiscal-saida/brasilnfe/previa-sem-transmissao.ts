@@ -1,3 +1,4 @@
+import { atalhoPendenciaFiscal, referenciasFiscaisPedido } from "@/lib/tributacao/atalhos";
 import "server-only";
 import { identidadeFiscalCobranca } from "@/lib/vendas/cliente-cobranca";
 import { prisma } from "@/lib/prisma";
@@ -14,7 +15,7 @@ import type { PendenciaEmissaoPedidoBrasilNfe, PreviaEmissaoPedidoBrasilNfe } fr
 const objeto = (v: unknown): Record<string, unknown> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {};
 const texto = (v: unknown, max = 200): string | null => typeof v === "string" && v.length <= max && !/[\p{C}<>]/u.test(v) ? v : null;
 const codigo = (v: unknown, formato: RegExp) => (typeof v === "string" || typeof v === "number") && formato.test(String(v)) ? String(v) : null;
-const integracao = "/configuracoes/integracoes/brasilnfe";
+const integracao = "/financeiro/fiscal/configuracoes#emissor";
 type LerPendencias = (sessao: SessaoAtual, modelo: 55 | 65, ambiente: AmbienteEmissaoBrasilNfe) => Promise<PendenciaEmissaoPedidoBrasilNfe[]>;
 
 /** Projeção efêmera do motor vigente. Não prepara documento, plano, evento ou fila.
@@ -41,7 +42,7 @@ export async function previaPedidoSemTransmissaoBrasilNfe(pedidoId: string, vers
   const regime = await obterRegimeFiscalEmpresaBrasilNfe(hojeCivilRegraBrasilNfe(), sessao);
   const pendencias: PendenciaEmissaoPedidoBrasilNfe[] = tributacao.pendencias.map(mensagem => {
     if (typeof mensagem !== "string") throw new ErroEmissaoPedidoBrasilNfe("Prévia fiscal local incompatível: conferir as pendências calculadas.");
-    return { campo: "tributacao", mensagem, href: "/financeiro/fiscal/cobertura?aba=regras" };
+    return { campo: "tributacao", mensagem, href: atalhoPendenciaFiscal(mensagem, referenciasFiscaisPedido(p.itens, tributacao.previa.linhas)) };
   });
   pendencias.push(...await lerPendencias(sessao, modelo, ambiente));
   if (!config?.existe) pendencias.push({ campo: "configuracao", mensagem: "Completar a configuração administrativa do Brasil NFe.", href: integracao });

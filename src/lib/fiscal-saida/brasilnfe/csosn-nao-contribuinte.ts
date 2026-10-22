@@ -5,6 +5,8 @@ export function pendenciaCsosnNaoContribuinte(e: {
   cfop: unknown; csosn: unknown; indice: number; nome: unknown;
 }): string | null {
   if (e.modelo !== 55 || e.crt !== 1 || e.finalidade !== 1 || e.indicadorIe !== 9) return null;
+  // Formato/CST e CRT são conferidos pelo adaptador. A RV600 exige um CSOSN.
+  if (!/^\d{3}$/.test(String(e.csosn))) return null;
   if (["5915", "5916", "6915", "6916", "5912", "5913"].includes(String(e.cfop))) return null;
   if (["102", "103", "300", "400", "500"].includes(String(e.csosn))) return null;
   const nome = typeof e.nome === "string" && e.nome.trim() ? e.nome.trim() : "Produto";

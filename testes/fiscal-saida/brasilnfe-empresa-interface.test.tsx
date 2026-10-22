@@ -7,10 +7,11 @@ import { EditarPerfilEmpresa } from "@/app/(protegido)/financeiro/fiscal/empresa
 
 const controles = vi.hoisted(() => ({ editor: vi.fn(), atualizar: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: controles.atualizar }) }));
-vi.mock("@/app/(protegido)/vendas/fiscal/cobertura/versao-editor", () => ({
-  EditorVersaoFiscal: (props: { versao?: VersaoFiscalDto; painel: PainelFiscal; fechar: () => void }) => {
+vi.mock("@/app/(protegido)/vendas/fiscal/cobertura/versao-editor", () => ({ dadosFiscaisIniciais: () => structuredClone(perfil) }));
+vi.mock("@/app/(protegido)/financeiro/fiscal/edicao-versionada", () => ({
+  EdicaoFiscalVersionada: (props: { versao?: VersaoFiscalDto; painel: PainelFiscal; fechar: () => void; atualizado: () => void }) => {
     controles.editor(props);
-    return <button onClick={props.fechar}>Fechar revisão sintética</button>;
+    return <><button onClick={props.fechar}>Fechar revisão sintética</button><button onClick={() => { props.atualizado(); props.fechar(); }}>Aplicar revisão sintética</button></>;
   },
 }));
 
@@ -19,7 +20,7 @@ const versao = (versao: number, alteracoes: Partial<VersaoFiscalDto> = {}): Vers
 const abrir = async (versoes: VersaoFiscalDto[]) => {
   render(<EditarPerfilEmpresa versoes={versoes} />);
   expect(controles.editor).not.toHaveBeenCalled();
-  await userEvent.click(screen.getByRole("button", { name: "Revisar perfil" }));
+  await userEvent.click(screen.getByRole("button", { name: /regime e vigência/ }));
   return controles.editor.mock.lastCall![0] as { versao?: VersaoFiscalDto; painel: PainelFiscal; tipo: string };
 };
 
@@ -39,7 +40,7 @@ describe("Perfil fiscal da empresa: base vigente da revisão", () => {
     expect(props.painel.versoes).toBe(versoes);
     expect(props.painel.versoes.map(v => v.versao)).toEqual([2, 1]);
     expect(futura.status).toBe("RASCUNHO");
-    await userEvent.click(screen.getByRole("button", { name: "Fechar revisão sintética" }));
+    await userEvent.click(screen.getByRole("button", { name: "Aplicar revisão sintética" }));
     expect(controles.atualizar).toHaveBeenCalledOnce();
     expect(screen.queryByRole("button", { name: "Fechar revisão sintética" })).toBeNull();
   });

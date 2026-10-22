@@ -57,6 +57,14 @@ function transporte(filas: Record<string, unknown[]>) {
 afterEach(() => { vi.unstubAllEnvs(); });
 
 describe("Brasil NFe: adaptador real testado apenas com HTTP sintético", () => {
+  it("NFC-e sem destinatário conserva o contrato existente e NF-e ou entrega continuam exigindo identificação", () => {
+    const anonima = documento(); anonima.ModeloDocumento = 65; delete anonima.Cliente;
+    expect(validarSnapshotBrasilNfe(payload(anonima), c).documento.Cliente).toBeUndefined();
+    for (const [modelo, presenca] of [[55, 2], [65, 4]] as const) {
+      const obrigatoria = documento(); obrigatoria.ModeloDocumento = modelo; obrigatoria.IndicadorPresenca = presenca; delete obrigatoria.Cliente;
+      expect(() => validarSnapshotBrasilNfe(payload(obrigatoria), c)).toThrow(/destinatário/);
+    }
+  });
   it.each([55, 65] as const)("modelo %s identifica produto e campo fiscal ausente antes de qualquer HTTP", async modelo => {
     for (const [campo, rotulo] of [["NCM", "NCM"], ["EAN", "GTIN"], ["CFOP", "CFOP"], ["OrigemProduto", "Origem"], ["UnidadeComercialTributavel", "Unidade tributável"]]) {
       const d = documento(); d.ModeloDocumento = modelo;

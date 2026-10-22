@@ -1,2 +1,3 @@
-// Reutiliza a página atual de aprovação interna, com suas guardas e histórico.
-export { default } from "@/app/(protegido)/vendas/fiscal/regras-brasilnfe/page";
+import { redirect } from "next/navigation";
+import { exigirPermissao } from "@/lib/permissoes/servidor";
+export default async function RegrasLegadasPage() { await exigirPermissao("vendas.fiscal"); return redirect("/financeiro/fiscal/grupos"); }

@@ -103,7 +103,7 @@ export function validarSnapshotBrasilNfe(payload: Prisma.JsonValue, c: Pick<Conf
         if (linhaFci?.produtoId !== produto.CodProdutoServico || fci.pendencias.length || fci.numero !== (produto.nFCI ?? null)) throw new ErroValidacaoSnapshotBrasilNfe("Conteúdo de importação, decisão FCI e item calculado exigem comprovação coerente.");
       }
       const situacao = texto(icms.CodSituacaoTributaria, 3, undefined, t.crt === 1 || t.crt === 4 ? "CSOSN do ICMS" : "CST do ICMS");
-      const pendenciaCsosn = pendenciaCsosnNaoContribuinte({ modelo: d.ModeloDocumento, crt: t.crt, finalidade: d.Finalidade, indicadorIe: objeto(d.Cliente).IndicadorIe,
+      const pendenciaCsosn = pendenciaCsosnNaoContribuinte({ modelo: d.ModeloDocumento, crt: t.crt, finalidade: d.Finalidade, indicadorIe: d.Cliente === undefined ? undefined : objeto(d.Cliente, "Dados do destinatário").IndicadorIe,
         cfop: produto.CFOP, csosn: situacao, indice, nome: produto.NmProduto });
       if (pendenciaCsosn) throw new ErroValidacaoSnapshotBrasilNfe(pendenciaCsosn);
       if (!(t.crt === 1 || t.crt === 4 ? CSOSN : CST).has(situacao)) throw new ErroValidacaoSnapshotBrasilNfe("ICMS incompatível com CRT do emitente. Confira o CST/CSOSN do produto e o regime tributário da empresa.");

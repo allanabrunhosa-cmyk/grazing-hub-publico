@@ -6,6 +6,7 @@ import { ProvedorAcesso } from "@/components/layout/acesso-contexto";
 import { ConteudoMenuLateral } from "@/components/layout/sidebar";
 import IntegracoesPage from "@/app/(protegido)/configuracoes/integracoes/page";
 import ConfiguracoesPage from "@/app/(protegido)/configuracoes/page";
+import { BlocoEmissorFiscal } from "@/app/(protegido)/financeiro/fiscal/configuracoes/emissor";
 import BrasilNfePage from "@/app/(protegido)/configuracoes/integracoes/brasilnfe/page";
 import { configuracaoBrasilNfeFicticia } from "../fiscal-saida/brasilnfe-interface-dados";
 import { preRequisitosBrasilNfeVazios } from "@/lib/fiscal-saida/brasilnfe/pre-requisitos-dominio";
@@ -64,7 +65,7 @@ it("renderiza a página fiscal em modo de leitura quando edição não foi conce
   guarda.mockResolvedValueOnce(undefined);
   recursos.add("configuracoes.brasilnfe");
   carregar.mockResolvedValueOnce({ ok: true, dados: configuracaoBrasilNfeFicticia });
-  render(await BrasilNfePage());
+  render(await BlocoEmissorFiscal());
   expect(carregar).toHaveBeenCalledOnce();
   expect(preRequisitos).toHaveBeenCalledOnce();
   expect(controle).not.toHaveBeenCalled();

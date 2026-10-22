@@ -52,6 +52,8 @@ export function validarDadosFiscais(tipo: TipoVersaoFiscal, entrada: unknown): D
     const internaId = id(d.referenciaInternaInsumoId, "Referência interna de insumo", true);
     if (internaId && d.produtoId !== null) return falha("Identidade fiscal interna exclusiva");
     const r: ClassificacaoFiscal = { produtoId: internaId ? null : id(d.produtoId, "Produto")!, ...(internaId ? { referenciaInternaInsumoId: internaId } : {}), grupo: grupo(d.grupo), natureza: natureza(d.natureza), tratamento: enumValor(d.tratamento, ["NORMAL", "KIT_COMPOSTO", "OPCAO_CONFIGURACAO"], "Tratamento"), ncm: codigo(d.ncm, "NCM", /^\d{8}$/, true), origem: codigo(d.origem, "Origem", /^[0-8]$/, true), cest: codigo(d.cest, "CEST", /^\d{7}$/, true), unidade: codigo(d.unidade, "Unidade", /^[A-Z0-9]{1,6}$/)!, estado: enumValor(d.estado, ["CONFIRMADO", "PENDENTE"], "Situação"), evidencias: strings(d.evidencias, "Evidências"), pendencias: strings(d.pendencias, "Pendências") };
+    if (d.grupoFiscalId !== undefined) r.grupoFiscalId = id(d.grupoFiscalId, "Grupo cadastrado", true);
+    if (d.herdarOrigemGrupo !== undefined) r.herdarOrigemGrupo = booleano(d.herdarOrigemGrupo, "Origem do grupo");
     if (d.fci !== undefined) {
       try { r.fci = validarDecisaoFciFiscal(d.fci); } catch (erro) { throw new ErroEstruturaFiscal(erro instanceof ErroFciFiscal ? erro.message : "FCI: configuração inválida."); }
     }
@@ -126,7 +128,7 @@ export function validarDadosFiscais(tipo: TipoVersaoFiscal, entrada: unknown): D
       if (!r.configuracaoNcm && r.receitaFiscalDocumentada.opcoes.length) return falha("Porções por escolha exigem configuração NCM versionada");
     }
     if (r.tratamento === "KIT_COMPOSTO" && (r.estado === "CONFIRMADO" && !r.componentesKit?.length || r.componentesKit && (r.componentesKit.some(c => !!c.produtoId && c.produtoId === r.produtoId) || new Set(r.componentesKit.map(c => JSON.stringify([c.produtoId ?? `INSUMO:${c.referenciaInternaInsumoId}`, c.escolhas ? [...c.escolhas].sort((a,b) => a.opcaoId.localeCompare(b.opcaoId)) : []]))).size !== r.componentesKit.length))) return falha("Mercadorias distintas do kit");
-    if (r.estado === "CONFIRMADO" && (r.pendencias.length || !r.evidencias.length || !r.grupo && r.tratamento !== "KIT_COMPOSTO" || (r.tratamento === "NORMAL" && r.natureza !== "SERVICO" && (!r.ncm && !r.configuracaoNcm || r.origem === null)))) return falha("Evidências e classificação confirmada");
+    if (r.estado === "CONFIRMADO" && (r.pendencias.length || !r.evidencias.length || !r.grupo && !r.grupoFiscalId && r.tratamento !== "KIT_COMPOSTO" || (r.tratamento === "NORMAL" && r.natureza !== "SERVICO" && (!r.ncm && !r.configuracaoNcm || r.origem === null)))) return falha("Evidências e classificação confirmada");
     if (JSON.stringify(r).length > 512000) return falha("Tamanho da classificação fiscal");
     return r;
   }
@@ -179,6 +181,10 @@ export function validarDadosFiscais(tipo: TipoVersaoFiscal, entrada: unknown): D
         if (r.reforma.preco2027.excecaoBaseLiquida.ato.length < 15 || r.reforma.preco2027.excecaoBaseLiquida.justificativa.length < 15) return falha("Ato e fundamento da exceção");
       }
     }
+    if (d.grupoFiscalId !== undefined) r.grupoFiscalId = id(d.grupoFiscalId, "Grupo cadastrado", true);
+    if (d.modelo !== undefined) r.modelo = enumValor(d.modelo, ["55", "65"] as const, "Modelo da regra");
+    if (d.origem !== undefined) r.origem = codigo(d.origem, "Origem ICMS do grupo", /^[0-8]$/, true);
+    if (d.habilitada !== undefined) r.habilitada = booleano(d.habilitada, "Habilitação da regra");
     return r;
   }
   if (tipo === "COMPLEMENTO") {

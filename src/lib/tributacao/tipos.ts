@@ -29,7 +29,8 @@ export type ConfiguracaoNcm = {
 };
 export type CenarioNcmCalculado = { id: string; nome: string; opcaoIds: string[]; classificacaoVersaoId: string };
 export type ClassificacaoFiscal = {
-  produtoId: string | null; referenciaInternaInsumoId?: string; grupo: CodigoGrupoFiscal | null; natureza: NaturezaFiscal;
+  herdarOrigemGrupo?: boolean;
+  produtoId: string | null; grupoFiscalId?: string | null; referenciaInternaInsumoId?: string; grupo: CodigoGrupoFiscal | null; natureza: NaturezaFiscal;
   tratamento: "NORMAL" | "KIT_COMPOSTO" | "OPCAO_CONFIGURACAO";
   ncm: string | null; origem: string | null; cest: string | null; unidade: string;
   /** GTIN da unidade vendida e tributável idênticas; null/ausente exige conferência. */
@@ -97,9 +98,11 @@ export type TributoConfigurado = {
   justificativa: string;
 };
 export type RegraFiscal = {
+  origem?: string | null;
+  habilitada?: boolean;
   estabelecimento: string; regime: RegimeFiscal; operacao: "VENDA"; ufDestino: string;
   destinatario: "CONSUMIDOR_FINAL" | "CONTRIBUINTE"; grupo: CodigoGrupoFiscal | null;
-  produtoId: string | null; natureza: NaturezaFiscal | null; ncm: string | null;
+  produtoId: string | null; grupoFiscalId?: string | null; modelo?: "55" | "65"; natureza: NaturezaFiscal | null; ncm: string | null;
   cfop: string; csosn: string | null; icms: TributoConfigurado; pis: TributoConfigurado;
   cofins: TributoConfigurado; ipi: TributoConfigurado | null;
   st: "NAO_APLICAVEL" | "RETIDO_ANTERIORMENTE" | "CALCULO_PENDENTE";
@@ -164,7 +167,7 @@ export type RevisaoConsolidadaFiscal = { tipo: "PROPOSTAS_PARA_REVISAO"; versao:
 export type PreviaTributacao = { apto: boolean; pendencias: string[]; contexto: ContextoFiscal; perfilId: string | null; regime: RegimeFiscal | null; linhas: LinhaFiscalCalculada[]; totalMercadorias: string; justificativas: string[]; revisaoConsolidada?: RevisaoConsolidadaFiscal };
 export type PainelFiscal = {
   produtos: { id: string; codigo: string | null; nome: string; tipo: string; papeis: string[]; grupo: string | null; ncm: string | null; status: "APTO" | "PENDENTE" | "CONFIGURACAO"; pendencias: string[]; composicao: unknown; evidencias: unknown; ncmAplicabilidade?: ClassificacaoFiscal["ncmAplicabilidade"]; analiseNcm?: AnaliseNcm; configuracaoNcm?: ConfiguracaoNcm }[];
-  versoes: VersaoFiscalDto[]; grupos: { id: string; nome: string; ativo: boolean }[];
+  versoes: VersaoFiscalDto[]; grupos: { id: string; nome: string; ativo: boolean; codigo?: string | null }[];
   resumo: { ativos: number; aptos: number; pendentes: number; configuracoes: number };
   entradas: { produtoId: string; insumoId: string; insumo: string; ncm: string; descricao: string; evidencia: string }[];
   administrador: boolean;

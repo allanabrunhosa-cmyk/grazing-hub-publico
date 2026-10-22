@@ -46,7 +46,7 @@ it("a permissão histórica oferece cadastros em Financeiro sem conceder o paine
   expect(screen.getByRole("link", { name: "Grupos fiscais" }).getAttribute("aria-current")).toBe("page");
   expect(screen.getByRole("link", { name: "Vínculos fiscais" })).toBeDefined();
   expect(screen.queryByRole("link", { name: "Visão geral" })).toBeNull();
-  expect(screen.queryByRole("link", { name: "Configurações" })).toBeNull();
+  expect(screen.getByRole("link", { name: "Configurações" }).getAttribute("href")).toBe("/financeiro/fiscal/configuracoes");
   expect(screen.queryByRole("link", { name: "Homologação individual" })).toBeNull();
   expect(screen.queryByText("Nenhum item disponível ainda.")).toBeNull();
 });

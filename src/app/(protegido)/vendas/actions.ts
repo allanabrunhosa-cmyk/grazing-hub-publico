@@ -1,7 +1,12 @@
 "use server";
+import { ErroEstruturaFiscal } from "@/lib/tributacao/validacao";
+import { randomUUID } from "node:crypto";
+import { salvarVinculoFiscalSimples } from "@/lib/tributacao/edicao-simples";
+import type { ContextoEdicaoFiscal } from "@/lib/tributacao/campos-simples";
+import { isDeepStrictEqual } from "node:util";
 import { revalidatePath } from "next/cache";
 import { exigirPermissao } from "@/lib/permissoes/servidor";
-import { salvarCliente, salvarCategoria, salvarCategoriaGrupo, salvarGrupo, salvarProduto, salvarFiscalProduto, salvarGrupoFiscal, excluirCadastroVenda, reordenarCategorias, mensagemErroCadastro } from "@/lib/vendas/persistencia";
+import { salvarCliente, salvarCategoria, salvarCategoriaGrupo, salvarGrupo, salvarProduto, salvarGrupoFiscal, excluirCadastroVenda, reordenarCategorias, mensagemErroCadastro } from "@/lib/vendas/persistencia";
 import { validarComponentes } from "@/lib/vendas/dominio";
 import type { ClienteEntrada, CategoriaEntrada, GrupoEntrada, ProdutoEntrada } from "@/lib/vendas/dominio";
 import { mimeFotoVenda } from "@/lib/vendas/foto";
@@ -74,18 +79,21 @@ export async function salvarGrupoVendaAction(entrada: GrupoEntrada) {
 export async function salvarProdutoVendaAction(entrada: ProdutoEntrada) {
   const autor = await exigirPermissao("vendas.produtos", entrada?.id ? "editar" : "adicionar");
   if (entrada?.novoVinculoComplemento || entrada?.pausasComplementos?.length) await exigirPermissao("vendas.catalogo", "editar");
-  if (entrada?.salvarFiscal) await exigirPermissao("vendas.fiscal", "editar");
+  if (entrada?.salvarFiscal) { await exigirPermissao("vendas.fiscal", "editar"); return { erro: "Salve e aplique a configuração na própria aba Fiscal. O salvamento comercial não altera parâmetros fiscais." }; }
   try { const id = await salvarProduto(entrada, autor, entrada?.salvarFiscal ? { fiscal: entrada.fiscal, revisado: entrada.fiscalRevisado === true, grupoFiscalId: entrada.grupoFiscalId ?? null } : undefined); revalidatePath("/vendas", "layout"); atualizarCadastrosFiscais(); return { ok: true as const, id }; }
   catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
 }
-export async function salvarFiscalVendaAction(id: string, versao: number, entrada: unknown, revisado: boolean, grupoFiscalId: string | null = null) {
-  const autor = await exigirPermissao("vendas.fiscal", "editar");
-  try { const salvo = await salvarFiscalProduto(id, versao, entrada, revisado, autor, grupoFiscalId); revalidatePath("/vendas", "layout"); atualizarCadastrosFiscais(); return { ok: true as const, ...salvo }; }
-  catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
+/** Compatibilidade: a ficha antiga não escreve mais parâmetros paralelos. */
+export async function salvarFiscalVendaAction(id: string, versao: number, entrada: unknown, revisado: boolean, grupoFiscalId: string | null = null, referencia?: { classificacaoId: string | null; regraId: string | null; contexto: ContextoEdicaoFiscal }): Promise<{ ok: true; versao: number; referenciaFiscal?: { classificacaoId: string | null; regraId: string | null; contexto: ContextoEdicaoFiscal }; erro?: never } | { erro: string }> {
+  const sessao = await exigirPermissao("vendas.fiscal", "editar");
+  if (referencia) { try { const nova = await salvarVinculoFiscalSimples(id, entrada, grupoFiscalId, referencia, randomUUID(), sessao); atualizarCadastrosFiscais(); return { ok: true, versao, ...nova }; } catch (e) { return { erro: e instanceof ErroEstruturaFiscal ? e.message : "Não foi possível salvar o vínculo fiscal." }; } }
+  void id; void versao; void entrada; void revisado; void grupoFiscalId;
+  return { erro: "O cadastro fiscal foi unificado. Abra Produtos → Fiscal ou Financeiro → Fiscal → Vínculos para salvar e aplicar a configuração usada na emissão." };
 }
+
 export async function salvarGrupoFiscalVendaAction(entrada: { id: string; versao: number; nome: string; fiscal: unknown; ativo: boolean; atualizarVinculados?: boolean }) {
   const autor = await exigirPermissao("vendas.fiscal", "editar");
-  try { const id = await salvarGrupoFiscal(entrada, autor); revalidatePath("/vendas", "layout"); atualizarCadastrosFiscais(); return { ok: true as const, id }; }
+  try { const anterior = entrada.id ? await prisma.grupoFiscalVenda.findUniqueOrThrow({ where: { id: entrada.id }, select: { fiscal: true } }) : null; if (entrada.atualizarVinculados || !isDeepStrictEqual(entrada.fiscal, anterior?.fiscal ?? {})) return { erro: "Os parâmetros fiscais foram unificados. Edite as regras por operação na própria tela do grupo; este formulário altera somente sua identificação." }; const id = await salvarGrupoFiscal({ ...entrada, fiscal: anterior?.fiscal ?? {}, atualizarVinculados: false }, autor); revalidatePath("/vendas", "layout"); atualizarCadastrosFiscais(); return { ok: true as const, id }; }
   catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
 }
 export async function alterarSituacaoProdutoVendaAction(id: string, versao: number, ativo: boolean) {

@@ -332,7 +332,7 @@ export async function salvarGrupoFiscalNaTransacao(tx: Banco, entrada: { id: str
 }
 export async function excluirCadastroVenda(tipo: "PRODUTO" | "CATEGORIA" | "GRUPO" | "CATEGORIA_GRUPO" | "GRUPO_FISCAL", id: string, versao: number, autor: Autor) {
   if (!id || typeof id !== "string" || id.length > 100 || !Number.isSafeInteger(versao) || versao < 1) throw new ErroCadastroVenda("Cadastro para exclusão inválido.");
-  return transacao(async tx => {
+  const remover = async (tx: Banco) => {
     if (tipo === "PRODUTO") {
       const antes = await tx.produtoVenda.findUnique({ where: { id }, include: { categorias: true, grupos: true, componentes: true, comoOpcao: true } });
       conferirVersao(antes, id, versao);
@@ -374,11 +374,19 @@ export async function excluirCadastroVenda(tipo: "PRODUTO" | "CATEGORIA" | "GRUP
       const antes = await tx.grupoFiscalVenda.findUnique({ where: { id }, include: { produtos: { select: { id: true } } } });
       conferirVersao(antes, id, versao);
       if (antes!.codigo) throw new ErroCadastroVenda("Grupo operacional fiscal não pode ser excluído; inative-o preservando a organização e o histórico.");
+      if (await tx.versaoEstruturaFiscal.count({ where: { tipo: { in: ["CLASSIFICACAO", "REGRA"] }, dados: { path: ["grupoFiscalId"], equals: id } } })) throw new ErroCadastroVenda("Este grupo integra versões fiscais. Inative-o para preservar seus IDs, regras e histórico. A inativação não altera os tributos vigentes.");
       await tx.produtoVenda.updateMany({ where: { grupoFiscalId: id }, data: { grupoFiscalId: null, versao: { increment: 1 } } });
       await tx.grupoFiscalVenda.delete({ where: { id } });
       await historico(tx, autor, "EXCLUSAO_GRUPO_FISCAL", id, antes, { excluido: true });
     }
-  });
+  };
+  if (tipo !== "GRUPO_FISCAL") return transacao(remover);
+  return prisma.$transaction(async tx => {
+    // Mesma ordem da aplicação fiscal: estrutura antes do cadastro comercial.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('estrutura-fiscal'))`;
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext('vendas-cadastros'))::text`;
+    return remover(tx);
+  }, { timeout: 20000 });
 }
 export function mensagemErroCadastro(erro: unknown) {
   if (erro instanceof ErroCadastroVenda) return erro.message;

@@ -1,5 +1,18 @@
 # Inventário de padrões reais
 
+## Fiscal unificado — 21/10/2026 — Em revisão visual
+
+A ficha e a central reutilizam Card com `vidro-painel`, Button, GrupoAcoes,
+CampoBusca, SelecaoFormulario e os seletores oficiais pesquisáveis. Campos adicionais
+e histórico usam detalhes expansíveis. Grades viram uma coluna no celular.
+Não há dependência, token, variante global ou catálogo fiscal paralelo novo.
+
+EditorVenda permite conteúdo independente do formulário comercial. A aba Fiscal
+preserva seu rascunho ao alternar abas e oferece somente suas ações. A validação
+comercial não bloqueia o salvamento fiscal. Consumidores anteriores mantêm o
+comportamento padrão. Evidências e limites ficam em
+[Fiscal unificado](../features/fiscal-unificado/TASKS.md).
+
 ## Dashboard PF/PJ e nota fiscal no pedido — 20/10/2026 — Em revisão visual
 
 Pizza com valores textuais e seletor Pedidos/Faturamento reutiliza Card, Alternador
@@ -707,3 +720,8 @@ Evidências e limitações em docs/features/bi-vendas/TASKS.md. Não promove bas
 ## Clientes — titular por cobrança, 17/10/2026 — Em revisão
 
 `IdentidadeCobrancaForm` compõe Campo, Input, SelecaoFormulario e Button oficiais. Clientes, Novo Pedido e detalhe do pedido reutilizam os campos. Principal/Cobrança N e Entrega N usam o mesmo seletor buscável; o painel escolhido mostra identidade e dados postais. Principal conserva identidade fixada às Informações gerais. Inclusão temporária e confirmação de remoção reutilizam Dialog, GrupoAcoes e BotaoRemoverItem. Asteriscos acompanham os campos obrigatórios; o destino avulso do rascunho permanece permissivo. Editor de cliente salvo oferece Pedidos com o histórico existente. Sem nova variante ou token. Referências e capturas sintéticas em [execução](../features/clientes-cobranca/TASKS.md); não promovidas a baseline aprovado.
+
+
+## Fiscal simples — 22/10/2026 — Em revisão
+
+Produtos preserva a grade de CamposClassificacaoFiscal. Grupos preserva os cartões e EditorVenda, sem NCM. Vínculos preserva a tabela com abas de produtos/complementos. Configurações conserva quatro blocos. Salvar usa serviços versionados no servidor, sem etapas de rascunho/revisão na tela. Sem variante ou token novo. Evidências e limitações em [Fiscal unificado](../features/fiscal-unificado/TASKS.md). Capturas anteriores não foram promovidas.

@@ -1,3 +1,6 @@
+vi.mock("@/app/(protegido)/financeiro/fiscal/simples-actions", () => import("../visual/fiscal-unificado-simples-acoes"));
+vi.mock("@/app/(protegido)/vendas/fiscal/estrutura-actions", () => import("../visual/estrutura-fiscal-acoes"));
+vi.mock("@/app/(protegido)/financeiro/fiscal/manutencao-actions", () => import("../visual/fiscal-unificado-acoes"));
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, describe, it, expect, vi } from "vitest";
@@ -351,19 +354,18 @@ describe("catálogo expansível e regras próprias",()=>{
     await u.click(screen.getByRole("button",{name:"Salvar"}));
     expect(sim.salvar).toHaveBeenCalledWith(expect.objectContaining({tempoPreparoMinutos:25,componentes:[expect.objectContaining({observacaoPorcao:"1 fatia",quantidade:"0.2"})]}));
   });
-  it("abre fiscal diretamente, sugere grupo sem impor NCM e salva junto com o produto", async () => {
-    mockarCatalogoFiscal();
-    sim.salvar.mockResolvedValue({ ok: true });
-    render(<ProdutosVenda dados={{ ...catalogo, gruposFiscais: [{ id: "gf", nome: "Produção", codigo: null, versao: 1, ativo: true, fiscal: { ncm: "04069020", cfop: "5101" } }] }} adicionar editar podeVerFiscal podeEditarFiscal />);
-    const u = userEvent.setup();
-    await u.click(screen.getByRole("button", { name: "Editar Produto catálogo" }));
+  it("abre a ficha fiscal canônica sem gravar valores fiscais no salvamento comercial", async () => {
+    mockarCatalogoFiscal(); sim.salvar.mockResolvedValue({ ok: true });
+    render(<ProdutosVenda dados={catalogo} adicionar editar podeVerFiscal podeEditarFiscal />);
+    const u = userEvent.setup(); await u.click(screen.getByRole("button", { name: "Editar Produto catálogo" })); await u.click(screen.getByRole("button", { name: "Fiscal" }));
+    expect(await screen.findByRole("combobox", { name: "NCM" })).toBeTruthy();
+    expect(sim.salvar).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Salvar" }).closest("form")).toBeNull();
+    await u.click(screen.getByRole("button", { name: "Identificação" }));
+    expect(screen.getByRole("textbox", { name: "Nome *" })).toHaveProperty("value", "Produto catálogo");
     await u.click(screen.getByRole("button", { name: "Fiscal" }));
-    expect(screen.queryByRole("button", { name: "Editar dados fiscais" })).toBeNull();
-    await u.click(screen.getByRole("combobox", { name: "Grupo fiscal" }));
-    await u.click(await screen.findByRole("option", { name: "Produção" }));
-    expect(screen.getByRole("combobox", { name: "NCM" })).toHaveProperty("value", "");
-    await u.click(screen.getByRole("button", { name: "Salvar" }));
-    expect(sim.salvar).toHaveBeenCalledWith(expect.objectContaining({ salvarFiscal: true, grupoFiscalId: "gf", fiscal: { cfop: "5101" }, fiscalRevisado: false }));
+    expect(screen.getByRole("combobox", { name: "NCM" })).toBeTruthy();
+    expect(sim.salvar).not.toHaveBeenCalled();
   });
   it("preço zero mantém os controles e só grava após confirmação", async () => {
     sim.salvar.mockResolvedValue({ ok: true, versao: 2 });

@@ -27,6 +27,41 @@ function lucroPresumido(): VersaoFiscalDto[] {
 }
 
 describe("motor tributário com catálogo e regras exclusivamente sintéticos", () => {
+  it("o padrão do grupo cadastrado é efetivo e a exceção individual prevalece", () => {
+    const vs = base().map(x => x.tipo === "CLASSIFICACAO" ? { ...x, dados: classificacao("produto", { grupo: null, grupoFiscalId: "grupo-do-usuario" }) } : x);
+    vs.push(v("REGRA", "padrao-usuario", regra({ grupoFiscalId: "grupo-do-usuario", cfop: "5101" })));
+    const padrao = calcularTributacao(contexto, [item()], vs);
+    expect(padrao.apto).toBe(true); expect(padrao.linhas[0].versoes).toContain("REGRA-padrao-usuario-v1");
+    vs.push(v("REGRA", "excecao-produto", regra({ produtoId: "produto", cfop: "5101" })));
+    const excecao = calcularTributacao(contexto, [item()], vs);
+    expect(excecao.apto).toBe(true); expect(excecao.linhas[0].cfop).toBe("5101");
+    expect(excecao.linhas[0].versoes).toContain("REGRA-excecao-produto-v1");
+  });
+  it("a mesma configuração respeita o modelo e não escolhe entre regras conflitantes", () => {
+    const vs = [...base(), v("REGRA", "somente65", regra({ produtoId: "produto", modelo: "65", cfop: "5101" }))];
+    expect(calcularTributacao({ ...contexto, modelo: "65" }, [item()], vs).linhas[0].versoes).toContain("REGRA-somente65-v1");
+    expect(calcularTributacao({ ...contexto, modelo: "55" }, [item()], vs).linhas[0].versoes).not.toContain("REGRA-somente65-v1");
+    vs.push(v("REGRA", "concorrente65", regra({ produtoId: "produto", modelo: "65", cfop: "5101" })));
+    const conflito = calcularTributacao({ ...contexto, modelo: "65" }, [item()], vs);
+    expect(conflito.apto).toBe(false); expect(conflito.pendencias.join(" ")).toContain("regras concorrentes");
+  });
+  it("a receita de produção não cria linhas e somente a política documentada desmembra o kit", () => {
+    const preparado = calcularTributacao(contexto, [item({ receitaFotografada: { principalHash: "receita-sintetica", opcaoHashes: [] } })], base());
+    expect(preparado.linhas.map(l => l.nome)).toEqual(["Tábua sintética"]);
+    expect(preparado.totalMercadorias).toBe("100.00");
+  });
+  it("desabilitar uma exceção em nova versão devolve a herança sem alterar parâmetros antigos", () => {
+    const original = v("REGRA", "excecao", regra({ produtoId: "produto", segregacaoReceita: "INDIVIDUAL_SINTETICA" }));
+    const antes = [...base(), original], copia = structuredClone(original);
+    expect(calcularTributacao(contexto, [item()], antes).linhas[0].segregacaoReceita).toBe("INDIVIDUAL_SINTETICA");
+    const encerrada = { ...original, id: "excecao-v2", versao: 2, dados: { ...original.dados as RegraFiscal, habilitada: false } };
+    const depois = calcularTributacao(contexto, [item()], [...antes, encerrada]);
+    expect(depois.linhas[0].versoes).not.toContain("excecao-v2");
+    expect(depois.linhas[0].segregacaoReceita).not.toBe("INDIVIDUAL_SINTETICA");
+    expect(original).toEqual(copia);
+    expect(validarDadosFiscais("REGRA", encerrada.dados)).toHaveProperty("habilitada", false);
+    expect(() => validarDadosFiscais("REGRA", { ...encerrada.dados, habilitada: "false" })).toThrow();
+  });
   it.each([
     { ncm: null, origem: "0" as const, esperado: "NCM (8 dígitos)", ausente: "Origem ICMS" },
     { ncm: "19059090", origem: null, esperado: "Origem ICMS", ausente: "NCM (8 dígitos)" },
