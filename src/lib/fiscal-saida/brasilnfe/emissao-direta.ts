@@ -97,6 +97,12 @@ export async function emitirNotaPedidoDiretaBrasilNfe(entrada: unknown, sessao: 
     hashPayloadFiscal: previa.documento!.hashPayloadFiscal!, total: previa.total, autorizarUmaTransmissao: true, conferenciaSemDocumentoExterno: true,
     ...(previa.contextoOperacao?.indicadorPresenca == null ? {} : { indicadorPresenca: previa.contextoOperacao.indicadorPresenca }),
   };
-  const documento = await emitirNotaPedidoBrasilNfe(comando, sessao);
+  let documento = await emitirNotaPedidoBrasilNfe(comando, sessao);
+  // A SEFAZ pode autorizar mesmo quando o retorno do POST não é interpretável.
+  // Recupera somente a identidade que acabou de ser enviada, uma única vez.
+  // A consulta revalida acesso e evidências; nunca prepara ou envia outra nota.
+  if (["PROCESSANDO", "INCERTO", "PENDENTE_CONFERENCIA"].includes(documento.status)) {
+    documento = await consultarEmissaoPedidoBrasilNfe(documento.id, sessao);
+  }
   return { ok: true, documento, conferirAntesDeRepetir: exigeConferencia(documento) };
 }

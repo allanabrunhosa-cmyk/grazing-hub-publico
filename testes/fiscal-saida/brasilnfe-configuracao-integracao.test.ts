@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -33,7 +33,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Brasil NFe administr
     vi.stubEnv("AUTH_SECRET", "chave-ficticia-exclusiva-da-suite-brasilnfe-com-32-bytes");
     banco = new Client({ connectionString: url.toString() }); await banco.connect();
     await banco.query(`CREATE SCHEMA "${schema}"`); criado = true; await banco.query(`SET search_path TO "${schema}"`);
-    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(await prepararMigrationHubIsolada(banco, schema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     s.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${schema}` }, { schema }) });
     const perfil = await s.prisma.perfilAcesso.create({ data: { nome: "Administrador fiscal fictício", permissoes: { "configuracoes.brasilnfe": ["visualizar", "editar"] } } });
     const perfilLeitor = await s.prisma.perfilAcesso.create({ data: { nome: "Leitor fiscal fictício", permissoes: { "configuracoes.brasilnfe": ["visualizar"] } } });
@@ -49,7 +49,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Brasil NFe administr
     await s.prisma.configuracaoLoja.update({ where: { id: "singleton" }, data: { nome: "EMPRESA FICTÍCIA", cnpj: empresa.cnpj, enderecoEstruturado: { cep: "01001000", logradouro: "Rua fictícia", numero: "100", bairro: "Teste", cidade: "São Paulo", uf: "SP" } } });
     s.buscar.mockResolvedValue(empresa); s.servicos.mockResolvedValue({ servicos: [{ nome: "NF-e/NFC-e", ativo: true }], avisosPresentes: false });
   });
-  afterAll(async () => { await s.prisma?.$disconnect(); if (banco) { if (criado && /^teste_brasilnfe_[a-f0-9]{32}$/.test(schema)) await banco.query(`DROP SCHEMA "${schema}" CASCADE`); await banco.end(); } vi.unstubAllEnvs(); });
+  afterAll(async () => { await s.prisma?.$disconnect(); if (banco) { if (criado && /^teste_brasilnfe_[a-f0-9]{32}$/.test(schema)) { await limparIntegracaoHubIsolada(banco, schema); await banco.query(`DROP SCHEMA "${schema}" CASCADE`); } await banco.end(); } vi.unstubAllEnvs(); });
   it("guarda credenciais cifradas sem devolvê-las ou transmiti-las; auditoria só estados", async () => {
     const dados = await salvo();
     expect(dados).toMatchObject({ versao: 1, ambiente: "HOMOLOGACAO", emissaoHabilitada: false, producaoBloqueada: true, tokenConfigurado: true, userTokenConfigurado: true });

@@ -445,3 +445,28 @@ nem dispensa de FCI. O HUB não reclassifica apurações anteriores.
 Os testes `testes/tributacao/fci.test.ts` e os consumidores do motor/payload
 usam valores, controles e mercadorias fictícios. Essa extensão teve validação
 local; não constitui envio de FCI nem homologação externa de documento fiscal.
+
+## Recuperação imediata do resultado — 22/10/2026
+
+`brasilnfe/emissao-direta.ts` consulta uma vez a identidade recém-enviada quando
+o envio termina em PROCESSANDO, INCERTO ou PENDENTE_CONFERENCIA. A resposta do
+mesmo clique passa a refletir a autorização ou rejeição comprovada pela consulta.
+A recuperação não prepara outra revisão e nunca repete EnviarNotaFiscal.
+
+O caso observado tinha HTTP 200 e falha de contrato em ENVIO_ENVELOPE, embora a
+nota estivesse autorizada no emissor. Antes, somente outro clique consultava o
+resultado. Os metadados seguros não identificam o campo individual divergente;
+o corpo original não é guardado. Não se repete uma emissão para capturá-lo.
+
+O normalizador permanece estrito. HTTP 200, ausência de erro ou texto de sucesso
+não comprovam autorização. A consulta existente exige identidade, emitente,
+ambiente, modelo, série, chave e protocolo correspondentes. Uma consulta ainda
+incerta mantém o bloqueio de transmissão duplicada. Permissões são revalidadas.
+Falhas de acesso/configuração continuam visíveis, sem contorno por fallback.
+
+Regressões: `brasilnfe-emissao-direta.test.ts` e
+`brasilnfe-revisao-emissao-integracao.test.ts`. O teste SQL usa banco local e HTTP
+sintéticos: retorno inválido seguido de autorização, modelos 55/65, uma identidade,
+um único envio, fotografia preservada e nenhuma movimentação comercial. As
+rejeições certas não geram outra emissão no mesmo clique. Nenhuma migration,
+credencial, numeração, certificado ou configuração externa muda neste ajuste.

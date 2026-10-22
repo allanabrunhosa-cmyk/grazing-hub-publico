@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -42,7 +42,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Atualização admini
     vi.stubEnv("AUTH_SECRET", "chave-publica-exclusivamente-sintetica-numeracao");
     vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Rede real proibida na suíte sintética."); }));
     banco = new Client({ connectionString: url.toString() }); await banco.connect(); await banco.query(`CREATE SCHEMA "${schema}"`); criado = true; await banco.query(`SET search_path TO "${schema}"`);
-    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(await prepararMigrationHubIsolada(banco, schema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     s.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${schema}` }, { schema }) });
     const perfil = await s.prisma.perfilAcesso.create({ data: { nome: "Administrador sintético de numeração", permissoes: { "configuracoes.brasilnfe": ["visualizar", "editar"] } } });
     const perfilLeitor = await s.prisma.perfilAcesso.create({ data: { nome: "Leitor sintético de numeração", permissoes: { "configuracoes.brasilnfe": ["visualizar"] } } });
@@ -68,7 +68,7 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Atualização admini
   });
   // Encerrar o schema completo pode exceder 10s sob pressão de memória no host.
   // O prazo local de limpeza é 30s. Os limites HTTP da aplicação não mudam.
-  afterAll(async () => { await s.prisma?.$disconnect(); if (banco) { if (criado && /^teste_num_update_[a-f\d]{32}$/.test(schema)) await banco.query(`DROP SCHEMA "${schema}" CASCADE`); await banco.end(); } vi.unstubAllEnvs(); vi.unstubAllGlobals(); }, 30000);
+  afterAll(async () => { await s.prisma?.$disconnect(); if (banco) { if (criado && /^teste_num_update_[a-f\d]{32}$/.test(schema)) { await limparIntegracaoHubIsolada(banco, schema); await banco.query(`DROP SCHEMA "${schema}" CASCADE`); } await banco.end(); } vi.unstubAllEnvs(); vi.unstubAllGlobals(); }, 30000);
 
   it("cria nova série1, confirma posterior e preserva estoque/financeiro/notas recebidas", async () => {
     const e = await comando(); const dto = await atualizarNumeracaoFiscalBrasilNfe(e, editor);
