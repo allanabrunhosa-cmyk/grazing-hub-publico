@@ -5,7 +5,7 @@ import { Client } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import type { SessaoAtual } from "@/lib/session";
 import type { ClassificacaoFiscal, RegraFiscal, SalvarVersaoFiscalEntrada } from "@/lib/tributacao/tipos";
 
@@ -71,7 +71,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("FCI de fornec
     banco = new Client({ connectionString: url.toString(), connectionTimeoutMillis: 10000 }); await banco.connect();
     if (!["127.0.0.1", "::1"].includes((await banco.query("SELECT host(inet_server_addr()) AS host")).rows[0].host)) throw new Error("Servidor não local.");
     await banco.query(`CREATE SCHEMA "${esquema}"`); criado = true; await banco.query(`SET search_path TO "${esquema}"`);
-    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(await prepararMigrationHubIsolada(banco, esquema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     sim.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${esquema}` }, { schema: esquema }) });
     perfilAdminId = (await sim.prisma.perfilAcesso.findUniqueOrThrow({ where: { sistema: "ADMINISTRADOR" } })).id;
     perfilOperadorId = (await sim.prisma.perfilAcesso.create({ data: { nome: "Operador exclusivamente sintético", permissoes: { "vendas.fiscal": ["visualizar", "editar"] } } })).id;
@@ -93,7 +93,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("FCI de fornec
   afterAll(async () => {
     await sim.prisma?.$disconnect();
     if (!banco) return;
-    if (criado && /^teste_fci_fornecedor_[a-f0-9]{32}$/.test(esquema)) await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);
+    if (criado && /^teste_fci_fornecedor_[a-f0-9]{32}$/.test(esquema)) { await limparIntegracaoHubIsolada(banco, esquema); await banco.query(`DROP SCHEMA "${esquema}" CASCADE`); }
     await banco.end();
   });
 

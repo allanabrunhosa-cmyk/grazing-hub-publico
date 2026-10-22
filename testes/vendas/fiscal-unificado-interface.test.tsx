@@ -46,6 +46,37 @@ it("kit e complemento integrado não recebem NCM ou impostos fictícios no pai",
   render(<FiscalProdutoUnificado produtoId={fichaKitUnificada.produto.id} inicial={structuredClone(fichaKitUnificada)} />);
   expect(screen.queryByRole("combobox", { name: "NCM" })).toBeNull(); expect(screen.getByText(/O kit utiliza os dados fiscais/)).toBeTruthy();
 });
+it("a opção visível Kit exige componentes explícitos e não importa a receita", async () => {
+  const u = userEvent.setup(); render(<FiscalProdutoUnificado produtoId={fichaUnificada.produto.id} inicial={structuredClone(fichaUnificada)} />);
+  await u.click(screen.getByRole("combobox", { name: "Representação na nota" }));
+  await u.click(await screen.findByRole("option", { name: "Kit · discriminar componentes" }));
+  expect(screen.getByText("Componentes do kit (0)")).toBeTruthy();
+  expect(screen.queryByRole("combobox", { name: "NCM" })).toBeNull();
+  await u.click(screen.getByRole("button", { name: "Adicionar produto ao kit" }));
+  expect(screen.getByText("Componentes do kit (1)").closest("details")).toHaveProperty("open", true);
+  const quantidade = screen.getByRole("textbox", { name: "Quantidade do kit 1" });
+  await u.clear(quantidade); await u.type(quantidade, "2abc"); expect(quantidade).toHaveProperty("value", "2");
+  expect(screen.getByRole("combobox", { name: "Produto do kit 1" })).toHaveProperty("value", "");
+  await u.click(screen.getByRole("button", { name: "Remover componente 1" }));
+  expect(screen.queryByRole("combobox", { name: "Produto do kit 1" })).toBeNull();
+  await u.click(screen.getByRole("button", { name: "Salvar" }));
+  await waitFor(() => expect(sim.salvar).toHaveBeenCalledOnce());
+  expect(sim.salvar.mock.calls[0][0]).toMatchObject({ representacao: "KIT", componentesKit: [] });
+});
+it("corrigir kit para preparação reabre os campos do produto e salva a escolha explícita", async () => {
+  const dados = structuredClone(fichaKitUnificada);
+  dados.produto.fiscal = { ncm: "21069090", origem: "0", cfop: "5101", csosn: "102", pis: "49", cofins: "49", ean: "SEM GTIN", unidadeTributavel: "UN" };
+  const antes = structuredClone(dados.painel.versoes);
+  const u = userEvent.setup(); render(<FiscalProdutoUnificado produtoId={dados.produto.id} inicial={dados} />);
+  await u.click(screen.getByRole("combobox", { name: "Representação na nota" }));
+  await u.click(await screen.findByRole("option", { name: "Preparação · somente o produto" }));
+  expect(screen.getByRole("combobox", { name: "NCM" })).toHaveProperty("value", expect.stringContaining("21069090"));
+  expect(screen.queryByText(/Componentes do kit/)).toBeNull();
+  await u.click(screen.getByRole("button", { name: "Salvar" }));
+  await waitFor(() => expect(sim.salvar).toHaveBeenCalledOnce());
+  expect(sim.salvar.mock.calls[0][0]).toMatchObject({ representacao: "PRODUTO_PREPARADO", fiscal: { ncm: "21069090", origem: "0", csosn: "102" } });
+  expect(dados.painel.versoes).toEqual(antes);
+});
 it("grupo usa o editor anterior com impostos, sem NCM nem GTIN", async () => {
   const u = userEvent.setup(); render(<GruposFiscais editar crt={1} painel={fichaUnificada.painel} grupos={[{ id: "grupo-demonstracao", nome: "Preparações", versao: 1, fiscal: {}, ativo: true, produtos: [] }]} />);
   await u.click(screen.getByRole("button", { name: "Editar Preparações" }));

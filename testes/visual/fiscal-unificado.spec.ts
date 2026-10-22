@@ -20,6 +20,24 @@ test("produto: conserva a grade de campos oficiais e um único Salvar", async ({
   await expect(page.getByText("Salvar rascunho", { exact: true })).toHaveCount(0); await expect(page.getByRole("button", { name: "Salvar", exact: true })).toHaveCount(1);
   await capturar(page, info, "produto");
 });
+test("representação visível: Kit permite adicionar produtos sem importar ingredientes", async ({ page }, info) => {
+  await abrir(page, info, "/vendas/produtos");
+  await page.getByRole("combobox", { name: "Representação na nota", exact: true }).click();
+  await page.getByRole("option", { name: "Kit · discriminar componentes", exact: true }).click();
+  await expect(page.getByText("Componentes do kit (0)", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Adicionar produto ao kit", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Produto do kit 1" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "NCM", exact: true })).toHaveCount(0);
+  await capturar(page, info, "kit-explicito");
+});
+test("representação visível: preparação reabre os campos do produto final", async ({ page }, info) => {
+  await abrir(page, info, "/vendas/produtos", "&kit");
+  await page.getByRole("combobox", { name: "Representação na nota", exact: true }).click();
+  await page.getByRole("option", { name: "Preparação · somente o produto", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "NCM", exact: true })).toBeVisible();
+  await expect(page.getByText(/Componentes do kit/)).toHaveCount(0);
+  await capturar(page, info, "preparacao-item-unico");
+});
 test("grupos: cartões e editor compacto sem NCM", async ({ page }, info) => {
   await abrir(page, info, "/financeiro/fiscal/grupos"); await page.getByRole("button", { name: "Editar Preparações" }).click();
   await expect(page.getByRole("dialog")).toBeVisible(); await expect(page.getByRole("combobox", { name: "NCM", exact: true })).toHaveCount(0);
