@@ -9,11 +9,11 @@ import {
   salvarProdutoVendaAction,
 } from "@/app/(protegido)/vendas/actions";
 
-const sim = vi.hoisted(() => ({ guarda: vi.fn(), salvar: vi.fn(), atualizar: vi.fn(), categoria: vi.fn() }));
+const sim = vi.hoisted(() => ({ guarda: vi.fn(), salvar: vi.fn(), atualizar: vi.fn(), categoria: vi.fn(), grupo: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: sim.atualizar }));
 vi.mock("@/lib/permissoes/servidor", () => ({ exigirPermissao: sim.guarda }));
-vi.mock("@/lib/prisma", () => ({ prisma: { categoriaVenda: { findUniqueOrThrow: sim.categoria } } }));
+vi.mock("@/lib/prisma", () => ({ prisma: { categoriaVenda: { findUniqueOrThrow: sim.categoria }, grupoFiscalVenda: { findUniqueOrThrow: sim.grupo } } }));
 vi.mock("@/lib/vendas/persistencia", () => ({
   alterarSituacaoProduto: sim.salvar, alterarStatusCadastroVenda: sim.salvar, excluirCadastroVenda: sim.salvar,
   salvarCategoria: sim.salvar, salvarFiscalProduto: sim.salvar, salvarGrupoFiscal: sim.salvar,
@@ -23,6 +23,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   sim.guarda.mockResolvedValue({ userId: "usuario-ficticio", nome: "Teste" });
   sim.salvar.mockResolvedValue("registro-ficticio");
+  sim.grupo.mockResolvedValue({ fiscal: {} });
   sim.categoria.mockResolvedValue({ id: "categoria-ficticia", produtos: [] });
 });
 
@@ -36,7 +37,7 @@ const operacoes = [
   ["excluir grupo fiscal", () => excluirCadastroVendaAction("GRUPO_FISCAL", "grupo-ficticio", 1), "vendas.fiscal", "excluir"],
 ] as const;
 
-it.each(operacoes)("%s atualiza cadastros na rota nova e preserva a rota comercial", async (_, executar, recurso, acao) => {
+it.each(operacoes.slice(1))("%s atualiza cadastros na rota nova e preserva a rota comercial", async (_, executar, recurso, acao) => {
   const resultado = await executar();
   expect(resultado).toHaveProperty("ok", true);
   expect(sim.guarda).toHaveBeenCalledWith(recurso, acao);
@@ -54,6 +55,17 @@ it.each(operacoes)("%s continua bloqueada antes de gravar ou invalidar páginas 
 
 it("falha de persistência mantém os dados e não invalida os cadastros", async () => {
   sim.salvar.mockRejectedValueOnce(new Error("Falha sintética"));
-  expect(await salvarFiscalVendaAction("produto-ficticio", 1, {}, false)).toEqual({ erro: "Falha sintética" });
+  expect(await salvarProdutoVendaAction({ id: "produto-ficticio" } as Parameters<typeof salvarProdutoVendaAction>[0])).toEqual({ erro: "Falha sintética" });
   expect(sim.atualizar).not.toHaveBeenCalled();
+});
+
+it("recusa a antiga gravação paralela e orienta a ficha canônica", async () => {
+  expect(await salvarFiscalVendaAction("produto-ficticio", 1, {}, false)).toHaveProperty("erro", expect.stringContaining("unificado"));
+  expect(sim.salvar).not.toHaveBeenCalled(); expect(sim.atualizar).not.toHaveBeenCalled();
+});
+it("editar identidade do grupo não aceita trocar tributos nem propagar valores antigos", async () => {
+  const entrada = { id: "grupo-ficticio", versao: 1, nome: "Grupo sintético", fiscal: { csosn: "900" }, ativo: true };
+  expect(await salvarGrupoFiscalVendaAction(entrada)).toHaveProperty("erro", expect.stringContaining("unificados"));
+  expect(await salvarGrupoFiscalVendaAction({ ...entrada, fiscal: {}, atualizarVinculados: true })).toHaveProperty("erro", expect.stringContaining("unificados"));
+  expect(sim.salvar).not.toHaveBeenCalled(); expect(sim.atualizar).not.toHaveBeenCalled();
 });

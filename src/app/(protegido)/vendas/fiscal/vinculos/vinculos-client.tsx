@@ -14,7 +14,8 @@ import { AcoesEdicao } from "@/components/padroes-operacionais";
 import { validarFiscal } from "@/lib/vendas/dominio";
 import { salvarFiscalVendaAction } from "../../actions";
 import { CabecalhoVendas, Vazio } from "../../componentes";
-import { sugerirModeloFiscal, type GrupoFiscalVinculo } from "../fiscal-produto-editor";
+import { herdarParametrosFiscais as sugerirModeloFiscal } from "@/lib/tributacao/heranca";
+import type { GrupoFiscalVinculo } from "../fiscal-produto-editor";
 import { DetalhesAnaliseNcm, ncmDiscriminadoPorEscolha, type AnaliseCadastroNcm } from "@/components/fiscal/analise-ncm";
 
 export type ItemFiscal = {

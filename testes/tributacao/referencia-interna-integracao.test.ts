@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
@@ -9,7 +9,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { ClassificacaoFiscal } from "@/lib/tributacao/tipos";
 import { conferirReferenciaInterna, resolverReferenciaInterna } from "@/lib/tributacao/referencia-interna";
 
-const schema = `teste_referencia_interna_${randomUUID().replaceAll("-", "")}`;
+const schema = `teste_ref_interna_${randomUUID().replaceAll("-", "")}`;
 let banco: Client | undefined, prisma: PrismaClient | undefined, criado = false, insumoId: string;
 function c(alteracoes: Partial<ClassificacaoFiscal> = {}): ClassificacaoFiscal {
   return { produtoId: null, referenciaInternaInsumoId: insumoId, grupo: "GF02", natureza: "PREPARADO", tratamento: "NORMAL", ncm: "19059090", origem: "0", cest: null, unidade: "UN", estado: "CONFIRMADO", gtin: "SEM GTIN", evidencias: ["Fixture fictícia: produto final assado sem GTIN"], pendencias: [], ncmAplicabilidade: "APLICAVEL", analiseNcm: { fundamento: "DOCUMENTAL", confianca: "MEDIA", descricaoNcm: "Produto acabado sintético", dataAnalise: "2026-10-12", justificativa: "Preparo exclusivamente fictício para teste; não é documentação comercial real.", fontes: ["Ficha técnica fictícia"], pendenciasNcm: [] }, conversaoUnidade: { unidadeEstoque: "KG", quantidadeEstoquePorUnidadeFiscal: "0.022", justificativa: "Quantidade22g/un declarada exclusivamente na fixture fictícia.", fontes: ["Conversão sintética de teste"] }, ...alteracoes };
@@ -22,7 +22,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Referência i
     banco = new Client({ connectionString: url.toString(), connectionTimeoutMillis: 10000 }); await banco.connect();
     if (!["127.0.0.1", "::1"].includes((await banco.query("SELECT host(inet_server_addr()) AS host")).rows[0].host)) throw new Error("Servidor de fixture precisa ser local.");
     await banco.query(`CREATE SCHEMA "${schema}"`); criado = true; await banco.query(`SET search_path TO "${schema}"`);
-    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(await prepararMigrationHubIsolada(banco, schema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${schema}` }, { schema }) });
   }, 120000);
   beforeEach(async () => {
@@ -31,7 +31,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Referência i
   afterAll(async () => {
     await prisma?.$disconnect();
     if (!banco) return;
-    if (criado && /^teste_referencia_interna_[a-f0-9]{32}$/.test(schema)) await banco.query(`DROP SCHEMA "${schema}" CASCADE`);
+    if (criado && /^teste_ref_interna_[a-f0-9]{32}$/.test(schema)) { await limparIntegracaoHubIsolada(banco, schema); await banco.query(`DROP SCHEMA "${schema}" CASCADE`); }
     await banco.end();
   });
 

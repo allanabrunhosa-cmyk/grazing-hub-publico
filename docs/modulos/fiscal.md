@@ -1,5 +1,31 @@
 # Fiscal
 
+## Manutenção unificada — 21/10/2026
+
+A entrada administrativa é `/financeiro/fiscal/configuracoes`. Ela reúne os serviços
+existentes de empresa, emissor, certificado, CSC, habilitação e numeração. Cada bloco
+preserva sua permissão. Credenciais permanecem mascaradas. A leitura não consulta
+o emissor externo nem altera o estado operacional.
+
+Produtos → Fiscal e `/financeiro/fiscal/vinculos` usam a mesma ficha versionada.
+Rascunho, revisão de impacto, aplicação e histórico ficam nessa ficha. O botão Salvar
+comercial não grava parâmetros fiscais. `VersaoEstruturaFiscal` continua sendo a
+fonte do motor; não há tabela nova ou sincronização de JSON comercial.
+
+`tributacao/ficha.ts` seleciona a regra tanto na interface quanto na montagem fiscal.
+Grupo cadastrado e modelo são alcances opcionais. A exceção individual prevalece.
+Empates continuam bloqueados. Valores e grupos antigos permanecem disponíveis para
+comparação; a conciliação exige decisão explícita, sem conversão tributária automática.
+Grupos referenciados por versões não podem ser excluídos.
+
+As rotas antigas de empresa, cobertura, numeração e regras redirecionam para as
+entradas visíveis. Regras, tabelas, complementos e referências internas podem ser
+mantidos e aplicados nas telas novas. Diagnóstico e histórico dos pilotos anteriores
+ficam em detalhes de consulta. O restante deste guia registra também marcos anteriores.
+
+Contrato, simulação privada, reversão e evidências:
+[Fiscal unificado](../features/fiscal-unificado/README.md).
+
 ## Declaração SEM GTIN e preparações nacionais — 21/10/2026
 
 O responsável confirmou ausência de GTIN nos produtos vendidos e ingredientes

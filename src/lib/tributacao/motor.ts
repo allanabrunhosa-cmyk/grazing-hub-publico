@@ -11,6 +11,8 @@ import { resolverReferenciaInterna, type InsumoReferenciaFiscal } from "./refere
 import { conferirPoliticaKit } from "./fotografia-kit";
 import { conferirFciFiscal } from "./fci";
 import { AVISO_DECLARACAO_FCI } from "./declaracao-fci";
+import { regrasDaOperacao } from "./ficha";
+import { versoesVigentes as projetarVigentes } from "./vigencia";
 const D = Prisma.Decimal;
 export function valorFiscal(v: string, quantidade = false) {
   if (typeof v !== "string" || !(quantidade ? /^\d{1,12}(\.\d{1,6})?$/ : /^\d{1,12}(\.\d{1,2})?$/).test(v)) throw new ErroEstruturaFiscal("Valor ou quantidade fora da precisão fiscal.");
@@ -19,13 +21,7 @@ export function valorFiscal(v: string, quantidade = false) {
 /** Cada chave resolve a última versão ATIVA cuja vigência já chegou. Rascunhos
  * e versões futuras não alteram cálculos nem documentos históricos. */
 export function versoesVigentes(versoes: VersaoFiscalDto[], data: string): VersaoFiscalDto[] {
-  dataFiscal(data); const r = new Map<string, VersaoFiscalDto>();
-  for (const v of versoes) {
-    if (v.status !== "ATIVO" || v.vigenciaInicio > data) continue;
-    const k = `${v.tipo}:${v.chave}`, a = r.get(k);
-    if (!a || v.vigenciaInicio > a.vigenciaInicio || v.vigenciaInicio === a.vigenciaInicio && v.versao > a.versao) r.set(k, v);
-  }
-  return [...r.values()];
+  dataFiscal(data); return projetarVigentes(versoes, data);
 }
 export function ratearFiscal(total: string, pesos: string[]): string[] {
   const centavos = valorFiscal(total).mul(100); const ps = pesos.map(p => valorFiscal(p, true));
@@ -151,8 +147,8 @@ export function calcularTributacao(contexto: ContextoFiscal, itens: ItemComercia
     if (new D(l.quantidade).decimalPlaces() > 4 || new D(l.quantidade).gte("100000000000")) adicionar(`${l.nome}: quantidade fiscal exige até 11 inteiros e 4 casas decimais; comprovar conversão de unidade antes de emitir, sem arredondar a quantidade comercial.`);
     if (new D(l.valor).div(l.quantidade).gte("100000000000")) adicionar(`${l.nome}: valor unitário fiscal excede 11 inteiros e 10 casas decimais; comprovar unidade/conversão sem alterar preço ou quantidade comerciais.`);
     const c = l.classificacaoResolvida ?? classificar(l.produtoId)!.dados as ClassificacaoFiscal;
-    const faltantes = [!c.ncm ? "NCM (8 dígitos)" : null, c.origem == null ? "Origem ICMS" : null, !c.grupo ? "grupo fiscal" : null, !perfil ? "perfil fiscal da empresa" : null].filter(Boolean);
-    if (!perfil || !c.ncm || c.origem == null || !c.grupo) { adicionar(`${l.nome}: falta preencher ${faltantes.join(" e ")}. Corrija a configuração fiscal antes de tentar novamente.`); continue; }
+    const faltantes = [!c.ncm ? "NCM (8 dígitos)" : null, c.origem == null ? "Origem ICMS" : null, !c.grupo && !c.grupoFiscalId ? "grupo fiscal" : null, !perfil ? "perfil fiscal da empresa" : null].filter(Boolean);
+    if (!perfil || !c.ncm || c.origem == null || !c.grupo && !c.grupoFiscalId) { adicionar(`${l.nome}: falta preencher ${faltantes.join(" e ")}. Corrija a configuração fiscal antes de tentar novamente.`); continue; }
     if (!gtinValido(c.gtin)) adicionar(`${l.nome}: confirmar GTIN da unidade vendida e tributável, ou ausência comprovada de GTIN. Código de ingrediente/embalagem de compra não comprova o produto final.`);
     const classificacaoV = classificar(l.produtoId)!;
     const declaracao = c.fci?.situacao === "DISPENSADA_POR_DECLARACAO_RESPONSAVEL";
@@ -162,10 +158,8 @@ export function calcularTributacao(contexto: ContextoFiscal, itens: ItemComercia
       ...(declaracao || repasse ? { produtoId: l.produtoId, estabelecimento: contexto.estabelecimento, emitenteCnpj: perfil.cnpj, gtin: c.gtin, ambiente: contexto.ambiente, materiaisHash: classificacaoVersao?.materiaisHash, classificacaoVersaoId: classificacaoVersao?.id, classificacaoVersaoNumero: classificacaoVersao?.versao } : {}), ...(repasse ? { natureza: c.natureza, ncm: c.ncm } : {}) });
     fci.pendencias.forEach(p => adicionar(`${l.nome}: ${p}`));
     if (declaracao) l.justificativas.push(AVISO_DECLARACAO_FCI);
-    const candidatas = vs.filter(v => { if (v.tipo !== "REGRA") return false; const regra = v.dados as RegraFiscal; return regra.estabelecimento === contexto.estabelecimento && regra.regime === perfil.regime && regra.operacao === contexto.operacao && regra.ufDestino === contexto.ufDestino && regra.destinatario === contexto.destinatario && (!regra.produtoId || regra.produtoId === l.produtoId) && (!regra.ncm || regra.ncm === c.ncm) && (!regra.grupo || regra.grupo === c.grupo) && (!regra.natureza || regra.natureza === c.natureza); });
-    const peso = (v: VersaoFiscalDto) => { const d = v.dados as RegraFiscal; return (d.produtoId ? 8 : 0) + (d.ncm ? 4 : 0) + (d.grupo ? 2 : 0) + (d.natureza ? 1 : 0); };
-    candidatas.sort((a, b) => peso(b) - peso(a));
-    if (!candidatas.length || candidatas[1] && peso(candidatas[0]) === peso(candidatas[1])) { adicionar(`${l.nome}: ${candidatas.length ? "regras concorrentes com a mesma especificidade" : "regra tributária vigente ausente"}.`); continue; }
+    const { candidatas, conflito } = regrasDaOperacao(vs, c, l.produtoId, contexto, perfil);
+    if (!candidatas.length || conflito) { adicionar(`${l.nome}: ${candidatas.length ? "regras concorrentes com a mesma especificidade" : "regra tributária vigente ausente"}.`); continue; }
     const rv = candidatas[0], regra = rv.dados as RegraFiscal; const usadas = [...l.versoes, perfilV!.id, rv.id];
     const valorBase = new D(l.valor).plus(fretes[indice]).plus(custos[indice]).toFixed(2);
     const conferir = (t: TabelaFiscal["tabela"], cod: string | null) => { const x = oficial(t, cod, l.nome); if (x) { usadas.push(x.versao); if (x.linha.regimes && !x.linha.regimes.includes(perfil.regime) || x.linha.modelos && !x.linha.modelos.includes(contexto.modelo)) adicionar(`${l.nome}: ${t} ${cod} incompatível com regime/modelo.`); } return x?.linha; };

@@ -1,5 +1,18 @@
 # Inventário de padrões reais
 
+## Fiscal unificado — 21/10/2026 — Em revisão visual
+
+A ficha e a central reutilizam Card com `vidro-painel`, Button, GrupoAcoes,
+CampoBusca, SelecaoFormulario e os seletores oficiais pesquisáveis. Campos adicionais
+e histórico usam detalhes expansíveis. Grades viram uma coluna no celular.
+Não há dependência, token, variante global ou catálogo fiscal paralelo novo.
+
+EditorVenda permite conteúdo independente do formulário comercial. A aba Fiscal
+preserva seu rascunho ao alternar abas e oferece somente suas ações. A validação
+comercial não bloqueia o salvamento fiscal. Consumidores anteriores mantêm o
+comportamento padrão. Evidências e limites ficam em
+[Fiscal unificado](../features/fiscal-unificado/TASKS.md).
+
 ## Dashboard PF/PJ e nota fiscal no pedido — 20/10/2026 — Em revisão visual
 
 Pizza com valores textuais e seletor Pedidos/Faturamento reutiliza Card, Alternador

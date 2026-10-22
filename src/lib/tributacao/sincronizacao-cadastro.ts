@@ -47,6 +47,7 @@ export async function conferirConfiguracaoSemNcm(tx: Banco, c: ClassificacaoFisc
 
 export async function sincronizarClassificacaoCadastro(tx: Banco, v: VersaoEstruturaFiscal, autor: Autor, hoje: string, vigentes: VersaoFiscalDto[]) {
   const c = v.dados as unknown as ClassificacaoFiscal;
+  if (v.tipo === "CLASSIFICACAO" && Object.hasOwn(c, "grupoFiscalId")) return { situacao: "FONTE_CANONICA_SEM_COPIA_COMERCIAL" as const };
   if (v.tipo === "CLASSIFICACAO" && c.referenciaInternaInsumoId) return { situacao: "REFERENCIA_INTERNA_SEM_CADASTRO_COMERCIAL" as const };
   if (v.tipo !== "CLASSIFICACAO" || !c.ncmAplicabilidade || !c.analiseNcm) return { situacao: "SEM_METADATA" as const };
   if (!c.produtoId) throw new ErroEstruturaFiscal("Identidade comercial ausente na classificação.");

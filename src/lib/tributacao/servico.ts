@@ -131,6 +131,11 @@ async function salvarVersaoFiscalInterna(tx: Prisma.TransactionClient, entrada: 
         c.fci.declaracaoResponsavel = selarDeclaracaoResponsavelFci(declaracao, { id: idDeclaracao, numero: d.versaoBase + 1 }, autor, new Date().toISOString());
       }
     }
+    if (d.tipo === "CLASSIFICACAO" || d.tipo === "REGRA") {
+      const grupoId = (d.dados as ClassificacaoFiscal | RegraFiscal).grupoFiscalId;
+      const encerrarRegra = d.tipo === "REGRA" && (d.dados as RegraFiscal).habilitada === false;
+      if (grupoId && !await tx.grupoFiscalVenda.findFirst({ where: { id: grupoId, ...(encerrarRegra ? {} : { ativo: true }) }, select: { id: true } })) throw new ErroEstruturaFiscal("Grupo fiscal cadastrado inativo ou inexistente.");
+    }
     if (d.tipo === "REGRA") await conferirAlvoInternoRegra(tx, d.dados as RegraFiscal);
     if (d.tipo === "COMPLEMENTO") {
       const c = d.dados as ComportamentoFiscal; const o = await tx.opcaoComplementoVenda.findUnique({ where: { id: c.opcaoId } });
@@ -157,7 +162,11 @@ async function impacto(tx: Prisma.TransactionClient, id: string): Promise<Impact
   let ids = todos.map(p => p.id);
   if (v.tipo === "CLASSIFICACAO") ids = [v.chave];
   if (v.tipo === "COMPLEMENTO") ids = (await tx.produtoGrupoVenda.findMany({ where: { grupo: { opcoes: { some: { id: v.chave } } } }, select: { produtoId: true } })).map(p => p.produtoId);
-  if (v.tipo === "REGRA") ids = classificacoes.filter(x => { const c = x.dados as ClassificacaoFiscal; return (!d.produtoId || d.produtoId === chaveFiscalClassificacao(c)) && (!d.grupo || d.grupo === c.grupo) && (!d.ncm || d.ncm === c.ncm) && (!d.natureza || d.natureza === c.natureza); }).map(x => x.chave);
+  if (v.tipo === "REGRA") {
+    const anterior = versoesVigentes(await consultarVersoesFiscais(tx, ["REGRA"]), v.vigenciaInicio.toISOString().slice(0, 10)).find(a => a.chave === v.chave)?.dados as RegraFiscal | undefined;
+    const alcances = [d as unknown as RegraFiscal, ...(anterior ? [anterior] : [])];
+    ids = classificacoes.filter(x => { const c = x.dados as ClassificacaoFiscal; return alcances.some(r => (!r.produtoId || r.produtoId === chaveFiscalClassificacao(c)) && (!r.grupo || r.grupo === c.grupo) && (!r.grupoFiscalId || r.grupoFiscalId === c.grupoFiscalId) && (!r.ncm || r.ncm === c.ncm) && (!r.natureza || r.natureza === c.natureza)); }).map(x => x.chave);
+  }
   // Inclui dependências comerciais indiretas, sem confundir ficha de insumos com kit.
   const afetados = new Set(ids);
   let expandiu = true;
@@ -172,7 +181,8 @@ async function impacto(tx: Prisma.TransactionClient, id: string): Promise<Impact
   const documentosPreservados = await tx.documentoFiscalSaida.count();
   const resumo = [`${produtos.length} produto(s) ativo(s) no alcance da alteração.`, `${documentosPreservados} fotografia(s) fiscal(is) preservada(s) integralmente.`, "Ativação não transmite documentos, altera preços, movimenta estoque ou habilita autoemissão."];
   const versoes = await tx.versaoEstruturaFiscal.findMany({ select: { id: true, hash: true, status: true } });
-  if (v.tipo === "CLASSIFICACAO" && (v.dados as unknown as ClassificacaoFiscal).analiseNcm) resumo.push("Classificação vigente atualiza somente NCM concluído, aplicabilidade, vínculo de grupo e rastreabilidade no cadastro; parâmetros tributários e códigos antigos de identidade N/A são preservados.");
+  if (v.tipo === "CLASSIFICACAO" && Object.hasOwn(d, "grupoFiscalId")) resumo.push("A ficha aplica a versão do motor. O cadastro comercial anterior permanece preservado para comparação, sem cópia dos parâmetros.");
+  else if (v.tipo === "CLASSIFICACAO" && (v.dados as unknown as ClassificacaoFiscal).analiseNcm) resumo.push("Classificação vigente atualiza somente NCM concluído, aplicabilidade, vínculo de grupo e rastreabilidade no cadastro; parâmetros tributários e códigos antigos de identidade N/A são preservados.");
   return { hash: hashFiscal({ v: v.hash, status: v.status, todos, cadastroFiscal, versoes, documentosPreservados, produtos }), produtosAfetados: produtos.length, documentosPreservados, produtos, resumo };
 }
 export async function analisarImpactoFiscal(id: string, sessao: SessaoAtual) {
@@ -217,6 +227,11 @@ export async function ativarVersaoFiscalNaTransacao(tx: Prisma.TransactionClient
     if (anterior) { if (anterior.versaoId !== id || (anterior.dados as { hashImpacto?: string }).hashImpacto !== hashImpacto || anterior.usuarioId !== a.userId) throw new ErroEstruturaFiscal("Operação de ativação divergente."); return { id }; }
     const v = await tx.versaoEstruturaFiscal.findUniqueOrThrow({ where: { id } });
     if (contextoRevisao && !contextoRevisao.versoes.some(s => s.id === id && s.hash === v.hash)) throw new ErroEstruturaFiscal("A versão não corresponde à revisão consolidada aprovada.");
+    if (["CLASSIFICACAO", "REGRA"].includes(v.tipo)) {
+      const grupoId = (v.dados as unknown as ClassificacaoFiscal | RegraFiscal).grupoFiscalId;
+      const encerrarRegra = v.tipo === "REGRA" && (v.dados as unknown as RegraFiscal).habilitada === false;
+      if (grupoId && !await tx.grupoFiscalVenda.findFirst({ where: { id: grupoId, ...(encerrarRegra ? {} : { ativo: true }) }, select: { id: true } })) throw new ErroEstruturaFiscal("Grupo fiscal cadastrado inativo ou inexistente. Revise a ficha antes de aplicar.");
+    }
     const dataAtivacao = hojeFiscal();
     if (v.status !== "RASCUNHO" || v.vigenciaInicio.toISOString().slice(0, 10) < dataAtivacao) throw new ErroEstruturaFiscal("A versão deve ser um rascunho de vigência atual ou futura.");
     if (v.tipo === "CLASSIFICACAO") await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('vendas-cadastros'))`;
@@ -261,14 +276,14 @@ export async function ativarVersaoFiscalNaTransacao(tx: Prisma.TransactionClient
     if (hojeFiscal() !== dataAtivacao) throw new ErroEstruturaFiscal("Data fiscal mudou durante a ativação; refazer a análise de impacto.");
     return { id };
 }
-export async function consultarPainelFiscal(sessao: SessaoAtual): Promise<PainelFiscal> {
+export async function consultarPainelFiscal(sessao: SessaoAtual, opcoesLeitura: { tabelas?: boolean; evidenciasEntrada?: boolean } = {}): Promise<PainelFiscal> {
   return prisma.$transaction(async tx => {
-    const a = await conferirAutorFiscal(tx, sessao); const versoes = await consultarVersoesFiscais(tx); const vigentes = versoesVigentes(versoes, hojeFiscal());
+    const a = await conferirAutorFiscal(tx, sessao); const versoes = await consultarVersoesFiscais(tx, opcoesLeitura.tabelas === false ? ["PERFIL", "CLASSIFICACAO", "REGRA", "COMPLEMENTO"] : undefined); const vigentes = versoesVigentes(versoes, hojeFiscal());
     const produtosDb = await tx.produtoVenda.findMany({ where: { ativo: true }, include: { componentes: { include: { insumo: { select: { nome: true, tipo: true } } } } }, orderBy: { nome: "asc" } });
-    const grupos = await tx.grupoFiscalVenda.findMany({ where: { ativo: true }, select: { id: true, nome: true, ativo: true }, orderBy: { nome: "asc" } });
+    const grupos = await tx.grupoFiscalVenda.findMany({ select: { id: true, nome: true, ativo: true }, orderBy: { nome: "asc" } });
     const produtos: PainelFiscal["produtos"] = produtosDb.map(p => { const v = vigentes.find(v => v.tipo === "CLASSIFICACAO" && v.chave === p.id); const c = v?.dados as ClassificacaoFiscal | undefined; const config = c?.tratamento === "OPCAO_CONFIGURACAO"; const pendencias = c ? [...c.pendencias, ...(c.estado === "CONFIRMADO" || c.pendencias.length ? [] : ["Conferência técnica individual pendente."])] : ["Classificação fiscal versionada ausente."]; return { id: p.id, codigo: p.codigo, nome: p.nome, tipo: p.tipo, papeis: p.classificacoes, grupo: c?.grupo ?? null, ncm: c?.ncm ?? null, ncmAplicabilidade: c?.ncmAplicabilidade, analiseNcm: c?.analiseNcm, configuracaoNcm: c?.configuracaoNcm, status: config ? "CONFIGURACAO" : c?.estado === "CONFIRMADO" && !pendencias.length ? "APTO" : "PENDENTE", pendencias, evidencias: c?.evidencias ?? [], composicao: p.componentes.map(k => ({ insumoId: k.insumoId, nome: k.insumo.nome, tipo: k.insumo.tipo, quantidade: k.quantidade.toString(), unidade: k.unidade })) }; });
     const insumoIds = [...new Set(produtosDb.flatMap(p => p.componentes.map(c => c.insumoId)))];
-    const notas = await tx.notaFiscalItem.findMany({ where: { insumoId: { in: insumoIds }, ncm: { not: null } }, select: { id: true, insumoId: true, ncm: true, descricaoProduto: true }, orderBy: { id: "asc" } });
+    const notas = opcoesLeitura.evidenciasEntrada === false ? [] : await tx.notaFiscalItem.findMany({ where: { insumoId: { in: insumoIds }, ncm: { not: null } }, select: { id: true, insumoId: true, ncm: true, descricaoProduto: true }, orderBy: { id: "asc" } });
     const entradas: PainelFiscal["entradas"] = produtosDb.flatMap(p => p.componentes.flatMap(c => notas.filter(n => n.insumoId === c.insumoId && /^\d{8}$/.test(n.ncm ?? "")).map(n => ({ produtoId: p.id, insumoId: c.insumoId, insumo: c.insumo.nome, ncm: n.ncm!, descricao: n.descricaoProduto, evidencia: `nfe-item:${n.id}` }))));
     const opcoes = (await tx.opcaoComplementoVenda.findMany({ where: { ativo: true }, select: { id: true, nome: true, produtoId: true, grupoId: true, grupo: { select: { nome: true, produtos: { where: { produto: { ativo: true } }, select: { produtoId: true } } } } }, orderBy: { nome: "asc" } })).map(o => ({ id: o.id, nome: o.nome, produtoId: o.produtoId, grupo: o.grupo.nome, grupoId: o.grupoId, produtoPrincipalIds: o.grupo.produtos.map(p => p.produtoId) }));
     const insumos = await tx.insumo.findMany({ where: { ativo: true, excluidoEm: null }, select: { id: true, nome: true, tipo: true, unidade: true }, orderBy: { nome: "asc" } });

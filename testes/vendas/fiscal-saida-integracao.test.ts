@@ -4,7 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import type { SessaoAtual } from "@/lib/session";
 import type { AdaptadorFiscalSaida, RespostaFiscalSaida } from "@/lib/fiscal-saida/contrato";
 const sim = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient, adapter: null as AdaptadorFiscalSaida | null, dataFiscal: "2026-10-11" }));
@@ -85,7 +85,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Saída fiscal durável
   beforeAll(async () => {
     const url = new URL(process.env.DATABASE_URL!); if (!["127.0.0.1", "localhost"].includes(url.hostname) || !/^\/teste_/.test(url.pathname)) throw new Error("Somente banco local exclusivo de testes");
     banco = new Client({ connectionString: url.toString() }); await banco.connect(); await banco.query(`CREATE SCHEMA "${esquema}"`); criado = true; await banco.query(`SET search_path TO "${esquema}"`);
-    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+    for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) await banco.query(await prepararMigrationHubIsolada(banco, esquema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     sim.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${esquema}` }, { schema: esquema }) });
     const perfil = await sim.prisma.perfilAcesso.findUniqueOrThrow({ where: { sistema: "ADMINISTRADOR" } });
     const u = await sim.prisma.usuario.create({ data: { nome: "Autor fictício fiscal", email: "fiscal-saida@example.invalid", senhaHash: "inutil", perfilAcessoId: perfil.id } });
@@ -100,7 +100,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Saída fiscal durável
     for (const registro of dados) await sim.prisma.versaoEstruturaFiscal.create({ data: { tipo: registro.tipo, chave: registro.chave, dados: JSON.parse(JSON.stringify(validarDadosFiscais(registro.tipo, registro.dados))) as Prisma.InputJsonValue, versao: 1, vigenciaInicio: new Date("2026-01-01T00:00:00Z"), status: "ATIVO", hash: "hash-sintetico", justificativa: "Fixture fiscal validada sintética", fontes: ["https://www.gov.br/receitafederal/pt-br"], criadoPorId: sessao.userId, criadoPorNome: sessao.nome, chaveOperacao: randomUUID(), hashOperacao: "hash-sintetico" } });
   }, 90000);
   beforeEach(() => { sim.adapter = null; sim.dataFiscal = "2026-10-11"; vi.clearAllMocks(); });
-  afterAll(async () => { await sim.prisma?.$disconnect(); if (!banco) return; if (criado && /^teste_fiscal_saida_[a-f0-9]{32}$/.test(esquema)) await banco.query(`DROP SCHEMA "${esquema}" CASCADE`); await banco.end(); });
+  afterAll(async () => { await sim.prisma?.$disconnect(); if (!banco) return; if (criado && /^teste_fiscal_saida_[a-f0-9]{32}$/.test(esquema)) { await limparIntegracaoHubIsolada(banco, esquema); await banco.query(`DROP SCHEMA "${esquema}" CASCADE`); } await banco.end(); });
   it("sem emissor prepara uma vez, guarda revisão e não cria fila/efeito financeiro ou físico", async () => {
     const d = await pedido();
     const [a, b] = await Promise.all([prepararFiscalSaida(d.pedidoId, 1, sessao), prepararFiscalSaida(d.pedidoId, 1, sessao)]);

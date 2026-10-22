@@ -1,3 +1,5 @@
+vi.mock("@/app/(protegido)/vendas/fiscal/estrutura-actions", () => import("../visual/estrutura-fiscal-acoes"));
+vi.mock("@/app/(protegido)/financeiro/fiscal/manutencao-actions", () => import("../visual/fiscal-unificado-acoes"));
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const sim = vi.hoisted(() => ({ guarda: vi.fn(), pode: vi.fn(), produtos: vi.fn(), clientes: vi.fn(), regime: vi.fn(), alias: vi.fn() }));
 vi.mock("@/lib/fiscal-saida/brasilnfe/regime-empresa", () => ({ obterRegimeFiscalEmpresaBrasilNfe: sim.regime }));

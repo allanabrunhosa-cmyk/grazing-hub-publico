@@ -19,7 +19,7 @@ import { EditorCategoria, EditorGrupo } from "../catalogo/catalogo-client";
 import { OrdemProdutos } from "../catalogo/ordem-produtos";
 import { OrdemCategorias } from "../catalogo/ordem-categorias";
 import { salvarProdutoVendaAction } from "../actions";
-import { CamposFiscais, sugerirModeloFiscal } from "../fiscal/fiscal-produto-editor";
+import { FiscalProdutoUnificado } from "../../financeiro/fiscal/ficha-produto";
 import type { CrtFiscal } from "@/lib/fiscal/catalogos/tipos";
 import { PrecoProduto } from "./preco-produto";
 import { custoComposicaoProduto } from "@/lib/vendas/cmv";
@@ -106,10 +106,12 @@ function LinhaProduto({ produto: p, dados, aberto, alternar, status, acoes, edit
     <div><h3 className="mb-2 font-medium">Grupos e escolhas</h3>{p.grupos.length ? p.grupos.map(v => { const g = dados.grupos.find(g => g.id === v.grupoId); if (!g) return null; const l = limitesEfetivos(g,v); return <details key={g.id} className="mb-2 rounded-lg border bg-card p-2 text-xs"><summary className="cursor-pointer font-medium">{g.nome} · {l.minimo} a {l.maximo ?? "ilimitado"}</summary><ul className="mt-2 space-y-1 text-muted-foreground">{opcoesEfetivas(precosOpcoes(g.opcoes, dados.produtos), v).filter(o => o.ativo && !v.opcoesExcluidas?.includes(o.id)).map(o => <li key={o.id}>{o.nome} · {moeda(o.preco)}</li>)}</ul></details>; }) : <p className="text-xs text-muted-foreground">Sem grupos de escolhas.</p>}</div>
   </div></TableCell></TableRow>}</>;
 }
-function EditorProduto({ inicial, dados: dadosOriginais, fechar, adicionarCatalogo, editarCatalogo, podeCadastrarInsumo, podeVerFiscal, podeEditarFiscal, crt }: { inicial: ProdutoEntrada; dados: DadosProdutos; fechar: () => void; adicionarCatalogo: boolean; editarCatalogo: boolean; podeCadastrarInsumo: boolean; podeVerFiscal: boolean; podeEditarFiscal: boolean; crt?: CrtFiscal }) {
+function EditorProduto({ inicial, dados: dadosOriginais, fechar, adicionarCatalogo, editarCatalogo, podeCadastrarInsumo, podeVerFiscal, podeEditarFiscal }: { inicial: ProdutoEntrada; dados: DadosProdutos; fechar: () => void; adicionarCatalogo: boolean; editarCatalogo: boolean; podeCadastrarInsumo: boolean; podeVerFiscal: boolean; podeEditarFiscal: boolean; crt?: CrtFiscal }) {
   const [d, setD] = useState<ProdutoEntrada>(() => ({ ...inicial, grupos: inicial.grupos.map(v => { const g = dadosOriginais.grupos.find(g => g.id === v.grupoId); return g ? { ...v, ...limitesEfetivos(g,v), usarPadrao: g.tipo === "EXTRAS" } : v; }) }));
   const [pausa, setPausa] = useState<{ grupoId: string; opcaoId: string; ativo: boolean; nome: string; globalAtivo: boolean } | null>(null);
-  const [aba, setAba] = useState("identificacao"); const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [aba, setAba] = useState("identificacao");
+  const [fiscalVisitado, setFiscalVisitado] = useState(false);
+  const selecionarAba = (id: string) => { setAba(id); if (id === "fiscal") setFiscalVisitado(true); }; const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [fichaAberta, setFichaAberta] = useState(false);
   const [gruposAbertos, setGruposAbertos] = useState<string[]>([]);
   const [categoriaRapida, setCategoriaRapida] = useState<CategoriaEntrada | null>(null); const [grupoRapido, setGrupoRapido] = useState<GrupoEntrada | null>(null);
@@ -142,11 +144,13 @@ function EditorProduto({ inicial, dados: dadosOriginais, fechar, adicionarCatalo
       </div>
     </div>;
   }
-  return <><EditorVenda titulo={d.id ? "Editar produto" : "Novo produto"} descricao="Cadastro comercial, composição e fiscal do produto." fechar={fechar} salvar={() => salvarProdutoVendaAction(d)} impedido={enviandoFoto} abrirSecao={setAba}>
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap gap-1">{abas.map(([id,nome]) => <Button key={id} data-abrir-secao={id} size="sm" variant={aba === id ? "default" : "outline"} onClick={() => setAba(id)}>{nome}</Button>)}</div>
+  return <><EditorVenda titulo={d.id ? "Editar produto" : "Novo produto"} descricao="Cadastro comercial, composição e fiscal do produto." fechar={fechar} salvar={() => salvarProdutoVendaAction(d)} impedido={enviandoFoto} abrirSecao={selecionarAba}
+    cabecalho={<div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap gap-1">{abas.map(([id,nome]) => <Button key={id} data-abrir-secao={id} size="sm" variant={aba === id ? "default" : "outline"} onClick={() => selecionarAba(id)}>{nome}</Button>)}</div>
       <Button type="button" variant="outline" size="sm" onClick={() => setFichaAberta(true)}><Printer className="size-4" />Imprimir ficha técnica</Button>
-    </div>
+    </div>}
+    exibirIndependente={aba === "fiscal"}
+    conteudoIndependente={podeVerFiscal && fiscalVisitado ? <section data-secao="fiscal" className="space-y-4">{d.id ? <FiscalProdutoUnificado produtoId={d.id} editar={podeEditarFiscal} /> : <p className="text-sm text-muted-foreground">Salve o produto pela aba Identificação para cadastrar sua configuração fiscal.</p>}</section> : null}>
     {fichaAberta && <PreviaFichaProduto produto={d} dados={dados} fechar={() => setFichaAberta(false)} />}
     <div hidden={aba !== "identificacao"} data-secao="identificacao" className="space-y-4">
       <Texto nome="Nome *" required maxLength={160} value={d.nome} onChange={e => campo("nome",e.target.value)} />
@@ -185,13 +189,7 @@ function EditorProduto({ inicial, dados: dadosOriginais, fechar, adicionarCatalo
       <Campo nome="Observações operacionais"><textarea className={classeSelecao + " h-20 py-2"} maxLength={3000} value={d.observacoes ?? ""} onChange={e => campo("observacoes",e.target.value)} /></Campo>
     </div>
     <div hidden={aba !== "disponibilidade"} data-secao="disponibilidade"><DisponibilidadeCadastro produto={d} dados={dados} /></div>
-    {podeVerFiscal && <fieldset disabled={!podeEditarFiscal} hidden={aba !== "fiscal"} data-secao="fiscal" className="space-y-4">
-      <Campo nome="Grupo fiscal"><SelecaoFormulario aria-label="Grupo fiscal"  value={d.grupoFiscalId ?? ""} onValueChange={valor => { const grupoFiscalId = valor || null; const grupo = dados.gruposFiscais.find(g => g.id === grupoFiscalId); setD(a => ({ ...a, grupoFiscalId, fiscal: grupo ? sugerirModeloFiscal(grupo.fiscal, a.fiscal ?? {}) : a.fiscal, fiscalRevisado: false, salvarFiscal: true })); }}><option value="">Sem grupo fiscal</option>{dados.gruposFiscais.filter(g => g.ativo || g.id === d.grupoFiscalId).map(g => <option key={g.id} value={g.id}>{g.nome}{!g.ativo ? " (inativo)" : ""}</option>)}</SelecaoFormulario></Campo>
-      <CamposFiscais fiscal={d.fiscal ?? {}} mudar={fiscal => setD(a => ({ ...a, fiscal, fiscalRevisado: false, salvarFiscal: true }))} revisado={d.fiscalRevisado ?? false} crt={crt} />
-      <Check checked={d.fiscalRevisado ?? false} onChange={e => setD(a => ({ ...a, fiscalRevisado: e.target.checked, salvarFiscal: true }))}>Dados conferidos para este produto</Check>
-      <p className="text-xs text-muted-foreground">Cadastro comercial fiscal: alterações para emissão exigem versão prospectiva no painel. O grupo não atribui NCM automaticamente.</p>
-      <Button type="button" nativeButton={false} render={<a href="/financeiro/fiscal/cobertura" target="_blank" rel="noreferrer" />} variant="outline">Cobertura e versões fiscais</Button>
-    </fieldset>}
+
   </EditorVenda>
     {pausa && <Dialog open protegerAlteracoes={false} onOpenChange={aberto => { if (!aberto) setPausa(null); }}><DialogContent><DialogHeader><DialogTitle>{pausa.ativo ? "Ativar" : "Pausar"} {pausa.nome}</DialogTitle><DialogDescription>Escolha onde aplicar. A mudança será confirmada ao salvar o produto.</DialogDescription></DialogHeader><div className="flex flex-wrap gap-2">
       <Button variant="outline" disabled={!pausa.globalAtivo} onClick={() => { const atual = pausa; campo("grupos", d.grupos.map(v => v.grupoId === atual.grupoId ? { ...v, ajustesOpcoes: [...(v.ajustesOpcoes ?? []).filter(a => a.opcaoId !== atual.opcaoId), { ...v.ajustesOpcoes?.find(a => a.opcaoId === atual.opcaoId), opcaoId: atual.opcaoId, ativo: atual.ativo }] } : v)); setPausa(null); }}>Apenas neste produto</Button>

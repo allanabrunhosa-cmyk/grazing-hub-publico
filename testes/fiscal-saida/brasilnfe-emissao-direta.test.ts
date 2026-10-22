@@ -47,7 +47,7 @@ describe("Um clique produtivo por pedido, sem parâmetros fiscais privilegiados 
     expect(s.preparar.mock.calls[0][5]).toEqual({}); expect(s.emitir).not.toHaveBeenCalled();
   });
   it("devolve motivos fiscais por produto e configuração sem esconder a causa", async () => {
-    const p = previa(); p.pendencias = [{ campo: "itens.ncm", mensagem: "Produto sintético: falta NCM de 8 dígitos.", href: "/financeiro/fiscal/cobertura" }, { campo: "csc", mensagem: "Falta o CSC de produção.", href: "/financeiro/fiscal/configuracoes" }]; p.podeEmitir = false; s.preparar.mockResolvedValue(p);
+    const p = previa(); p.pendencias = [{ campo: "itens.ncm", mensagem: "Produto sintético: falta NCM de 8 dígitos.", href: "/financeiro/fiscal/vinculos" }, { campo: "csc", mensagem: "Falta o CSC de produção.", href: "/financeiro/fiscal/configuracoes" }]; p.podeEmitir = false; s.preparar.mockResolvedValue(p);
     expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ pendencias: p.pendencias, conferirAntesDeRepetir: false });
     expect(s.emitir).not.toHaveBeenCalled();
   });
@@ -69,7 +69,7 @@ describe("Um clique produtivo por pedido, sem parâmetros fiscais privilegiados 
   });
   it("não aprova rascunhos globais pelo clique Emitir, inclusive para administrador", async () => {
     const p = previa(); p.revisaoConsolidada = { hash: "c".repeat(64), pendente: true, podeAprovar: true, versoes: [{ id: "versao-sintetica", hash: "d".repeat(64), status: "RASCUNHO", tipo: "REGRA", rotulo: "Regra sintética" }], parametros: [], declaracoes: [] }; s.preparar.mockResolvedValue(p);
-    expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ pendencias: [expect.objectContaining({ campo: "revisaoConsolidada", href: "/financeiro/fiscal/cobertura" })] });
+    expect(await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao)).toMatchObject({ pendencias: [expect.objectContaining({ campo: "revisaoConsolidada", href: "/financeiro/fiscal/vinculos" })] });
     expect(s.emitir).not.toHaveBeenCalled();
   });
   it("versões já aprovadas não geram novo comando de aprovação", async () => {

@@ -1,5 +1,19 @@
 # Interface e validação visual
 
+## Interface vigente na branch de unificação — 21/10/2026
+
+A manutenção operacional passou para Produtos → Fiscal, Fiscal → Vínculos,
+Fiscal → Grupos e Fiscal → Configurações. A ficha usa as versões do motor.
+Salvamento de rascunho, impacto e aplicação ocorrem na própria tela. As rotas
+antigas redirecionam. As funções necessárias de complementos, referências internas,
+tabelas e histórico permanecem acessíveis nas novas entradas.
+
+O cadastro comercial anterior não recebe cópias dos novos parâmetros. A comparação
+mostra diferenças sem escolher tributos ou vínculos. Consulte o
+[contrato de unificação](../fiscal-unificado/README.md) e sua validação.
+
+Os trechos abaixo descrevem a interface anterior e suas evidências históricas.
+
 Implementação de 11/10/2026. Referência visual **Em revisão** até avaliação humana.
 
 ## Operação no HUB

@@ -86,7 +86,7 @@ export async function emitirNotaPedidoDiretaBrasilNfe(entrada: unknown, sessao: 
   const exigeEscolhaCartao = false;
   if (exigeEscolhaPresenca && !pendencias.some(p => p.campo === "indicadorPresenca")) pendencias.push({ campo: "indicadorPresenca", mensagem: "Informe como a venda foi realizada no campo Presença do comprador. Retirada não comprova atendimento presencial.", href: "" });
   const revisao = previa.revisaoConsolidada;
-  if (revisao?.pendente) pendencias.push({ campo: "revisaoConsolidada", mensagem: "A configuração fiscal deste produto aguarda aprovação. Revise as classificações e regras fiscais na cobertura fiscal antes de emitir.", href: "/financeiro/fiscal/cobertura" });
+  if (revisao?.pendente) pendencias.push({ campo: "revisaoConsolidada", mensagem: "A configuração fiscal deste produto ainda está em rascunho. Abra sua ficha Fiscal, revise o impacto e aplique pela própria tela antes de emitir.", href: "/financeiro/fiscal/vinculos" });
   if (!pendencias.length && (!previa.podeEmitir || !previa.documento?.hashPayloadFiscal || !previa.liberacaoTransmissao.liberada || previa.controleManual?.suspensa)) pendencias.push({ campo: "emissao", mensagem: previa.liberacaoTransmissao.motivo ?? previa.controleManual?.motivo ?? "A revisão fiscal não está liberada para emissão. Confira a configuração e o resultado fiscal deste pedido.", href: "/financeiro/fiscal/configuracoes" });
   if (pendencias.length) {
     const local = await obterResultadoLocalEmissaoPedidoBrasilNfe(e.pedidoId, sessao);

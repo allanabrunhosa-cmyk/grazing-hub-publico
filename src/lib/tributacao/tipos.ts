@@ -29,7 +29,7 @@ export type ConfiguracaoNcm = {
 };
 export type CenarioNcmCalculado = { id: string; nome: string; opcaoIds: string[]; classificacaoVersaoId: string };
 export type ClassificacaoFiscal = {
-  produtoId: string | null; referenciaInternaInsumoId?: string; grupo: CodigoGrupoFiscal | null; natureza: NaturezaFiscal;
+  produtoId: string | null; grupoFiscalId?: string | null; referenciaInternaInsumoId?: string; grupo: CodigoGrupoFiscal | null; natureza: NaturezaFiscal;
   tratamento: "NORMAL" | "KIT_COMPOSTO" | "OPCAO_CONFIGURACAO";
   ncm: string | null; origem: string | null; cest: string | null; unidade: string;
   /** GTIN da unidade vendida e tributável idênticas; null/ausente exige conferência. */
@@ -97,9 +97,10 @@ export type TributoConfigurado = {
   justificativa: string;
 };
 export type RegraFiscal = {
+  habilitada?: boolean;
   estabelecimento: string; regime: RegimeFiscal; operacao: "VENDA"; ufDestino: string;
   destinatario: "CONSUMIDOR_FINAL" | "CONTRIBUINTE"; grupo: CodigoGrupoFiscal | null;
-  produtoId: string | null; natureza: NaturezaFiscal | null; ncm: string | null;
+  produtoId: string | null; grupoFiscalId?: string | null; modelo?: "55" | "65"; natureza: NaturezaFiscal | null; ncm: string | null;
   cfop: string; csosn: string | null; icms: TributoConfigurado; pis: TributoConfigurado;
   cofins: TributoConfigurado; ipi: TributoConfigurado | null;
   st: "NAO_APLICAVEL" | "RETIDO_ANTERIORMENTE" | "CALCULO_PENDENTE";

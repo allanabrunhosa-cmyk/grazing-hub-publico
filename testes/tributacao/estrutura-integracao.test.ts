@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import "dotenv/config";
 import { randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
@@ -15,6 +15,10 @@ vi.mock("@/lib/prisma", () => ({ get prisma() { return sim.prisma; } }));
 vi.mock("@/lib/tributacao/validacao", async importar => ({ ...await importar<typeof import("@/lib/tributacao/validacao")>(), hojeFiscal: () => sim.hoje }));
 import { analisarImpactoFiscal, ativarVersaoFiscal, consultarPainelFiscal, dtoVersaoFiscal, hashFiscal, registrarDeclaracaoGrazing1PelaInstrucao, salvarVersaoFiscal } from "@/lib/tributacao/servico";
 import { PRODUTO_DECLARACAO_FCI_GRAZING1, REFERENCIA_INSTRUCAO_GRAZING1, PENDENCIA_ORIGEM_GRAZING1 } from "@/lib/tributacao/declaracao-fci-contrato";
+import { salvarManutencaoFiscal, revisarManutencaoFiscal, aplicarManutencaoFiscal, consultarFichaFiscal, simularConciliacaoFiscal } from "@/lib/tributacao/manutencao";
+import { capturarConciliacaoFiscal } from "../../scripts/fiscal-unificado-simular.mjs";
+import { excluirCadastroVenda } from "@/lib/vendas/persistencia";
+import { calcularPreviaPedido } from "@/lib/tributacao/pedidos";
 import { conferirFciFiscal } from "@/lib/tributacao/fci";
 import { classificacaoFicticia } from "./declaracao-fci-fixtures";
 import { versoesVigentes } from "@/lib/tributacao/motor";
@@ -46,9 +50,9 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Estrutura fis
     await banco.connect(); await banco.query(`CREATE SCHEMA "${esquema}"`); criado = true;
     await banco.query(`SET search_path TO "${esquema}"`);
     for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
-      await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+      await banco.query(await prepararMigrationHubIsolada(banco, esquema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     }
-    sim.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${esquema}` }, { schema: esquema }) });
+    sim.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), max: 4, options: `-c search_path=${esquema}` }, { schema: esquema }) });
     perfilAdminId = (await sim.prisma.perfilAcesso.findUniqueOrThrow({ where: { sistema: "ADMINISTRADOR" } })).id;
     perfilConsultaId = (await sim.prisma.perfilAcesso.create({ data: { nome: "Operador fiscal sintético", permissoes: { "vendas.fiscal": ["visualizar", "editar"] } } })).id;
     await sim.prisma.configuracaoLoja.upsert({ where: { id: "singleton" }, create: { id: "singleton", nome: "Loja exclusivamente fictícia", cnpj: "12345678000195" }, update: { cnpj: "12345678000195" } });
@@ -64,10 +68,80 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Estrutura fis
   afterAll(async () => {
     await sim.prisma?.$disconnect();
     if (!banco) return;
-    if (criado && /^teste_estrutura_fiscal_[a-f0-9]{32}$/.test(esquema)) await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);
+    if (criado && /^teste_estrutura_fiscal_[a-f0-9]{32}$/.test(esquema)) { await limparIntegracaoHubIsolada(banco, esquema); await banco.query(`DROP SCHEMA "${esquema}" CASCADE`); }
     await banco.end();
   });
 
+  it("a ficha canônica aplicada altera prévia e montagem 55/65 sem tocar snapshots anteriores", async () => {
+    sim.hoje = "2026-10-21";
+    const grupo = await sim.prisma.grupoFiscalVenda.create({ data: { nome: `Grupo do usuário fictício ${randomUUID()}` } });
+    const perfil: PerfilFiscal = { estabelecimento: "singleton", cnpj: "12345678000195", uf: "SP", codigoMunicipio: "3550308", inscricaoEstadual: "123456789012", regime: "SIMPLES_NACIONAL", crt: 1, confirmado: true, evidenciaEnquadramento: "Enquadramento exclusivamente sintético", modelos: ["55", "65"], emissor: "BRASIL_NFE", reforma: "DISPENSADO_SIMPLES_2026", beneficioOpcional: null };
+    const tributo = (cst: string) => ({ cst, aliquota: null, reducaoBase: "0", modalidade: "SEM_DESTAQUE" as const, justificativa: "Fundamento exclusivamente sintético" });
+    const regra: RegraFiscal = { estabelecimento: "singleton", regime: "SIMPLES_NACIONAL", operacao: "VENDA", ufDestino: "SP", destinatario: "CONSUMIDOR_FINAL", grupo: null, grupoFiscalId: grupo.id, produtoId: null, natureza: null, ncm: null, cfop: "5102", csosn: "102", icms: tributo("00"), pis: tributo("49"), cofins: tributo("49"), ipi: null, st: "NAO_APLICAVEL", cest: null, segregacaoReceita: "REVENDA_SINTETICA", reforma: null, seletivo: "NAO_APLICAVEL" };
+    const c: ClassificacaoFiscal = { produtoId, grupo: null, grupoFiscalId: grupo.id, natureza: "FRACIONADO", tratamento: "NORMAL", ncm: "08061000", origem: "0", cest: null, unidade: "UN", gtin: "SEM GTIN", estado: "CONFIRMADO", evidencias: ["Classificação exclusivamente sintética"], pendencias: [] };
+    const entradas: SalvarVersaoFiscalEntrada[] = [];
+    async function incluir(tipo: SalvarVersaoFiscalEntrada["tipo"], chave: string, dados: unknown) {
+      const ultima = await sim.prisma.versaoEstruturaFiscal.findFirst({ where: { tipo, chave }, orderBy: { versao: "desc" } });
+      entradas.push(entrada({ tipo, chave, versaoBase: ultima?.versao ?? 0, dados, vigenciaInicio: sim.hoje }));
+    }
+    await incluir("PERFIL", "singleton", perfil);
+    for (const [tabela, codigos] of [["NCM", ["08061000", "08101000"]], ["CFOP", ["5102"]], ["CSOSN", ["102"]], ["CST_ICMS", ["00"]], ["CST_PIS_COFINS", ["49"]]] as const) await incluir("TABELA", tabela, { tabela, referencia: "Tabela exclusivamente sintética", completa: false, linhas: codigos.map(codigo => ({ codigo, descricao: "Descrição exclusivamente sintética" })) });
+    await incluir("CLASSIFICACAO", produtoId, c); await incluir("REGRA", `grupo-${grupo.id}`, regra);
+    const salvas = await salvarManutencaoFiscal(entradas, sessao), impacto = await revisarManutencaoFiscal(salvas.ids, sessao);
+    await aplicarManutencaoFiscal(salvas.ids, impacto.hash, sessao);
+    await expect(excluirCadastroVenda("GRUPO_FISCAL", grupo.id, grupo.versao, sessao)).rejects.toThrow("integra versões fiscais");
+    const cadastroAntes = await sim.prisma.produtoVenda.findUniqueOrThrow({ where: { id: produtoId } });
+    const p = await sim.prisma.pedidoVenda.create({ data: { chaveCriacao: randomUUID(), hashCriacao: "sintetico", status: "CONFIRMADO", canalNomeSnapshot: "Site", atendimento: "ENTREGA", criadoPorId: sessao.userId, subtotal: 100, total: 100, formaPagamentoInformada: "DINHEIRO", enderecoSnapshot: { uf: "SP" }, compradorSnapshot: { tipo: "PF", nome: "Cliente exclusivamente fictício", documento: "00000000000" }, itens: { create: { produtoId, versaoPedido: 1, ordem: 0, quantidade: 1, unidadeSnapshot: "UN", produtoSnapshot: { nome: "Produto exclusivamente fictício" }, escolhasSnapshot: [], composicaoSnapshot: [], estadoComposicao: "CONHECIDA", precoOriginal: 100, precoAplicado: 100, acrescimos: 0, totalLinha: 100 } } }, include: { itens: true } });
+    try {
+      const anterior = await sim.prisma.documentoFiscalSaida.create({ data: { pedidoId: p.id, versaoPedido: 1, payload: { prova: "snapshot sintético imutável" }, hashPayload: "f".repeat(64), criadoPorId: sessao.userId, criadoPorNome: sessao.nome, status: "PENDENTE_CONFERENCIA", tentativas: 1, modeloDocumento: 55, serie: "6" } });
+      const manifesto = await capturarConciliacaoFiscal(banco!, sim.hoje); expect(manifesto.somenteLeitura).toBe(true); expect(manifesto.dados.documentos.find((d: { id: string; hash: string }) => d.id === anterior.id)?.hash).toMatch(/^[a-f0-9]{64}$/);
+      const fichaAntes = await consultarFichaFiscal(produtoId, sessao);
+      expect((versoesVigentes(fichaAntes.painel.versoes, sim.hoje).find(v => v.tipo === "CLASSIFICACAO" && v.chave === produtoId)!.dados as ClassificacaoFiscal).ncm).toBe("08061000");
+      const mudanca = await salvarManutencaoFiscal([entrada({ chave: produtoId, versaoBase: 1, dados: { ...c, ncm: "08101000" }, vigenciaInicio: sim.hoje })], sessao);
+      for (const modelo of ["55", "65"] as const) {
+        const pre = await sim.prisma.$transaction(tx => calcularPreviaPedido(tx, p, modelo, { consumidorFinal: true, indicadorPresenca: modelo === "65" ? 4 : 2 }));
+        expect(pre.previa.linhas, JSON.stringify(pre.pendencias)).toHaveLength(1); expect(pre.documento.Produtos[0].NCM).toBe("08061000");
+      }
+      const revisao = await revisarManutencaoFiscal(mudanca.ids, sessao); await aplicarManutencaoFiscal(mudanca.ids, revisao.hash, sessao);
+      for (const modelo of ["55", "65"] as const) {
+        const pre = await sim.prisma.$transaction(tx => calcularPreviaPedido(tx, p, modelo, { consumidorFinal: true, indicadorPresenca: modelo === "65" ? 4 : 2 }));
+        expect(pre.previa.linhas[0]).toMatchObject({ ncm: "08101000", origem: "0", cfop: "5102", csosn: "102" });
+        expect(pre.documento.Produtos[0]).toMatchObject({ NCM: "08101000", OrigemProduto: 0, CFOP: 5102, EAN: "SEM GTIN", Imposto: { ICMS: { CodSituacaoTributaria: "102" } } });
+      }
+      expect(await sim.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: anterior.id } })).toEqual(anterior);
+      expect(await sim.prisma.produtoVenda.findUniqueOrThrow({ where: { id: produtoId } })).toEqual(cadastroAntes);
+      const propria = { ...regra, grupoFiscalId: null, produtoId, segregacaoReceita: "EXCECAO_EXCLUSIVAMENTE_SINTETICA" };
+      for (const [numero, dados] of [[0, propria], [1, { ...propria, habilitada: false }]] as const) {
+        const versoes = await salvarManutencaoFiscal([entrada({ tipo: "REGRA", chave: `excecao-${produtoId}`, versaoBase: numero, dados, vigenciaInicio: sim.hoje })], sessao);
+        const revisao = await revisarManutencaoFiscal(versoes.ids, sessao); await aplicarManutencaoFiscal(versoes.ids, revisao.hash, sessao);
+        for (const modelo of ["55", "65"] as const) {
+          const pre = await sim.prisma.$transaction(tx => calcularPreviaPedido(tx, p, modelo, { consumidorFinal: true, indicadorPresenca: modelo === "65" ? 4 : 2 }));
+          expect(pre.previa.linhas[0].segregacaoReceita).toBe(numero === 0 ? propria.segregacaoReceita : regra.segregacaoReceita);
+        }
+      }
+      const comparacao = await simularConciliacaoFiscal(sessao); expect(comparacao.find(p => p.id === produtoId)?.diferencas).toContainEqual({ campo: "ncm", cadastrado: "19059090", vigente: "08101000" });
+      const reversao = await salvarManutencaoFiscal([entrada({ chave: produtoId, versaoBase: 2, dados: c, vigenciaInicio: sim.hoje })], sessao);
+      const impactoReversao = await revisarManutencaoFiscal(reversao.ids, sessao); await aplicarManutencaoFiscal(reversao.ids, impactoReversao.hash, sessao);
+      const restaurada = await sim.prisma.$transaction(tx => calcularPreviaPedido(tx, p, "65", { consumidorFinal: true, indicadorPresenca: 4 }));
+      expect(restaurada.documento.Produtos[0].NCM).toBe("08061000");
+      expect(await sim.prisma.versaoEstruturaFiscal.count({ where: { tipo: "CLASSIFICACAO", chave: produtoId, status: "ATIVO" } })).toBe(3);
+      expect(await sim.prisma.documentoFiscalSaida.findUniqueOrThrow({ where: { id: anterior.id } })).toEqual(anterior);
+      await expect(salvarManutencaoFiscal([entrada()], operador)).rejects.toThrow("acesso");
+      expect(await sim.prisma.movimentacaoEstoque.count()).toBe(0); expect(await sim.prisma.notaFiscalRecebida.count()).toBe(0); expect(await sim.prisma.lancamentoFinanceiro.count()).toBe(0);
+    } finally { await sim.prisma.documentoFiscalSaida.deleteMany({ where: { pedidoId: p.id } }); await sim.prisma.itemPedidoVenda.deleteMany({ where: { pedidoId: p.id } }); await sim.prisma.pedidoVenda.delete({ where: { id: p.id } }); }
+  }, 30000);
+  it("a revisão consolidada recusa concorrência e a versão futura não entra antecipadamente", async () => {
+    const d = entrada({ dados: { ...(entrada().dados as ClassificacaoFiscal), grupoFiscalId: null } });
+    await expect(salvarManutencaoFiscal([{ ...d, justificativa: "x" }], sessao)).rejects.toThrow("15 caracteres");
+    const salvo = await salvarManutencaoFiscal([d], sessao); expect(await salvarManutencaoFiscal([d], sessao)).toEqual(salvo);
+    const revisao = await revisarManutencaoFiscal(salvo.ids, sessao);
+    await sim.prisma.produtoVenda.update({ where: { id: produtoId }, data: { versao: { increment: 1 } } });
+    await expect(aplicarManutencaoFiscal(salvo.ids, revisao.hash, sessao)).rejects.toThrow("mudou");
+    expect((await sim.prisma.versaoEstruturaFiscal.findUniqueOrThrow({ where: { id: salvo.ids[0] } })).status).toBe("RASCUNHO");
+    const futuro = await salvarManutencaoFiscal([entrada({ versaoBase: 1, dados: d.dados, vigenciaInicio: "2027-01-01" })], sessao), analise = await revisarManutencaoFiscal(futuro.ids, sessao);
+    await aplicarManutencaoFiscal(futuro.ids, analise.hash, sessao);
+    expect(versoesVigentes((await consultarPainelFiscal(sessao)).versoes, sim.hoje).some(v => v.id === futuro.ids[0])).toBe(false);
+  });
   it("migração cria os doze grupos sem NCM padrão", async () => {
     const grupos = await sim.prisma.grupoFiscalVenda.findMany({ where: { codigo: { startsWith: "GF" } }, orderBy: { codigo: "asc" } });
     expect(grupos).toHaveLength(12); expect(grupos.map(g => g.codigo)).toEqual(Array.from({ length: 12 }, (_, i) => `GF${String(i + 1).padStart(2, "0")}`));

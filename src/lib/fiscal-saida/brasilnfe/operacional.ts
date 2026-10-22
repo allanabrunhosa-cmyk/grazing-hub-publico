@@ -39,8 +39,8 @@ const json = (v: unknown) => JSON.parse(JSON.stringify(v)) as Prisma.InputJsonVa
 const objeto = (v: unknown): Record<string, unknown> => v && typeof v === "object" && !Array.isArray(v) ? v as Record<string, unknown> : {};
 const texto = (v: unknown, max = 200): string | null => typeof v === "string" && v.length <= max && !/[\p{C}<>]/u.test(v) ? v : null;
 const falhar = (m: string): never => { throw new ErroEmissaoPedidoBrasilNfe(m); };
-const linkRegras = "/financeiro/fiscal/cobertura?aba=regras";
-const linkIntegracao = "/configuracoes/integracoes/brasilnfe";
+const linkRegras = "/financeiro/fiscal/grupos";
+const linkIntegracao = "/financeiro/fiscal/configuracoes#emissor";
 type PlanoOperacional = { planoId: string; modelo: 55 | 65; ambiente: AmbienteEmissaoBrasilNfe; resultado: ResultadoPayloadLocalBrasilNfe;
   parametros: { emitente: ParametrosPayloadLocalBrasilNfe["emitente"] }; evidencia: { primeiraEmissaoPendente: boolean; parametrosHash: string } };
 async function obterComplementosAprovadosDocumentoBrasilNfe(id: string, sessao: SessaoAtual, opcoes: { somentePrevia?: boolean } = {}): Promise<PlanoOperacional | null> {
