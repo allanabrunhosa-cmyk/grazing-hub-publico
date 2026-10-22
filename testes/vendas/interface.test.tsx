@@ -1,3 +1,4 @@
+vi.mock("@/app/(protegido)/financeiro/fiscal/simples-actions", () => import("../visual/fiscal-unificado-simples-acoes"));
 vi.mock("@/app/(protegido)/vendas/fiscal/estrutura-actions", () => import("../visual/estrutura-fiscal-acoes"));
 vi.mock("@/app/(protegido)/financeiro/fiscal/manutencao-actions", () => import("../visual/fiscal-unificado-acoes"));
 // @vitest-environment jsdom
@@ -357,16 +358,13 @@ describe("catálogo expansível e regras próprias",()=>{
     mockarCatalogoFiscal(); sim.salvar.mockResolvedValue({ ok: true });
     render(<ProdutosVenda dados={catalogo} adicionar editar podeVerFiscal podeEditarFiscal />);
     const u = userEvent.setup(); await u.click(screen.getByRole("button", { name: "Editar Produto catálogo" })); await u.click(screen.getByRole("button", { name: "Fiscal" }));
-    expect(await screen.findByText("Configuração fiscal do produto")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Editar classificação e grupo" })).toBeTruthy();
+    expect(await screen.findByRole("combobox", { name: "NCM" })).toBeTruthy();
     expect(sim.salvar).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "Salvar" })).toBeNull();
-    await u.click(screen.getByRole("button", { name: "Editar classificação e grupo" }));
-    expect((await screen.findByRole("combobox", { name: "NCM individual" })).closest("form")).toBeNull();
+    expect(screen.getByRole("button", { name: "Salvar" }).closest("form")).toBeNull();
     await u.click(screen.getByRole("button", { name: "Identificação" }));
     expect(screen.getByRole("textbox", { name: "Nome *" })).toHaveProperty("value", "Produto catálogo");
     await u.click(screen.getByRole("button", { name: "Fiscal" }));
-    expect(screen.getByRole("combobox", { name: "NCM individual" })).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: "NCM" })).toBeTruthy();
     expect(sim.salvar).not.toHaveBeenCalled();
   });
   it("preço zero mantém os controles e só grava após confirmação", async () => {

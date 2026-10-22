@@ -4,7 +4,7 @@ import type { ClassificacaoFiscal, ContextoFiscal, PerfilFiscal, RegraFiscal, Ve
 export function regrasDaOperacao(versoes: VersaoFiscalDto[], c: ClassificacaoFiscal, produtoId: string, contexto: ContextoFiscal, perfil: PerfilFiscal) {
   const peso = (v: VersaoFiscalDto) => {
     const r = v.dados as RegraFiscal;
-    return (r.produtoId ? 8 : 0) + (r.ncm ? 4 : 0) + (r.grupoFiscalId ? 2.5 : r.grupo ? 2 : 0) + (r.natureza ? 1 : 0) + (r.modelo ? 0.25 : 0);
+    return (r.produtoId ? 8 : 0) + (r.ncm ? 4 : 0) + (r.grupoFiscalId ? 3.5 : r.grupo ? 2 : 0) + (r.natureza ? 1 : 0) + (r.modelo ? 0.25 : 0);
   };
   const candidatas = versoes.filter(v => {
     if (v.tipo !== "REGRA") return false;

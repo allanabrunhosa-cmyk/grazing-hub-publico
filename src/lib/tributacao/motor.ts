@@ -1,3 +1,4 @@
+import { origemDaOperacao, regraDoGrupo } from "./campos-simples";
 import { Prisma } from "@/generated/prisma/client";
 import type { ClassificacaoFiscal, ComportamentoFiscal, ContextoFiscal, ItemComercialFiscal, LinhaFiscalCalculada, PerfilFiscal, PreviaTributacao, RegraFiscal, TabelaFiscal, TributoConfigurado, VersaoFiscalDto } from "./tipos";
 import { dataFiscal, ErroEstruturaFiscal } from "./validacao";
@@ -146,7 +147,10 @@ export function calcularTributacao(contexto: ContextoFiscal, itens: ItemComercia
   for (const [indice, l] of linhas.entries()) {
     if (new D(l.quantidade).decimalPlaces() > 4 || new D(l.quantidade).gte("100000000000")) adicionar(`${l.nome}: quantidade fiscal exige até 11 inteiros e 4 casas decimais; comprovar conversão de unidade antes de emitir, sem arredondar a quantidade comercial.`);
     if (new D(l.valor).div(l.quantidade).gte("100000000000")) adicionar(`${l.nome}: valor unitário fiscal excede 11 inteiros e 10 casas decimais; comprovar unidade/conversão sem alterar preço ou quantidade comerciais.`);
-    const c = l.classificacaoResolvida ?? classificar(l.produtoId)!.dados as ClassificacaoFiscal;
+    const classificacao = l.classificacaoResolvida ?? classificar(l.produtoId)!.dados as ClassificacaoFiscal;
+    const regraOrigem = perfil ? regrasDaOperacao(vs, classificacao, l.produtoId, contexto, perfil).efetiva?.dados as RegraFiscal | undefined : undefined;
+    const regraGrupo = perfil && classificacao.grupoFiscalId ? regraDoGrupo(vs, classificacao.grupoFiscalId, classificacao.grupo, contexto, perfil).efetiva?.dados as RegraFiscal | undefined : regraOrigem;
+    const c = { ...classificacao, origem: origemDaOperacao(classificacao, regraGrupo), cest: classificacao.cest ?? (regraOrigem?.grupoFiscalId ? regraOrigem.cest : null) ?? null };
     const faltantes = [!c.ncm ? "NCM (8 dígitos)" : null, c.origem == null ? "Origem ICMS" : null, !c.grupo && !c.grupoFiscalId ? "grupo fiscal" : null, !perfil ? "perfil fiscal da empresa" : null].filter(Boolean);
     if (!perfil || !c.ncm || c.origem == null || !c.grupo && !c.grupoFiscalId) { adicionar(`${l.nome}: falta preencher ${faltantes.join(" e ")}. Corrija a configuração fiscal antes de tentar novamente.`); continue; }
     if (!gtinValido(c.gtin)) adicionar(`${l.nome}: confirmar GTIN da unidade vendida e tributável, ou ausência comprovada de GTIN. Código de ingrediente/embalagem de compra não comprova o produto final.`);

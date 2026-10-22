@@ -9,7 +9,6 @@ import type { PainelFiscal, PerfilFiscal, RegraFiscal, TipoVersaoFiscal, VersaoF
 import { versoesVigentes } from "@/lib/tributacao/vigencia";
 import { dadosFiscaisIniciais } from "@/app/(protegido)/vendas/fiscal/cobertura/versao-editor";
 import { FiscalProdutoUnificado } from "./ficha-produto";
-import { HistoricoFiscalLegado } from "./historico-legado";
 import { SelecaoFormulario } from "@/components/ui/select";
 import { EdicaoFiscalVersionada } from "./edicao-versionada";
 import { simularConciliacaoFiscalAction } from "./manutencao-actions";
@@ -33,15 +32,13 @@ export function CadastrosFiscais({ painel, produtoInicial }: { painel: PainelFis
   }, [produto]);
   const normalizar = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
   const produtos = painel.produtos.filter(p => normalizar(`${p.nome} ${p.codigo ?? ""} ${p.ncm ?? ""}`).includes(normalizar(busca)));
-  return <div className="space-y-5"><BarraAcoes titulo="Fiscal dos produtos" descricao="A mesma ficha de Produtos → Fiscal. Salve, revise e aplique aqui." />
+  return <div className="space-y-5"><BarraAcoes titulo="Fiscal dos produtos" descricao="Os mesmos dados da aba Fiscal do produto." />
     <div ref={buscaRef}><CampoBusca aria-label="Buscar produto fiscal" placeholder="Produto, código ou NCM" value={busca} onChange={setBusca} maxLength={200} /></div>
     <div className="grid gap-3 md:grid-cols-2">{produtos.slice(0, limite).map(p => <Card className="vidro-painel" key={p.id}><CardHeader><CardTitle>{p.nome}</CardTitle><CardDescription>NCM {p.ncm ?? "pendente"} · {p.status === "APTO" ? "Classificação confirmada" : "Configuração a conferir"}</CardDescription></CardHeader><CardContent><Button type="button" variant="outline" aria-label={`${produto === p.id ? "Fechar" : "Abrir"} Fiscal de ${p.nome}`} onClick={() => setProduto(produto === p.id ? null : p.id)}>{produto === p.id ? "Fechar ficha" : "Abrir Fiscal do produto"}</Button></CardContent></Card>)}</div>
     {produtos.length > limite && <Button type="button" variant="outline" onClick={() => setLimite(v => v + 24)}>Mostrar mais produtos ({limite} de {produtos.length})</Button>}
     {!produtos.length && <p role="status" className="text-sm text-muted-foreground">Nenhum produto encontrado.</p>}
     {produto && <section ref={fichaRef} tabIndex={-1} id="ficha-fiscal" aria-label="Ficha fiscal selecionada" className="scroll-mt-24 space-y-3"><Button type="button" variant="outline" onClick={() => { setProduto(null); buscaRef.current?.scrollIntoView?.({ block: "start", behavior: "smooth" }); buscaRef.current?.querySelector("input")?.focus({ preventScroll: true }); }}>Voltar aos produtos</Button><FiscalProdutoUnificado key={produto} produtoId={produto} /></section>}
-    {painel.administrador && <ConciliacaoFiscal />}
-    <DetalhesFiscais painel={painel} />
-    <HistoricoFiscalLegado />
+
   </div>;
 }
 
@@ -72,7 +69,7 @@ export function RegrasFiscaisVisiveis({ painel, grupoId }: { painel: PainelFisca
   </CardContent></Card>;
 }
 
-function ConciliacaoFiscal() {
+export function ConciliacaoFiscal() {
   const [resultado, setResultado] = useState<Awaited<ReturnType<typeof simularConciliacaoFiscalAction>> | null>(null), [ocupado, setOcupado] = useState(false);
   async function simular() {
     setOcupado(true);
@@ -94,7 +91,7 @@ function ConciliacaoFiscal() {
   </details>;
 }
 
-function DetalhesFiscais({ painel }: { painel: PainelFiscal }) {
+export function DetalhesFiscais({ painel }: { painel: PainelFiscal }) {
   const [editor, setEditor] = useState<VersaoFiscalDto | null>(null), router = useRouter();
   const [novo, setNovo] = useState<null | { tipo: "COMPLEMENTO" | "CLASSIFICACAO" | "TABELA"; id: string }>(null);
   return <details className="space-y-4 rounded-xl border p-4"><summary className="cursor-pointer text-sm font-medium">Complementos, referências internas e tabelas oficiais</summary><p className="text-sm text-muted-foreground">Funções preservadas da estrutura anterior. Edite e aplique nesta mesma tela.</p>

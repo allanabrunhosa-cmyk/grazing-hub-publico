@@ -1,3 +1,5 @@
+> Fluxo operacional atualizado em 22/10/2026: [telas simples e Salvar direto](../fiscal-unificado/README.md). As descrições de editores técnicos abaixo são históricas; não representam a manutenção normal atual.
+
 # Interface e validação visual
 
 ## Interface vigente na branch de unificação — 21/10/2026

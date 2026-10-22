@@ -1,3 +1,5 @@
+vi.mock("@/app/(protegido)/financeiro/fiscal/simples-actions", () => import("../visual/fiscal-unificado-simples-acoes"));
+vi.mock("@/app/(protegido)/financeiro/fiscal/manutencao-actions", () => import("../visual/fiscal-unificado-acoes"));
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -70,7 +72,7 @@ it("sugere parâmetros sem impor NCM e só salva o código selecionado no check"
   await u.click(await screen.findByRole("option", { name: "Produção" })); expect(campo()).toHaveProperty("value", "");
   await u.type(campo(), "mercadoria sem resultado"); await u.tab(); expect(sim.salvar).not.toHaveBeenCalled();
   await escolherNcm(u, "04069090"); sim.salvar.mockResolvedValue({ ok: true, versao: 2 }); await u.click(check());
-  await waitFor(() => expect(screen.getByText("Salvo")).toBeTruthy()); expect(sim.salvar).toHaveBeenCalledWith("p", 1, expect.objectContaining({ ncm: "04069090", cfop: "5101" }), false, "g"); expect(sim.refresh).toHaveBeenCalledOnce();
+  await waitFor(() => expect(screen.getByText("Salvo")).toBeTruthy()); expect(sim.salvar).toHaveBeenCalledWith("p", 1, expect.objectContaining({ ncm: "04069090", cfop: "5101" }), false, "g", undefined); expect(sim.refresh).toHaveBeenCalledOnce();
 });
 
 it("preserva observações e Enter seleciona NCM sem transmitir nem salvar", async () => {
@@ -79,7 +81,7 @@ it("preserva observações e Enter seleciona NCM sem transmitir nem salvar", asy
  await screen.findByRole("option",{name:/^04069090 ·/}); await u.keyboard("{ArrowDown}{ArrowDown}{Enter}");
  expect(sim.salvar).not.toHaveBeenCalled();
  sim.salvar.mockResolvedValue({ok:true,versao:2}); await u.click(check());
- await waitFor(()=>expect(sim.salvar).toHaveBeenCalledWith("p",1,expect.objectContaining({ncm:"04069090",observacoes:"Conferir operação"}),false,null));
+ await waitFor(()=>expect(sim.salvar).toHaveBeenCalledWith("p",1,expect.objectContaining({ncm:"04069090",observacoes:"Conferir operação"}),false,null,undefined));
 });
 
 it("escolher grupo conserva NCM e exceções individuais sem gravar automaticamente", async () => {
@@ -88,7 +90,7 @@ it("escolher grupo conserva NCM e exceções individuais sem gravar automaticame
   await u.click(await screen.findByRole("option", { name: "Produção" }));
   expect(campo()).toHaveProperty("value", expect.stringContaining("08061000")); expect(sim.salvar).not.toHaveBeenCalled();
   sim.salvar.mockResolvedValue({ ok: true, versao: 2 }); await u.click(check());
-  await waitFor(() => expect(sim.salvar).toHaveBeenCalledWith("p", 1, expect.objectContaining({ ncm: "08061000", cfop: "5102", origem: "1" }), false, "g"));
+  await waitFor(() => expect(sim.salvar).toHaveBeenCalledWith("p", 1, expect.objectContaining({ ncm: "08061000", cfop: "5102", origem: "1" }), false, "g", undefined));
 });
 it("compartilha rascunhos e revisão entre abas e filtros", async () => {
   const u = userEvent.setup(); tela([{ ...base, classificacoes: ["PRINCIPAL", "COMPLEMENTO"] }]);
@@ -99,7 +101,7 @@ it("compartilha rascunhos e revisão entre abas e filtros", async () => {
   await u.click(screen.getByRole("button", { name: "Preenchido (0)" })); await u.click(screen.getByRole("button", { name: "Todos (1)" })); expect(campo()).toHaveProperty("value", expect.stringContaining("04069020"));
   sim.salvar.mockResolvedValueOnce({ ok: true, versao: 2 }); await u.click(check()); await screen.findByText("Salvo");
   await u.click(screen.getByRole("tab", { name: "Produtos (1)" })); await escolherNcm(u, "04069090"); sim.salvar.mockResolvedValueOnce({ ok: true, versao: 3 }); await u.click(check());
-  await waitFor(() => expect(sim.salvar).toHaveBeenLastCalledWith("p", 2, expect.objectContaining({ ncm: "04069090", cfop: "5101" }), false, "g"));
+  await waitFor(() => expect(sim.salvar).toHaveBeenLastCalledWith("p", 2, expect.objectContaining({ ncm: "04069090", cfop: "5101" }), false, "g", undefined));
 });
 it("não duplica gravação e preserva a seleção em conflito", async () => {
  const u=userEvent.setup(); tela(); let concluir!: (r:{erro:string})=>void; sim.salvar.mockImplementation(()=>new Promise(resolve=>{concluir=resolve;}));

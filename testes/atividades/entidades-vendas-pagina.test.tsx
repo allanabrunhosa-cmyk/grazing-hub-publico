@@ -1,3 +1,4 @@
+vi.mock("@/app/(protegido)/financeiro/fiscal/simples-actions", () => import("../visual/fiscal-unificado-simples-acoes"));
 vi.mock("@/app/(protegido)/vendas/fiscal/estrutura-actions", () => import("../visual/estrutura-fiscal-acoes"));
 vi.mock("@/app/(protegido)/financeiro/fiscal/manutencao-actions", () => import("../visual/fiscal-unificado-acoes"));
 import { beforeEach, describe, expect, it, vi } from "vitest";

@@ -720,3 +720,8 @@ Evidências e limitações em docs/features/bi-vendas/TASKS.md. Não promove bas
 ## Clientes — titular por cobrança, 17/10/2026 — Em revisão
 
 `IdentidadeCobrancaForm` compõe Campo, Input, SelecaoFormulario e Button oficiais. Clientes, Novo Pedido e detalhe do pedido reutilizam os campos. Principal/Cobrança N e Entrega N usam o mesmo seletor buscável; o painel escolhido mostra identidade e dados postais. Principal conserva identidade fixada às Informações gerais. Inclusão temporária e confirmação de remoção reutilizam Dialog, GrupoAcoes e BotaoRemoverItem. Asteriscos acompanham os campos obrigatórios; o destino avulso do rascunho permanece permissivo. Editor de cliente salvo oferece Pedidos com o histórico existente. Sem nova variante ou token. Referências e capturas sintéticas em [execução](../features/clientes-cobranca/TASKS.md); não promovidas a baseline aprovado.
+
+
+## Fiscal simples — 22/10/2026 — Em revisão
+
+Produtos preserva a grade de CamposClassificacaoFiscal. Grupos preserva os cartões e EditorVenda, sem NCM. Vínculos preserva a tabela com abas de produtos/complementos. Configurações conserva quatro blocos. Salvar usa serviços versionados no servidor, sem etapas de rascunho/revisão na tela. Sem variante ou token novo. Evidências e limitações em [Fiscal unificado](../features/fiscal-unificado/TASKS.md). Capturas anteriores não foram promovidas.

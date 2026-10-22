@@ -3,3 +3,4 @@ export async function salvarGrupoFiscalVendaAction() { return { erro: "Prévia s
 export async function excluirCadastroVendaAction() { return { erro: "Prévia sintética: nenhuma exclusão real foi feita." }; }
 export async function alterarStatusCadastroVendaAction() { return { erro: "Prévia sintética: nenhum estado real foi alterado." }; }
 export async function alterarSituacaoProdutoVendaAction() { return { erro: "Prévia sintética: nenhum produto real foi alterado." }; }
+export async function salvarFiscalVendaAction() { return { ok: true as const, versao: 2 }; }

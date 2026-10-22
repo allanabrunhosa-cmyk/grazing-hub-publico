@@ -14,9 +14,10 @@ export async function BlocoEmissorFiscal() {
   const fiscalEditar = await podeAcessar("vendas.fiscal", "editar"), controle = fiscalEditar ? await obterHabilitacaoEmissaoBrasilNfeAction() : null;
   return <div className="space-y-6">
 
-    {resultado.ok ? <BrasilNfeForm inicial={resultado.dados} editar={await podeAcessar("configuracoes.brasilnfe", "editar")} salvar={salvarConfiguracaoBrasilNfeAction} validar={validarConexaoBrasilNfeAction} /> : <p role="alert" className="text-sm text-destructive">{resultado.erro}</p>}
+    {resultado.ok ? <BrasilNfeForm compacto inicial={resultado.dados} editar={await podeAcessar("configuracoes.brasilnfe", "editar")} salvar={salvarConfiguracaoBrasilNfeAction} validar={validarConexaoBrasilNfeAction} /> : <p role="alert" className="text-sm text-destructive">{resultado.erro}</p>}
 
-    {requisitos.ok ? <PreRequisitosBrasilNfeCard inicial={requisitos.dados} editar={editar} registrar={registrarEvidenciaPainelBrasilNfeAction} verificar={verificarPreRequisitosBrasilNfeAction} /> : <p role="alert" className="text-sm text-destructive">{requisitos.erro}</p>}
-    {controle && (controle.ok ? <HabilitacaoEmissaoBrasilNfeCard inicial={controle.dados} editar={editar && fiscalEditar} salvar={configurarHabilitacaoEmissaoBrasilNfeAction} /> : <p role="alert" className="text-sm text-destructive">{controle.erro}</p>)}
+    <details className="text-sm"><summary className="cursor-pointer text-muted-foreground">Certificado da emissora e CSC por ambiente</summary><div className="mt-3">{requisitos.ok ? <PreRequisitosBrasilNfeCard inicial={requisitos.dados} editar={editar} registrar={registrarEvidenciaPainelBrasilNfeAction} verificar={verificarPreRequisitosBrasilNfeAction} /> : <p role="alert" className="text-sm text-destructive">{requisitos.erro}</p>}
+    </div></details><details className="text-sm"><summary className="cursor-pointer text-muted-foreground">Habilitação de emissão por modelo</summary><div className="mt-3">{controle && (controle.ok ? <HabilitacaoEmissaoBrasilNfeCard inicial={controle.dados} editar={editar && fiscalEditar} salvar={configurarHabilitacaoEmissaoBrasilNfeAction} /> : <p role="alert" className="text-sm text-destructive">{controle.erro}</p>)}
+    </div></details>
   </div>;
 }

@@ -779,5 +779,8 @@
 {"arquivo": "src/app/(protegido)/producao/etiquetas/operacao-actions.ts", "funcao": "salvarResponsavelEtiquetaAction", "recurso": "producao", "acao": "editar"}
 ,
 {"arquivo": "src/app/(protegido)/vendas/fiscal/estrutura-actions.ts", "funcao": "registrarDeclaracaoGrazing1Action", "recurso": "vendas.fiscal", "acao": "editar"}
-,{"arquivo":"src/app/(protegido)/producao/etiquetas/operacao-actions.ts","funcao":"restaurarPontoImpressaoAction","recurso":"producao","acao":"editar"}
+,{"arquivo":"src/app/(protegido)/producao/etiquetas/operacao-actions.ts","funcao":"restaurarPontoImpressaoAction","recurso":"producao","acao":"editar"},
+  {"arquivo": "src/app/(protegido)/financeiro/fiscal/simples-actions.ts", "funcao": "salvarFiscalSimplesAction", "recurso": "vendas.fiscal", "acao": "editar"},
+  {"arquivo": "src/app/(protegido)/financeiro/fiscal/simples-actions.ts", "funcao": "salvarGrupoFiscalSimplesAction", "recurso": "vendas.fiscal", "acao": "editar"},
+  {"arquivo": "src/app/(protegido)/financeiro/fiscal/simples-actions.ts", "funcao": "salvarEmpresaFiscalSimplesAction", "recurso": "vendas.fiscal", "acao": "editar"}
 ]

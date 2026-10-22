@@ -1,4 +1,8 @@
 "use server";
+import { ErroEstruturaFiscal } from "@/lib/tributacao/validacao";
+import { randomUUID } from "node:crypto";
+import { salvarVinculoFiscalSimples } from "@/lib/tributacao/edicao-simples";
+import type { ContextoEdicaoFiscal } from "@/lib/tributacao/campos-simples";
 import { isDeepStrictEqual } from "node:util";
 import { revalidatePath } from "next/cache";
 import { exigirPermissao } from "@/lib/permissoes/servidor";
@@ -80,8 +84,9 @@ export async function salvarProdutoVendaAction(entrada: ProdutoEntrada) {
   catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
 }
 /** Compatibilidade: a ficha antiga não escreve mais parâmetros paralelos. */
-export async function salvarFiscalVendaAction(id: string, versao: number, entrada: unknown, revisado: boolean, grupoFiscalId: string | null = null): Promise<{ ok: true; versao: number; erro?: never } | { erro: string }> {
-  await exigirPermissao("vendas.fiscal", "editar");
+export async function salvarFiscalVendaAction(id: string, versao: number, entrada: unknown, revisado: boolean, grupoFiscalId: string | null = null, referencia?: { classificacaoId: string | null; regraId: string | null; contexto: ContextoEdicaoFiscal }): Promise<{ ok: true; versao: number; referenciaFiscal?: { classificacaoId: string | null; regraId: string | null; contexto: ContextoEdicaoFiscal }; erro?: never } | { erro: string }> {
+  const sessao = await exigirPermissao("vendas.fiscal", "editar");
+  if (referencia) { try { const nova = await salvarVinculoFiscalSimples(id, entrada, grupoFiscalId, referencia, randomUUID(), sessao); atualizarCadastrosFiscais(); return { ok: true, versao, ...nova }; } catch (e) { return { erro: e instanceof ErroEstruturaFiscal ? e.message : "Não foi possível salvar o vínculo fiscal." }; } }
   void id; void versao; void entrada; void revisado; void grupoFiscalId;
   return { erro: "O cadastro fiscal foi unificado. Abra Produtos → Fiscal ou Financeiro → Fiscal → Vínculos para salvar e aplicar a configuração usada na emissão." };
 }

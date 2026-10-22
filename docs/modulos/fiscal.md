@@ -395,3 +395,8 @@ Somente Aceitar nota permite a integração; `confirmarConciliacaoNotaAction` ex
 ## Destinatário pela cobrança do pedido — 17/10/2026
 
 Pedidos novos fotografam a identidade do titular na cobrança selecionada, inclusive quando difere do cliente comprador. `cliente-cobranca.ts`, `tributacao/pedidos.ts` e `brasil-nfe-destinatario.ts` usam CPF/CNPJ, nome/razão social e IE desse snapshot, sem completar lacunas com documentos do comprador. Inscrição Municipal permanece disponível na cobrança e no payload, sem inventar um campo externo do provedor. Snapshots antigos sem identidade própria mantêm a leitura compatível. Editar um pedido incrementa a revisão e não reescreve documentos fiscais já preparados ou autorizados. Não houve transmissão fiscal real para validar esta mudança.
+
+
+## Manutenção simples — 22/10/2026
+
+O fluxo operacional mantém as telas anteriores e um botão Salvar. `tributacao/edicao-simples.ts` aplica versões e audita na transação; `campos-simples.ts` projeta os valores efetivos. Grupos não possuem NCM. Origem herdada exige escolha explícita, e a ausência do campo novo preserva a origem individual. Renomear/inativar grupo sem alterar impostos não aplica regra nova. Produtos/complementos integrados e kits conservam a representação existente. Os quatro blocos de Configurações compõem os serviços anteriores, com suas permissões. Ver [contrato atual](../features/fiscal-unificado/README.md); descrições anteriores do editor técnico não representam o fluxo normal.

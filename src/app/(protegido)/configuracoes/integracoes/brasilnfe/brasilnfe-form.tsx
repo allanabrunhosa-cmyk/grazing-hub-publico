@@ -28,9 +28,10 @@ function dataDiagnostico(valor: string) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(valor));
 }
 
-export function BrasilNfeForm({ inicial, editar, salvar, validar }: {
+export function BrasilNfeForm({ inicial, editar, salvar, validar, compacto = false }: {
   inicial: ConfiguracaoBrasilNfeDto;
   editar: boolean;
+  compacto?: boolean;
   salvar: (dados: Substituicoes) => Promise<ResultadoConfiguracaoBrasilNfe>;
   validar: (dados: { versao: number }) => Promise<ResultadoConfiguracaoBrasilNfe>;
 }) {
@@ -139,6 +140,7 @@ export function BrasilNfeForm({ inicial, editar, salvar, validar }: {
     </div>;
   }
 
+  if (compacto) return <Card className="vidro-painel"><CardHeader><CardTitle>Brasil NFe</CardTitle><CardDescription>Credenciais da emissora de notas.</CardDescription></CardHeader><CardContent className="space-y-4"><p className="text-sm">Conexão: {diagnostico.acessoAutenticado ? "Autenticada" : "Não confirmada"}</p><form className="space-y-4" onSubmit={e => { e.preventDefault(); executar("salvar"); }}>{campoCredencial("token", dados.tokenConfigurado)}{campoCredencial("userToken", dados.userTokenConfigurado)}{erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}{editar && <GrupoAcoes><Button type="button" variant="outline" disabled={executando || alterado || !dados.tokenConfigurado} onClick={() => executar("validar")}>Validar conexão</Button><Button type="submit" variant="entrada" disabled={executando || !alterado}>{executando ? "Aguarde…" : "Salvar"}</Button></GrupoAcoes>}</form></CardContent></Card>;
   return <div className="space-y-6">
     <Card><CardHeader><CardTitle className="flex flex-wrap items-center gap-2"><LockKeyhole aria-hidden="true" className="size-4" />Ambiente e emitente<Badge variant="outline">Diagnóstico administrativo</Badge><Badge variant="warning">Sem emissão automática</Badge></CardTitle><CardDescription>NF-e (modelo 55) e NFC-e (modelo 65). A emissão manual exige habilitação por modelo e ambiente, revisão e autorização específica de cada documento. Emissão automática e callback permanecem desligados.</CardDescription></CardHeader>
       <CardContent><dl className="grid gap-4 sm:grid-cols-2">

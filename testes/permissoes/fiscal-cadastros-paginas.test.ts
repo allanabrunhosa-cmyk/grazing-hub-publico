@@ -32,11 +32,11 @@ it.each([["grupos", GruposFiscaisPage], ["vínculos", VinculosFiscaisPage]] as c
 it("consulta conserva a guarda da fonte versionada e não concede administração", async () => {
   sim.guarda.mockResolvedValueOnce({ userId: "usuario-ficticio" });
   const elemento = await VinculosFiscaisPage({});
-  expect(elemento.props.painel.administrador).toBe(false); expect(sim.painel).toHaveBeenCalledWith({ userId: "usuario-ficticio" });
+  expect(elemento.props.editar).toBe(false); expect(sim.painel).toHaveBeenCalledWith({ userId: "usuario-ficticio" }, { tabelas: false, evidenciasEntrada: false });
 });
 it("grupos preserva a concessão histórica para editar somente sua identificação", async () => {
   sim.guarda.mockResolvedValueOnce({ userId: "usuario-ficticio" }); sim.acesso.mockResolvedValueOnce(true);
   const elemento = await GruposFiscaisPage(); const filhos = elemento.props.children;
-  expect(filhos[0].props.editar).toBe(true); expect(filhos[0].props.crt).toBe(1);
-  expect(filhos[1].props.painel.administrador).toBe(false);
+  expect(filhos.props.editar).toBe(true); expect(filhos.props.crt).toBe(1);
+  expect(filhos.props.painel.administrador).toBe(false);
 });
