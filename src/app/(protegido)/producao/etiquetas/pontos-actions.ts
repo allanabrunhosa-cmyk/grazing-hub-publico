@@ -121,6 +121,7 @@ export async function enfileirarPontoAction(entrada: { pontoId: string; trabalho
       if (enviados > 0 && !entrada.reimpressao) throw new Error("Este trabalho já foi enviado. Confirme uma reimpressão explícita.");
       if (Date.now() - trabalho.createdAt.getTime() > 30 * 24 * 60 * 60_000 && !entrada.reimpressao) throw new Error("Trabalho antigo exige reimpressão explícita.");
       await tx.envioPontoImpressao.create({ data: { lojaId: LOJA_ETIQUETAS, pontoId: ponto.id, trabalhoId: trabalho.id, solicitadoPorId: usuario.userId, chaveIdempotencia: entrada.chaveIdempotencia, reimpressao: entrada.reimpressao, zpl: trabalho.zpl } });
+      await tx.$executeRaw(Prisma.sql`SELECT pg_notify('grazing_etiquetas_fila', ${ponto.id})`);
     });
     revalidatePath(CAMINHO);
     return { ok: true };
@@ -137,6 +138,7 @@ export async function imprimirTestePontoAction(pontoId: string): Promise<Retorno
     if (!ponto?.dispositivo || ponto.dispositivo.revogadoEm || !ponto.impressoraSelecionadaId) throw new Error("Vincule o equipamento e selecione a impressora.");
     const zpl = "^XA\n^CI27\n^PW480\n^LL480\n^LH0,0\n^FO40,60^A0N,38,38^FDGRAZING VALIDADES^FS\n^FO40,140^A0N,30,30^FDTESTE 60 X 60 MM^FS\n^FO40,210^A0N,24,24^FDCONFERIR SAIDA FISICA^FS\n^PQ1,0,1,N\n^XZ";
     await tx.envioPontoImpressao.create({ data: { lojaId: LOJA_ETIQUETAS, pontoId, solicitadoPorId: usuario.userId, chaveIdempotencia: randomUUID(), tipo: "TESTE", zpl } });
+    await tx.$executeRaw(Prisma.sql`SELECT pg_notify('grazing_etiquetas_fila', ${pontoId})`);
     });
     revalidatePath(CAMINHO);
     return { ok: true };

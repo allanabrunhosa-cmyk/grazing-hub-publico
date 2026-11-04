@@ -2,6 +2,55 @@
 
 > Exportação pública: dados cadastrais, identificadores de registros e valores comerciais alterados neste documento são exemplos sintéticos. Os registros operacionais originais permanecem privados; esta versão não concede aprovação fiscal ou operacional.
 
+## Código individual e latência — 04/11/2026
+
+Pedido: corrigir e publicar. Base pública `0947ed3`; branch
+`codex/validades-codigos-latencia-20261104`. Sem transferir histórico privado.
+
+- Diagnóstico de produção somente por agregados: últimos 30 envios concluídos,
+  espera média até reserva de 5.119 ms, mediana 4.538 ms; reserva até confirmação
+  USB média de 185 ms. Não houve consulta a conteúdo das etiquetas nem impressão.
+  Conector ativo e fila sem pendentes/reservados/incertos na inspeção.
+- Causas confirmadas no código: pausa de 10s em cada volta do conector, inclusive
+  entre trabalhos; telemetria e consulta de rede precediam a leitura da fila.
+  Cópias usavam o mesmo código de seis caracteres do prefixo da idempotência.
+- Implementado: sequência atômica PostgreSQL exclusiva para novas emissões,
+  prefixo ET em base 36 e índice decimal da cópia (001 a 050). Cada cópia de uma
+  nova emissão possui código distinto. Repetir a mesma solicitação conserva os
+  códigos e o ZPL; reimpressão explícita conserva a identidade original.
+  A migration só cria a sequência, sem alterar registros ou códigos históricos.
+  Não retroagir a mudança sobre etiquetas já impressas. Esgotamento falha sem ciclo.
+- ZPL usa ^SN para serializar o campo (incluindo sua sobreposição de negrito),
+  ^PQ com replicação 1. Mantém um único logo/layout por pacote, abaixo do limite
+  de 200.000 caracteres, mesmo em 50 cópias. Referência técnica primária:
+  https://www.zebra.com/content/dam/support-dam/en/documentation/unrestricted/guide/software/zpl-zbi2-pg-en.pdf,
+  exercício 4 e comando ^SN. Dimensões/DPI e demais textos permanecem iguais.
+- Histórico e Gestão pesquisam o código de qualquer cópia entre os registros
+  carregados. O detalhe e o histórico exibem a faixa da emissão. Mesmos controles,
+  tokens e Dialog de Validades; sem nova variante ou alteração da Central.
+- Fila: LISTEN/NOTIFY por ponto após commit, com uma conexão de escuta por processo.
+  Consulta HTTPS mantém espera de até 20s e reconfere autorização antes de reservar.
+  Há recuperação periódica de notificações perdidas, limite por ponto e limpeza
+  ao abortar. Não mantém transação durante a espera. Conectores antigos continuam
+  compatíveis. Não alterar reservas, diário SQLite, tratamento de INCERTO ou
+  regras de idempotência/reimpressão para obter rapidez.
+- Conector: telemetria/rede em thread separada; leitura da fila recebe aviso;
+  próximo trabalho é consultado sem pausa. Falhas usam backoff de 1 a 30s, sem
+  imprimir URLs, token, código, payload ou ZPL. TLS/recusa de redirect preservados.
+- Validação inicial: 223 testes de Etiquetas aprovados, sete HTTP condicionais
+  não executados nessa bateria. Integração PostgreSQL 17 local exclusivo (55447),
+  somente fixtures; aviso após commit medido em 6,8ms. Isso não é tempo de saída
+  física. Mais nove testes Python aprovados, incluindo fila sem pausa, rede lenta
+  independente e recuperação incerta. Revalidação final e publicação pendentes.
+- Ambiente: Node 22.23.2, dependências existentes com lockfile idêntico. Nenhuma
+  instalação/atualização de pacotes. Logs e capturas ignorados em
+  `.tmp/validades-codigos-latencia-20261104`. Visual isolado em 320/390/768/1440,
+  claro/escuro; oito auditorias parciais sem diagnósticos. Capturas consultivas.
+- Bloqueio físico atual: Windows está em outra sub-rede; IP antigo não respondeu.
+  Foi solicitado o IPv4 atual no terminal da Raspberry. Não presumir indisponibilidade
+  do equipamento: heartbeat produtivo segue recente. Atualização do conector na
+  Raspberry e comparação física dos códigos/tempo ainda não foram executadas.
+
 ## Novos responsáveis e inclusão no topo — 21/10/2026
 
 Pedido: corrigir e publicar. Branch `codex/validades-novos-itens-inicio-20261021`,

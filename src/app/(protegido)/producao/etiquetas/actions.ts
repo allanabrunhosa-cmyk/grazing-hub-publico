@@ -11,6 +11,7 @@ import { contextoExecucao } from "@/lib/contexto-execucao";
 import { exigirPermissao } from "@/lib/permissoes/servidor";
 import { fimDoDiaLocal, somarDiasDeCalendario, fusoHorarioValido } from "@/lib/etiquetas/datas";
 import { gerarZplEtiqueta, nomeArquivoZpl } from "@/lib/etiquetas/zpl";
+import { codigoInicialEtiqueta } from "@/lib/etiquetas/rastreio";
 import {
   normalizarQuantidade,
   validarChaveIdempotencia,
@@ -24,7 +25,7 @@ import type {
 } from "@/lib/etiquetas/tipos";
 
 const LOJA_ID = "singleton";
-const VERSAO_TEMPLATE = 4;
+const VERSAO_TEMPLATE = 5;
 
 type Resultado<T> = { erro: string } | T;
 
@@ -204,33 +205,34 @@ export async function prepararEtiquetaAction(
     const limiteOriginal = validadeOriginal ? fimDoDiaLocal(validadeOriginal, loja.fusoHorario) : null;
     if (limiteOriginal && limiteOriginal < manipuladoEm) return { erro: "A validade original não pode estar vencida." };
     const validoAte = limiteOriginal && limiteOriginal < validadeCalculada ? limiteOriginal : validadeCalculada;
-    const codigoRastreio = chaveIdempotencia.replaceAll("-", "").slice(0, 6).toUpperCase();
-    const dados: DadosEtiqueta = {
-      produtoNome: insumo.nome,
-      lojaNome: loja.nome?.trim() || "Grazing Table & Co",
-      lojaCnpj: loja.cnpj,
-      lojaEndereco: loja.endereco,
-      conservacao: entrada.conservacao,
-      quantidade,
-      unidade: insumo.unidade,
-      lote,
-      marcaFornecedor,
-      sif,
-      validadeOriginal,
-      codigoRastreio,
-      responsavelManipulacao: responsavel,
-      manipuladoEm: manipuladoEm.toISOString(),
-      validoAte: validoAte.toISOString(),
-      fusoHorario: loja.fusoHorario,
-      resolucaoDpi: perfil?.dpi ?? 203,
-      tamanho: entrada.tamanho,
-      mostrarHora: Boolean(entrada.mostrarHora),
-      copias: entrada.copias,
-    };
-    const zpl = gerarZplEtiqueta(dados);
-    const hashPayload = createHash("sha256").update(JSON.stringify(dados)).update(zpl).digest("hex");
-
     const trabalho = await prisma.$transaction(async (tx) => {
+      const [sequencia] = await tx.$queryRaw<Array<{ numero: string }>>(Prisma.sql`SELECT nextval('"SequenciaCodigoEtiqueta"')::text AS numero`);
+      const codigoRastreio = codigoInicialEtiqueta(sequencia.numero);
+      const dados: DadosEtiqueta = {
+        produtoNome: insumo.nome,
+        lojaNome: loja.nome?.trim() || "Grazing Table & Co",
+        lojaCnpj: loja.cnpj,
+        lojaEndereco: loja.endereco,
+        conservacao: entrada.conservacao,
+        quantidade,
+        unidade: insumo.unidade,
+        lote,
+        marcaFornecedor,
+        sif,
+        validadeOriginal,
+        codigoRastreio,
+        responsavelManipulacao: responsavel,
+        manipuladoEm: manipuladoEm.toISOString(),
+        validoAte: validoAte.toISOString(),
+        fusoHorario: loja.fusoHorario,
+        resolucaoDpi: perfil?.dpi ?? 203,
+        tamanho: entrada.tamanho,
+        mostrarHora: Boolean(entrada.mostrarHora),
+        copias: entrada.copias,
+      };
+      const zpl = gerarZplEtiqueta(dados);
+      const hashPayload = createHash("sha256").update(JSON.stringify(dados)).update(zpl).digest("hex");
+
       const criado = await tx.trabalhoEtiqueta.create({
         data: {
           chaveIdempotencia,
