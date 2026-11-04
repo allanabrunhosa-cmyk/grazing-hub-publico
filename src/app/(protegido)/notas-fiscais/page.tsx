@@ -56,6 +56,8 @@ export default async function NotasFiscaisPage() {
     valorTotal: nota.valorTotal ? Number(nota.valorTotal) : null,
     dataEmissao: nota.dataEmissao ? nota.dataEmissao.toISOString() : null,
     createdAt: nota.createdAt.toISOString(),
+    dataDevolucao: nota.dataDevolucao?.toISOString().slice(0, 10) ?? null,
+    tratamentoLocalEm: nota.tratamentoLocalEm?.toISOString() ?? null,
     temXmlCompleto: xml != null,
     manifestacoes: nota.manifestacoes.map((m) => ({ ...m, createdAt: m.createdAt.toISOString() })),
   }));

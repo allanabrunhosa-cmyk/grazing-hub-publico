@@ -1,4 +1,5 @@
 [
+  { "arquivo": "src/app/(protegido)/notas-fiscais/tratamento-local-actions.ts", "funcao": "tratarOutraOperacaoNotaAction", "recurso": "notas.manifestar", "acao": "editar", "argumentos": [{}] },
   {"arquivo": "src/app/(protegido)/financeiro/fiscal/manutencao-actions.ts", "funcao": "consultarHistoricoFiscalLegadoAction", "recurso": "vendas.fiscal", "acao": "visualizar", "argumentos": []},
   {"arquivo": "src/app/(protegido)/financeiro/fiscal/manutencao-actions.ts", "funcao": "simularConciliacaoFiscalAction", "recurso": "vendas.fiscal", "acao": "editar", "argumentos": []},
   {"arquivo": "src/app/(protegido)/financeiro/fiscal/manutencao-actions.ts", "funcao": "aplicarManutencaoFiscalAction", "recurso": "vendas.fiscal", "acao": "editar", "argumentos": [[], "hash-ficticio"]},

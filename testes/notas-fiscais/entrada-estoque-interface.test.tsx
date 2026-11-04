@@ -11,3 +11,11 @@ it('permite informar uma data independente do local e sinaliza datas futuras', (
   fireEvent.change(campo,{target:{value:'2024-02-29'}});
   expect(alterar).toHaveBeenCalledWith('2024-02-29');
 });
+
+it('exige recebimento para uso e consumo sem pedir local de estoque', () => {
+  render(<EntradaEstoqueNota locais={[]} localId="" onLocalChange={vi.fn()} dataEntrada="" onDataChange={vi.fn()} mostrarLocal={false} mostrarErros />);
+  expect(screen.getByLabelText('Data de recebimento dos produtos').getAttribute('required')).toBe('');
+  expect(screen.queryByRole('combobox')).toBeNull();
+  expect(screen.getByRole('alert').textContent).toContain('data de recebimento');
+  expect(screen.queryByText(/Cadastre um local/)).toBeNull();
+});

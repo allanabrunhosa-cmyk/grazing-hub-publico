@@ -43,6 +43,7 @@ describe("entrada efetiva da NF independente das datas financeiras", () => {
   it("envia a data escolhida ao estoque, preservando competência e vencimento", async () => {
     expect(await confirmarConciliacaoNotaAction(entrada)).toEqual({ok:true,movimentacoesCriadas:1});
     expect(simulacao.movimentar).toHaveBeenCalledWith(expect.objectContaining({data:new Date("2024-02-29T15:00:00Z"),quantidade:2}));
+    expect(simulacao.banco.notaFiscalItem.update).toHaveBeenCalledWith({where:{id:"item"},data:expect.objectContaining({destino:"ESTOQUE",dataRecebimento:new Date("2024-02-29T15:00:00Z")})});
     expect(simulacao.banco.lancamentoFinanceiro.create).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({dataCompetencia:new Date("2024-02-20T12:00:00Z"),dataVencimento:new Date("2024-03-30T12:00:00Z")})}));
   });
   it.each([undefined,"","2024-02-30","9999-01-01"])("não grava estoque nem parcelas com entrada inválida: %s", async dataEntradaEstoque => {
@@ -56,8 +57,22 @@ describe("entrada efetiva da NF independente das datas financeiras", () => {
     expect(simulacao.movimentar).not.toHaveBeenCalled();
     expect(simulacao.banco.notaFiscalItem.update).not.toHaveBeenCalled();
   });
-  it("uso e consumo não exige data de entrada e não movimenta estoque", async () => {
-    expect(await confirmarConciliacaoNotaAction({...entrada,dataEntradaEstoque:undefined,itens:[{notaFiscalItemId:"item",acao:"CONCILIAR",destino:"USO_E_CONSUMO",categoriaFinanceiraId:"consumo",valorTotal:100}]})).toEqual({ok:true,movimentacoesCriadas:0});
+  it.each([undefined,"","2024-02-30","9999-01-01"])("uso e consumo exige recebimento válido antes de gravar: %s", async dataEntradaEstoque => {
+    expect(await confirmarConciliacaoNotaAction({...entrada,dataEntradaEstoque,itens:[{notaFiscalItemId:"item",acao:"CONCILIAR",destino:"USO_E_CONSUMO",categoriaFinanceiraId:"consumo",valorTotal:100}]})).toHaveProperty("erro");
+    expect(simulacao.transacao).not.toHaveBeenCalled();
     expect(simulacao.movimentar).not.toHaveBeenCalled();
+  });
+  it("uso e consumo guarda recebimento sem estoque e sem trocar competência ou vencimento", async () => {
+    expect(await confirmarConciliacaoNotaAction({...entrada,itens:[{notaFiscalItemId:"item",acao:"CONCILIAR",destino:"USO_E_CONSUMO",categoriaFinanceiraId:"consumo",valorTotal:100}]})).toEqual({ok:true,movimentacoesCriadas:0});
+    expect(simulacao.movimentar).not.toHaveBeenCalled();
+    expect(simulacao.banco.notaFiscalItem.update).toHaveBeenCalledWith({where:{id:"item"},data:expect.objectContaining({destino:"USO_E_CONSUMO",dataRecebimento:new Date("2024-02-29T15:00:00Z"),movimentacaoEstoqueId:null})});
+    expect(simulacao.banco.lancamentoFinanceiro.create).toHaveBeenCalledWith(expect.objectContaining({data:expect.objectContaining({dataCompetencia:new Date("2024-02-20T12:00:00Z"),dataVencimento:new Date("2024-03-30T12:00:00Z")})}));
+  });
+  it.each(["DEVOLUCAO_REGISTRADA","IGNORADA"])("formulário antigo não concilia nota tratada como %s", async tratamentoLocal => {
+    simulacao.banco.notaFiscalRecebida.findUniqueOrThrow.mockResolvedValue({id:"nota",ultimaManifestacao:"CONFIRMACAO_DA_OPERACAO",tratamentoLocal});
+    expect(await confirmarConciliacaoNotaAction(entrada)).toHaveProperty("erro");
+    expect(simulacao.movimentar).not.toHaveBeenCalled();
+    expect(simulacao.banco.notaFiscalDuplicata.update).not.toHaveBeenCalled();
+    expect(simulacao.banco.lancamentoFinanceiro.create).not.toHaveBeenCalled();
   });
 });

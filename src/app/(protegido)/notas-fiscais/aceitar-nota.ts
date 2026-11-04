@@ -35,6 +35,7 @@ export async function aceitarNotaAction(entrada: EntradaConciliacao): Promise<{ 
         include: { itens: true, duplicatas: { include: { _count: { select: { lancamentos: true } } } } },
       });
       if (!nota) return { erro: "Nota fiscal não encontrada." };
+      if (nota.tratamentoLocal) return { erro: "Esta nota já possui um tratamento local concluído. Reabra o tratamento antes de aceitar como compra." };
       if (nota.ultimaManifestacao === "DESCONHECIMENTO_DA_OPERACAO" || nota.ultimaManifestacao === "OPERACAO_NAO_REALIZADA") return { erro: "Esta nota foi recusada. Não é possível reativar a compra pelo aceite." };
       if (await transacao.cancelamentoCompra.findUnique({ where: { chaveOrigem: chaveCompra({ tipo: "NOTA", id: nota.id }) } })) return { erro: "Esta compra foi cancelada. Os efeitos não podem ser recriados pelo aceite." };
       if (nota.tipo !== "PROC_NFE" || !nota.xml || !nota.itens.length) return { erro: "Importe o XML completo e preencha todos os itens antes de aceitar a nota." };

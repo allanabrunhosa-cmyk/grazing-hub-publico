@@ -39,6 +39,8 @@ const FILTROS: { valor: "TODAS" | CategoriaNota; label: string }[] = [
   { valor: "PENDENTE", label: "Pendentes" },
   { valor: "AUTORIZADA", label: "Aceitas" },
   { valor: "RECUSADA", label: "Recusadas" },
+  { valor: "OUTRA_OPERACAO", label: "Devoluções/retornos" },
+  { valor: "IGNORADA", label: "Ignoradas" },
 ];
 
 function baixarArquivoBase64(nomeArquivo: string, conteudoBase64: string, tipo: string) {
@@ -95,7 +97,7 @@ export function NotasFiscaisTable({
     });
   }
 
-  const totalPendentes = notas.filter((nota) => categoriaDaNota(nota.ultimaManifestacao) === "PENDENTE").length;
+  const totalPendentes = notas.filter((nota) => categoriaDaNota(nota.ultimaManifestacao, nota.tratamentoLocal) === "PENDENTE").length;
 
   const porBuscaEPeriodo = useMemo(() => {
     const termo = normalizar(query.trim());
@@ -114,7 +116,7 @@ export function NotasFiscaisTable({
   }, [query, dataInicio, dataFim, notas]);
 
   const filtradas = useMemo(() => {
-    const resultado = porBuscaEPeriodo.filter(nota => filtro === "TODAS" || categoriaDaNota(nota.ultimaManifestacao) === filtro);
+    const resultado = porBuscaEPeriodo.filter(nota => filtro === "TODAS" || categoriaDaNota(nota.ultimaManifestacao, nota.tratamentoLocal) === filtro);
     if (!ordenacao) return resultado;
     const sinal = ordenacao.direcao === "asc" ? 1 : -1;
     return [...resultado].sort((a, b) => {
@@ -128,8 +130,8 @@ export function NotasFiscaisTable({
         case "manifestacao":
           return (
             sinal *
-            categoriaNotaLabels[categoriaDaNota(a.ultimaManifestacao)].localeCompare(
-              categoriaNotaLabels[categoriaDaNota(b.ultimaManifestacao)],
+            categoriaNotaLabels[categoriaDaNota(a.ultimaManifestacao, a.tratamentoLocal)].localeCompare(
+              categoriaNotaLabels[categoriaDaNota(b.ultimaManifestacao, b.tratamentoLocal)],
               "pt-BR"
             )
           );
@@ -166,13 +168,14 @@ export function NotasFiscaisTable({
       </div>
       <div className="flex flex-wrap items-center gap-2 px-4">
         <CampoBusca
+          aria-label="Buscar notas fiscais"
           value={query}
           onChange={setQuery}
           placeholder="Buscar por fornecedor, CNPJ ou chave de acesso..."
         />
         <FiltroOpcoesContadas nome="Situação das notas fiscais" valor={filtro} onValueChange={setFiltro}
           opcoes={FILTROS.map(opcao => ({ valor: opcao.valor, nome: opcao.label,
-            quantidade: porBuscaEPeriodo.filter(nota => opcao.valor === "TODAS" || categoriaDaNota(nota.ultimaManifestacao) === opcao.valor).length }))} />
+            quantidade: porBuscaEPeriodo.filter(nota => opcao.valor === "TODAS" || categoriaDaNota(nota.ultimaManifestacao, nota.tratamentoLocal) === opcao.valor).length }))} />
       </div>
 
       <div className="flex flex-wrap items-center gap-2 px-4">
@@ -260,8 +263,8 @@ export function NotasFiscaisTable({
                       <Badge variant={nota.temXmlCompleto ? "secondary" : "muted"}>{nota.temXmlCompleto ? "Completo" : "Resumo"}</Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={CATEGORIA_BADGE_VARIANT[categoriaDaNota(nota.ultimaManifestacao)]}>
-                        {categoriaNotaLabels[categoriaDaNota(nota.ultimaManifestacao)]}
+                      <Badge variant={CATEGORIA_BADGE_VARIANT[categoriaDaNota(nota.ultimaManifestacao, nota.tratamentoLocal)]}>
+                        {categoriaNotaLabels[categoriaDaNota(nota.ultimaManifestacao, nota.tratamentoLocal)]}
                       </Badge>
                       {nota.ultimaManifestacao === "CIENCIA_DA_OPERACAO" && (
                         <div className="mt-1 max-w-36 text-xs leading-tight text-muted-foreground">

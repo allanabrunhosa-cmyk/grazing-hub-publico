@@ -15,6 +15,8 @@ import { CampoMonetario } from "./campo-monetario";
 import { ResumoCustosNota, ComposicaoCustoItem } from "./custos-nota";
 import { calcularCustosNota, centavos, totalCustoItem, type CustosNotaFiscal, type ModoDescontoNota, type DistribuicaoDesconto, type ComposicaoCusto } from "@/lib/notas-fiscais/custos";
 import { EntradaEstoqueNota } from "./entrada-estoque-nota";
+import { TratamentoOutraOperacaoNota } from "./tratamento-outra-operacao";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { validarDataEntradaEstoque } from "@/lib/notas-fiscais/data-entrada";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -128,6 +130,8 @@ export function NotaFiscalDialog({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [modoOperacao, setModoOperacao] = useState<"COMPRA" | "OUTRA">(nota.tratamentoLocal ? "OUTRA" : "COMPRA");
+  const [tratandoOutraOperacao, setTratandoOutraOperacao] = useState(false);
   const [salvandoFornecedor, setSalvandoFornecedor] = useState(false);
   const [itens, setItens] = useState<ItemConciliacaoRow[] | null>(null);
   const [cartoes, setCartoes] = useState<CartaoOption[]>([]);
@@ -173,11 +177,12 @@ export function NotaFiscalDialog({
   const [erroRecusa, setErroRecusa] = useState("");
   const [conferindoRecusa, iniciarConferenciaRecusa] = useTransition();
   const [pendingManifestacao, startManifestacao] = useTransition();
+  const operacaoPendente = pendingManifestacao || tratandoOutraOperacao;
   const [overrideSecaoManifestacao, setOverrideSecaoManifestacao] = useState<boolean | null>(null);
 
   const insumosDisponiveis = [...insumos, ...insumosExtras];
   const ultimaCiencia = nota.manifestacoes.find((manifestacao) => manifestacao.tipo === "CIENCIA_DA_OPERACAO");
-  const secaoAberta = overrideSecaoManifestacao ?? (categoriaDaNota(nota.ultimaManifestacao) === "PENDENTE" || !!itens?.some((item) => item.status === "PENDENTE"));
+  const secaoAberta = overrideSecaoManifestacao ?? (categoriaDaNota(nota.ultimaManifestacao, nota.tratamentoLocal) === "PENDENTE" || !!itens?.some((item) => item.status === "PENDENTE"));
 
   function resetarManifestacao() {
     setEtapaManifestacao({ nome: "escolher" });
@@ -224,13 +229,14 @@ export function NotaFiscalDialog({
   }
 
   function alternarAbertura(aberto: boolean) {
-    if (pendingManifestacao || importando || salvandoFornecedor) return;
+    if (operacaoPendente || importando || salvandoFornecedor) return;
     setOpen(aberto);
     if (!aberto) {
       resetarManifestacao();
       setItens(null);
       return;
     }
+    setModoOperacao(nota.tratamentoLocal ? "OUTRA" : "COMPRA");
     setDataEntradaEstoque("");
     if (!nota.temXmlCompleto || itens !== null) return;
     startCarregamento(async () => {
@@ -330,8 +336,8 @@ export function NotaFiscalDialog({
   });
 
   const podeConfirmar =
-    !erroCustos && nota.temXmlCompleto && itens !== null && itens.length > 0 &&
-    (!haAlgoAConciliar || (!haItemEstoque || (!!localId && "data" in validarDataEntradaEstoque(dataEntradaEstoque)))) &&
+    !nota.tratamentoLocal && !erroCustos && nota.temXmlCompleto && itens !== null && itens.length > 0 &&
+    (!haAlgoAConciliar || ((!haItemEstoque || !!localId) && "data" in validarDataEntradaEstoque(dataEntradaEstoque))) &&
     (!haAlgoAConciliar || (duplicatasValidas.length > 0 && duplicatasValidas.length === duplicatas.length)) &&
     itensPendentes.every((item) => {
       const linha = linhas[item.id];
@@ -385,7 +391,7 @@ export function NotaFiscalDialog({
         const resultado = await aceitarNotaAction({
           notaFiscalId: nota.id,
           localId,
-          dataEntradaEstoque: haItemEstoque ? dataEntradaEstoque : undefined,
+          dataEntradaEstoque: haAlgoAConciliar ? dataEntradaEstoque : undefined,
           itens: itensInput,
           duplicatas: duplicatasInput,
           ...(custos ? { distribuicaoDesconto } : {}),
@@ -406,7 +412,7 @@ export function NotaFiscalDialog({
     });
   }
 
-  const categoriaAtual = categoriaDaNota(nota.ultimaManifestacao);
+  const categoriaAtual = categoriaDaNota(nota.ultimaManifestacao, nota.tratamentoLocal);
 
   return (
     <Dialog open={open} onOpenChange={alternarAbertura}>
@@ -415,21 +421,22 @@ export function NotaFiscalDialog({
         <DialogHeader className="pr-14">
           <DialogTitle>Nota fiscal</DialogTitle>
           <DialogDescription>
-            {nota.fornecedorNome ?? "Fornecedor não identificado"} — chave {nota.chaveAcesso}
+            {nota.fornecedorNome ?? "Fornecedor não identificado"} — chave <span className="break-all">{nota.chaveAcesso}</span>
           </DialogDescription>
         </DialogHeader>
         <DialogClose
           aria-label="Fechar nota"
           title="Fechar nota (Esc)"
-          render={<Button type="button" variant="outline" size="icon" className="absolute top-4 right-4 z-10 size-10 border-border bg-background shadow-md ring-1 ring-foreground/5 hover:shadow-lg" disabled={pendingManifestacao || importando || salvandoFornecedor} />}
+          render={<Button type="button" aria-label="Fechar nota" title="Fechar nota (Esc)" variant="outline" size="icon" className="absolute top-4 right-4 z-10 size-10 border-border bg-background shadow-md ring-1 ring-foreground/5 hover:shadow-lg" disabled={operacaoPendente || importando || salvandoFornecedor} />}
         >
           <X className="size-5" strokeWidth={2.5} />
         </DialogClose>
 
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-muted/20 p-3">
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Manifestação:</span>
+            <span className="text-muted-foreground">Situação:</span>
             <Badge variant={CATEGORIA_BADGE_VARIANT[categoriaAtual]}>{categoriaNotaLabels[categoriaAtual]}</Badge>
+            {nota.tratamentoLocal && <span className="text-xs text-muted-foreground">Manifestação fiscal: {categoriaNotaLabels[categoriaDaNota(nota.ultimaManifestacao)]}</span>}
             {nota.ultimaManifestacao === "CIENCIA_DA_OPERACAO" && (
               <span className="text-xs text-muted-foreground">(Ciência já registrada)</span>
             )}
@@ -437,7 +444,28 @@ export function NotaFiscalDialog({
 
         </div>
 
-        <fieldset disabled={pendingManifestacao || importando || salvandoFornecedor} className="min-w-0">
+        <div className="space-y-1.5">
+          <Label htmlFor={`tratamento-${nota.id}`}>Tratamento da nota</Label>
+          <Select value={modoOperacao} disabled={operacaoPendente || importando || salvandoFornecedor || !!nota.tratamentoLocal}
+            onValueChange={valor => { if (valor === "COMPRA" || valor === "OUTRA") { setModoOperacao(valor); resetarManifestacao(); } }}>
+            <SelectTrigger id={`tratamento-${nota.id}`}><SelectValue>{() => modoOperacao === "COMPRA" ? "Compra" : "Outras operações"}</SelectValue></SelectTrigger>
+            <SelectContent><SelectItem value="COMPRA">Compra</SelectItem><SelectItem value="OUTRA">Outras operações</SelectItem></SelectContent>
+          </Select>
+          {detalhes?.naturezaOperacao && <p className="text-xs text-muted-foreground">Natureza no XML: {detalhes.naturezaOperacao}</p>}
+        </div>
+
+        {modoOperacao === "OUTRA" && !nota.temXmlCompleto && <div className="space-y-2 rounded-lg border border-dashed p-3 text-sm">
+          <p>Importe o XML completo para registrar uma devolução/retorno. Ignorar a nota permanece disponível sem o XML.</p>
+          <Label htmlFor={`xml-outra-${nota.id}`}>Importar XML do fornecedor (até 800 KB)</Label>
+          <Input id={`xml-outra-${nota.id}`} type="file" accept=".xml,text/xml,application/xml" disabled={operacaoPendente || importando}
+            onChange={evento => { importarXml(evento.target.files?.[0]); evento.target.value = ""; }} />
+          {importando && <p role="status">Importando XML...</p>}
+        </div>}
+
+        {modoOperacao === "OUTRA" ? <TratamentoOutraOperacaoNota nota={nota}
+          bloqueado={pendingManifestacao || importando || salvandoFornecedor} onOcupado={setTratandoOutraOperacao}
+          onConcluido={() => { setOpen(false); setItens(null); router.refresh(); }} /> : <>
+        <fieldset disabled={operacaoPendente || importando || salvandoFornecedor} className="min-w-0">
         {!nota.temXmlCompleto ? (
           <div className="space-y-3 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
             <p className="font-medium text-foreground">Aguardando XML completo</p>
@@ -469,9 +497,9 @@ export function NotaFiscalDialog({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-medium">{detalhes.emitenteNome ?? nota.fornecedorNome ?? "Emitente"}</p>
                   {detalhes.fornecedorCadastrado ? (
-                    <Badge variant="success">Fornecedor cadastrado: {detalhes.fornecedorCadastrado.nome}</Badge>
+                    <Badge variant="success" className="max-w-full whitespace-normal">Fornecedor cadastrado: {detalhes.fornecedorCadastrado.nome}</Badge>
                   ) : (
-                    <Badge variant="muted">Fornecedor não cadastrado</Badge>
+                    <Badge variant="muted" className="max-w-full whitespace-normal">Fornecedor não cadastrado</Badge>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-muted-foreground sm:grid-cols-4">
@@ -501,18 +529,18 @@ export function NotaFiscalDialog({
             )}
 
             <ConciliacaoFornecedor notaId={nota.id} fornecedor={detalhes?.fornecedorCadastrado ?? null}
-              bloqueado={pendingManifestacao || importando} onOcupado={setSalvandoFornecedor}
+              bloqueado={operacaoPendente || importando} onOcupado={setSalvandoFornecedor}
               podeCadastrarFornecedor={podeCadastrarFornecedor}
               onConciliado={fornecedor => setDetalhes(atual => atual ? { ...atual, fornecedorCadastrado: fornecedor } : atual)} />
 
             {custos && <ResumoCustosNota custos={custos} modo={modoDesconto} aoMudarModo={mudarModoDesconto}
-              bloqueado={pendingManifestacao || itens.some(item => item.status !== "PENDENTE")}
+              bloqueado={operacaoPendente || itens.some(item => item.status !== "PENDENTE")}
               descontoDistribuido={distribuicaoDesconto.itens.reduce((soma, item) => soma + item.desconto, 0)} erro={erroCustos} />}
-            <ParcelasNota parcelas={duplicatas} cartoes={cartoes} dataEmissao={nota.dataEmissao ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(nota.dataEmissao)) : ""} bloqueado={pendingManifestacao || importando || salvandoFornecedor} mostrarErros={mostrarCamposInvalidos} onChange={setDuplicatas} />
+            <ParcelasNota parcelas={duplicatas} cartoes={cartoes} dataEmissao={nota.dataEmissao ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(nota.dataEmissao)) : ""} bloqueado={operacaoPendente || importando || salvandoFornecedor} mostrarErros={mostrarCamposInvalidos} onChange={setDuplicatas} />
             {duplicatas.length > 0 && nota.valorTotal != null && Math.abs(somaDuplicatas - nota.valorTotal) > 0.01 && <p className="text-xs text-amber-600">Soma das parcelas ({formatarMoeda(somaDuplicatas)}) diferente do valor da nota ({formatarMoeda(nota.valorTotal)}).</p>}
 
-            {haItemEstoque && <EntradaEstoqueNota locais={locais} localId={localId} onLocalChange={setLocalId}
-              dataEntrada={dataEntradaEstoque} onDataChange={setDataEntradaEstoque} bloqueado={pendingManifestacao || salvandoFornecedor} mostrarErros={mostrarCamposInvalidos} />}
+            {haAlgoAConciliar && <EntradaEstoqueNota mostrarLocal={haItemEstoque} locais={locais} localId={localId} onLocalChange={setLocalId}
+              dataEntrada={dataEntradaEstoque} onDataChange={setDataEntradaEstoque} bloqueado={operacaoPendente || salvandoFornecedor} mostrarErros={mostrarCamposInvalidos} />}
             <div className="space-y-3">
               {itens.map((item) => {
                 const linha = linhas[item.id];
@@ -555,8 +583,8 @@ export function NotaFiscalDialog({
                       </div>
                       {composicao && <div className="w-full"><ComposicaoCustoItem custo={composicao} descricao={item.descricaoProduto}
                         desconto={composicao.desconto.toFixed(2)} aoMudarDesconto={() => {}} personalizado={false} bloqueado /></div>}
-                      {item.status === "CONCILIADO" && item.destino === "ESTOQUE" && <p className="text-xs font-medium">
-                        Entrada no estoque: {formatarDataCurta(item.dataEntradaEstoque ?? null)}
+                      {item.status === "CONCILIADO" && <p className="text-xs font-medium">
+                        {item.destino === "ESTOQUE" ? "Entrada no estoque" : "Recebimento dos produtos"}: {formatarDataCurta(item.dataEntradaEstoque ?? null)}
                       </p>}
                       <Badge variant={STATUS_BADGE_VARIANT[item.status]}>{STATUS_LABEL[item.status]}</Badge>
                       {item.status === "CONCILIADO" && item.destino === "ESTOQUE" && insumoConciliado?.custoMedio !== undefined && <div className="w-full"><ComparativoCusto custoMedio={insumoConciliado.custoMedio}
@@ -734,7 +762,7 @@ export function NotaFiscalDialog({
             type="button"
             variant="ghost"
             size="sm"
-            disabled={pendingManifestacao || salvandoFornecedor}
+            disabled={operacaoPendente || salvandoFornecedor}
             onClick={() => setOverrideSecaoManifestacao(!secaoAberta)}
           >
             {secaoAberta ? "Ocultar ações" : "Aceitar / Recusar nota"}
@@ -746,9 +774,8 @@ export function NotaFiscalDialog({
               <div className="flex items-center justify-between gap-3">
                 <Button
                   type="button"
-                  variant="destructive"
-                  className="bg-red-700 px-4 text-white shadow-sm hover:bg-red-800 dark:bg-red-700 dark:hover:bg-red-800"
-                  disabled={pendingManifestacao || salvandoFornecedor}
+                  variant="saida"
+                  disabled={operacaoPendente || salvandoFornecedor}
                   onClick={prepararRecusa}
                 >
                   <ShieldX className="size-4" />
@@ -757,9 +784,8 @@ export function NotaFiscalDialog({
 
                 <Button
                   type="button"
-                  variant="outline"
-                  className="border-emerald-700 bg-emerald-700 px-4 text-white shadow-sm hover:bg-emerald-800 dark:border-emerald-700 dark:bg-emerald-700 dark:hover:bg-emerald-800"
-                  disabled={pendingManifestacao || salvandoFornecedor}
+                  variant="entrada"
+                  disabled={operacaoPendente || salvandoFornecedor}
                   onClick={() => {
                     setMostrarCamposInvalidos(true);
                     setEtapaManifestacao({ nome: "aceitar" });
@@ -776,24 +802,24 @@ export function NotaFiscalDialog({
                 <p className="rounded-md bg-muted p-3 text-sm">
                   Ao aceitar, você declara à SEFAZ que <strong>a compra aconteceu e a mercadoria foi recebida</strong>.
                   O aceite também confirma os itens e as parcelas preenchidos acima, atualizando estoque e financeiro.
-                  {haItemEstoque && dataEntradaEstoque && <strong className="mt-2 block">Entrada no estoque em {formatarDataCurta(dataEntradaEstoque)}.</strong>}
+                  {haAlgoAConciliar && dataEntradaEstoque && <strong className="mt-2 block">Produtos recebidos em {formatarDataCurta(dataEntradaEstoque)}.</strong>}
                 </p>
                 {!podeConfirmar && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-                  {nota.temXmlCompleto ? "Antes de aceitar, preencha todos os itens com insumo ou categoria financeira, confira quantidades, valores, local e data de entrada no estoque e todas as parcelas." : "Importe o XML completo e preencha todos os itens antes de aceitar a nota."}
+                  {nota.temXmlCompleto ? "Antes de aceitar, preencha todos os itens com insumo ou categoria financeira, confira quantidades, valores, data de recebimento, local quando houver estoque e todas as parcelas." : "Importe o XML completo e preencha todos os itens antes de aceitar a nota."}
                 </p>}
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={pendingManifestacao || salvandoFornecedor}
+                    disabled={operacaoPendente || salvandoFornecedor}
                     onClick={() => setEtapaManifestacao({ nome: "escolher" })}
                   >
                     Voltar
                   </Button>
                   <Button
                     type="button"
-                    className="bg-emerald-700 text-white hover:bg-emerald-800"
-                    disabled={pendingManifestacao || salvandoFornecedor || !podeConfirmar}
+                    variant="entrada"
+                    disabled={operacaoPendente || salvandoFornecedor || !podeConfirmar}
                     onClick={confirmarAceite}
                   >
                     {pendingManifestacao && <Loader2 className="size-4 animate-spin" />}
@@ -816,7 +842,7 @@ export function NotaFiscalDialog({
                   <Textarea id="motivo-reversao-nota" value={motivoReversao} onChange={e => setMotivoReversao(e.target.value)} maxLength={255} disabled={pendingManifestacao} />
                 </>}
                 {previaRecusa?.cancelada && <p>Os efeitos desta compra já foram cancelados.</p>}
-                <fieldset className="space-y-2" disabled={pendingManifestacao || salvandoFornecedor}>
+                <fieldset className="space-y-2" disabled={operacaoPendente || salvandoFornecedor}>
                   <legend className="mb-2 text-sm font-medium">Motivo da recusa</legend>
                   <label className="flex items-start gap-2 rounded-md border p-3 text-sm">
                     <input
@@ -846,7 +872,7 @@ export function NotaFiscalDialog({
                       id={`justificativa-${nota.id}`}
                       value={justificativa}
                       onChange={(e) => setJustificativa(e.target.value)}
-                      disabled={pendingManifestacao || salvandoFornecedor}
+                      disabled={operacaoPendente || salvandoFornecedor}
                       rows={3}
                       maxLength={255}
                       placeholder="Explique por que essa operação não foi realizada..."
@@ -858,7 +884,7 @@ export function NotaFiscalDialog({
                   <Button
                     type="button"
                     variant="outline"
-                    disabled={pendingManifestacao || salvandoFornecedor}
+                    disabled={operacaoPendente || salvandoFornecedor}
                     onClick={() => setEtapaManifestacao({ nome: "escolher" })}
                   >
                     Voltar
@@ -866,7 +892,7 @@ export function NotaFiscalDialog({
                   <Button
                     type="button"
                     variant="destructive"
-                    disabled={pendingManifestacao || salvandoFornecedor || !podeRecusar}
+                    disabled={operacaoPendente || salvandoFornecedor || !podeRecusar}
                     onClick={() => {
                       if (motivoRecusa && podeRecusar) {
                         enviarManifestacao(motivoRecusa, motivoRecusa === "OPERACAO_NAO_REALIZADA" ? justificativa.trim() : undefined);
@@ -881,6 +907,7 @@ export function NotaFiscalDialog({
             )}
           </DialogFooter>
         )}
+        </>}
       </DialogContent>
     </Dialog>
   );

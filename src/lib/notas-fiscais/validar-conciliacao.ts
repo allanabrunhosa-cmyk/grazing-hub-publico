@@ -13,7 +13,7 @@ export type EntradaConciliacao = {
 };
 
 export function validarConciliacao(entrada: EntradaConciliacao): string | null {
-  if (entrada.itens.some(item => item.acao === "CONCILIAR" && item.destino === "ESTOQUE")) {
+  if (entrada.itens.some(item => item.acao === "CONCILIAR")) {
     const validacao = validarDataEntradaEstoque(entrada.dataEntradaEstoque);
     if ("erro" in validacao) return validacao.erro;
   }
