@@ -51,6 +51,48 @@ Pedido: corrigir e publicar. Base pública `0947ed3`; branch
   do equipamento: heartbeat produtivo segue recente. Atualização do conector na
   Raspberry e comparação física dos códigos/tempo ainda não foram executadas.
 
+### Validação final e bloqueios de acesso — 04/11/2026
+
+- Código preservado em `f124bfa0daa8dbc8a6997b1492f541bc52cefcf2`, branch pública
+  `codex/validades-codigos-latencia-20261104`. A main permaneceu em `0947ed3`.
+- Revalidação: 318 aprovados em Etiquetas/MCP, incluindo 17 integrações PostgreSQL
+  de Etiquetas; 63 casos MCP condicionais não executados. Não somar essa bateria
+  aos 223 iniciais, pois há sobreposição de arquivos. Nove testes Python aprovados.
+- Smoke HTTP local: primeira execução encontrou public.Usuario ausente no cluster
+  recém-criado (cinco aprovações e duas falhas). Foi preparada uma fixture com a
+  cadeia SQL oficial em schema exclusivo e views locais de leitura para a sessão
+  inexistente, sem modificar os testes ou runtime. Repetição: sete aprovados,
+  zero falhas. Não houve usuário ou trabalho real de teste.
+- Lint focado, lint:design, typecheck e build webpack com Node 22.23.2 aprovados.
+  Build inclui o código de `f124bfa`; avisos preexistentes de middleware/Edge.
+  Prisma validate/generate e typecheck final aprovados (exit 0).
+- Comandos reais: `node node_modules/vitest/vitest.mjs run testes/etiquetas
+  --maxWorkers=1 --pool=forks --testTimeout=20000 --hookTimeout=60000`;
+  revalidação com os arquivos integracao.test.ts, operacao-interface.test.tsx,
+  fila-espera.test.ts, rastreio.test.ts e diretório testes/mcp. ETIQUETAS_BANCO_TESTE=1
+  e DATABASE_URL somente no PostgreSQL local. Smoke HTTP com ETIQUETAS_HTTP_TESTE=1,
+  servidor local 3107 e AUTH_SECRET fictício, sem segredos reais.
+  `python -m unittest discover -s conector-raspberry -p test_*.py`;
+  `node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit`;
+  `node --max-old-space-size=4096 node_modules/next/dist/bin/next build --webpack`.
+- Publicação bloqueada por acesso: criação de PR pela integração retornou 403
+  (Resource not accessible by integration). A main é protegida. Nenhuma proteção
+  foi alterada e não houve push direto, merge, deploy ou migration produtiva.
+  Comparação preparada no GitHub; login solicitado no navegador do Codex.
+- Próximo passo exato: concluir login, abrir a PR da branch acima, conferir CI,
+  criar backup privado íntegro, revisar/aplicar o plano oficial contendo somente
+  a nova sequência e integrar/publicar. Conferir tarefa estável e HTTPS.
+  Depois atualizar somente o conector pelo instalador existente, preservando
+  conector.json, diário e Wi-Fi. Confirmar fila vazia antes de reiniciar o serviço.
+  IP atual e autenticação local da Raspberry continuam pendentes.
+- Encerramento parcial: servidores próprios 3107/4271 e PostgreSQL 55447 parados.
+  Arquivos, build, dependências compartilhadas e cópia pública preservados para
+  retomada após autenticação. Sem limpeza, Close, exclusões ou mudanças no checkout
+  principal antigo. Espaço livre final medido: 22,7 GB decimais.
+- Homologação física pendente: duas etiquetas novas do mesmo lote com códigos
+  diferentes e medição percebida de clique até saída. Não enviar testes sem
+  impressora preparada e acompanhamento local; não reimprimir resultado incerto.
+
 ## Novos responsáveis e inclusão no topo — 21/10/2026
 
 Pedido: corrigir e publicar. Branch `codex/validades-novos-itens-inicio-20261021`,
