@@ -17,6 +17,7 @@ import { prepararEtiquetaAction, registrarExportacaoEtiquetaAction, confirmarImp
 import { restaurarPontoImpressaoAction, excluirPontoImpressaoAction, baixarEtiquetaAction, configurarUsuarioResponsavelAction, salvarResponsavelEtiquetaAction } from "@/app/(protegido)/producao/etiquetas/operacao-actions";
 import { enfileirarPontoAction } from "@/app/(protegido)/producao/etiquetas/pontos-actions";
 import { codigoCopiaEtiqueta } from "@/lib/etiquetas/rastreio";
+import { GET as consultarSifs } from "@/app/api/etiquetas/produtos/[id]/sifs/route";
 const esquema = "teste_etiquetas_" + randomUUID().replaceAll("-", "");
 let banco: Client | undefined;
 let criado = false;
@@ -268,6 +269,44 @@ describe.skipIf(process.env.ETIQUETAS_BANCO_TESTE !== "1")("etiquetas no Postgre
     const antes = await simulacao.prisma.trabalhoEtiqueta.count();
     expect(await prepararEtiquetaAction({ ...entrada, chaveIdempotencia: randomUUID(), copias: 31 })).toHaveProperty("erro");
     expect(await simulacao.prisma.trabalhoEtiqueta.count()).toBe(antes);
+  });
+
+  it("recupera o último SIF por produto e marca, preserva zeros e permite corrigir ou limpar", async () => {
+    const id = "produto-sif";
+    await simulacao.prisma.insumo.create({
+      data: { id, nome: "Produto SIF fictício", unidade: "KG", etiquetaHabilitada: true, validadeRefrigeradoDias: 2 },
+    });
+    const emitir = (marcaFornecedor: string, sif?: string) => prepararEtiquetaAction({
+      ...entrada, chaveIdempotencia: randomUUID(), insumoId: id, marcaFornecedor, sif,
+    });
+    const original = await emitir("Marca  SIF", "00123");
+    expect(original).toMatchObject({ ok: true, trabalho: { dados: { sif: "00123" } } });
+    expect(await emitir("MARCA SIF", "00456")).toMatchObject({ ok: true, trabalho: { dados: { sif: "00456" } } });
+    expect(await emitir("marca sif", "")).toMatchObject({ ok: true, trabalho: { dados: { sif: null } } });
+    expect(await emitir("Outra marca")).toMatchObject({ ok: true, trabalho: { dados: { sif: null } } });
+    expect(await emitir("marca sif", "INVÁLIDO")).toEqual({ erro: "Informe somente números no SIF." });
+    const url = new Request("https://validades.grazinghub.com.br/api/etiquetas/produtos/produto-sif/sifs");
+    const resposta = await consultarSifs(url, { params: Promise.resolve({ id }) });
+    expect(resposta.headers.get("cache-control")).toBe("private, no-store");
+    expect(await resposta.json()).toEqual([["marca sif", "00456"]]);
+    const automatico = await emitir("  marca   sif ");
+    expect(automatico).toMatchObject({ ok: true, trabalho: { dados: { sif: "00456" } } });
+    if ("erro" in automatico) throw new Error(automatico.erro);
+    expect(await simulacao.prisma.eventoAuditoriaEtiqueta.findFirst({
+      where: { entidadeId: automatico.trabalho.id, acao: "PREPARADO" },
+    })).toMatchObject({ detalhes: { sifRecuperado: true } });
+    // Simula uma cópia automática que consultou antes da última correção manual.
+    await simulacao.prisma.trabalhoEtiqueta.update({ where: { id: automatico.trabalho.id }, data: { sif: "00123" } });
+    expect(await (await consultarSifs(url, { params: Promise.resolve({ id }) })).json()).toEqual([["marca sif", "00456"]]);
+    expect(await prepararEtiquetaAction({ ...entrada, chaveIdempotencia: randomUUID(), marcaFornecedor: "Marca SIF", sif: undefined }))
+      .toMatchObject({ ok: true, trabalho: { dados: { sif: null } } });
+    if ("erro" in original) throw new Error(original.erro);
+    expect(await simulacao.prisma.trabalhoEtiqueta.findUnique({ where: { id: original.trabalho.id } })).toMatchObject({ sif: "00123" });
+    simulacao.sessao.mockResolvedValueOnce(null);
+    expect((await consultarSifs(url, { params: Promise.resolve({ id }) })).status).toBe(401);
+    simulacao.sessao.mockResolvedValueOnce({ userId: "admin-etiquetas", admin: false, permissoes: {}, excecoes: {} });
+    simulacao.sessao.mockResolvedValueOnce({ userId: "admin-etiquetas", admin: false, permissoes: {}, excecoes: {} });
+    expect((await consultarSifs(url, { params: Promise.resolve({ id }) })).status).toBe(403);
   });
 
   it("migration incremental preserva cadastros e snapshots e aplica defaults compatíveis", async () => {

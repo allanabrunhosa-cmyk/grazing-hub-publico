@@ -1,4 +1,16 @@
+import { normalizarMarca } from "@/lib/insumos/marcas";
+
 const PADRAO_DECIMAL = /^\d{1,9}(?:[.,]\d{1,3})?$/;
+
+export function chaveMarcaEtiqueta(marca: string) {
+  return normalizarMarca(marca).toLocaleLowerCase("pt-BR");
+}
+
+export function validarSif(valor: string) {
+  const sif = validarTextoOpcional(valor, "O SIF", 30);
+  if (sif && !/^\d+$/.test(sif)) throw new Error("Informe somente números no SIF.");
+  return sif;
+}
 
 export function normalizarQuantidade(valor: string) {
   const limpo = valor.trim();

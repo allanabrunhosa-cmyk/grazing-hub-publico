@@ -42,7 +42,7 @@ export function caminhoDedicadoPermitido(caminho: string, identidade: Identidade
   if (caminho === "/" || caminho === "/sem-acesso" || caminhoPublico(caminho)) return true;
   if (identidade === "etiquetas") return caminho === CAMINHO_ETIQUETAS
     || caminho.startsWith(`${CAMINHO_CONECTOR_ETIQUETAS}/`)
-    || /^\/api\/etiquetas\/produtos\/[a-zA-Z0-9_-]{1,100}\/foto$/.test(caminho);
+    || /^\/api\/etiquetas\/produtos\/[a-zA-Z0-9_-]{1,100}\/(foto|sifs)$/.test(caminho);
   if (identidade !== "pedidos") return false;
   if (caminho === "/api/vendas/clientes/identidade") return true;
   if (/^\/api\/vendas\/fotos\/[a-zA-Z0-9_-]{1,100}$/.test(caminho)) return true;
