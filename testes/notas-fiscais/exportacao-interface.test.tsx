@@ -7,6 +7,7 @@ import { notaTeste, opcoesTeste } from "./dados";
 
 const simulacao = vi.hoisted(() => ({ exportar: vi.fn(), sucesso: vi.fn(), aviso: vi.fn(), erro: vi.fn() }));
 vi.mock("@/app/(protegido)/notas-fiscais/actions", () => ({ exportarXmlPorDataAction: simulacao.exportar }));
+vi.mock("@/app/(protegido)/notas-fiscais/tratamento-local-actions", () => ({ tratarOutraOperacaoNotaAction: vi.fn() }));
 vi.mock("@/app/(protegido)/notas-fiscais/nota-fiscal-dialog", () => ({ NotaFiscalDialog: () => null }));
 vi.mock("sonner", () => ({ toast: { success: simulacao.sucesso, warning: simulacao.aviso, error: simulacao.erro } }));
 beforeEach(() => {
@@ -99,4 +100,21 @@ it("todas as situações contam o conjunto da busca e período e se atualizam co
   rerender(<NotasFiscaisTable notas={[aceitas]} {...opcoesTeste} />);
   expect(screen.getByRole("button", { name: "Todas (1)" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Pendentes (0)" })).toBeTruthy();
+});
+
+it("retira notas tratadas das pendências e mantém filtros próprios no histórico", async () => {
+  render(<NotasFiscaisTable {...opcoesTeste} notas={[
+    notaTeste,
+    { ...notaTeste, id: "ignorada", fornecedorNome: "Fornecedor ignorado", tratamentoLocal: "IGNORADA", ultimaManifestacao: "CIENCIA_DA_OPERACAO" },
+    { ...notaTeste, id: "devolucao", fornecedorNome: "Fornecedor devolvido", tratamentoLocal: "DEVOLUCAO_REGISTRADA", ultimaManifestacao: "CONFIRMACAO_DA_OPERACAO" },
+  ]} />);
+  expect(screen.getByLabelText("1 notas pendentes no total")).toBeTruthy();
+  expect(screen.queryByText("Fornecedor ignorado")).toBeNull();
+  expect(screen.queryByText("Fornecedor devolvido")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Ignoradas (1)" }));
+  expect(screen.getByText("Fornecedor ignorado")).toBeTruthy();
+  expect(screen.queryByText("Fornecedor de teste")).toBeNull();
+  await userEvent.click(screen.getByRole("button", { name: "Devoluções/retornos (1)" }));
+  expect(screen.getByText("Fornecedor devolvido")).toBeTruthy();
+  expect(screen.queryByText("Fornecedor ignorado")).toBeNull();
 });

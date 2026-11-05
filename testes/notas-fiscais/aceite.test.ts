@@ -43,6 +43,17 @@ beforeEach(() => {
 });
 
 describe("aceite integrado à conciliação", () => {
+  it.each(["DEVOLUCAO_REGISTRADA", "IGNORADA"])("formulário antigo não aceita como compra nota com %s", async tratamentoLocal => {
+    simulacao.nota.mockResolvedValue({ ...nota, tratamentoLocal });
+    expect(await aceitarNotaAction(entrada)).toHaveProperty("erro");
+    expect(simulacao.manifestar).not.toHaveBeenCalled();
+    expect(simulacao.conciliar).not.toHaveBeenCalled();
+  });
+  it("exige recebimento para uso e consumo antes de confirmar na SEFAZ", async () => {
+    expect(await aceitarNotaAction({ ...entrada, dataEntradaEstoque: undefined, itens: [{ notaFiscalItemId: "item", acao: "CONCILIAR", destino: "USO_E_CONSUMO", categoriaFinanceiraId: "consumo", valorTotal: 100 }] })).toHaveProperty("erro");
+    expect(simulacao.manifestar).not.toHaveBeenCalled();
+    expect(simulacao.conciliar).not.toHaveBeenCalled();
+  });
   it("rejeita omissão de frete antes do envio fiscal", async () => {
     simulacao.nota.mockResolvedValue({ ...nota, xml: nota.xml.replace("</prod>", "<vFrete>10</vFrete></prod>") });
     expect(await aceitarNotaAction(entrada)).toMatchObject({ erro: expect.stringContaining("frete") });

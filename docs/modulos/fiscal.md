@@ -1,5 +1,20 @@
 # Fiscal
 
+## Manifestação — datas e outras operações (04/11/2026)
+
+NFS-e permite informar vencimento no aceite e o sugere no lançamento financeiro.
+O aceite não cria despesas. NF-e exige data de recebimento também para uso e consumo;
+somente o destino Estoque gera movimento físico. Datas anteriores permanecem preservadas.
+
+O painel oferece Compra ou Outras operações. Devolução/retorno exige data já realizada,
+XML e confirmação fiscal pelo serviço existente, sem criar compra. Ignorar encerra apenas
+a pendência interna; não envia evento nem recusa/cancela a nota. Ambos preservam histórico
+e possuem filtros próprios. Revisão, autorização, auditoria e coordenação impedem efeitos
+concorrentes; o registro interno pode ser retomado após sucesso fiscal sem reenvio.
+
+[Contrato e limites](../features/manifestacao-nf/SPEC.md) ·
+[Validação e publicação](../features/manifestacao-nf/TASKS.md).
+
 Uma resposta de emissão inconclusiva dispara uma consulta da mesma identidade no
 próprio clique. A consulta pode recuperar a autorização sem outro envio. Guardas,
 permissões e histórico permanecem no serviço existente. Ver

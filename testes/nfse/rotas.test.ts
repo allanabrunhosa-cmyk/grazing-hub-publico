@@ -3,7 +3,7 @@ const mocks = vi.hoisted(() => ({ sessao: vi.fn(), permissao: vi.fn(), notas: vi
 vi.mock("@/lib/session", () => ({ getSession: mocks.sessao }));
 vi.mock("@/lib/permissoes/servidor", () => ({ podeAcessar: mocks.permissao }));
 vi.mock("@/lib/prisma", () => ({ prisma: { notaFiscalServico: { findMany: mocks.notas } } }));
-vi.mock("@/lib/nfse/situacao", () => ({ alterarSituacaoNfse: mocks.alterar }));
+vi.mock("@/lib/nfse/situacao", () => ({ decidirNfse: mocks.alterar }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { GET } from "@/app/api/nfse/exportar-xml/route";
 import { POST } from "@/app/api/nfse/situacao/route";
@@ -41,5 +41,40 @@ describe("permissões e respostas das rotas NFS", () => {
       dataEmissao: { gte: new Date("2026-09-01"), lt: new Date("2026-09-05") },
       OR: [{ dataEmissao: { gte: new Date("2026-09-10") } }, { importadaManualmente: true }],
     });
+  });
+});
+
+describe("vencimento opcional na decisão NFS-e", () => {
+  function requisicao(dados: Record<string, unknown>) {
+    return new Request("https://teste/api/nfse/situacao", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nfseId: "nota", decisao: "ACEITAR", ...dados }) });
+  }
+
+  it("transmite vencimento válido e a autoria da sessão", async () => {
+    mocks.alterar.mockResolvedValue({ ok: true });
+    expect((await POST(requisicao({ dataVencimento: "2026-10-20", autorNome: "Autor forjado" }))).status).toBe(200);
+    expect(mocks.alterar).toHaveBeenCalledWith({ nfseId: "nota", decisao: "ACEITAR", dataVencimento: "2026-10-20", autorNome: "Teste" });
+  });
+
+  it("conserva o aceite sem vencimento", async () => {
+    mocks.alterar.mockResolvedValue({ ok: true });
+    expect((await POST(requisicao({}))).status).toBe(200);
+    expect(mocks.alterar).toHaveBeenCalledWith({ nfseId: "nota", decisao: "ACEITAR", autorNome: "Teste" });
+  });
+
+  it.each(["2026-02-30", "2201-01-01", "2026-11-02T12:00:00Z", 20261102, {}])("recusa vencimento inválido antes do serviço (%s)", async dataVencimento => {
+    expect((await POST(requisicao({ dataVencimento }))).status).toBe(400);
+    expect(mocks.alterar).not.toHaveBeenCalled();
+  });
+
+  it("não aceita vencimento em uma recusa", async () => {
+    expect((await POST(requisicao({ decisao: "RECUSAR", dataVencimento: "2026-10-20" }))).status).toBe(400);
+    expect(mocks.alterar).not.toHaveBeenCalled();
+  });
+
+  it("retorna conflito sem anunciar sucesso após decisão concorrente", async () => {
+    mocks.alterar.mockResolvedValue({ erro: "A situação mudou." });
+    const resposta = await POST(requisicao({ dataVencimento: "2026-10-20" }));
+    expect(resposta.status).toBe(409);
+    expect(await resposta.json()).toEqual({ erro: "A situação mudou." });
   });
 });

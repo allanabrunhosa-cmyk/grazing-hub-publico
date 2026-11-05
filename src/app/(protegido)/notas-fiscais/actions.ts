@@ -54,12 +54,15 @@ export async function manifestarAction(chaveAcesso: string, tipo: TipoManifestac
   let recusaFiscalRegistrada = false;
   try {
   const resultado = await prisma.$transaction(async (transacao) => {
-    const nota = await transacao.notaFiscalRecebida.findUnique({ where: { chaveAcesso }, select: { id: true, ultimaManifestacao: true, manifestacoes: true } });
-    if (!nota) return { sucesso: false, mensagem: "Nota fiscal não encontrada.", protocolo: null };
+    const referencia = await transacao.notaFiscalRecebida.findUnique({ where: { chaveAcesso }, select: { id: true } });
+    if (!referencia) return { sucesso: false, mensagem: "Nota fiscal não encontrada.", protocolo: null };
     const [trava] = await transacao.$queryRaw<{ obtida: boolean }[]>`
-      SELECT pg_try_advisory_xact_lock(hashtext('aceite-nota'), hashtext(${nota.id})) AS obtida
+      SELECT pg_try_advisory_xact_lock(hashtext('aceite-nota'), hashtext(${referencia.id})) AS obtida
     `;
     if (!trava.obtida) return { sucesso: false, mensagem: "Esta nota já está sendo atualizada. Aguarde e tente novamente.", protocolo: null };
+    const nota = await transacao.notaFiscalRecebida.findUnique({ where: { id: referencia.id }, select: { id: true, ultimaManifestacao: true, manifestacoes: true, tratamentoLocal: true } });
+    if (!nota) return { sucesso: false, mensagem: "Nota fiscal não encontrada.", protocolo: null };
+    if (nota.tratamentoLocal) return { sucesso: false, mensagem: "Reabra o tratamento local da nota antes de alterar sua manifestação.", protocolo: null };
     const recusa = tipo === "DESCONHECIMENTO_DA_OPERACAO" || tipo === "OPERACAO_NAO_REALIZADA";
     const temEfeitos = recusa && await transacao.notaFiscalItem.count({ where: { notaFiscalId: nota.id, OR: [{ movimentacaoEstoqueId: { not: null } }, { lancamentos: { some: {} } }] } }) > 0;
     if (temEfeitos) {
@@ -303,7 +306,7 @@ export async function obterItensNotaFiscalAction(
         categoriaFinanceiraId: item.categoriaFinanceiraId,
         categoriaFinanceiraNome: item.categoriaFinanceira ? caminhoCategoria(item.categoriaFinanceira) : null,
         quantidadeConciliada: item.quantidadeConciliada != null ? Number(item.quantidadeConciliada) : null,
-        dataEntradaEstoque: item.movimentacaoEstoque ? diaEntradaEstoque(item.movimentacaoEstoque.createdAt) : null,
+        dataEntradaEstoque: item.dataRecebimento ? item.dataRecebimento.toISOString().slice(0, 10) : item.movimentacaoEstoque ? diaEntradaEstoque(item.movimentacaoEstoque.createdAt) : null,
         valorTotalConciliado: item.valorTotalConciliado != null ? Number(item.valorTotalConciliado) : null,
       };
     }),
@@ -383,7 +386,7 @@ export async function confirmarConciliacaoNotaAction(input: {
   );
   const paraEstoque = paraConciliar.filter((i) => i.destino === "ESTOQUE");
   const paraUsoConsumo = paraConciliar.filter((i) => i.destino === "USO_E_CONSUMO");
-  const entradaEstoque = paraEstoque.length > 0 ? validarDataEntradaEstoque(input.dataEntradaEstoque) : null;
+  const entradaEstoque = paraConciliar.length > 0 ? validarDataEntradaEstoque(input.dataEntradaEstoque) : null;
   if (entradaEstoque && "erro" in entradaEstoque) return entradaEstoque;
 
   if (paraEstoque.length > 0 && !input.localId) return { erro: "Selecione o local de estoque." };
@@ -414,6 +417,7 @@ export async function confirmarConciliacaoNotaAction(input: {
       // Serializa a gravação local da mesma nota, inclusive em envios concorrentes.
       await tx.$queryRaw`SELECT id FROM "NotaFiscalRecebida" WHERE id = ${input.notaFiscalId} FOR UPDATE`;
       const nota = await tx.notaFiscalRecebida.findUniqueOrThrow({ where: { id: input.notaFiscalId } });
+      if (nota.tratamentoLocal) throw new ErroValidacaoConciliacao("Esta nota já possui um tratamento local concluído. Reabra o tratamento antes de conciliar como compra.");
       if (nota.ultimaManifestacao !== "CONFIRMACAO_DA_OPERACAO") throw new ErroValidacaoConciliacao("Use Aceitar nota. Notas pendentes ou recusadas não geram estoque nem despesas.");
       if (await tx.cancelamentoCompra.findUnique({ where: { chaveOrigem: chaveCompra({ tipo: "NOTA", id: nota.id }) } })) throw new ErroValidacaoConciliacao("Esta compra foi cancelada e não pode gerar novamente estoque ou despesas.");
       const registrosCustos = nota.xml || input.distribuicaoDesconto
@@ -555,6 +559,7 @@ export async function confirmarConciliacaoNotaAction(input: {
             data: {
               status: "CONCILIADO",
               destino: "ESTOQUE",
+              dataRecebimento: entradaEstoque && "data" in entradaEstoque ? entradaEstoque.data : null,
               insumoId: acaoItem.insumoId,
               categoriaFinanceiraId: categoriaEstoque.id,
               quantidadeConciliada: acaoItem.quantidade,
@@ -628,6 +633,7 @@ export async function confirmarConciliacaoNotaAction(input: {
             data: {
               status: "CONCILIADO",
               destino: "USO_E_CONSUMO",
+              dataRecebimento: entradaEstoque && "data" in entradaEstoque ? entradaEstoque.data : null,
               insumoId: null,
               categoriaFinanceiraId: acaoItem.categoriaFinanceiraId,
               quantidadeConciliada: null,

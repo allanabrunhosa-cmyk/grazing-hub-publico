@@ -729,3 +729,17 @@ Produtos preserva a grade de CamposClassificacaoFiscal. Grupos preserva os cart�
 A representação do produto usa SelecaoFormulario. Componentes do kit usam Combobox,
 Campo, Input com seis casas decimais e BotaoRemoverItem discreto. A seção conserva
 a abertura ao adicionar produtos. Sem variante ou token novo. [Capturas sintéticas](../features/fiscal-unificado/REPRESENTACAO.md), Em revisão.
+
+## Manifestação de notas — 04/11/2026 — Em revisão visual
+
+Consumidores: `notas-fiscais/nota-fiscal-dialog.tsx`, `tratamento-outra-operacao.tsx`,
+`entrada-estoque-nota.tsx` e `financeiro/manifesto-nfs/manifesto-nfs-view.tsx`.
+Referência: o diálogo atual de NF-e e o campo Primeiro vencimento de NFS-e.
+Reutiliza os primitives e tokens existentes, BadgeNota e GrupoAcoes com quebra.
+Nenhuma variante/token ou aprovação de referência foi criada.
+
+O controle de outra operação é separado das parcelas/itens da compra. Datas e motivos
+possuem rótulos, limites e confirmação; erros são preservados até a revisão do campo.
+Chaves e nomes longos quebram no celular. A prévia `testes/visual/manifestacao-nf*`
+usa componentes reais com serviços falsos; não acessa banco nem serviços fiscais.
+Resultados e limites: [execução](../features/manifestacao-nf/TASKS.md).

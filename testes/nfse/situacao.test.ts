@@ -68,3 +68,37 @@ describe("proteção do lançamento financeiro", () => {
     expect(banco.notaFiscalServico.updateMany).toHaveBeenCalledWith(expect.objectContaining({ data: { status: "LANCADA" } }));
   });
 });
+
+describe("vencimento opcional no aceite da NFS-e", () => {
+  it("guarda o dia civil escolhido sem criar despesa", async () => {
+    banco.notaFiscalServico.updateMany.mockResolvedValue({ count: 1 });
+    expect(await decidirNfse({ nfseId: "nota", decisao: "ACEITAR", autorNome: "Teste", dataVencimento: "2028-02-29" })).toEqual({ ok: true });
+    expect(banco.notaFiscalServico.updateMany).toHaveBeenCalledWith({
+      where: { id: "nota", status: "PENDENTE", lancamentos: { none: {} } },
+      data: { status: "ACEITA", dataVencimento: new Date("2028-02-29T00:00:00.000Z") },
+    });
+    expect(banco.eventoNfse.create).toHaveBeenCalledTimes(1);
+    expect(banco.lancamentoFinanceiro.create).not.toHaveBeenCalled();
+    expect(banco.notaFiscalServicoLancamento.create).not.toHaveBeenCalled();
+  });
+
+  it.each(["2026-02-30", "0206-10-20", "2201-01-01", "20/10/2026", "2026-10-20T12:00:00Z"])("recusa vencimento inválido %s antes da gravação", async dataVencimento => {
+    expect(await decidirNfse({ nfseId: "nota", decisao: "ACEITAR", autorNome: "Teste", dataVencimento })).toHaveProperty("erro");
+    expect(banco.notaFiscalServico.updateMany).not.toHaveBeenCalled();
+    expect(banco.eventoNfse.create).not.toHaveBeenCalled();
+  });
+
+  it("não guarda vencimento em uma recusa", async () => {
+    expect(await decidirNfse({ nfseId: "nota", decisao: "RECUSAR", autorNome: "Teste", dataVencimento: "2026-10-20" })).toHaveProperty("erro");
+    expect(banco.notaFiscalServico.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("não regrava a data nem duplica o evento ao repetir o aceite", async () => {
+    banco.notaFiscalServico.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+    const entrada = { nfseId: "nota", decisao: "ACEITAR" as const, autorNome: "Teste", dataVencimento: "2026-10-20" };
+    expect(await decidirNfse(entrada)).toEqual({ ok: true });
+    expect(await decidirNfse({ ...entrada, dataVencimento: "2026-10-25" })).toHaveProperty("erro");
+    expect(banco.eventoNfse.create).toHaveBeenCalledTimes(1);
+    expect(banco.lancamentoFinanceiro.create).not.toHaveBeenCalled();
+  });
+});

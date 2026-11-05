@@ -15,6 +15,7 @@ vi.mock("@/app/(protegido)/notas-fiscais/actions", () => ({
 vi.mock("@/app/(protegido)/insumos/insumo-dialog", () => ({ InsumoDialog: () => null }));
 vi.mock("@/components/cadastro-rapido-insumo-dialog", () => ({ CadastroRapidoInsumoDialog: () => null }));
 vi.mock("@/app/(protegido)/fornecedores/fornecedor-dialog", () => ({ FornecedorDialog: () => null }));
+vi.mock("@/app/(protegido)/notas-fiscais/tratamento-local-actions", () => ({ tratarOutraOperacaoNotaAction: vi.fn() }));
 vi.mock("@/app/(protegido)/notas-fiscais/aceitar-nota", () => ({ aceitarNotaAction: vi.fn() }));
 vi.mock("@/lib/notas-fiscais/api-cliente", () => ({ importarXmlPelaApi: vi.fn() }));
 vi.mock("@/app/(protegido)/notas-fiscais/conciliar-fornecedor-actions", () => ({ prepararConciliacaoFornecedorAction: vi.fn(), conciliarFornecedorNotaAction: vi.fn() }));
@@ -233,4 +234,16 @@ it("recusa de nota aceita exige conferir a reversão de todos os itens", async (
  await usuario.type(screen.getByLabelText(/Motivo da reversão local/), "Correção fictícia de compra duplicada");
  await usuario.click(confirmar);
  expect(manifestarAction).toHaveBeenCalledWith(notaTeste.chaveAcesso, "DESCONHECIMENTO_DA_OPERACAO", undefined, { token: compraFicticia.token, motivo: "Correção fictícia de compra duplicada" });
+});
+
+it("exige recebimento no uso e consumo e envia a data sem alterar o vencimento", async () => {
+  vi.mocked(obterItensNotaFiscalAction).mockResolvedValue({ ...detalhesTeste, itens: [{ ...detalhesTeste.itens[0], destino: "USO_E_CONSUMO", categoriaFinanceiraId: "consumo" }] } as never);
+  const usuario = await abrir();
+  const campo = await screen.findByLabelText("Data de recebimento dos produtos");
+  expect(screen.queryByLabelText("Local de estoque")).toBeNull();
+  await usuario.click(screen.getByRole("button", { name: "Aceitar nota" }));
+  expect((screen.getByRole("button", { name: "Confirmar aceite" }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.change(campo, { target: { value: "2024-02-29" } });
+  await usuario.click(screen.getByRole("button", { name: "Confirmar aceite" }));
+  expect(aceitarNotaAction).toHaveBeenCalledWith(expect.objectContaining({ dataEntradaEstoque: "2024-02-29", itens: [expect.objectContaining({ destino: "USO_E_CONSUMO" })], duplicatas: [expect.objectContaining({ dataVencimento: "2026-10-10" })] }));
 });

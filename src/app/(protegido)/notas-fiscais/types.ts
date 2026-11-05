@@ -6,6 +6,7 @@ import type {
   TipoDocumentoSefaz,
   StatusConciliacaoItem,
   DestinoItemNota,
+  TratamentoLocalNotaFiscal,
 } from "@/generated/prisma/client";
 
 export type { TipoManifestacao, TipoDocumentoSefaz, StatusConciliacaoItem, DestinoItemNota };
@@ -70,31 +71,42 @@ export type DetalhesFiscaisRow = {
 
 export type ManifestacaoRow = Omit<ManifestacaoNFe, "createdAt"> & { createdAt: string };
 
-export type NotaFiscalRow = Omit<NotaFiscalRecebida, "valorTotal" | "dataEmissao" | "createdAt" | "updatedAt" | "xml" | "xmlProximaTentativaEm" | "xmlTentativas" | "xmlUltimoMotivo" | "cienciaJaExistenteEm"> & {
+export type NotaFiscalRow = Omit<NotaFiscalRecebida, "valorTotal" | "dataEmissao" | "createdAt" | "updatedAt" | "xml" | "xmlProximaTentativaEm" | "xmlTentativas" | "xmlUltimoMotivo" | "cienciaJaExistenteEm" | "tratamentoLocal" | "dataDevolucao" | "motivoTratamentoLocal" | "tratamentoLocalEm" | "tratamentoLocalVersao"> & {
   valorTotal: number | null;
   dataEmissao: string | null;
   createdAt: string;
   temXmlCompleto: boolean;
+  tratamentoLocal?: TratamentoLocalNotaFiscal | null;
+  dataDevolucao?: string | null;
+  motivoTratamentoLocal?: string | null;
+  tratamentoLocalEm?: string | null;
+  tratamentoLocalVersao?: number;
   manifestacoes: ManifestacaoRow[];
 };
 
 // Categoria de negócio exibida pro usuário — agrupa os 4 tipos de manifestação (mais a
 // ausência de manifestação) em algo mais direto do que a terminologia legal da SEFAZ.
-export type CategoriaNota = "PENDENTE" | "AUTORIZADA" | "RECUSADA";
+export type CategoriaNota = "PENDENTE" | "AUTORIZADA" | "RECUSADA" | "OUTRA_OPERACAO" | "IGNORADA";
 
 export const categoriaNotaLabels: Record<CategoriaNota, string> = {
   PENDENTE: "Pendente",
   AUTORIZADA: "Aceita",
   RECUSADA: "Recusada",
+  OUTRA_OPERACAO: "Devolução/retorno",
+  IGNORADA: "Ignorada",
 };
 
-export const CATEGORIA_BADGE_VARIANT: Record<CategoriaNota, "success" | "warning" | "destructive"> = {
+export const CATEGORIA_BADGE_VARIANT: Record<CategoriaNota, "success" | "warning" | "destructive" | "secondary" | "muted"> = {
   PENDENTE: "warning",
   AUTORIZADA: "success",
   RECUSADA: "destructive",
+  OUTRA_OPERACAO: "secondary",
+  IGNORADA: "muted",
 };
 
-export function categoriaDaNota(ultimaManifestacao: TipoManifestacao | null): CategoriaNota {
+export function categoriaDaNota(ultimaManifestacao: TipoManifestacao | null, tratamentoLocal?: TratamentoLocalNotaFiscal | null): CategoriaNota {
+  if (tratamentoLocal === "IGNORADA") return "IGNORADA";
+  if (tratamentoLocal === "DEVOLUCAO_REGISTRADA") return "OUTRA_OPERACAO";
   switch (ultimaManifestacao) {
     case "CONFIRMACAO_DA_OPERACAO":
       return "AUTORIZADA";

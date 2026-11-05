@@ -282,26 +282,6 @@
       "regra": "acao-compacta-sem-nome",
       "quantidade": 1
     },
-    "7d01ce148b86a00371fb6a97e75207d6655c26c732ea9c0d1885146695e497ce": {
-      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
-      "regra": "acao-compacta-sem-nome",
-      "quantidade": 1
-    },
-    "ac2554f5479b8db3a1d15b9f35d63b285239e00245ce8e8bce5d153470567ef0": {
-      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
-      "regra": "cor-local-em-botao",
-      "quantidade": 1
-    },
-    "b1ee6c344c5d4c49cb8021f5eb4e5e9274c2ace1b1cb7cc84f9aa0a864b444f0": {
-      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
-      "regra": "cor-local-em-botao",
-      "quantidade": 1
-    },
-    "d559483547bb1660f28cfc62134b9b1758bcbd1197ad3bde7ee62ff6e19cfd14": {
-      "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
-      "regra": "cor-local-em-botao",
-      "quantidade": 1
-    },
     "96b517ba3793d2d2e78aa7737e06508dd80b9fc21e979d2417f15845787f9d96": {
       "arquivo": "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx",
       "regra": "controle-nativo",

@@ -1,3 +1,4 @@
+import { prepararDependenciaAtendimento } from "../vendas/dependencia-atendimento";
 import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { config } from "dotenv";
@@ -50,7 +51,7 @@ describe.skipIf(process.env.CUSTOS_NOTA_BANCO_TESTE !== "1")("custos da nota no 
     await banco.query(`CREATE SCHEMA "${esquema}"`); criado = true;
     await banco.query(`SET search_path TO "${esquema}"`);
     for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
-      await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+      await banco.query(prepararSqlMigrationFiscal(pasta.name, await prepararDependenciaAtendimento(banco, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8"))));
     }
     estado.banco = new PrismaClient({ adapter: new PrismaPg({ connectionString: endereco.toString(), options: `-c search_path=${esquema}` }, { schema: esquema }) });
     expect(await estado.banco.$queryRaw`SELECT current_schema() AS esquema`).toEqual([{ esquema }]);
@@ -100,6 +101,12 @@ describe.skipIf(process.env.CUSTOS_NOTA_BANCO_TESTE !== "1")("custos da nota no 
     const { nota, itens, insumo, entrada } = await preparar();
     expect(await confirmarConciliacaoNotaAction(entrada)).toMatchObject({ ok: true });
     const salvo = await estado.banco.notaFiscalItem.findUniqueOrThrow({ where: { id: itens[0].id } });
+    const consumo = await estado.banco.notaFiscalItem.findUniqueOrThrow({ where: { id: itens[1].id } });
+    expect(salvo.dataRecebimento?.toISOString().slice(0, 10)).toBe(entrada.dataEntradaEstoque);
+    expect(consumo.dataRecebimento?.toISOString().slice(0, 10)).toBe(entrada.dataEntradaEstoque);
+    const datasFinanceiras = await estado.banco.notaFiscalItemLancamento.findMany({ where: { notaFiscalItem: { notaFiscalId: nota.id } }, include: { lancamentoFinanceiro: true } });
+    expect(datasFinanceiras.every(vinculo => vinculo.lancamentoFinanceiro.dataCompetencia.toISOString() === nota.dataEmissao?.toISOString())).toBe(true);
+    expect([...new Set(datasFinanceiras.map(vinculo => vinculo.lancamentoFinanceiro.dataVencimento.toISOString().slice(0, 10)))].sort()).toEqual(entrada.duplicatas.map(parcela => parcela.dataVencimento).sort());
     expect(Number(salvo.valorTotalConciliado)).toBe(98);
     expect(salvo.composicaoCusto).toMatchObject({ frete: 10, ipi: 8, desconto: 20, total: 98, modoDesconto: "PERSONALIZADO" });
     expect(Number((await estado.banco.insumo.findUniqueOrThrow({ where: { id: insumo.id } })).custoMedio)).toBe(34.5);
@@ -109,7 +116,7 @@ describe.skipIf(process.env.CUSTOS_NOTA_BANCO_TESTE !== "1")("custos da nota no 
     expect(await confirmarConciliacaoNotaAction(entrada)).toMatchObject({ ok: true });
     expect(await estado.banco.movimentacaoEstoque.count({ where: { insumoId: insumo.id } })).toBe(1);
     const reaberta = await obterItensNotaFiscalAction(nota.id);
-    expect(reaberta).toMatchObject({ itens: [{ composicaoCusto: { desconto: 20 } }, { composicaoCusto: { desconto: 0 } }] });
+    expect(reaberta).toMatchObject({ itens: [{ dataEntradaEstoque: entrada.dataEntradaEstoque, composicaoCusto: { desconto: 20 } }, { dataEntradaEstoque: entrada.dataEntradaEstoque, composicaoCusto: { desconto: 0 } }] });
   });
   it("inclui produtos integralmente descontados no custo médio", async () => {
     const { nota, itens, insumo, entrada } = await preparar();

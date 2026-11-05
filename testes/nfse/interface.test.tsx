@@ -6,7 +6,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { ManifestoNfsView } from "@/app/(protegido)/financeiro/manifesto-nfs/manifesto-nfs-view";
 
-const base = { identificador: "teste", chaveAcesso: null, origem: "NACIONAL", numero: "42", serie: null, codigoVerificacao: null, prestadorCnpj: null, prestadorDados: null, tomadorNome: "Tomador teste", tomadorCnpj: null, tomadorDados: null, fornecedorNome: null, valorServico: 100, valorLiquido: 100, valorIss: 0, dataEmissao: "2026-09-15T12:00:00Z", dataCompetencia: null, municipioNome: null, uf: null, lancada: false, temXml: true };
+const base = { identificador: "teste", chaveAcesso: null, origem: "NACIONAL", numero: "42", serie: null, codigoVerificacao: null, prestadorCnpj: null, prestadorDados: null, tomadorNome: "Tomador teste", tomadorCnpj: null, tomadorDados: null, fornecedorNome: null, valorServico: 100, valorLiquido: 100, valorIss: 0, dataEmissao: "2026-09-15T12:00:00Z", dataCompetencia: null, dataVencimento: null, municipioNome: null, uf: null, lancada: false, temXml: true };
 const notas = [
   { ...base, id: "pendente", prestadorNome: "Prestador Pendente", status: "PENDENTE" },
   { ...base, id: "lancada", prestadorNome: "Prestador Lançado", status: "LANCADA", lancada: true },
@@ -71,4 +71,84 @@ it("conta também aceitas e recusadas, ignora a situação atual e aplica a busc
   for (const nome of ["Todas (1)", "Pendentes (0)", "Aceitas (1)", "Recusadas (0)"]) expect(screen.getByRole("button", { name: nome })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Aceitas (1)" }));
   expect(screen.getByText("Prestador Lançado")).toBeTruthy();
+});
+
+describe("vencimento no aceite de NFS-e", () => {
+  it("envia somente a data escolhida ao confirmar o aceite", async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    vi.stubGlobal("fetch", fetch);
+    tela();
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+    const campo = screen.getByLabelText("Vencimento do pagamento (opcional)") as HTMLInputElement;
+    expect(campo.value).toBe("");
+    expect(campo.min).toBe("2000-01-01");
+    expect(campo.max).toBe("2200-12-31");
+    fireEvent.change(campo, { target: { value: "2026-10-20" } });
+    expect(fetch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar aceite" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/nfse/situacao", expect.objectContaining({ body: JSON.stringify({ nfseId: "pendente", decisao: "ACEITAR", dataVencimento: "2026-10-20" }) })));
+    expect(fetch).not.toHaveBeenCalledWith("/api/nfse/lancar", expect.anything());
+  });
+
+  it("permite confirmar sem vencimento e não cria uma data implícita", async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    vi.stubGlobal("fetch", fetch);
+    tela();
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar aceite" }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/nfse/situacao", expect.objectContaining({ body: JSON.stringify({ nfseId: "pendente", decisao: "ACEITAR" }) })));
+  });
+
+  it("mantém o campo e bloqueia o aceite quando o ano está fora do domínio", () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    tela();
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+    const campo = screen.getByLabelText("Vencimento do pagamento (opcional)") as HTMLInputElement;
+    fireEvent.change(campo, { target: { value: "2201-01-01" } });
+    expect(campo.value).toBe("2201-01-01");
+    expect(screen.getByRole("alert").textContent).toContain("data válida");
+    expect((screen.getByRole("button", { name: "Confirmar aceite" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("mostra a data civil aceita e a sugere no lançamento sem impedir a edição", () => {
+    render(<ManifestoNfsView notas={[{ ...notas[0], status: "ACEITA", dataVencimento: "2026-10-20" }]} categorias={[]} cartoes={[]} podeImportar podeLancar podeEditar />);
+    fireEvent.click(screen.getByRole("button", { name: "Aceitas (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    expect(screen.getByText("20/10/2026")).toBeTruthy();
+    const campo = screen.getByLabelText("Primeiro vencimento") as HTMLInputElement;
+    expect(campo.value).toBe("2026-10-20");
+    fireEvent.change(campo, { target: { value: "2026-10-25" } });
+    expect(campo.value).toBe("2026-10-25");
+  });
+});
+
+it("aplica o vencimento ao lançamento na mesma abertura após o aceite", async () => {
+  const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+  vi.stubGlobal("fetch", fetch);
+  const propriedades = { categorias: [], cartoes: [], podeImportar: true, podeLancar: true, podeEditar: true };
+  const { rerender } = render(<ManifestoNfsView {...propriedades} notas={[notas[0]]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+  fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+  fireEvent.change(screen.getByLabelText("Vencimento do pagamento (opcional)"), { target: { value: "2026-10-20" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar aceite" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Confirmar aceite" })).toBeNull());
+  rerender(<ManifestoNfsView {...propriedades} notas={[{ ...notas[0], status: "ACEITA", dataVencimento: "2026-10-20" }]} />);
+  expect((screen.getByLabelText("Primeiro vencimento") as HTMLInputElement).value).toBe("2026-10-20");
+});
+
+it("preserva o vencimento preenchido quando o aceite falha", async () => {
+  const fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({ erro: "A situação mudou." }) });
+  vi.stubGlobal("fetch", fetch);
+  tela();
+  fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+  fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+  fireEvent.change(screen.getByLabelText("Vencimento do pagamento (opcional)"), { target: { value: "2026-10-20" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar aceite" }));
+  await waitFor(() => expect((screen.getByRole("button", { name: "Confirmar aceite" }) as HTMLButtonElement).disabled).toBe(false));
+  expect((screen.getByLabelText("Vencimento do pagamento (opcional)") as HTMLInputElement).value).toBe("2026-10-20");
 });

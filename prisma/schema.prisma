@@ -2519,6 +2519,7 @@ model NotaFiscalServico {
   valorIss          Decimal? @db.Decimal(14, 2)
   dataEmissao       DateTime?
   dataCompetencia   DateTime?
+  dataVencimento     DateTime? @db.Date
   municipioCodigo   String?
   municipioNome     String?
   uf                String?
@@ -2724,6 +2725,11 @@ model SefazDistribuicaoCursorHistorico {
 }
 
 // Uma linha por documento distribuído, dedupado pela chave de acesso (44 dígitos).
+enum TratamentoLocalNotaFiscal {
+  DEVOLUCAO_REGISTRADA
+  IGNORADA
+}
+
 model NotaFiscalRecebida {
   id          String             @id @default(cuid())
   chaveAcesso String             @unique
@@ -2745,6 +2751,13 @@ model NotaFiscalRecebida {
   // Cache de leitura — a fonte de verdade é o histórico em ManifestacaoNFe.
   ultimaManifestacao TipoManifestacao?
   manifestacoes      ManifestacaoNFe[]
+
+  // Controle operacional separado dos eventos enviados à SEFAZ.
+  tratamentoLocal       TratamentoLocalNotaFiscal?
+  dataDevolucao          DateTime? @db.Date
+  motivoTratamentoLocal  String? @db.VarChar(500)
+  tratamentoLocalEm      DateTime?
+  tratamentoLocalVersao  Int @default(0)
 
   itens       NotaFiscalItem[]
   duplicatas  NotaFiscalDuplicata[]
@@ -2827,6 +2840,7 @@ model NotaFiscalItem {
   // Preenchidos só na confirmação — o que de fato foi lançado (pode divergir do XML:
   // conversão manual de unidade, ajuste de valor por rateio).
   quantidadeConciliada Decimal? @db.Decimal(12, 3)
+  dataRecebimento      DateTime? @db.Date
   valorTotalConciliado Decimal? @db.Decimal(14, 2)
   composicaoCusto Json?
 
