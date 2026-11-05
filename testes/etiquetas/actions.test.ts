@@ -10,7 +10,7 @@ const simulados = vi.hoisted(() => ({
   buscarInsumo: vi.fn(),
   revalidar: vi.fn(),
   guarda: vi.fn(),
-  atualizar: vi.fn(), auditar: vi.fn(), transacao: vi.fn(), loja: vi.fn(), recentes: vi.fn(), perfil: vi.fn(),
+  atualizar: vi.fn(), auditar: vi.fn(), transacao: vi.fn(), loja: vi.fn(), recentes: vi.fn(), perfil: vi.fn(), sequencia: vi.fn(),
 }));
 
 vi.mock("@/lib/session", () => ({ getSession: simulados.sessao }));
@@ -55,13 +55,14 @@ beforeEach(() => {
   simulados.trabalhoPorChave.mockResolvedValue(null);
   simulados.recentes.mockResolvedValue(0);
   simulados.perfil.mockResolvedValue(null);
+  simulados.sequencia.mockResolvedValue([{ numero: "1" }]);
   simulados.loja.mockResolvedValue({ fusoHorario: "America/Sao_Paulo", maximoCopiasEtiqueta: 30, nome: "Loja fictícia", cnpj: null, endereco: null });
 });
 
 function habilitarPreparacao() {
   simulados.buscarInsumo.mockResolvedValue({ id: "insumo-1", nome: "Produto fictício", unidade: "KG", ativo: true, etiquetaHabilitada: true, validadeRefrigeradoDias: 3, versaoConfiguracaoEtiqueta: 1, marcasHomologadas: [] });
   simulados.criarTrabalho.mockImplementation(async ({ data }) => ({ ...data, id: "trabalho-30", status: "PREPARADO" }));
-  simulados.transacao.mockImplementation(async callback => callback({ trabalhoEtiqueta: { create: simulados.criarTrabalho }, eventoAuditoriaEtiqueta: { create: simulados.auditar } }));
+  simulados.transacao.mockImplementation(async callback => callback({ $queryRaw: simulados.sequencia, trabalhoEtiqueta: { create: simulados.criarTrabalho }, eventoAuditoriaEtiqueta: { create: simulados.auditar } }));
 }
 
 it("prepara 30 cópias no mesmo trabalho e registra a quantidade na auditoria e no ZPL", async () => {
@@ -70,6 +71,7 @@ it("prepara 30 cópias no mesmo trabalho e registra a quantidade na auditoria e 
   expect(resultado).toMatchObject({ ok: true, trabalho: { dados: { copias: 30 }, zpl: expect.stringContaining("^PQ30,0,1,N") } });
   expect(simulados.guarda).toHaveBeenCalledWith("producao", "adicionar");
   expect(simulados.criarTrabalho).toHaveBeenCalledOnce();
+  expect(resultado).toMatchObject({ trabalho: { dados: { codigoRastreio: "ET000001-001" }, zpl: expect.stringContaining("^SN#ET000001-001,1,Y^FS") } });
   expect(simulados.auditar).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ acao: "PREPARADO", detalhes: expect.objectContaining({ copias: 30 }) }) }));
 });
 

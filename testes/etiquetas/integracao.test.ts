@@ -16,6 +16,7 @@ vi.mock("server-only", () => ({}));
 import { prepararEtiquetaAction, registrarExportacaoEtiquetaAction, confirmarImpressaoEtiquetaAction, salvarConfiguracaoProdutoEtiquetaAction, salvarConfiguracaoImpressoraAction } from "@/app/(protegido)/producao/etiquetas/actions";
 import { restaurarPontoImpressaoAction, excluirPontoImpressaoAction, baixarEtiquetaAction, configurarUsuarioResponsavelAction, salvarResponsavelEtiquetaAction } from "@/app/(protegido)/producao/etiquetas/operacao-actions";
 import { enfileirarPontoAction } from "@/app/(protegido)/producao/etiquetas/pontos-actions";
+import { codigoCopiaEtiqueta } from "@/lib/etiquetas/rastreio";
 const esquema = "teste_etiquetas_" + randomUUID().replaceAll("-", "");
 let banco: Client | undefined;
 let criado = false;
@@ -65,7 +66,7 @@ describe.skipIf(process.env.ETIQUETAS_BANCO_TESTE !== "1")("etiquetas no Postgre
     }
     expect(await simulacao.prisma.trabalhoEtiqueta.count()).toBe(1);
     expect(await simulacao.prisma.trabalhoEtiqueta.findUniqueOrThrow({ where: { id: trabalhoId } })).toMatchObject({
-      marcaFornecedor: "Aurora", sif: "953", validadeOriginal: "2099-12-31", codigoRastreio: expect.stringMatching(/^[A-F0-9]{6}$/), versaoTemplate: 4,
+      marcaFornecedor: "Aurora", sif: "953", validadeOriginal: "2099-12-31", codigoRastreio: expect.stringMatching(/^ET[A-Z0-9]{6}-001$/), versaoTemplate: 5,
     });
     expect(await simulacao.prisma.insumo.count()).toBe(2);
     expect(await simulacao.prisma.movimentacaoEstoque.count()).toBe(0);
@@ -82,6 +83,23 @@ describe.skipIf(process.env.ETIQUETAS_BANCO_TESTE !== "1")("etiquetas no Postgre
     // Simula somente a confirmação humana em dados fictícios; nenhuma impressora é acessada.
     expect(await confirmarImpressaoEtiquetaAction(trabalhoId)).toEqual({ ok: true });
     expect(await simulacao.prisma.movimentacaoEstoque.count()).toBe(0);
+  });
+  it("emissões concorrentes com o mesmo prefixo antigo têm códigos individuais distintos", async () => {
+    const entradas = Array.from({ length: 4 }, () => ({ ...entrada, copias: 30, chaveIdempotencia: "abcdef" + randomUUID().slice(6) }));
+    const resultados = await Promise.all(entradas.map(prepararEtiquetaAction));
+    const codigos: string[] = [];
+    for (const resultado of resultados) {
+      if ("erro" in resultado) throw new Error(resultado.erro);
+      const primeiro = resultado.trabalho.dados.codigoRastreio!;
+      expect(resultado.trabalho.zpl).toContain(`^SN#${primeiro},1,Y^FS`);
+      for (let i = 1; i <= 30; i++) codigos.push(codigoCopiaEtiqueta(primeiro, i));
+    }
+    expect(new Set(codigos).size).toBe(120);
+    const repetida = await prepararEtiquetaAction(entradas[0]);
+    if ("erro" in repetida || "erro" in resultados[0]) throw new Error("Falha na preparação fictícia");
+    expect(repetida.trabalho.dados.codigoRastreio).toBe(resultados[0].trabalho.dados.codigoRastreio);
+    expect(repetida.trabalho.zpl).toBe(resultados[0].trabalho.zpl);
+    expect(repetida.trabalho.reutilizado).toBe(true);
   });
   it("resolve responsável ativo no mesmo cadastro, ignorando nome enviado pelo navegador", async () => {
     await simulacao.prisma.usuario.create({ data: { id: "responsavel", nome: "Ana da cozinha", email: "ana@example.invalid", senhaHash: "sem-login" } });

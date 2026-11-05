@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Download, Loader2, Save, Settings2 } from "lucide-react";
 import { CampoBusca } from "@/components/campo-busca";
+import { correspondeCodigoEtiqueta, faixaCodigosEtiqueta } from "@/lib/etiquetas/rastreio";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -136,7 +137,7 @@ function PainelHistorico({ historico, pagina, caminhoBase, pontos, envios }: { h
   const [busca, setBusca] = useState("");
   const [pendente, iniciarTransicao] = useTransition();
   const [pontoReimpressao, setPontoReimpressao] = useState(pontos.find((ponto) => ponto.padrao)?.id ?? pontos[0]?.id ?? "");
-  const filtrado = historico.filter((item) => item.produtoNome.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR")));
+  const filtrado = historico.filter((item) => item.produtoNome.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR")) || correspondeCodigoEtiqueta(item.dados.codigoRastreio, item.copias, busca));
   function exportar(item: HistoricoEtiquetaTela) {
     baixarArquivo(item.nomeArquivo, item.zpl);
     iniciarTransicao(async () => {
@@ -163,12 +164,12 @@ function PainelHistorico({ historico, pagina, caminhoBase, pontos, envios }: { h
       <CardHeader><CardTitle>Histórico da loja</CardTitle><CardDescription>Trabalhos, cópias e resultado são métricas diferentes. {pagina.total} trabalho(s) registrado(s).</CardDescription></CardHeader>
       <CardContent className="space-y-4">
         {pontos.length > 0 && <div className="flex flex-wrap items-center gap-2"><Label htmlFor="ponto-reimpressao">Ponto para reimpressão</Label><SelecaoFormulario id="ponto-reimpressao" value={pontoReimpressao} onValueChange={(novoValor) => setPontoReimpressao(novoValor)}>{pontos.filter((ponto) => ponto.ativo).map((ponto) => <option key={ponto.id} value={ponto.id}>{ponto.nome}</option>)}</SelecaoFormulario></div>}
-        <CampoBusca aria-label="Buscar no histórico" value={busca} onChange={setBusca} placeholder="Buscar produto" />
+        <CampoBusca aria-label="Buscar no histórico" value={busca} onChange={setBusca} placeholder="Buscar produto ou código" />
         <div className="overflow-x-auto rounded-xl border">
           <Table className="w-full  text-left text-sm">
             <TableHeader className="bg-muted text-muted-foreground"><TableRow><TableHead className="p-3">Produto</TableHead><TableHead className="p-3">Manipulação / validade</TableHead><TableHead className="p-3">Responsáveis</TableHead><TableHead className="p-3">Cópias</TableHead><TableHead className="p-3">Resultado</TableHead><TableHead className="p-3">Ações</TableHead></TableRow></TableHeader>
             <TableBody>{filtrado.map((item) => <TableRow key={item.id} className="border-t align-top">
-              <TableCell className="p-3"><strong>{item.produtoNome}</strong><div className="text-xs text-muted-foreground">{rotuloConservacaoEtiqueta(item.conservacao)} · {item.tamanho === "MM_60X40" ? "60×40" : "60×60"}</div></TableCell>
+              <TableCell className="p-3"><strong>{item.produtoNome}</strong><div className="text-xs text-muted-foreground">{rotuloConservacaoEtiqueta(item.conservacao)} · {item.tamanho === "MM_60X40" ? "60×40" : "60×60"}</div><div className="text-xs text-muted-foreground">{faixaCodigosEtiqueta(item.dados.codigoRastreio, item.copias)}</div></TableCell>
               <TableCell className="p-3 text-xs"><div>{new Intl.DateTimeFormat("pt-BR", { timeZone: item.fusoHorario, dateStyle: "short", timeStyle: "short" }).format(new Date(item.manipuladoEm))}</div><div>até {new Intl.DateTimeFormat("pt-BR", { timeZone: item.fusoHorario, dateStyle: "short", timeStyle: "short" }).format(new Date(item.validoAte))}</div></TableCell>
               <TableCell className="p-3 text-xs"><div>Manipulou: {item.responsavelManipulacao}</div><div>Emitiu: {item.emitidoPorNome}</div></TableCell>
               <TableCell className="p-3">{item.copias}<div className="text-xs text-muted-foreground">{item.tentativas} tentativa(s)</div></TableCell>
