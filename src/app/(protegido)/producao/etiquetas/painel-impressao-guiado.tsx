@@ -20,6 +20,7 @@ import { detectarImpressoraPadrao, enviarZpl, type ImpressoraLocal } from "@/lib
 import { enfileirarPontoAction } from "./pontos-actions";
 import type { PontoImpressaoTela } from "./pontos-impressao";
 import { fimDoDiaLocal, somarDiasDeCalendario } from "@/lib/etiquetas/datas";
+import { chaveMarcaEtiqueta } from "@/lib/etiquetas/validacao";
 import {
   conservacoesEtiqueta,
   rotuloConservacaoEtiqueta,
@@ -110,7 +111,12 @@ export function PainelImpressaoGuiado({ produtos, loja, maximoCopias, perfil, po
   const [quantidade, setQuantidade] = useState("");
   const [validadeOriginal, setValidadeOriginal] = useState("");
   const [marcaFornecedor, setMarcaFornecedor] = useState("");
-  const [sif, setSif] = useState("");
+  const [sifInformado, setSifInformado] = useState<string>();
+  const [sifsSalvos, setSifsSalvos] = useState<{ produtoId: string; porMarca: Map<string, string> } | null>(null);
+  const chaveMarca = chaveMarcaEtiqueta(marcaFornecedor);
+  const sifSugerido = sifsSalvos && sifsSalvos.produtoId === produto?.id ? sifsSalvos.porMarca.get(chaveMarca) : undefined;
+  const sif = sifInformado ?? sifSugerido ?? "";
+  const sifParaEmissao = sifInformado ?? (chaveMarca ? undefined : "");
   const [lote, setLote] = useState("");
   const [copiasTexto, setCopias] = useState("1");
   const copias = Number(copiasTexto);
@@ -131,6 +137,25 @@ export function PainelImpressaoGuiado({ produtos, loja, maximoCopias, perfil, po
   const [detectando, setDetectando] = useState(false);
   const [agoraPrevia] = useState(() => new Date());
   const [pendente, iniciarTransicao] = useTransition();
+  const produtoId = produto?.id;
+  const trabalhoPreparadoId = trabalhos[0]?.id;
+
+  useEffect(() => {
+    if (!podeImprimir || !produtoId) return;
+    const consulta = new AbortController();
+    async function carregar(id: string) {
+      try {
+        const resposta = await fetch(`/api/etiquetas/produtos/${encodeURIComponent(id)}/sifs`, { signal: consulta.signal });
+        if (!resposta.ok) return;
+        const pares: [string, string][] = await resposta.json();
+        if (!consulta.signal.aborted) setSifsSalvos({ produtoId: id, porMarca: new Map(pares) });
+      } catch {
+        // A emissão ainda consulta o último SIF no servidor. O campo continua editável.
+      }
+    }
+    void carregar(produtoId);
+    return () => consulta.abort();
+  }, [podeImprimir, produtoId, trabalhoPreparadoId]);
 
   const responsaveisFiltrados = responsaveis.filter((item) => item.nome.toLocaleLowerCase("pt-BR").includes(buscaResponsavel.trim().toLocaleLowerCase("pt-BR")));
   const produtosCategoria = disponiveis.filter((item) => (!categoria || Boolean(buscaProduto.trim()) || (item.categoria || "Sem categoria") === categoria) && item.nome.toLocaleLowerCase("pt-BR").includes(buscaProduto.trim().toLocaleLowerCase("pt-BR")));
@@ -187,7 +212,7 @@ export function PainelImpressaoGuiado({ produtos, loja, maximoCopias, perfil, po
     setMarcaFornecedor(item.marcasFornecedor?.[0] ?? "");
     setQuantidade("");
     setValidadeOriginal("");
-    setSif("");
+    setSifInformado(undefined);
     setLote("");
     setTrabalhos([]);
     setEtapa(4);
@@ -195,6 +220,12 @@ export function PainelImpressaoGuiado({ produtos, loja, maximoCopias, perfil, po
 
   function limparPreparados() {
     if (trabalhos.length) setTrabalhos([]);
+  }
+
+  function mudarMarcaFornecedor(novaMarca: string) {
+    limparPreparados();
+    if (chaveMarcaEtiqueta(novaMarca) !== chaveMarca) setSifInformado(undefined);
+    setMarcaFornecedor(novaMarca);
   }
 
   function prepararGrupo() {
@@ -214,7 +245,6 @@ export function PainelImpressaoGuiado({ produtos, loja, maximoCopias, perfil, po
           quantidade: "",
           validadeOriginal: "",
           marcaFornecedor: item.marcasFornecedor?.[0] ?? "",
-          sif: "",
           lote: "",
           responsavelManipulacao: responsavel,
           responsavelUsuarioId: responsavelUsuarioId || undefined, responsavelCadastroId: responsavelCadastroId || undefined,
@@ -263,7 +293,7 @@ export function PainelImpressaoGuiado({ produtos, loja, maximoCopias, perfil, po
           quantidade,
           validadeOriginal,
           marcaFornecedor,
-          sif,
+          sif: sifParaEmissao,
           lote,
           responsavelManipulacao: responsavel,
           responsavelUsuarioId: responsavelUsuarioId || undefined, responsavelCadastroId: responsavelCadastroId || undefined,
@@ -307,7 +337,7 @@ export function PainelImpressaoGuiado({ produtos, loja, maximoCopias, perfil, po
       if (preparados.length === 0 && produto) {
         const resultado = await prepararEtiquetaAction({
           chaveIdempotencia: crypto.randomUUID(), insumoId: produto.id, conservacao,
-          quantidade, validadeOriginal, marcaFornecedor, sif, lote,
+          quantidade, validadeOriginal, marcaFornecedor, sif: sifParaEmissao, lote,
           responsavelManipulacao: responsavel, responsavelUsuarioId: responsavelUsuarioId || undefined, responsavelCadastroId: responsavelCadastroId || undefined,
           tamanho, mostrarHora, copias,
         });
@@ -385,12 +415,12 @@ export function PainelImpressaoGuiado({ produtos, loja, maximoCopias, perfil, po
                 <div className="space-y-2"><Label htmlFor="medida-etiqueta">Medida</Label><div className="flex overflow-hidden rounded-md border bg-background focus-within:ring-2 focus-within:ring-ring"><Input id="medida-etiqueta" inputMode="decimal" casasDecimais={3} maxLength={13} placeholder="0" className="rounded-none border-0 focus-visible:ring-0" value={quantidade} onChange={(evento) => { limparPreparados(); setQuantidade(evento.target.value); }} /><span className="grid min-w-20 place-items-center border-l bg-muted px-3 text-sm">{produto?.unidade.toLocaleLowerCase("pt-BR")}</span></div></div>
                 <div className="space-y-2"><Label htmlFor="validade-original">Validade original</Label><Input id="validade-original" type="date" value={validadeOriginal} onChange={(evento) => { limparPreparados(); setValidadeOriginal(evento.target.value); }} /></div>
                 <div className="space-y-2"><Label htmlFor="marca-fornecedor">Marca/fornecedor</Label><Combobox items={produto?.marcasFornecedor ?? []} value={marcaFornecedor || null} inputValue={marcaFornecedor}
-                  onInputValueChange={(texto, detalhes) => { if (detalhes.reason !== "escape-key") { limparPreparados(); setMarcaFornecedor(texto); } }}
-                  onValueChange={(opcao, detalhes) => { if (opcao !== null && detalhes.reason !== "escape-key") { limparPreparados(); setMarcaFornecedor(opcao); } }}>
+                  onInputValueChange={(texto, detalhes) => { if (detalhes.reason !== "escape-key") mudarMarcaFornecedor(texto); }}
+                  onValueChange={(opcao, detalhes) => { if (opcao !== null && detalhes.reason !== "escape-key") mudarMarcaFornecedor(opcao); }}>
                   <ComboboxInputGroup><ComboboxInput id="marca-fornecedor" aria-label="Marca/fornecedor" maxLength={60} /></ComboboxInputGroup>
                   <ComboboxContent emptyLabel="Informe uma marca ou fornecedor.">{(opcao: string) => <ComboboxItem key={opcao} value={opcao}>{opcao}</ComboboxItem>}</ComboboxContent>
                 </Combobox></div>
-                <div className="space-y-2"><Label htmlFor="sif-etiqueta">SIF</Label><Input id="sif-etiqueta" inputMode="numeric" placeholder="Número do SIF" value={sif} maxLength={30} onChange={(evento) => { limparPreparados(); setSif(evento.target.value); }} /></div>
+                <div className="space-y-2"><Label htmlFor="sif-etiqueta">SIF</Label><Input id="sif-etiqueta" inputMode="numeric" restricao="digitos" placeholder="Número do SIF" value={sif} maxLength={30} onChange={(evento) => { limparPreparados(); setSifInformado(evento.target.value); }} /></div>
                 <div className="space-y-2"><Label htmlFor="lote-etiqueta">Lote</Label><Input id="lote-etiqueta" placeholder="Lote do produto" value={lote} maxLength={80} onChange={(evento) => { limparPreparados(); setLote(evento.target.value); }} /></div>
                 <div className="space-y-2"><Label htmlFor="midia-etiqueta">Mídia</Label><SelecaoFormulario id="midia-etiqueta" value={tamanho} onValueChange={(novoValor) => { limparPreparados(); setTamanho(novoValor as TamanhoEtiquetaValor); }}>{(!perfil || perfil.suporta60x40) && <option value="MM_60X40">60 × 40 mm</option>}{(!perfil || perfil.suporta60x60) && <option value="MM_60X60">60 × 60 mm</option>}</SelecaoFormulario></div>
               </div>

@@ -111,13 +111,13 @@ describe("host explícito, sem confiar em encaminhamento do cliente", () => {
   });
 });
 
-describe("foto do catálogo de Validades", () => {
- it("permite apenas o caminho de foto e continua exigindo sessão de pessoa", async()=>{
-  const foto="/api/etiquetas/produtos/item-ficticio/foto";
-  expect(caminhoDedicadoPermitido(foto)).toBe(true);
-  expect((await middleware(pedido(dedicado,foto,false))).headers.get("location")).toBe(`https://${dedicado}/login`);
-  expect((await middleware(pedido(dedicado,foto,true))).headers.get("x-middleware-next")).toBe("1");
-  expect((await middleware(pedido(dedicado,foto,true,{method:"POST",headers:{origin:"https://invasor.example"}}))).status).toBe(403);
+describe("dados do catálogo de Validades", () => {
+ it.each(["foto", "sifs"])("permite o caminho de %s e exige sessão de pessoa", async(recurso)=>{
+  const caminho=`/api/etiquetas/produtos/item-ficticio/${recurso}`;
+  expect(caminhoDedicadoPermitido(caminho)).toBe(true);
+  expect((await middleware(pedido(dedicado,caminho,false))).headers.get("location")).toBe(`https://${dedicado}/login`);
+  expect((await middleware(pedido(dedicado,caminho,true))).headers.get("x-middleware-next")).toBe("1");
+  expect((await middleware(pedido(dedicado,caminho,true,{method:"POST",headers:{origin:"https://invasor.example"}}))).status).toBe(403);
  });
  it.each(["/api/etiquetas/produtos/","/api/etiquetas/produtos/item/segredo","/api/etiquetas/produtos/item/foto/extra","/api/insumos/item/foto"])("não amplia acesso a %s",caminho=>{
   expect(caminhoDedicadoPermitido(caminho)).toBe(false);

@@ -12,9 +12,12 @@ import { exigirPermissao } from "@/lib/permissoes/servidor";
 import { fimDoDiaLocal, somarDiasDeCalendario, fusoHorarioValido } from "@/lib/etiquetas/datas";
 import { gerarZplEtiqueta, nomeArquivoZpl } from "@/lib/etiquetas/zpl";
 import { codigoInicialEtiqueta } from "@/lib/etiquetas/rastreio";
+import { consultarSifsSalvos } from "@/lib/etiquetas/sifs-salvos";
 import {
+  chaveMarcaEtiqueta,
   normalizarQuantidade,
   validarChaveIdempotencia,
+  validarSif,
   validarTextoObrigatorio,
   validarTextoOpcional,
 } from "@/lib/etiquetas/validacao";
@@ -198,7 +201,9 @@ export async function prepararEtiquetaAction(
       ?? insumo.marcasHomologadas[0]
       ?? insumo.fornecedorPrincipal?.nome
       ?? null;
-    const sif = validarTextoOpcional(entrada.sif ?? "", "O SIF", 30);
+    const sif = entrada.sif === undefined && marcaFornecedor
+      ? (await consultarSifsSalvos(LOJA_ID, insumo.id)).get(chaveMarcaEtiqueta(marcaFornecedor)) ?? null
+      : validarSif(entrada.sif ?? "");
     const validadeOriginal = validarTextoOpcional(entrada.validadeOriginal ?? "", "A validade original", 10);
     const manipuladoEm = new Date();
     const validadeCalculada = somarDiasDeCalendario(manipuladoEm, prazoDias, loja.fusoHorario);
@@ -273,7 +278,7 @@ export async function prepararEtiquetaAction(
           entidade: "TrabalhoEtiqueta",
           entidadeId: criado.id,
           acao: "PREPARADO",
-          detalhes: { hashPayload, copias: entrada.copias, conservacao: entrada.conservacao, responsavelUsuarioId: entrada.responsavelUsuarioId || null, responsavelCadastroId: entrada.responsavelCadastroId || null, origemResponsavel: entrada.responsavelUsuarioId ? "USUARIO" : entrada.responsavelCadastroId ? "CADASTRO" : "MANUAL" },
+          detalhes: { hashPayload, copias: entrada.copias, conservacao: entrada.conservacao, responsavelUsuarioId: entrada.responsavelUsuarioId || null, responsavelCadastroId: entrada.responsavelCadastroId || null, origemResponsavel: entrada.responsavelUsuarioId ? "USUARIO" : entrada.responsavelCadastroId ? "CADASTRO" : "MANUAL", sifRecuperado: entrada.sif === undefined && sif !== null },
           usuarioId: usuario.id,
         },
       });

@@ -31,7 +31,7 @@ vi.mock("@/app/(protegido)/producao/etiquetas/pontos-actions", () => ({
 }));
 vi.mock("@/app/(protegido)/producao/etiquetas/operacao-actions", () => ({ excluirPontoImpressaoAction: vi.fn(), restaurarPontoImpressaoAction: vi.fn(), baixarEtiquetaAction: vi.fn(), configurarUsuarioResponsavelAction: vi.fn(), salvarResponsavelEtiquetaAction: vi.fn() }));
 vi.mock("next-themes", () => ({ useTheme: () => ({ theme: "light", setTheme: vi.fn() }) }));
-afterEach(() => { cleanup(); navegacao.busca = ""; });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); navegacao.busca = ""; });
 
 it("mostra comunicação e impressora separadamente, sem senha Wi-Fi na consulta", async () => {
   const usuario = userEvent.setup();
@@ -122,7 +122,9 @@ it("paginação permanece na raiz da experiência dedicada", () => {
 
 it("guia o operador por responsável, grupo, produto, conservação e revisão", async () => {
   const usuario = userEvent.setup();
-  render(<ProvedorAcesso acesso={{ admin: false, permissoes: { producao: ["visualizar", "adicionar"] }, excecoes: {} }}><EtiquetasClient
+  const consultarSifs = vi.fn(async () => ({ ok: true, json: async () => [["aurora", "00123"], ["marca livre", "00456"]] }));
+  vi.stubGlobal("fetch", consultarSifs);
+  render(<ProvedorAcesso acesso={{ admin: false, permissoes: { producao: ["visualizar", "adicionar"], "producao.imprimir": ["visualizar", "adicionar"] }, excecoes: {} }}><EtiquetasClient
     produtos={[{
       id: "tomate", nome: "Tomate seco", especificacao: "Caixa de compra fictícia 12,5 kg", marcasFornecedor: ["Aurora"], tipo: "INSUMO", unidade: "kg", categoria: "Antepastos", ativo: true,
       etiquetaHabilitada: true, validadeSecoDias: null, validadeRefrigeradoDias: 5,
@@ -149,10 +151,14 @@ it("guia o operador por responsável, grupo, produto, conservação e revisão",
   expect(screen.getByLabelText("Medida")).toBeDefined();
   expect(screen.getByLabelText("Validade original")).toBeDefined();
   expect(screen.getByLabelText("Marca/fornecedor").getAttribute("value")).toBe("Aurora");
+  const sif = screen.getByLabelText("SIF");
+  expect(consultarSifs).toHaveBeenCalledWith("/api/etiquetas/produtos/tomate/sifs", expect.any(Object));
+  await waitFor(() => expect(screen.getByLabelText("SIF")).toHaveProperty("value", "00123"));
   const marca = screen.getByRole("combobox", { name: "Marca/fornecedor" });
   await usuario.click(marca);
   await usuario.click(await screen.findByRole("option", { name: "Aurora" }));
   await usuario.clear(marca);
+  expect(sif).toHaveProperty("value", "");
   await usuario.type(marca, "Marca livre");
   expect(marca).toHaveProperty("value", "Marca livre");
   await usuario.keyboard("{Escape}");
@@ -160,7 +166,14 @@ it("guia o operador por responsável, grupo, produto, conservação e revisão",
   expect(marca.getAttribute("maxlength")).toBe("60");
   await usuario.tab();
   expect(marca).toHaveProperty("value", "Marca livre");
-  expect(screen.getByLabelText("SIF")).toBeDefined();
+  expect(sif).toHaveProperty("value", "00456");
+  await usuario.clear(sif);
+  await usuario.type(sif, "0007");
+  expect(sif).toHaveProperty("value", "0007");
+  await usuario.clear(marca);
+  await usuario.type(marca, "AURORA");
+  expect(sif).toHaveProperty("value", "00123");
+  await usuario.keyboard("{Escape}");
   expect(screen.getByLabelText("Lote")).toBeDefined();
   expect(screen.getByRole("img", { name: "Prévia de etiqueta 60 por 60 milímetros" })).toBeDefined();
   expect(screen.queryByText("Dados da manipulação")).toBeNull();
