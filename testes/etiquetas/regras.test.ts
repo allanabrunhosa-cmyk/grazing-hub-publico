@@ -59,6 +59,14 @@ describe("validação decimal estrita", () => {
 });
 
 describe("ZPL seguro e consistente", () => {
+  it("serializa cada cópia na Zebra sem repetir o logo ou aumentar o pacote por cópia", () => {
+    const lote = gerarZplEtiqueta(dados({ codigoRastreio: "ET000001-001", copias: 50 }));
+    expect(lote.match(/\^SN#ET000001-001,1,Y\^FS/g)).toHaveLength(2);
+    expect(lote).toContain("^PQ50,0,1,N");
+    expect(lote.match(/\^GFA/g)).toHaveLength(1);
+    expect(lote.length).toBeLessThan(200_000);
+    expect(gerarZplEtiqueta(dados())).not.toContain("^SN");
+  });
   it.each([
     ["SECO", "AMBIENTE"],
     ["APOS_ABERTO", "APOS ABERTO"],

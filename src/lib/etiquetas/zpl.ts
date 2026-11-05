@@ -3,6 +3,7 @@ import { logoGrazingZpl } from "@/lib/etiquetas/logo-grazing-zpl";
 import type { DadosEtiqueta } from "@/lib/etiquetas/tipos";
 import { sanitizarTextoZpl } from "@/lib/etiquetas/texto";
 import { dimensionarFonte0 } from "@/lib/etiquetas/fonte-zpl";
+import { codigoSerializado } from "@/lib/etiquetas/rastreio";
 export { sanitizarTextoZpl } from "@/lib/etiquetas/texto";
 
 function pontos(mm: number, resolucaoDpi: number) {
@@ -28,13 +29,18 @@ export function gerarZplEtiqueta(dados: DadosEtiqueta) {
   }
   for (const linha of composicao.linhas) {
     const { larguraFonte } = dimensionarFonte0(linha.texto, linha.larguraLetra);
+    // ^SN incrementa apenas o sufixo numérico de cada cópia (^PQ, replicação 1).
+    // O formato fica compacto: logo e layout não são repetidos no transporte USB.
+    const campo = linha.chave === "codigo" && codigoSerializado(dados.codigoRastreio)
+      ? `^SN${linha.texto},1,Y^FS`
+      : `^FD${linha.texto}^FS`;
     comandos.push(
       `^FO${linha.x},${linha.y}`,
       `^A0N,${linha.fonte},${larguraFonte}`,
-      `^FD${linha.texto}^FS`,
+      campo,
     );
     if (linha.negrito) {
-      comandos.push(`^FO${linha.x + 1},${linha.y}`, `^A0N,${linha.fonte},${larguraFonte}`, `^FD${linha.texto}^FS`);
+      comandos.push(`^FO${linha.x + 1},${linha.y}`, `^A0N,${linha.fonte},${larguraFonte}`, campo);
     }
   }
 

@@ -2,6 +2,97 @@
 
 > Exportação pública: dados cadastrais, identificadores de registros e valores comerciais alterados neste documento são exemplos sintéticos. Os registros operacionais originais permanecem privados; esta versão não concede aprovação fiscal ou operacional.
 
+## Código individual e latência — 04/11/2026
+
+Pedido: corrigir e publicar. Base pública `0947ed3`; branch
+`codex/validades-codigos-latencia-20261104`. Sem transferir histórico privado.
+
+- Diagnóstico de produção somente por agregados: últimos 30 envios concluídos,
+  espera média até reserva de 5.119 ms, mediana 4.538 ms; reserva até confirmação
+  USB média de 185 ms. Não houve consulta a conteúdo das etiquetas nem impressão.
+  Conector ativo e fila sem pendentes/reservados/incertos na inspeção.
+- Causas confirmadas no código: pausa de 10s em cada volta do conector, inclusive
+  entre trabalhos; telemetria e consulta de rede precediam a leitura da fila.
+  Cópias usavam o mesmo código de seis caracteres do prefixo da idempotência.
+- Implementado: sequência atômica PostgreSQL exclusiva para novas emissões,
+  prefixo ET em base 36 e índice decimal da cópia (001 a 050). Cada cópia de uma
+  nova emissão possui código distinto. Repetir a mesma solicitação conserva os
+  códigos e o ZPL; reimpressão explícita conserva a identidade original.
+  A migration só cria a sequência, sem alterar registros ou códigos históricos.
+  Não retroagir a mudança sobre etiquetas já impressas. Esgotamento falha sem ciclo.
+- ZPL usa ^SN para serializar o campo (incluindo sua sobreposição de negrito),
+  ^PQ com replicação 1. Mantém um único logo/layout por pacote, abaixo do limite
+  de 200.000 caracteres, mesmo em 50 cópias. Referência técnica primária:
+  https://www.zebra.com/content/dam/support-dam/en/documentation/unrestricted/guide/software/zpl-zbi2-pg-en.pdf,
+  exercício 4 e comando ^SN. Dimensões/DPI e demais textos permanecem iguais.
+- Histórico e Gestão pesquisam o código de qualquer cópia entre os registros
+  carregados. O detalhe e o histórico exibem a faixa da emissão. Mesmos controles,
+  tokens e Dialog de Validades; sem nova variante ou alteração da Central.
+- Fila: LISTEN/NOTIFY por ponto após commit, com uma conexão de escuta por processo.
+  Consulta HTTPS mantém espera de até 20s e reconfere autorização antes de reservar.
+  Há recuperação periódica de notificações perdidas, limite por ponto e limpeza
+  ao abortar. Não mantém transação durante a espera. Conectores antigos continuam
+  compatíveis. Não alterar reservas, diário SQLite, tratamento de INCERTO ou
+  regras de idempotência/reimpressão para obter rapidez.
+- Conector: telemetria/rede em thread separada; leitura da fila recebe aviso;
+  próximo trabalho é consultado sem pausa. Falhas usam backoff de 1 a 30s, sem
+  imprimir URLs, token, código, payload ou ZPL. TLS/recusa de redirect preservados.
+- Validação inicial: 223 testes de Etiquetas aprovados, sete HTTP condicionais
+  não executados nessa bateria. Integração PostgreSQL 17 local exclusivo (55447),
+  somente fixtures; aviso após commit medido em 6,8ms. Isso não é tempo de saída
+  física. Mais nove testes Python aprovados, incluindo fila sem pausa, rede lenta
+  independente e recuperação incerta. Revalidação final e publicação pendentes.
+- Ambiente: Node 22.23.2, dependências existentes com lockfile idêntico. Nenhuma
+  instalação/atualização de pacotes. Logs e capturas ignorados em
+  `.tmp/validades-codigos-latencia-20261104`. Visual isolado em 320/390/768/1440,
+  claro/escuro; oito auditorias parciais sem diagnósticos. Capturas consultivas.
+- Bloqueio físico atual: Windows está em outra sub-rede; IP antigo não respondeu.
+  Foi solicitado o IPv4 atual no terminal da Raspberry. Não presumir indisponibilidade
+  do equipamento: heartbeat produtivo segue recente. Atualização do conector na
+  Raspberry e comparação física dos códigos/tempo ainda não foram executadas.
+
+### Validação final e bloqueios de acesso — 04/11/2026
+
+- Código preservado em `f124bfa0daa8dbc8a6997b1492f541bc52cefcf2`, branch pública
+  `codex/validades-codigos-latencia-20261104`. A main permaneceu em `0947ed3`.
+- Revalidação: 318 aprovados em Etiquetas/MCP, incluindo 17 integrações PostgreSQL
+  de Etiquetas; 63 casos MCP condicionais não executados. Não somar essa bateria
+  aos 223 iniciais, pois há sobreposição de arquivos. Nove testes Python aprovados.
+- Smoke HTTP local: primeira execução encontrou public.Usuario ausente no cluster
+  recém-criado (cinco aprovações e duas falhas). Foi preparada uma fixture com a
+  cadeia SQL oficial em schema exclusivo e views locais de leitura para a sessão
+  inexistente, sem modificar os testes ou runtime. Repetição: sete aprovados,
+  zero falhas. Não houve usuário ou trabalho real de teste.
+- Lint focado, lint:design, typecheck e build webpack com Node 22.23.2 aprovados.
+  Build inclui o código de `f124bfa`; avisos preexistentes de middleware/Edge.
+  Prisma validate/generate e typecheck final aprovados (exit 0).
+- Comandos reais: `node node_modules/vitest/vitest.mjs run testes/etiquetas
+  --maxWorkers=1 --pool=forks --testTimeout=20000 --hookTimeout=60000`;
+  revalidação com os arquivos integracao.test.ts, operacao-interface.test.tsx,
+  fila-espera.test.ts, rastreio.test.ts e diretório testes/mcp. ETIQUETAS_BANCO_TESTE=1
+  e DATABASE_URL somente no PostgreSQL local. Smoke HTTP com ETIQUETAS_HTTP_TESTE=1,
+  servidor local 3107 e AUTH_SECRET fictício, sem segredos reais.
+  `python -m unittest discover -s conector-raspberry -p test_*.py`;
+  `node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit`;
+  `node --max-old-space-size=4096 node_modules/next/dist/bin/next build --webpack`.
+- Publicação bloqueada por acesso: criação de PR pela integração retornou 403
+  (Resource not accessible by integration). A main é protegida. Nenhuma proteção
+  foi alterada e não houve push direto, merge, deploy ou migration produtiva.
+  Comparação preparada no GitHub; login solicitado no navegador do Codex.
+- Próximo passo exato: concluir login, abrir a PR da branch acima, conferir CI,
+  criar backup privado íntegro, revisar/aplicar o plano oficial contendo somente
+  a nova sequência e integrar/publicar. Conferir tarefa estável e HTTPS.
+  Depois atualizar somente o conector pelo instalador existente, preservando
+  conector.json, diário e Wi-Fi. Confirmar fila vazia antes de reiniciar o serviço.
+  IP atual e autenticação local da Raspberry continuam pendentes.
+- Encerramento parcial: servidores próprios 3107/4271 e PostgreSQL 55447 parados.
+  Arquivos, build, dependências compartilhadas e cópia pública preservados para
+  retomada após autenticação. Sem limpeza, Close, exclusões ou mudanças no checkout
+  principal antigo. Espaço livre final medido: 22,7 GB decimais.
+- Homologação física pendente: duas etiquetas novas do mesmo lote com códigos
+  diferentes e medição percebida de clique até saída. Não enviar testes sem
+  impressora preparada e acompanhamento local; não reimprimir resultado incerto.
+
 ## Novos responsáveis e inclusão no topo — 21/10/2026
 
 Pedido: corrigir e publicar. Branch `codex/validades-novos-itens-inicio-20261021`,

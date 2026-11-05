@@ -8,7 +8,7 @@ import socket
 import sqlite3
 import subprocess
 import sys
-import time
+import threading
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -16,11 +16,11 @@ from pathlib import Path
 API = "https://etiquetas.grazinghub.com.br/api/etiquetas/conector"
 CONFIG = Path("/etc/grazing-etiquetas/conector.json")
 JOURNAL = Path("/var/lib/grazing-etiquetas/envios.sqlite3")
-POLL_SECONDS = 10
+POLL_SECONDS = 0.5  # Compatibilidade com servidor antigo ou impressora ausente.
 HEARTBEAT_SECONDS = 30
 
 
-def request_json(path, token, method="GET", payload=None):
+def request_json(path, token, method="GET", payload=None, timeout=15):
     data = json.dumps(payload, ensure_ascii=True).encode() if payload is not None else None
     headers = {"Accept": "application/json", "Authorization": "Bearer " + token}
     if data is not None:
@@ -30,7 +30,7 @@ def request_json(path, token, method="GET", payload=None):
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, request, fp, code, msg, headers, newurl):
             raise urllib.error.HTTPError(request.full_url, code, "Redirecionamento recusado", headers, fp)
-    with urllib.request.build_opener(NoRedirect).open(req, timeout=15) as response:
+    with urllib.request.build_opener(NoRedirect).open(req, timeout=timeout) as response:
         return json.load(response)
 
 
@@ -208,28 +208,50 @@ def process_wifi_change(token):
     request_json("/rede/" + change["id"], token, "POST", {"estado": state})
 
 
+def maintain_device(token, stop):
+    """Telemetria e pedidos de rede não bloqueiam o caminho de impressão."""
+    while not stop.is_set():
+        try:
+            printers = usb_printers()
+            payload = {**device_info(), **local_network(), "usbImpressoras": [{"id": item["id"], "nome": item["nome"]} for item in printers]}
+            request_json("/comunicacao", token, "POST", payload)
+            process_wifi_change(token)
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            print("conector: falha de comunicação:", type(exc).__name__, file=sys.stderr)
+        stop.wait(HEARTBEAT_SECONDS)
+
+
+def print_loop(db, token, stop):
+    retry_seconds = 1
+    while not stop.is_set():
+        try:
+            recover_unacknowledged(db, token)
+            result = request_json("/trabalhos?espera=20", token, timeout=30)
+            if result.get("trabalho"):
+                send_job(db, token, result["trabalho"], usb_printers())
+                # Drenar a próxima reserva imediatamente, sem pausa entre trabalhos.
+            elif not result.get("esperaAtiva"):
+                stop.wait(POLL_SECONDS)
+            retry_seconds = 1
+        except (OSError, ValueError, urllib.error.URLError, sqlite3.Error) as exc:
+            # Tipo de erro apenas. Nunca imprimir URL, payload, token ou ZPL.
+            print("conector: falha temporária:", type(exc).__name__, file=sys.stderr)
+            stop.wait(retry_seconds)
+            retry_seconds = min(retry_seconds * 2, 30)
+
+
 def main():
     token = json.loads(CONFIG.read_text())["token"]
     if not re.fullmatch(r"gpi_[a-f0-9]{64}", token):
         raise ValueError("Credencial do conector inválida")
     db = connect_db()
-    next_heartbeat = 0
-    while True:
-        try:
-            printers = usb_printers()
-            if time.monotonic() >= next_heartbeat:
-                payload = {**device_info(), **local_network(), "usbImpressoras": [{"id": item["id"], "nome": item["nome"]} for item in printers]}
-                request_json("/comunicacao", token, "POST", payload)
-                next_heartbeat = time.monotonic() + HEARTBEAT_SECONDS
-            recover_unacknowledged(db, token)
-            process_wifi_change(token)
-            result = request_json("/trabalhos", token)
-            if result.get("trabalho"):
-                send_job(db, token, result["trabalho"], printers)
-        except (OSError, ValueError, urllib.error.URLError, sqlite3.Error) as exc:
-            # Tipo de erro apenas. Nunca imprimir URL, payload, token ou ZPL.
-            print("conector: falha temporária:", type(exc).__name__, file=sys.stderr)
-        time.sleep(POLL_SECONDS)
+    stop = threading.Event()
+    threading.Thread(target=maintain_device, args=(token, stop), daemon=True).start()
+    try:
+        print_loop(db, token, stop)
+    finally:
+        stop.set()
+        db.close()
 
 
 if __name__ == "__main__":
