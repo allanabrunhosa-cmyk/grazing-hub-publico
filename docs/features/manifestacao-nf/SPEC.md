@@ -69,4 +69,17 @@ Não alterar competência/parcelas históricas, emitir/cancelar notas de fornece
 executar manifestações reais para testar ou restaurar banco sobre operações novas.
 O fallback anterior de competência NFS-e sem emissão nem competência é preservado.
 
+## Destino financeiro da NFS-e — 06/11/2026
+
+- No aceite, escolher **Gerar despesa** ou **Somente registro fiscal**. A primeira
+  opção mantém o vencimento opcional e oferece a etapa de lançamento. A segunda
+  conserva a NFS-e em Aceitas e oculta o formulário financeiro.
+- Em nota aceita sem vínculo financeiro, o operador com permissão de edição pode
+  alterar o destino. A alteração registra um evento e preserva o vencimento
+  anterior. A criação da despesa continua sujeita à permissão de lançamento.
+- A migration aditiva `20261106120000_nfse_destino_financeiro` deixa as notas
+  anteriores com destino nulo. Elas continuam lançáveis. O serviço e o banco
+  bloqueiam lançamento no modo somente fiscal. A troca e a reserva do lançamento
+  conferem o estado da nota na mesma transação que grava a operação.
+
 Progresso e resultados: [TASKS](TASKS.md).

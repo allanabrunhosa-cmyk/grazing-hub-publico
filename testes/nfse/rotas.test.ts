@@ -3,7 +3,9 @@ const mocks = vi.hoisted(() => ({ sessao: vi.fn(), permissao: vi.fn(), notas: vi
 vi.mock("@/lib/session", () => ({ getSession: mocks.sessao }));
 vi.mock("@/lib/permissoes/servidor", () => ({ podeAcessar: mocks.permissao }));
 vi.mock("@/lib/prisma", () => ({ prisma: { notaFiscalServico: { findMany: mocks.notas } } }));
-vi.mock("@/lib/nfse/situacao", () => ({ decidirNfse: mocks.alterar }));
+vi.mock("@/lib/nfse/situacao", async importar => ({
+  ...await importar<typeof import("@/lib/nfse/situacao")>(), decidirNfse: mocks.alterar,
+}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 import { GET } from "@/app/api/nfse/exportar-xml/route";
 import { POST } from "@/app/api/nfse/situacao/route";
@@ -76,5 +78,52 @@ describe("vencimento opcional na decisão NFS-e", () => {
     const resposta = await POST(requisicao({ dataVencimento: "2026-10-20" }));
     expect(resposta.status).toBe(409);
     expect(await resposta.json()).toEqual({ erro: "A situação mudou." });
+  });
+});
+
+describe("destino financeiro na API da NFS-e", () => {
+  function requisicao(dados: Record<string, unknown>) {
+    return new Request("https://teste/api/nfse/situacao", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nfseId: "nota", ...dados }) });
+  }
+
+  it("aceita destino financeiro e vencimento, usando a autoria da sessão", async () => {
+    mocks.alterar.mockResolvedValue({ ok: true });
+    expect((await POST(requisicao({ decisao: "ACEITAR", destinoFinanceiro: "FINANCEIRO", dataVencimento: "2026-11-20", autorNome: "Autor forjado" }))).status).toBe(200);
+    expect(mocks.alterar).toHaveBeenCalledExactlyOnceWith({ nfseId: "nota", decisao: "ACEITAR", destinoFinanceiro: "FINANCEIRO", dataVencimento: "2026-11-20", autorNome: "Teste" });
+  });
+
+  it("aceita registro somente fiscal sem vencimento", async () => {
+    mocks.alterar.mockResolvedValue({ ok: true });
+    expect((await POST(requisicao({ decisao: "ACEITAR", destinoFinanceiro: "SOMENTE_FISCAL" }))).status).toBe(200);
+    expect(mocks.alterar).toHaveBeenCalledExactlyOnceWith({ nfseId: "nota", decisao: "ACEITAR", destinoFinanceiro: "SOMENTE_FISCAL", autorNome: "Teste" });
+  });
+
+  it.each([
+    { decisao: "ACEITAR", destinoFinanceiro: "INVÁLIDO" },
+    { decisao: "ACEITAR", destinoFinanceiro: "SOMENTE_FISCAL", dataVencimento: "2026-11-20" },
+    { decisao: "ACEITAR", destinoFinanceiro: "SOMENTE_FISCAL", dataVencimento: null },
+    { decisao: "ACEITAR", destinoFinanceiroAnterior: null },
+    { decisao: "RECUSAR", destinoFinanceiro: "FINANCEIRO" },
+    { decisao: "ALTERAR_DESTINO_FINANCEIRO", destinoFinanceiro: "FINANCEIRO" },
+    { decisao: "ALTERAR_DESTINO_FINANCEIRO", destinoFinanceiro: "FINANCEIRO", destinoFinanceiroAnterior: "INVÁLIDO" },
+    { decisao: "ALTERAR_DESTINO_FINANCEIRO", destinoFinanceiro: "FINANCEIRO", destinoFinanceiroAnterior: "FINANCEIRO" },
+    { decisao: "ALTERAR_DESTINO_FINANCEIRO", destinoFinanceiro: "FINANCEIRO", destinoFinanceiroAnterior: null, dataVencimento: null },
+  ])("rejeita combinação inválida antes de alterar a nota (%j)", async dados => {
+    expect((await POST(requisicao(dados))).status).toBe(400);
+    expect(mocks.alterar).not.toHaveBeenCalled();
+  });
+
+  it("transmite o destino anterior nulo para proteger a alteração de nota legada", async () => {
+    mocks.alterar.mockResolvedValue({ ok: true });
+    const dados = { decisao: "ALTERAR_DESTINO_FINANCEIRO", destinoFinanceiro: "SOMENTE_FISCAL", destinoFinanceiroAnterior: null };
+    expect((await POST(requisicao(dados))).status).toBe(200);
+    expect(mocks.alterar).toHaveBeenCalledExactlyOnceWith({ nfseId: "nota", ...dados, autorNome: "Teste" });
+  });
+
+  it("preserva a permissão de editar NFS-e para mudar o destino", async () => {
+    mocks.permissao.mockResolvedValue(false);
+    expect((await POST(requisicao({ decisao: "ALTERAR_DESTINO_FINANCEIRO", destinoFinanceiro: "FINANCEIRO", destinoFinanceiroAnterior: "SOMENTE_FISCAL" }))).status).toBe(403);
+    expect(mocks.permissao).toHaveBeenCalledExactlyOnceWith("financeiro.nfse", "editar");
+    expect(mocks.alterar).not.toHaveBeenCalled();
   });
 });

@@ -28,6 +28,13 @@ async function criarNota(dados: { dataCompetencia?: Date | null; dataEmissao?: D
   } });
 }
 
+function lancamentoTeste(nfseId: string) {
+  return {
+    nfseId, categoriaId: "despesa-nfse-teste", descricao: "Serviço sintético",
+    dataVencimento: "2026-12-02", autorId: "autor-nfse-teste", autorNome: "Operador sintético",
+  };
+}
+
 describe.skipIf(process.env.NFSE_VENCIMENTO_BANCO_TESTE !== "1")("vencimento NFS-e no PostgreSQL sintético", () => {
   beforeAll(async () => {
     // Sem dotenv: a conexão sintética deve ser fornecida explicitamente pelo runner.
@@ -75,7 +82,7 @@ describe.skipIf(process.env.NFSE_VENCIMENTO_BANCO_TESTE !== "1")("vencimento NFS
     const coluna = await banco!.query("SELECT data_type, is_nullable FROM information_schema.columns WHERE table_schema=$1 AND table_name='NotaFiscalServico' AND column_name='dataVencimento'", [esquema]);
     expect(coluna.rows).toEqual([{ data_type: "date", is_nullable: "YES" }]);
     const legado = await estado.prisma.notaFiscalServico.findUniqueOrThrow({ where: { id: notaLegadaId } });
-    expect(legado).toMatchObject({ status: "ACEITA", dataVencimento: null, dataCompetencia: competencia, dataEmissao: emissao });
+    expect(legado).toMatchObject({ status: "ACEITA", destinoFinanceiro: null, dataVencimento: null, dataCompetencia: competencia, dataEmissao: emissao });
     expect(await estado.prisma.notaFiscalServicoLancamento.count({ where: { notaFiscalServicoId: notaLegadaId } })).toBe(0);
   });
 
@@ -157,5 +164,54 @@ describe.skipIf(process.env.NFSE_VENCIMENTO_BANCO_TESTE !== "1")("vencimento NFS
     const vinculo = await estado.prisma.notaFiscalServicoLancamento.findFirstOrThrow({ where: { notaFiscalServicoId: nota.id }, include: { lancamentoFinanceiro: true } });
     expect(vinculo.lancamentoFinanceiro.dataCompetencia).toEqual(emissao);
     expect(vinculo.lancamentoFinanceiro.dataVencimento.toISOString().slice(0, 10)).toBe("2026-11-20");
+  });
+
+  it("registra uma nota só no fiscal e bloqueia lançamento inclusive pela regra do banco", async () => {
+    const nota = await criarNota();
+    const despesasAntes = await estado.prisma.lancamentoFinanceiro.count();
+    const movimentosAntes = await estado.prisma.movimentacaoBancaria.count();
+    expect(await decidirNfse({ nfseId: nota.id, decisao: "ACEITAR", autorNome: "Operador sintético", destinoFinanceiro: "SOMENTE_FISCAL" })).toEqual({ ok: true });
+    expect(await lancarNfse(lancamentoTeste(nota.id))).toHaveProperty("erro");
+    await expect(estado.prisma.notaFiscalServico.update({ where: { id: nota.id }, data: { status: "LANCADA" } })).rejects.toThrow();
+    const salva = await estado.prisma.notaFiscalServico.findUniqueOrThrow({
+      where: { id: nota.id }, include: { lancamentos: true, eventos: true },
+    });
+    expect(salva).toMatchObject({ status: "ACEITA", destinoFinanceiro: "SOMENTE_FISCAL", dataVencimento: null, lancamentos: [] });
+    expect(salva.eventos.map(evento => evento.tipo).sort()).toEqual(["ACEITE_NO_HUB", "DESTINO_SOMENTE_FISCAL_NO_HUB"]);
+    expect(await estado.prisma.lancamentoFinanceiro.count()).toBe(despesasAntes);
+    expect(await estado.prisma.movimentacaoBancaria.count()).toBe(movimentosAntes);
+  });
+
+  it("corrige uma nota antiga sem apagar seu vencimento e bloqueia alterações depois do lançamento", async () => {
+    const nota = await criarNota();
+    const base = { nfseId: nota.id, autorNome: "Operador sintético" };
+    const alteracao = { ...base, decisao: "ALTERAR_DESTINO_FINANCEIRO" as const };
+    expect(await decidirNfse({ ...base, decisao: "ACEITAR", dataVencimento: "2026-11-20" })).toEqual({ ok: true });
+    expect(await decidirNfse({ ...alteracao, destinoFinanceiroAnterior: null, destinoFinanceiro: "SOMENTE_FISCAL" })).toEqual({ ok: true });
+    expect(await decidirNfse({ ...alteracao, destinoFinanceiroAnterior: null, destinoFinanceiro: "FINANCEIRO" })).toHaveProperty("erro");
+    expect(await decidirNfse({ ...alteracao, destinoFinanceiroAnterior: "SOMENTE_FISCAL", destinoFinanceiro: "FINANCEIRO" })).toEqual({ ok: true });
+    expect(await lancarNfse(lancamentoTeste(nota.id))).toEqual({ ok: true });
+    expect(await decidirNfse({ ...alteracao, destinoFinanceiroAnterior: "FINANCEIRO", destinoFinanceiro: "SOMENTE_FISCAL" })).toHaveProperty("erro");
+    const salva = await estado.prisma.notaFiscalServico.findUniqueOrThrow({ where: { id: nota.id } });
+    expect(salva).toMatchObject({ status: "LANCADA", destinoFinanceiro: "FINANCEIRO", dataVencimento: new Date("2026-11-20T00:00:00.000Z") });
+    expect(await estado.prisma.notaFiscalServicoLancamento.count({ where: { notaFiscalServicoId: nota.id } })).toBe(1);
+  });
+
+  it("serializa o lançamento e a troca para somente fiscal na mesma nota", async () => {
+    const nota = await criarNota();
+    const base = { nfseId: nota.id, autorNome: "Operador sintético" };
+    expect(await decidirNfse({ ...base, decisao: "ACEITAR", destinoFinanceiro: "FINANCEIRO" })).toEqual({ ok: true });
+    const [troca, despesa] = await Promise.all([
+      decidirNfse({ ...base, decisao: "ALTERAR_DESTINO_FINANCEIRO", destinoFinanceiroAnterior: "FINANCEIRO", destinoFinanceiro: "SOMENTE_FISCAL" }),
+      lancarNfse(lancamentoTeste(nota.id)),
+    ]);
+    expect(["ok" in troca, "ok" in despesa].filter(Boolean)).toHaveLength(1);
+    const salva = await estado.prisma.notaFiscalServico.findUniqueOrThrow({ where: { id: nota.id }, include: { lancamentos: true } });
+    if ("ok" in troca) {
+      expect(salva).toMatchObject({ status: "ACEITA", destinoFinanceiro: "SOMENTE_FISCAL", lancamentos: [] });
+    } else {
+      expect(salva).toMatchObject({ status: "LANCADA", destinoFinanceiro: "FINANCEIRO" });
+      expect(salva.lancamentos).toHaveLength(1);
+    }
   });
 });

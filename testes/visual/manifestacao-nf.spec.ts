@@ -151,6 +151,13 @@ test("uso e consumo exige recebimento e preserva a data quando o aceite falha", 
   await capturar(page, info, "uso-consumo-erro");
 });
 
+async function escolherDestinoNfse(page: Page, destino: "Gerar despesa" | "Somente registro fiscal") {
+  const seletor = page.getByRole("combobox", { name: "Destino financeiro", exact: true });
+  await seletor.click();
+  await page.getByRole("option", { name: destino, exact: true }).click();
+  await expect(seletor.locator('[data-slot="select-value"]')).toHaveText(destino);
+}
+
 test("NFS-e informa vencimento no aceite e bloqueia envio duplicado durante a gravação", async ({ page }, info) => {
   await abrir(page, info, "tipo=nfse&erro=1");
   await page.getByRole("button", { name: "Ver nota", exact: true }).click();
@@ -162,6 +169,7 @@ test("NFS-e informa vencimento no aceite e bloqueia envio duplicado durante a gr
   await expect(confirmacao).toBeHidden();
   await expect(aceitar).toBeFocused();
   await aceitar.click();
+  await escolherDestinoNfse(page, "Gerar despesa");
   const vencimento = page.getByLabel("Vencimento do pagamento (opcional)", { exact: true });
   await vencimento.fill("2026-11-20");
   await vencimento.press("Tab");
@@ -175,6 +183,7 @@ test("NFS-e informa vencimento no aceite e bloqueia envio duplicado durante a gr
   await abrir(page, info, "tipo=nfse&pendente=1");
   await page.getByRole("button", { name: "Ver nota", exact: true }).click();
   await page.getByRole("button", { name: "Aceitar", exact: true }).click();
+  await escolherDestinoNfse(page, "Gerar despesa");
   await page.getByLabel("Vencimento do pagamento (opcional)", { exact: true }).fill("2026-11-20");
   const confirmar = page.getByRole("button", { name: "Confirmar aceite", exact: true });
   await confirmar.click();
@@ -184,6 +193,43 @@ test("NFS-e informa vencimento no aceite e bloqueia envio duplicado durante a gr
   await page.keyboard.press("Enter");
   const chamadas = JSON.parse(await page.getByTestId("chamadas-simuladas").textContent() ?? "[]");
   expect(chamadas).toHaveLength(1);
-  expect(chamadas[0].entrada.dataVencimento).toBe("2026-11-20");
+  expect(chamadas[0].entrada).toMatchObject({ destinoFinanceiro: "FINANCEIRO", dataVencimento: "2026-11-20" });
   await capturar(page, info, "nfse-pendente");
+});
+
+
+test("NFS-e permite registro só fiscal e muda o destino sem lançar despesa", async ({ page }, info) => {
+  await abrir(page, info, "tipo=nfse");
+  await page.getByRole("button", { name: "Ver nota", exact: true }).click();
+  await page.getByRole("button", { name: "Aceitar", exact: true }).click();
+  const aceite = page.getByRole("dialog", { name: "Aceitar NFS-e?", exact: true });
+  const confirmar = aceite.getByRole("button", { name: "Confirmar aceite", exact: true });
+  await expect(confirmar).toBeDisabled();
+  await escolherDestinoNfse(page, "Somente registro fiscal");
+  await expect(aceite.getByLabel("Vencimento do pagamento (opcional)", { exact: true })).toHaveCount(0);
+  await expect(page.getByTestId("chamadas-simuladas")).toHaveText("[]");
+  await capturar(page, info, "nfse-aceite-somente-fiscal");
+  await confirmar.click();
+  await expect(aceite).toBeHidden();
+
+  const detalhe = page.getByRole("dialog", { name: "Ver nota", exact: true });
+  await expect(detalhe.getByText("Somente registro fiscal", { exact: true })).toBeVisible();
+  await expect(detalhe.getByRole("button", { name: "Lançar despesa", exact: true })).toHaveCount(0);
+  const trocarDestino = detalhe.getByRole("button", { name: "Alterar destino financeiro", exact: true });
+  await expect(page.getByText("NFS-e registrada para fins fiscais.", { exact: true })).toBeVisible();
+  await page.clock.fastForward(6_000);
+  await trocarDestino.scrollIntoViewIfNeeded();
+  await capturar(page, info, "nfse-somente-fiscal-aceita");
+  await trocarDestino.click();
+  const alteracao = page.getByRole("dialog", { name: "Alterar destino financeiro?", exact: true });
+  await expect(alteracao).toBeVisible();
+  await escolherDestinoNfse(page, "Gerar despesa");
+  await capturar(page, info, "nfse-alterar-destino-financeiro");
+  await alteracao.getByRole("button", { name: "Confirmar alteração", exact: true }).click();
+  await expect(alteracao).toBeHidden();
+  await expect(detalhe.getByRole("button", { name: "Lançar despesa", exact: true })).toBeVisible();
+  expect(JSON.parse(await page.getByTestId("chamadas-simuladas").textContent() ?? "[]")).toEqual([
+    { acao: "SITUACAO_NFSE", entrada: { nfseId: "nfse-pendente", decisao: "ACEITAR", destinoFinanceiro: "SOMENTE_FISCAL" } },
+    { acao: "SITUACAO_NFSE", entrada: { nfseId: "nfse-pendente", decisao: "ALTERAR_DESTINO_FINANCEIRO", destinoFinanceiroAnterior: "SOMENTE_FISCAL", destinoFinanceiro: "FINANCEIRO" } },
+  ]);
 });
