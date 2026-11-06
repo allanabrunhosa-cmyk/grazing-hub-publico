@@ -50,3 +50,31 @@ operacionais permanecem privados.
 
 Próximo passo: concluir a bateria final, revisar o diff e publicar
 somente após backup íntegro e conferência do plano de migrations do destino.
+
+## 06/11/2026 — Destino financeiro da NFS-e
+
+O aceite permite escolher **Gerar despesa** ou **Somente registro fiscal**.
+Uma nota aceita sem vínculo financeiro permite corrigir o destino. O servidor
+e o banco impedem lançamento quando a nota está marcada como somente fiscal.
+
+Prisma validate/generate, tipos, lint de código e design passaram. A validação
+incluiu 49 testes de servidor e rotas, 17 de interface, 10 integrações com
+PostgreSQL sintético e 24 cenários Playwright. As 72 auditorias da prévia
+terminaram sem apontamentos. As referências continuam Em revisão.
+
+A rodada de regressão registrou 990 aprovações, quatro falhas de tempo e 150
+testes ignorados. Os quatro arquivos reexecutados em isolamento passaram nos
+43 testes, incluindo os alvos das falhas e o consumidor de NFS-e. As três
+verificações da revisão passaram. [CI da PR #13](https://github.com/allanabrunhosa-cmyk/grazing-hub-publico/actions/runs/42269848279)
+
+O backup passou na leitura integral. O plano produtivo confirmou só
+`20261106120000_nfse_destino_financeiro`. O executor aplicou a atualização
+antes do deploy. A releitura e o Prisma confirmaram zero pendências.
+
+Produção recebeu `edd37595929323ed7b2437607ecf93dc8fa06a39` e permaneceu estável
+por pelo menos 131 segundos, sem reinícios. HTTPS e bloqueio sem sessão foram
+conferidos no Manifesto de NFS e no Fluxo de Caixa. A conferência autenticada
+mostrou as duas opções e o vencimento apenas na opção financeira. O diálogo
+foi fechado sem salvar uma nota real. O PostgreSQL sintético e a prévia foram
+encerrados. Cópia de trabalho e evidências foram preservadas.
+[PR #13](https://github.com/allanabrunhosa-cmyk/grazing-hub-publico/pull/13)
