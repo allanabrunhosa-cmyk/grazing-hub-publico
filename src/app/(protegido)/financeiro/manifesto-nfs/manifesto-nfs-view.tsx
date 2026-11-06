@@ -1,7 +1,7 @@
 "use client";
 import { FiltroOpcoesContadas } from "@/components/filtro-opcoes-contadas";
 
-import { SelecaoFormulario } from "@/components/ui/select";
+import { SelecaoFormulario, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ImportarMunicipalDialog } from "./importar-municipal-dialog";
 import { type FormEvent, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -29,6 +29,13 @@ import { dataParaIso, somarFrequencia } from "@/lib/financeiro/recorrencia";
 import { DATA_LANCAMENTO_MIN, DATA_LANCAMENTO_MAX } from "@/lib/financeiro/data-lancamento";
 import { MUNICIPIOS_NFSE, type MunicipioNfse } from "@/lib/nfse/municipios";
 
+type DestinoFinanceiro = "FINANCEIRO" | "SOMENTE_FISCAL";
+type AcaoDecisaoNfse = "ACEITAR" | "RECUSAR" | "ALTERAR_DESTINO_FINANCEIRO";
+const ROTULOS_DESTINO: Record<DestinoFinanceiro, string> = {
+  FINANCEIRO: "Gerar despesa",
+  SOMENTE_FISCAL: "Somente registro fiscal",
+};
+
 type Nota = {
   id: string; identificador: string; chaveAcesso: string | null; origem: string; status: string;
   numero: string | null; serie: string | null; codigoVerificacao: string | null;
@@ -36,6 +43,7 @@ type Nota = {
   tomadorNome: string | null; tomadorCnpj: string | null; tomadorDados: DadosPessoaNfse | null;
   fornecedorNome: string | null; valorServico: number; valorLiquido: number; valorIss: number;
   dataEmissao: string | null; dataCompetencia: string | null; dataVencimento: string | null; municipioNome: string | null; uf: string | null; lancada: boolean;
+  destinoFinanceiro: DestinoFinanceiro | null;
   temXml: boolean;
 };
 type Categoria = { id: string; nome: string; grupo: GrupoDre };
@@ -44,6 +52,9 @@ type ParcelaNfse = { numero: string; valor: number; dataVencimento: string; form
 
 function SituacaoNota({ nota }: { nota: Nota }) {
   const situacao = situacaoNfse(nota);
+  if (nota.status === "ACEITA" && !nota.lancada && nota.destinoFinanceiro === "SOMENTE_FISCAL") {
+    return <Badge variant="secondary" className="max-w-full whitespace-normal">Somente registro fiscal</Badge>;
+  }
   const rotulo = { PENDENTE: "Pendente", ACEITA: "Aceita", LANCADA: "Aceita", RECUSADA: "Recusada", IGNORADA: "Recusada", CANCELADA: "Cancelada" }[situacao] ?? situacao;
   return <Badge variant={situacao === "ACEITA" || situacao === "LANCADA" ? "success" : situacao === "RECUSADA" || situacao === "IGNORADA" ? "destructive" : situacao === "PENDENTE" ? "warning" : "muted"}>{rotulo}</Badge>;
 }
@@ -76,41 +87,112 @@ function ExportarXml({ id, de = "", ate = "", disabled = false }: { id?: string;
 
 function AcoesDecisao({ nota, aoAceitar }: { nota: Nota; aoAceitar: (vencimento: string | null) => void }) {
   const router = useRouter();
-  const [decisao, setDecisao] = useState<"ACEITAR" | "RECUSAR" | null>(null);
+  const [decisao, setDecisao] = useState<AcaoDecisaoNfse | null>(null);
+  const [destino, setDestino] = useState<DestinoFinanceiro | null>(null);
   const [vencimento, setVencimento] = useState(nota.dataVencimento ?? "");
-  const vencimentoInvalido = Boolean(vencimento && !dataCalendarioValida(vencimento));
   const [salvando, setSalvando] = useState(false);
+  const pendente = nota.status === "PENDENTE" && !nota.lancada;
+  const podeAlterarDestino = nota.status === "ACEITA" && !nota.lancada;
+  const destinoAtual = nota.destinoFinanceiro ?? "FINANCEIRO";
+  const alterandoDestino = decisao === "ALTERAR_DESTINO_FINANCEIRO";
+  const mostraDestino = decisao === "ACEITAR" || alterandoDestino;
+  const mostraVencimento = decisao === "ACEITAR" && destino === "FINANCEIRO";
+  const vencimentoInvalido = mostraVencimento && Boolean(vencimento && !dataCalendarioValida(vencimento));
+  const podeConfirmar = Boolean(decisao && !salvando && (!mostraDestino || destino) && !vencimentoInvalido && (!alterandoDestino || destino !== destinoAtual));
+  const referenciaNota = `A NFS-e ${nota.numero ?? ""} de ${nota.prestadorNome ?? "prestador não identificado"}`;
+
+  function fechar() {
+    setDecisao(null);
+    setDestino(null);
+    setVencimento(nota.dataVencimento ?? "");
+  }
+
   async function alterar() {
-    if (!decisao) return;
+    if (!decisao || !podeConfirmar) return;
     setSalvando(true);
     try {
-      const resposta = await fetch("/api/nfse/situacao", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nfseId: nota.id, decisao, ...(decisao === "ACEITAR" && vencimento ? { dataVencimento: vencimento } : {}) }) });
+      const corpo = {
+        nfseId: nota.id,
+        decisao,
+        ...(mostraDestino ? { destinoFinanceiro: destino } : {}),
+        ...(alterandoDestino ? { destinoFinanceiroAnterior: nota.destinoFinanceiro } : {}),
+        ...(mostraVencimento && vencimento ? { dataVencimento: vencimento } : {}),
+      };
+      const resposta = await fetch("/api/nfse/situacao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corpo),
+      });
       const resultado = await resposta.json();
       if (!resposta.ok) throw new Error(resultado.erro);
-      toast.success(decisao === "ACEITAR" ? "NFS-e aceita." : "NFS-e recusada.");
-      if (decisao === "ACEITAR") aoAceitar(vencimento || null);
-      setDecisao(null); router.refresh();
+      if (decisao === "ACEITAR") {
+        toast.success(destino === "SOMENTE_FISCAL" ? "NFS-e registrada para fins fiscais." : "NFS-e aceita.");
+        aoAceitar(mostraVencimento ? vencimento || null : null);
+      } else {
+        toast.success(alterandoDestino ? "Destino financeiro atualizado." : "NFS-e recusada.");
+      }
+      fechar();
+      router.refresh();
     } catch (erro) { toast.error(erro instanceof Error ? erro.message : "Não foi possível alterar a nota."); }
     finally { setSalvando(false); }
   }
-  if (situacaoNfse(nota) !== "PENDENTE") return null;
+
+  if (!pendente && !podeAlterarDestino) return null;
   return <>
-    <div className="flex min-w-64 gap-2">
+    {pendente ? <div className="flex min-w-64 gap-2">
       <Button type="button" size="sm" variant="destructive" className="w-32 justify-center" disabled={salvando} onClick={() => setDecisao("RECUSAR")}><ShieldX className="size-4" />Recusar</Button>
       <Button type="button" size="sm" className="w-32 justify-center border-emerald-700 bg-emerald-700 text-white hover:bg-emerald-800" disabled={salvando} onClick={() => setDecisao("ACEITAR")}><ShieldCheck className="size-4" />Aceitar</Button>
-    </div>
-    <Dialog open={decisao !== null} onOpenChange={valor => { if (!valor && !salvando) setDecisao(null); }}>
-      <DialogContent><DialogHeader><DialogTitle>{decisao === "ACEITAR" ? "Aceitar NFS-e?" : "Recusar NFS-e?"}</DialogTitle>
-        <DialogDescription>{decisao === "ACEITAR" ? `A NFS-e ${nota.numero ?? ""} de ${nota.prestadorNome ?? "prestador não identificado"} ficará aceita e poderá ser lançada no financeiro.` : `A NFS-e ${nota.numero ?? ""} de ${nota.prestadorNome ?? "prestador não identificado"} ficará recusada e não poderá gerar uma despesa.`} Esta decisão fica registrada no histórico do HUB.</DialogDescription>
-      </DialogHeader>{decisao === "ACEITAR" && <div className="space-y-1.5">
-        <Label htmlFor="nfse-vencimento-aceite">Vencimento do pagamento (opcional)</Label>
-        <Input id="nfse-vencimento-aceite" type="date" min={DATA_LANCAMENTO_MIN} max={DATA_LANCAMENTO_MAX} value={vencimento} onChange={evento => setVencimento(evento.target.value)} disabled={salvando} aria-invalid={vencimentoInvalido} aria-describedby="nfse-vencimento-ajuda" />
-        <p id="nfse-vencimento-ajuda" className="text-xs text-muted-foreground">O vencimento será sugerido ao lançar a despesa. O aceite não gera o lançamento financeiro.</p>
-        {vencimentoInvalido && <p role="alert" className="text-sm text-destructive">Informe uma data válida entre 2000 e 2200.</p>}
-      </div>}<DialogFooter>
-        <Button type="button" variant="outline" disabled={salvando} onClick={() => setDecisao(null)}>Cancelar</Button>
-        <Button type="button" variant={decisao === "RECUSAR" ? "destructive" : "entrada"} disabled={salvando || (decisao === "ACEITAR" && vencimentoInvalido)} onClick={() => void alterar()}>{salvando && <Loader2 className="size-4 animate-spin" />}{decisao === "ACEITAR" ? "Confirmar aceite" : "Confirmar recusa"}</Button>
-      </DialogFooter></DialogContent>
+    </div> : <Button type="button" size="sm" variant="outline" disabled={salvando}
+      onClick={() => { setDestino(destinoAtual); setDecisao("ALTERAR_DESTINO_FINANCEIRO"); }}>
+      Alterar destino financeiro
+    </Button>}
+    <Dialog open={decisao !== null} onOpenChange={valor => { if (!valor && !salvando) fechar(); }}
+      alterado={mostraDestino && destino !== (alterandoDestino ? destinoAtual : null)}
+      protegerAlteracoes={!salvando}>
+      <DialogContent showCloseButton={!salvando}>
+        <DialogHeader>
+          <DialogTitle>{alterandoDestino ? "Alterar destino financeiro?" : decisao === "ACEITAR" ? "Aceitar NFS-e?" : "Recusar NFS-e?"}</DialogTitle>
+          <DialogDescription>
+            {alterandoDestino
+              ? "A nota continua aceita. A alteração preserva o vencimento registrado e não cria despesa."
+              : decisao === "ACEITAR"
+                ? `${referenciaNota} ficará aceita. Escolha o destino financeiro. O aceite fica registrado no histórico do HUB.`
+                : `${referenciaNota} ficará recusada e não poderá gerar uma despesa. A recusa fica registrada no histórico do HUB.`}
+          </DialogDescription>
+        </DialogHeader>
+        {mostraDestino && <div className="space-y-1.5">
+          <Label htmlFor="nfse-destino-financeiro">Destino financeiro</Label>
+          <Select value={destino} onValueChange={valor => setDestino(valor)} disabled={salvando} required>
+            <SelectTrigger id="nfse-destino-financeiro" aria-describedby="nfse-destino-ajuda" className="w-full min-w-0">
+              <SelectValue placeholder="Selecione o destino">{() => destino ? ROTULOS_DESTINO[destino] : "Selecione o destino"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="FINANCEIRO">{ROTULOS_DESTINO.FINANCEIRO}</SelectItem>
+              <SelectItem value="SOMENTE_FISCAL">{ROTULOS_DESTINO.SOMENTE_FISCAL}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p id="nfse-destino-ajuda" className="text-xs text-muted-foreground">
+            {destino === "SOMENTE_FISCAL"
+              ? "A nota fica no registro fiscal sem gerar despesa. Use quando as despesas da nota já estiverem lançadas no financeiro."
+              : destino === "FINANCEIRO"
+                ? "Habilita o formulário financeiro. A despesa só será criada ao confirmar o lançamento."
+                : "Escolha se a nota poderá gerar despesa ou ficará apenas no registro fiscal."}
+          </p>
+        </div>}
+        {mostraVencimento && <div className="space-y-1.5">
+          <Label htmlFor="nfse-vencimento-aceite">Vencimento do pagamento (opcional)</Label>
+          <Input id="nfse-vencimento-aceite" type="date" min={DATA_LANCAMENTO_MIN} max={DATA_LANCAMENTO_MAX} value={vencimento} onChange={evento => setVencimento(evento.target.value)} disabled={salvando} aria-invalid={vencimentoInvalido} aria-describedby="nfse-vencimento-ajuda" />
+          <p id="nfse-vencimento-ajuda" className="text-xs text-muted-foreground">O vencimento será sugerido ao lançar a despesa. O aceite não gera o lançamento financeiro.</p>
+          {vencimentoInvalido && <p role="alert" className="text-sm text-destructive">Informe uma data válida entre 2000 e 2200.</p>}
+        </div>}
+        <DialogFooter>
+          <Button type="button" variant="outline" disabled={salvando} onClick={fechar}>Cancelar</Button>
+          <Button type="button" variant={decisao === "RECUSAR" ? "destructive" : "entrada"} disabled={!podeConfirmar} onClick={() => void alterar()}>
+            {salvando && <Loader2 className="size-4 animate-spin" />}
+            {alterandoDestino ? "Confirmar alteração" : decisao === "ACEITAR" ? "Confirmar aceite" : "Confirmar recusa"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   </>;
 }
@@ -247,8 +329,10 @@ function VerNotaDialog({ nota, categorias, cartoes, aberto, podeLancar, podeEdit
     } catch (erro) { toast.error(erro instanceof Error ? erro.message : "Não foi possível lançar a NFS-e."); }
     finally { setSalvando(false); }
   }
-  const podeLancarNota = nota && podeLancar && situacaoNfse(nota) === "ACEITA";
-  return <Dialog open={aberto} onOpenChange={abertoAtual => { if (!abertoAtual && !salvando) aoFechar(false); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ver nota</DialogTitle><DialogDescription>{nota ? `NFS-e ${nota.numero ?? nota.chaveAcesso ?? nota.identificador}` : "Selecione uma NFS-e."}</DialogDescription></DialogHeader>{nota && <div className="space-y-5"><div className="flex flex-wrap items-center gap-2"><SituacaoNota nota={nota} /><Badge variant="outline">{nota.origem === "NACIONAL" ? "Padrão nacional" : "Importada"}</Badge>{nota.serie && <span className="text-sm text-muted-foreground">Série {nota.serie}</span>}</div><div className="grid gap-3 sm:grid-cols-2"><PessoaResumo titulo="Fornecedor ou beneficiário" pessoa={nota.prestadorDados} nome={nota.prestadorNome} documento={nota.prestadorCnpj} /><PessoaResumo titulo="Tomador" pessoa={nota.tomadorDados} nome={nota.tomadorNome} documento={nota.tomadorCnpj} /></div><section className="space-y-3"><p className="text-sm font-semibold">Dados da nota</p><div className="grid gap-3 sm:grid-cols-2"><div><Label>Valor</Label><p className="mt-1 font-medium tabular-nums">{formatarMoeda(valor)}</p></div><div><Label>Valor do serviço</Label><p className="mt-1 tabular-nums">{formatarMoeda(nota.valorServico)}</p></div><div><Label>ISS</Label><p className="mt-1 tabular-nums">{formatarMoeda(nota.valorIss)}</p></div><div><Label>Emissão</Label><p className="mt-1">{dataBr(nota.dataEmissao)}</p></div><div><Label>Competência</Label><p className="mt-1">{dataBr(nota.dataCompetencia)}</p></div>{nota.dataVencimento && <div><Label>Vencimento do pagamento</Label><p className="mt-1">{dataBr(nota.dataVencimento)}</p></div>}{nota.codigoVerificacao && <div><Label>Código de verificação</Label><p className="mt-1 break-all">{nota.codigoVerificacao}</p></div>}</div></section>{podeLancarNota && <section className="space-y-3 border-t pt-4"><p className="text-sm font-semibold">Lançamento financeiro</p><div className="space-y-1.5"><Label>Descrição</Label><Input aria-label="Descrição" value={descricao} onChange={evento => setDescricao(evento.target.value)} maxLength={160} placeholder="Descrição da despesa" disabled={salvando} /></div><div className="grid gap-3 sm:grid-cols-2"><div><Label>Valor total</Label><Input aria-label="Valor total" value={formatarMoeda(valor)} readOnly /></div><div><Label>Categoria</Label><CategoriaFinanceiraCombobox categorias={categorias} value={categoriaId} onChange={setCategoriaId} disabled={salvando} ariaLabel="Categoria" placeholder="Buscar categoria..." /></div></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1.5"><Label>Forma de pagamento</Label><SelecaoFormulario aria-label="Forma de pagamento" value={formaPagamento} onValueChange={novoValor => setFormaPagamento(novoValor as FormaPagamentoNfse)} disabled={salvando}><option value="BOLETO">Boleto</option><option value="PIX">Pix</option><option value="CARTAO">Cartão de crédito</option></SelecaoFormulario></div><div className="space-y-1.5"><Label>Quantidade de parcelas</Label><Input aria-label="Quantidade de parcelas" type="number" min={1} max={36} value={quantidadeParcelas} onChange={evento => setQuantidadeParcelas(Math.max(1, Math.min(36, Number(evento.target.value) || 1)))} disabled={salvando} /></div></div>{formaPagamento === "CARTAO" ? <div className="grid gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2"><div className="space-y-1.5"><Label>Cartão</Label><SelecaoFormulario aria-label="Cartão" value={cartaoCreditoId} onValueChange={novoValor => setCartaoCreditoId(novoValor)} disabled={salvando}><option value="">Selecione o cartão</option>{cartoes.filter(item => item.ativo).map(item => <option key={item.id} value={item.id}>{item.nome} · {item.contaBancariaNome}</option>)}</SelecaoFormulario></div><div className="space-y-1.5"><Label>Data da compra</Label><Input aria-label="Data da compra" type="date" value={dataCompra} onChange={evento => setDataCompra(evento.target.value)} disabled={salvando} /></div><p className="text-xs text-muted-foreground sm:col-span-2">Vencimento calculado pela fatura. O dia do fechamento entra na próxima fatura; dias inexistentes usam o último dia do mês.</p></div> : <div className="space-y-1.5"><Label>Primeiro vencimento</Label><Input aria-label="Primeiro vencimento" type="date" value={dataVencimento} onChange={evento => setDataVencimento(evento.target.value)} disabled={salvando} /></div>}<div className="rounded-md border bg-muted/20 p-3 text-sm"><p className="font-medium">Parcelas previstas</p><div className="mt-2 grid gap-1 sm:grid-cols-2">{parcelas.map(parcela => <div key={parcela.numero} className="flex justify-between gap-2"><span>{parcela.numero}/{quantidadeParcelas} · {parcela.dataVencimento ? dataBr(parcela.dataVencimento) : "Confira os dados"}</span><span className="tabular-nums">{formatarMoeda(parcela.valor)}</span></div>)}</div></div></section>}{nota.status === "PENDENTE" && <p className="rounded-md bg-muted p-3 text-sm">Aceite ou recuse a NFS-e antes de lançar a despesa.</p>}</div>}<DialogFooter className="sm:flex-wrap"><div className="flex min-w-64 flex-1 flex-wrap gap-2">{podeEditar && nota && <AcoesDecisao nota={nota} aoAceitar={vencimento => { if (vencimento) setDataVencimento(vencimento); }} />}</div><Button type="button" variant="outline" className="w-32 justify-center" disabled={salvando} onClick={() => aoFechar(false)}>Fechar</Button>{podeLancarNota && <Button type="button" className="w-32 justify-center" disabled={salvando || !categoriaId || !descricao.trim() || parcelas.some(parcela => !parcela.dataVencimento)} onClick={() => void salvar()}>{salvando && <Loader2 className="size-4 animate-spin" />}Lançar despesa</Button>}</DialogFooter></DialogContent></Dialog>;
+  const aceitaSemLancamento = nota?.status === "ACEITA" && !nota.lancada;
+  const somenteFiscal = aceitaSemLancamento && nota.destinoFinanceiro === "SOMENTE_FISCAL";
+  const podeLancarNota = aceitaSemLancamento && podeLancar && !somenteFiscal;
+  return <Dialog open={aberto} onOpenChange={abertoAtual => { if (!abertoAtual && !salvando) aoFechar(false); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>Ver nota</DialogTitle><DialogDescription>{nota ? `NFS-e ${nota.numero ?? nota.chaveAcesso ?? nota.identificador}` : "Selecione uma NFS-e."}</DialogDescription></DialogHeader>{nota && <div className="space-y-5"><div className="flex flex-wrap items-center gap-2"><SituacaoNota nota={nota} /><Badge variant="outline">{nota.origem === "NACIONAL" ? "Padrão nacional" : "Importada"}</Badge>{nota.serie && <span className="text-sm text-muted-foreground">Série {nota.serie}</span>}</div><div className="grid gap-3 sm:grid-cols-2"><PessoaResumo titulo="Fornecedor ou beneficiário" pessoa={nota.prestadorDados} nome={nota.prestadorNome} documento={nota.prestadorCnpj} /><PessoaResumo titulo="Tomador" pessoa={nota.tomadorDados} nome={nota.tomadorNome} documento={nota.tomadorCnpj} /></div><section className="space-y-3"><p className="text-sm font-semibold">Dados da nota</p><div className="grid gap-3 sm:grid-cols-2"><div><Label>Valor</Label><p className="mt-1 font-medium tabular-nums">{formatarMoeda(valor)}</p></div><div><Label>Valor do serviço</Label><p className="mt-1 tabular-nums">{formatarMoeda(nota.valorServico)}</p></div><div><Label>ISS</Label><p className="mt-1 tabular-nums">{formatarMoeda(nota.valorIss)}</p></div><div><Label>Emissão</Label><p className="mt-1">{dataBr(nota.dataEmissao)}</p></div><div><Label>Competência</Label><p className="mt-1">{dataBr(nota.dataCompetencia)}</p></div>{nota.dataVencimento && !somenteFiscal && <div><Label>Vencimento do pagamento</Label><p className="mt-1">{dataBr(nota.dataVencimento)}</p></div>}{nota.codigoVerificacao && <div><Label>Código de verificação</Label><p className="mt-1 break-all">{nota.codigoVerificacao}</p></div>}</div></section>{somenteFiscal && <p className="rounded-md bg-muted p-3 text-sm">A nota foi aceita para registro fiscal e não gera despesa.</p>}{podeLancarNota && <section className="space-y-3 border-t pt-4"><p className="text-sm font-semibold">Lançamento financeiro</p><div className="space-y-1.5"><Label>Descrição</Label><Input aria-label="Descrição" value={descricao} onChange={evento => setDescricao(evento.target.value)} maxLength={160} placeholder="Descrição da despesa" disabled={salvando} /></div><div className="grid gap-3 sm:grid-cols-2"><div><Label>Valor total</Label><Input aria-label="Valor total" value={formatarMoeda(valor)} readOnly /></div><div><Label>Categoria</Label><CategoriaFinanceiraCombobox categorias={categorias} value={categoriaId} onChange={setCategoriaId} disabled={salvando} ariaLabel="Categoria" placeholder="Buscar categoria..." /></div></div><div className="grid gap-3 sm:grid-cols-2"><div className="space-y-1.5"><Label>Forma de pagamento</Label><SelecaoFormulario aria-label="Forma de pagamento" value={formaPagamento} onValueChange={novoValor => setFormaPagamento(novoValor as FormaPagamentoNfse)} disabled={salvando}><option value="BOLETO">Boleto</option><option value="PIX">Pix</option><option value="CARTAO">Cartão de crédito</option></SelecaoFormulario></div><div className="space-y-1.5"><Label>Quantidade de parcelas</Label><Input aria-label="Quantidade de parcelas" type="number" min={1} max={36} value={quantidadeParcelas} onChange={evento => setQuantidadeParcelas(Math.max(1, Math.min(36, Number(evento.target.value) || 1)))} disabled={salvando} /></div></div>{formaPagamento === "CARTAO" ? <div className="grid gap-3 rounded-lg border bg-muted/20 p-3 sm:grid-cols-2"><div className="space-y-1.5"><Label>Cartão</Label><SelecaoFormulario aria-label="Cartão" value={cartaoCreditoId} onValueChange={novoValor => setCartaoCreditoId(novoValor)} disabled={salvando}><option value="">Selecione o cartão</option>{cartoes.filter(item => item.ativo).map(item => <option key={item.id} value={item.id}>{item.nome} · {item.contaBancariaNome}</option>)}</SelecaoFormulario></div><div className="space-y-1.5"><Label>Data da compra</Label><Input aria-label="Data da compra" type="date" value={dataCompra} onChange={evento => setDataCompra(evento.target.value)} disabled={salvando} /></div><p className="text-xs text-muted-foreground sm:col-span-2">Vencimento calculado pela fatura. O dia do fechamento entra na próxima fatura; dias inexistentes usam o último dia do mês.</p></div> : <div className="space-y-1.5"><Label>Primeiro vencimento</Label><Input aria-label="Primeiro vencimento" type="date" value={dataVencimento} onChange={evento => setDataVencimento(evento.target.value)} disabled={salvando} /></div>}<div className="rounded-md border bg-muted/20 p-3 text-sm"><p className="font-medium">Parcelas previstas</p><div className="mt-2 grid gap-1 sm:grid-cols-2">{parcelas.map(parcela => <div key={parcela.numero} className="flex justify-between gap-2"><span>{parcela.numero}/{quantidadeParcelas} · {parcela.dataVencimento ? dataBr(parcela.dataVencimento) : "Confira os dados"}</span><span className="tabular-nums">{formatarMoeda(parcela.valor)}</span></div>)}</div></div></section>}{nota.status === "PENDENTE" && <p className="rounded-md bg-muted p-3 text-sm">Aceite ou recuse a NFS-e antes de lançar a despesa.</p>}</div>}<DialogFooter className="sm:flex-wrap"><div className="flex min-w-64 flex-1 flex-wrap gap-2">{podeEditar && nota && <AcoesDecisao nota={nota} aoAceitar={vencimento => { if (vencimento) setDataVencimento(vencimento); }} />}</div><Button type="button" variant="outline" className="w-32 justify-center" disabled={salvando} onClick={() => aoFechar(false)}>Fechar</Button>{podeLancarNota && <Button type="button" className="w-32 justify-center" disabled={salvando || !categoriaId || !descricao.trim() || parcelas.some(parcela => !parcela.dataVencimento)} onClick={() => void salvar()}>{salvando && <Loader2 className="size-4 animate-spin" />}Lançar despesa</Button>}</DialogFooter></DialogContent></Dialog>;
 }
 
 const FILTROS = [

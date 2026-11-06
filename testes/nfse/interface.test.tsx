@@ -1,18 +1,25 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 import { ManifestoNfsView } from "@/app/(protegido)/financeiro/manifesto-nfs/manifesto-nfs-view";
 
-const base = { identificador: "teste", chaveAcesso: null, origem: "NACIONAL", numero: "42", serie: null, codigoVerificacao: null, prestadorCnpj: null, prestadorDados: null, tomadorNome: "Tomador teste", tomadorCnpj: null, tomadorDados: null, fornecedorNome: null, valorServico: 100, valorLiquido: 100, valorIss: 0, dataEmissao: "2026-09-15T12:00:00Z", dataCompetencia: null, dataVencimento: null, municipioNome: null, uf: null, lancada: false, temXml: true };
+const base = { identificador: "teste", chaveAcesso: null, origem: "NACIONAL", numero: "42", serie: null, codigoVerificacao: null, prestadorCnpj: null, prestadorDados: null, tomadorNome: "Tomador teste", tomadorCnpj: null, tomadorDados: null, fornecedorNome: null, valorServico: 100, valorLiquido: 100, valorIss: 0, dataEmissao: "2026-09-15T12:00:00Z", dataCompetencia: null, dataVencimento: null, destinoFinanceiro: null, municipioNome: null, uf: null, lancada: false, temXml: true };
 const notas = [
   { ...base, id: "pendente", prestadorNome: "Prestador Pendente", status: "PENDENTE" },
   { ...base, id: "lancada", prestadorNome: "Prestador Lançado", status: "LANCADA", lancada: true },
   { ...base, id: "ignorada", prestadorNome: "Prestador Ignorado", status: "IGNORADA" },
 ];
 function tela(podeEditar = true) { render(<ManifestoNfsView notas={notas} categorias={[]} cartoes={[]} podeImportar podeLancar={podeEditar} podeEditar={podeEditar} />); }
+async function selecionarDestino(rotulo: "Gerar despesa" | "Somente registro fiscal") {
+  const usuario = userEvent.setup();
+  screen.getByRole("combobox", { name: "Destino financeiro" }).focus();
+  await usuario.keyboard("{ArrowDown}");
+  await usuario.click(await screen.findByRole("option", { name: rotulo }));
+}
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 describe("filtros e ações da interface", () => {
   it("abre em pendentes, combina datas e mantém o total geral", () => {
@@ -80,6 +87,7 @@ describe("vencimento no aceite de NFS-e", () => {
     tela();
     fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
     fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+    await selecionarDestino("Gerar despesa");
     const campo = screen.getByLabelText("Vencimento do pagamento (opcional)") as HTMLInputElement;
     expect(campo.value).toBe("");
     expect(campo.min).toBe("2000-01-01");
@@ -87,26 +95,33 @@ describe("vencimento no aceite de NFS-e", () => {
     fireEvent.change(campo, { target: { value: "2026-10-20" } });
     expect(fetch).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Confirmar aceite" }));
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/nfse/situacao", expect.objectContaining({ body: JSON.stringify({ nfseId: "pendente", decisao: "ACEITAR", dataVencimento: "2026-10-20" }) })));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/nfse/situacao", expect.objectContaining({ body: JSON.stringify({ nfseId: "pendente", decisao: "ACEITAR", destinoFinanceiro: "FINANCEIRO", dataVencimento: "2026-10-20" }) })));
     expect(fetch).not.toHaveBeenCalledWith("/api/nfse/lancar", expect.anything());
   });
 
-  it("permite confirmar sem vencimento e não cria uma data implícita", async () => {
+  it("exige escolha de destino e permite gerar despesa sem vencimento implícito", async () => {
     const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
     vi.stubGlobal("fetch", fetch);
     tela();
     fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
     fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
-    fireEvent.click(screen.getByRole("button", { name: "Confirmar aceite" }));
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/nfse/situacao", expect.objectContaining({ body: JSON.stringify({ nfseId: "pendente", decisao: "ACEITAR" }) })));
+    const confirmar = screen.getByRole("button", { name: "Confirmar aceite" }) as HTMLButtonElement;
+    expect(confirmar.disabled).toBe(true);
+    expect(screen.queryByLabelText("Vencimento do pagamento (opcional)")).toBeNull();
+    fireEvent.click(confirmar);
+    expect(fetch).not.toHaveBeenCalled();
+    await selecionarDestino("Gerar despesa");
+    fireEvent.click(confirmar);
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/nfse/situacao", expect.objectContaining({ body: JSON.stringify({ nfseId: "pendente", decisao: "ACEITAR", destinoFinanceiro: "FINANCEIRO" }) })));
   });
 
-  it("mantém o campo e bloqueia o aceite quando o ano está fora do domínio", () => {
+  it("mantém o campo e bloqueia o aceite quando o ano está fora do domínio", async () => {
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
     tela();
     fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
     fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+    await selecionarDestino("Gerar despesa");
     const campo = screen.getByLabelText("Vencimento do pagamento (opcional)") as HTMLInputElement;
     fireEvent.change(campo, { target: { value: "2201-01-01" } });
     expect(campo.value).toBe("2201-01-01");
@@ -134,10 +149,11 @@ it("aplica o vencimento ao lançamento na mesma abertura após o aceite", async 
   const { rerender } = render(<ManifestoNfsView {...propriedades} notas={[notas[0]]} />);
   fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
   fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+  await selecionarDestino("Gerar despesa");
   fireEvent.change(screen.getByLabelText("Vencimento do pagamento (opcional)"), { target: { value: "2026-10-20" } });
   fireEvent.click(screen.getByRole("button", { name: "Confirmar aceite" }));
   await waitFor(() => expect(screen.queryByRole("button", { name: "Confirmar aceite" })).toBeNull());
-  rerender(<ManifestoNfsView {...propriedades} notas={[{ ...notas[0], status: "ACEITA", dataVencimento: "2026-10-20" }]} />);
+  rerender(<ManifestoNfsView {...propriedades} notas={[{ ...notas[0], status: "ACEITA", destinoFinanceiro: "FINANCEIRO", dataVencimento: "2026-10-20" }]} />);
   expect((screen.getByLabelText("Primeiro vencimento") as HTMLInputElement).value).toBe("2026-10-20");
 });
 
@@ -147,8 +163,91 @@ it("preserva o vencimento preenchido quando o aceite falha", async () => {
   tela();
   fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
   fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+  await selecionarDestino("Gerar despesa");
   fireEvent.change(screen.getByLabelText("Vencimento do pagamento (opcional)"), { target: { value: "2026-10-20" } });
   fireEvent.click(screen.getByRole("button", { name: "Confirmar aceite" }));
   await waitFor(() => expect((screen.getByRole("button", { name: "Confirmar aceite" }) as HTMLButtonElement).disabled).toBe(false));
   expect((screen.getByLabelText("Vencimento do pagamento (opcional)") as HTMLInputElement).value).toBe("2026-10-20");
+});
+
+describe("destino financeiro da NFS-e", () => {
+  const propriedades = { categorias: [], cartoes: [], podeImportar: true, podeLancar: true, podeEditar: true };
+
+  it("registra somente fiscal sem vencimento ou formulário financeiro", async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    vi.stubGlobal("fetch", fetch);
+    const { rerender } = render(<ManifestoNfsView {...propriedades} notas={[notas[0]]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+    await selecionarDestino("Gerar despesa");
+    fireEvent.change(screen.getByLabelText("Vencimento do pagamento (opcional)"), { target: { value: "2026-10-20" } });
+    await selecionarDestino("Somente registro fiscal");
+    expect(screen.queryByLabelText("Vencimento do pagamento (opcional)")).toBeNull();
+    expect(fetch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar aceite" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Aceitar NFS-e?" })).toBeNull());
+    expect(fetch).toHaveBeenCalledExactlyOnceWith("/api/nfse/situacao", expect.objectContaining({ body: JSON.stringify({ nfseId: "pendente", decisao: "ACEITAR", destinoFinanceiro: "SOMENTE_FISCAL" }) }));
+    rerender(<ManifestoNfsView {...propriedades} notas={[{ ...notas[0], status: "ACEITA", destinoFinanceiro: "SOMENTE_FISCAL" }]} />);
+    const painel = screen.getByRole("dialog", { name: "Ver nota" });
+    const detalhes = within(painel);
+    expect(detalhes.getByText("Somente registro fiscal", { exact: true })).toBeTruthy();
+    expect(detalhes.queryByLabelText("Primeiro vencimento")).toBeNull();
+    expect(detalhes.queryByRole("button", { name: "Lançar despesa" })).toBeNull();
+    const rodape = painel.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
+    fireEvent.click(within(rodape).getByRole("button", { name: "Fechar" }));
+    expect(screen.getByRole("button", { name: "Pendentes (0)" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Aceitas (1)" }));
+    expect(within(screen.getByRole("table")).getByText("Somente registro fiscal", { exact: true })).toBeTruthy();
+  });
+
+  it("altera o destino nos dois sentidos, respeita o valor legado e conserva o vencimento", async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    vi.stubGlobal("fetch", fetch);
+    const aceitaLegada = { ...notas[0], status: "ACEITA", dataVencimento: "2026-10-20" };
+    const somenteFiscal = { ...aceitaLegada, destinoFinanceiro: "SOMENTE_FISCAL" as const };
+    const { rerender } = render(<ManifestoNfsView {...propriedades} notas={[aceitaLegada]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Aceitas (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    expect((screen.getByLabelText("Primeiro vencimento") as HTMLInputElement).value).toBe("2026-10-20");
+    fireEvent.click(screen.getByRole("button", { name: "Alterar destino financeiro" }));
+    expect((screen.getByRole("button", { name: "Confirmar alteração" }) as HTMLButtonElement).disabled).toBe(true);
+    await selecionarDestino("Somente registro fiscal");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar alteração" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Alterar destino financeiro?" })).toBeNull());
+    expect(fetch).toHaveBeenNthCalledWith(1, "/api/nfse/situacao", expect.objectContaining({ body: JSON.stringify({ nfseId: "pendente", decisao: "ALTERAR_DESTINO_FINANCEIRO", destinoFinanceiro: "SOMENTE_FISCAL", destinoFinanceiroAnterior: null }) }));
+    rerender(<ManifestoNfsView {...propriedades} notas={[somenteFiscal]} />);
+    expect(screen.queryByLabelText("Primeiro vencimento")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Alterar destino financeiro" }));
+    await selecionarDestino("Gerar despesa");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar alteração" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Alterar destino financeiro?" })).toBeNull());
+    expect(fetch).toHaveBeenNthCalledWith(2, "/api/nfse/situacao", expect.objectContaining({ body: JSON.stringify({ nfseId: "pendente", decisao: "ALTERAR_DESTINO_FINANCEIRO", destinoFinanceiro: "FINANCEIRO", destinoFinanceiroAnterior: "SOMENTE_FISCAL" }) }));
+    rerender(<ManifestoNfsView {...propriedades} notas={[{ ...aceitaLegada, destinoFinanceiro: "FINANCEIRO" }]} />);
+    expect((screen.getByLabelText("Primeiro vencimento") as HTMLInputElement).value).toBe("2026-10-20");
+  });
+
+  it("permite escolher o destino sem permissão de lançar e não abre o financeiro", async () => {
+    const fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    vi.stubGlobal("fetch", fetch);
+    const { rerender } = render(<ManifestoNfsView {...propriedades} podeLancar={false} notas={[notas[0]]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aceitar" }));
+    await selecionarDestino("Gerar despesa");
+    fireEvent.click(screen.getByRole("button", { name: "Confirmar aceite" }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Aceitar NFS-e?" })).toBeNull());
+    expect(fetch).toHaveBeenCalledExactlyOnceWith("/api/nfse/situacao", expect.objectContaining({ body: JSON.stringify({ nfseId: "pendente", decisao: "ACEITAR", destinoFinanceiro: "FINANCEIRO" }) }));
+    rerender(<ManifestoNfsView {...propriedades} podeLancar={false} notas={[{ ...notas[0], status: "ACEITA", destinoFinanceiro: "FINANCEIRO" }]} />);
+    expect(screen.getByRole("button", { name: "Alterar destino financeiro" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Lançar despesa" })).toBeNull();
+    expect(screen.queryByLabelText("Primeiro vencimento")).toBeNull();
+  });
+
+  it.each([["LANCADA", true], ["ACEITA", true], ["CANCELADA", false], ["CANCELADA", true]])("não permite lançar nem alterar destino no estado %s com vínculo %s", (status, lancada) => {
+    render(<ManifestoNfsView {...propriedades} notas={[{ ...notas[0], status, lancada, destinoFinanceiro: "FINANCEIRO" }]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Todas (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    expect(screen.queryByRole("button", { name: "Alterar destino financeiro" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Lançar despesa" })).toBeNull();
+    expect(screen.queryByLabelText("Primeiro vencimento")).toBeNull();
+  });
 });

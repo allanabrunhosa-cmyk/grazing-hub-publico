@@ -352,6 +352,7 @@ export async function lancarNfse(input: {
     if (!nota) return { erro: "NFS-e não encontrada." };
     if (nota.lancamentos.length) return { erro: "Esta NFS-e já está lançada no financeiro." };
     if (nota.status !== "ACEITA") return { erro: "Aceite a NFS-e antes de lançá-la no financeiro." };
+    if (nota.destinoFinanceiro === "SOMENTE_FISCAL") return { erro: "Esta NFS-e está registrada somente no fiscal. Altere o destino para lançar uma despesa." };
     const categoria = await tx.categoriaFinanceira.findUnique({ where: { id: input.categoriaId } });
     if (!categoria || !categoria.ativo || categoria.excluidoEm) return { erro: "Selecione uma categoria financeira ativa." };
     const valor = Number(nota.valorLiquido ?? nota.valorServico ?? 0);
@@ -372,8 +373,10 @@ export async function lancarNfse(input: {
         } catch { return { erro: "Confira a data da compra e a parcela do cartão." }; }
       }
     }
+    // O destino pode mudar após a leitura. O filtro explícito preserva o NULL legado.
     const reservada = await tx.notaFiscalServico.updateMany({
-      where: { id: nota.id, status: "ACEITA", lancamentos: { none: {} } },
+      where: { id: nota.id, status: "ACEITA", lancamentos: { none: {} },
+        OR: [{ destinoFinanceiro: null }, { destinoFinanceiro: "FINANCEIRO" }] },
       data: { status: "LANCADA" },
     });
     if (reservada.count !== 1) return { erro: "A situação da nota mudou. Atualize a página antes de lançar." };

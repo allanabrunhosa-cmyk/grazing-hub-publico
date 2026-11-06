@@ -1,5 +1,13 @@
 # Fiscal
 
+## NFS-e — destino financeiro (06/11/2026)
+
+No aceite, **Gerar despesa** oferece o formulário financeiro com vencimento
+opcional. **Somente registro fiscal** mantém a nota em Aceitas sem gerar título
+no fluxo de caixa ou na DRE. O destino pode ser alterado antes de criar um
+lançamento vinculado. Notas anteriores conservam o fluxo de lançamento.
+[Contrato e limites](../features/manifestacao-nf/SPEC.md#destino-financeiro-da-nfs-e--06112026).
+
 ## Manifestação — datas e outras operações (04/11/2026)
 
 NFS-e permite informar vencimento no aceite e o sugere no lançamento financeiro.

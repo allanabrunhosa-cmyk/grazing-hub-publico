@@ -31,7 +31,7 @@ const nfseBase: NotaNfs = {
   prestadorNome: "Prestador fictício com descrição longa para conferir a quebra do formulário", prestadorCnpj: null, prestadorDados: null,
   tomadorNome: "Loja de exemplo", tomadorCnpj: null, tomadorDados: null, fornecedorNome: null,
   valorServico: 100, valorLiquido: 100, valorIss: 0, dataEmissao: "2026-11-02T12:00:00.000Z", dataCompetencia: null,
-  dataVencimento: null, municipioNome: null, uf: null, lancada: false, temXml: true,
+  dataVencimento: null, destinoFinanceiro: null, municipioNome: null, uf: null, lancada: false, temXml: true,
 };
 const categorias = [{ id: "categoria-visual", nome: "Material de consumo", grupo: "DESPESAS_OPERACIONAIS" as const }];
 
@@ -48,10 +48,14 @@ function App() {
       setChamadas(anteriores => [...anteriores, detalhe]);
       if (parametros.has("erro") || parametros.has("pendente")) return;
       if (detalhe.acao === "SITUACAO_NFSE") {
-        setNotasNfs(anteriores => anteriores.map(nota => nota.id === detalhe.entrada.nfseId ? {
-          ...nota, status: detalhe.entrada.decisao === "ACEITAR" ? "ACEITA" : "RECUSADA",
-          dataVencimento: typeof detalhe.entrada.dataVencimento === "string" ? detalhe.entrada.dataVencimento : null,
-        } : nota));
+        const { nfseId, decisao, destinoFinanceiro, dataVencimento } = detalhe.entrada;
+        const destino = destinoFinanceiro === "FINANCEIRO" || destinoFinanceiro === "SOMENTE_FISCAL" ? destinoFinanceiro : null;
+        setNotasNfs(anteriores => anteriores.map(nota => nota.id !== nfseId ? nota
+          : decisao === "ALTERAR_DESTINO_FINANCEIRO" ? { ...nota, destinoFinanceiro: destino }
+            : decisao === "ACEITAR" ? {
+              ...nota, status: "ACEITA", destinoFinanceiro: destino,
+              dataVencimento: typeof dataVencimento === "string" ? dataVencimento : null,
+            } : { ...nota, status: "RECUSADA" }));
       }
       if (detalhe.acao === "TRATAR_NFE") {
         setNotasNfe(anteriores => anteriores.map(nota => nota.id === detalhe.entrada.notaFiscalId ? {
@@ -93,6 +97,7 @@ window.fetch = async (entrada, opcoes) => {
     if (parametros.has("erro")) return Response.json({ erro: "Falha simulada. Os dados permanecem no formulário." }, { status: 400 });
     return Response.json({ ok: true });
   }
+  registrarChamada("ROTA_NAO_SIMULADA", { caminho: url.pathname });
   throw new Error("Ação indisponível na prévia isolada.");
 };
 

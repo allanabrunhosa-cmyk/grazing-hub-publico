@@ -783,6 +783,11 @@ enum StatusNfse {
   IGNORADA
 }
 
+enum DestinoFinanceiroNfse {
+  FINANCEIRO
+  SOMENTE_FISCAL
+}
+
 enum UnidadeMedida {
   KG
   G
@@ -2504,6 +2509,7 @@ model NotaFiscalServico {
   origem            OrigemNfse
   importadaManualmente Boolean @default(false)
   status            StatusNfse @default(PENDENTE)
+  destinoFinanceiro DestinoFinanceiroNfse?
   xml               String?  @db.Text
   numero            String?
   serie             String?
