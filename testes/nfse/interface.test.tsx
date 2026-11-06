@@ -18,7 +18,7 @@ async function selecionarDestino(rotulo: "Gerar despesa" | "Somente registro fis
   const usuario = userEvent.setup();
   screen.getByRole("combobox", { name: "Destino financeiro" }).focus();
   await usuario.keyboard("{ArrowDown}");
-  await usuario.click(await screen.findByRole("option", { name: rotulo, exact: true }));
+  await usuario.click(await screen.findByRole("option", { name: rotulo }));
 }
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 describe("filtros e ações da interface", () => {
@@ -194,7 +194,7 @@ describe("destino financeiro da NFS-e", () => {
     expect(detalhes.queryByLabelText("Primeiro vencimento")).toBeNull();
     expect(detalhes.queryByRole("button", { name: "Lançar despesa" })).toBeNull();
     const rodape = painel.querySelector<HTMLElement>('[data-slot="dialog-footer"]')!;
-    fireEvent.click(within(rodape).getByRole("button", { name: "Fechar", exact: true }));
+    fireEvent.click(within(rodape).getByRole("button", { name: "Fechar" }));
     expect(screen.getByRole("button", { name: "Pendentes (0)" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Aceitas (1)" }));
     expect(within(screen.getByRole("table")).getByText("Somente registro fiscal", { exact: true })).toBeTruthy();
