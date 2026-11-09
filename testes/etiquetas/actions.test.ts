@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { Prisma } from "@/generated/prisma/client";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/atividades/registro", () => ({ registrarAtividade: vi.fn(), definirContextoAtividade: vi.fn() }));
 
@@ -10,8 +11,10 @@ const simulados = vi.hoisted(() => ({
   buscarInsumo: vi.fn(),
   revalidar: vi.fn(),
   guarda: vi.fn(),
-  atualizar: vi.fn(), auditar: vi.fn(), transacao: vi.fn(), loja: vi.fn(), recentes: vi.fn(), perfil: vi.fn(), sequencia: vi.fn(),
+  atualizar: vi.fn(), auditar: vi.fn(), transacao: vi.fn(), loja: vi.fn(), recentes: vi.fn(), perfil: vi.fn(), sorteio: vi.fn(),
 }));
+
+vi.mock("node:crypto", async importar => ({ ...await importar<typeof import("node:crypto")>(), randomInt: simulados.sorteio }));
 
 vi.mock("@/lib/session", () => ({ getSession: simulados.sessao }));
 vi.mock("@/lib/permissoes/servidor", () => ({ exigirPermissao: simulados.guarda }));
@@ -55,24 +58,103 @@ beforeEach(() => {
   simulados.trabalhoPorChave.mockResolvedValue(null);
   simulados.recentes.mockResolvedValue(0);
   simulados.perfil.mockResolvedValue(null);
-  simulados.sequencia.mockResolvedValue([{ numero: "1" }]);
+  let proximo = 0;
+  simulados.sorteio.mockImplementation(() => 36 * proximo++ + 10);
   simulados.loja.mockResolvedValue({ fusoHorario: "America/Sao_Paulo", maximoCopiasEtiqueta: 30, nome: "Loja fictícia", cnpj: null, endereco: null });
 });
 
 function habilitarPreparacao() {
   simulados.buscarInsumo.mockResolvedValue({ id: "insumo-1", nome: "Produto fictício", unidade: "KG", ativo: true, etiquetaHabilitada: true, validadeRefrigeradoDias: 3, versaoConfiguracaoEtiqueta: 1, marcasHomologadas: [] });
-  simulados.criarTrabalho.mockImplementation(async ({ data }) => ({ ...data, id: "trabalho-30", status: "PREPARADO" }));
-  simulados.transacao.mockImplementation(async callback => callback({ $queryRaw: simulados.sequencia, trabalhoEtiqueta: { create: simulados.criarTrabalho }, eventoAuditoriaEtiqueta: { create: simulados.auditar } }));
+  simulados.criarTrabalho.mockImplementation(async ({ data }) => ({ ...data, codigos: data.codigos.create, id: "trabalho-30", status: "PREPARADO" }));
+  simulados.transacao.mockImplementation(async callback => callback({ trabalhoEtiqueta: { create: simulados.criarTrabalho }, eventoAuditoriaEtiqueta: { create: simulados.auditar } }));
 }
 
 it("prepara 30 cópias no mesmo trabalho e registra a quantidade na auditoria e no ZPL", async () => {
   habilitarPreparacao();
   const resultado = await prepararEtiquetaAction({ ...entrada, copias: 30 });
-  expect(resultado).toMatchObject({ ok: true, trabalho: { dados: { copias: 30 }, zpl: expect.stringContaining("^PQ30,0,1,N") } });
+  expect(resultado).toMatchObject({ ok: true, trabalho: { dados: { copias: 30 } } });
   expect(simulados.guarda).toHaveBeenCalledWith("producao", "adicionar");
   expect(simulados.criarTrabalho).toHaveBeenCalledOnce();
-  expect(resultado).toMatchObject({ trabalho: { dados: { codigoRastreio: "ET000001-001" }, zpl: expect.stringContaining("^SN#ET000001-001,1,Y^FS") } });
+  if ("erro" in resultado) throw new Error(resultado.erro);
+  expect(resultado.trabalho.dados.codigosRastreio).toHaveLength(30);
+  expect(new Set(resultado.trabalho.dados.codigosRastreio).size).toBe(30);
+  for (const codigo of resultado.trabalho.dados.codigosRastreio!) {
+    expect(codigo).toMatch(/^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{6}$/);
+    expect(resultado.trabalho.zpl).toContain(`#${codigo}`);
+  }
+  expect(resultado.trabalho.zpl.match(/\^PQ1,0,1,N/g)).toHaveLength(30);
+  expect(resultado.trabalho.zpl).not.toContain("^SN");
+  expect(simulados.criarTrabalho).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+    codigoRastreio: resultado.trabalho.dados.codigosRastreio![0],
+    codigos: { create: resultado.trabalho.dados.codigosRastreio!.map((codigo, indice) => ({ codigo, copia: indice + 1 })) },
+  }) }));
   expect(simulados.auditar).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ acao: "PREPARADO", detalhes: expect.objectContaining({ copias: 30 }) }) }));
+});
+
+it("descarta sorteios só numéricos ou só alfabéticos e preserva seis caracteres", async () => {
+  habilitarPreparacao();
+  simulados.sorteio.mockReturnValueOnce(0).mockReturnValueOnce(parseInt("AAAAAA", 36)).mockReturnValueOnce(parseInt("A1B2C3", 36));
+  const resultado = await prepararEtiquetaAction(entrada);
+  expect(resultado).toMatchObject({ ok: true, trabalho: { dados: { codigoRastreio: "A1B2C3", codigosRastreio: ["A1B2C3"] } } });
+  expect(simulados.sorteio).toHaveBeenCalledTimes(3);
+});
+
+it("regenera um lote com códigos repetidos antes de abrir a transação", async () => {
+  habilitarPreparacao();
+  simulados.sorteio.mockReturnValueOnce(parseInt("A1B2C3", 36)).mockReturnValueOnce(parseInt("A1B2C3", 36))
+    .mockReturnValueOnce(parseInt("D4E5F6", 36)).mockReturnValueOnce(parseInt("G7H8I9", 36));
+  const resultado = await prepararEtiquetaAction({ ...entrada, copias: 2 });
+  expect(resultado).toMatchObject({ ok: true, trabalho: { dados: { codigosRastreio: ["D4E5F6", "G7H8I9"] } } });
+  expect(simulados.sorteio).toHaveBeenCalledTimes(4);
+  expect(simulados.transacao).toHaveBeenCalledOnce();
+  expect(simulados.criarTrabalho).toHaveBeenCalledOnce();
+  expect(simulados.auditar).toHaveBeenCalledOnce();
+});
+
+it("limita lotes repetidos sem abrir transação nem gravar trabalho ou auditoria", async () => {
+  habilitarPreparacao();
+  simulados.sorteio.mockReturnValue(parseInt("A1B2C3", 36));
+  expect(await prepararEtiquetaAction({ ...entrada, copias: 2 }))
+    .toEqual({ erro: "Não foi possível reservar códigos únicos de etiqueta. Tente novamente." });
+  expect(simulados.sorteio).toHaveBeenCalledTimes(10);
+  expect(simulados.transacao).not.toHaveBeenCalled();
+  expect(simulados.criarTrabalho).not.toHaveBeenCalled();
+  expect(simulados.auditar).not.toHaveBeenCalled();
+});
+
+it("uma colisão de código repete a transação inteira e audita somente o trabalho confirmado", async () => {
+  habilitarPreparacao();
+  simulados.criarTrabalho.mockRejectedValueOnce(new Prisma.PrismaClientKnownRequestError("Colisão fictícia", {
+    code: "P2002", clientVersion: "teste", meta: {
+      modelName: "TrabalhoEtiqueta", driverAdapterError: { cause: { constraint: { index: "CodigoEtiqueta_pkey" } } },
+    },
+  }));
+  const resultado = await prepararEtiquetaAction(entrada);
+  expect(resultado).toHaveProperty("ok", true);
+  expect(simulados.transacao).toHaveBeenCalledTimes(2);
+  expect(simulados.criarTrabalho).toHaveBeenCalledTimes(2);
+  expect(simulados.auditar).toHaveBeenCalledOnce();
+  expect(simulados.criarTrabalho.mock.calls[0][0].data.codigoRastreio).not.toBe(simulados.criarTrabalho.mock.calls[1][0].data.codigoRastreio);
+});
+
+it("limita colisões e não deixa auditoria de trabalho não confirmado", async () => {
+  habilitarPreparacao();
+  simulados.criarTrabalho.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Colisão fictícia", {
+    code: "P2002", clientVersion: "teste", meta: { target: ["codigo"] },
+  }));
+  expect(await prepararEtiquetaAction(entrada)).toEqual({ erro: "Não foi possível reservar códigos únicos de etiqueta. Tente novamente." });
+  expect(simulados.transacao).toHaveBeenCalledTimes(5);
+  expect(simulados.auditar).not.toHaveBeenCalled();
+});
+
+it("não repete transação por falhas de outra restrição única", async () => {
+  habilitarPreparacao();
+  simulados.criarTrabalho.mockRejectedValue(new Prisma.PrismaClientKnownRequestError("Outra restrição fictícia", {
+    code: "P2002", clientVersion: "teste", meta: { target: ["lojaId", "chaveIdempotencia"] },
+  }));
+  expect(await prepararEtiquetaAction(entrada)).toHaveProperty("erro");
+  expect(simulados.transacao).toHaveBeenCalledOnce();
+  expect(simulados.auditar).not.toHaveBeenCalled();
 });
 
 it.each([0, -1, 31, 1.5, NaN, Infinity])("recusa %s cópias no servidor sem criar trabalho ou auditoria", async copias => {

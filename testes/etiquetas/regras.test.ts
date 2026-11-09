@@ -4,6 +4,7 @@ import { normalizarQuantidade } from "@/lib/etiquetas/validacao";
 import { gerarZplEtiqueta, sanitizarTextoZpl } from "@/lib/etiquetas/zpl";
 import type { DadosEtiqueta } from "@/lib/etiquetas/tipos";
 import { comporLinhasEtiqueta } from "@/lib/etiquetas/layout";
+import { dimensionarFonte0 } from "@/lib/etiquetas/fonte-zpl";
 
 function dados(parcial: Partial<DadosEtiqueta> = {}): DadosEtiqueta {
   return {
@@ -59,6 +60,80 @@ describe("validação decimal estrita", () => {
 });
 
 describe("ZPL seguro e consistente", () => {
+  it("atribui códigos aleatórios a cada cópia sem repetir o logo e limpa somente seu formato RAM", () => {
+    const codigosRastreio = ["A1B2C3", "Z9Y8X7", "D4E5F6"];
+    const zpl = gerarZplEtiqueta(dados({ codigoRastreio: codigosRastreio[0], codigosRastreio, copias: 3 }));
+    const formatos = zpl.match(/\^XA[\s\S]*?\^XZ/g)!;
+    expect(formatos).toHaveLength(5);
+    expect(formatos[0]).toMatch(/^\^XA\n\^DFR:GVA1B2C3\.ZPL\^FS/);
+    expect(formatos[0]).not.toContain("^PQ");
+    expect(formatos[0]).not.toContain("^FD#A1B2C3");
+    expect(zpl).not.toContain("^FN");
+    expect(zpl.match(/\^GFA/g)).toHaveLength(1);
+    expect(zpl).not.toContain("^SN");
+    for (const [indice, codigo] of codigosRastreio.entries()) {
+      const copia = formatos[indice + 1];
+      expect(copia).toMatch(/^\^XA\n\^XFR:GVA1B2C3\.ZPL\^FS\n\^FO/);
+      expect(copia.match(new RegExp(`\\^FD#${codigo}\\^FS`, "g"))).toHaveLength(2);
+      expect(copia).toMatch(/\^PQ1,0,1,N\n\^XZ$/);
+      expect(copia).not.toContain("^GFA");
+    }
+    expect(formatos.at(-1)).toBe("^XA\n^IDR:GVA1B2C3.ZPL^FS\n^XZ");
+    expect(zpl).not.toMatch(/\^ID[^\n]*\*|\^(?:DF|XF|ID)[EBA]:/);
+    expect(zpl.startsWith("^XA")).toBe(true);
+    expect(zpl.endsWith("^XZ")).toBe(true);
+  });
+
+  it.each([203, 300, 600])("transporta 50 códigos a %i dpi dentro do limite do conector", (resolucaoDpi) => {
+    const codigosRastreio = Array.from({ length: 50 }, (_, indice) => indice.toString(36).toUpperCase().padStart(6, "0"));
+    const zpl = gerarZplEtiqueta(dados({ tamanho: "MM_60X60", resolucaoDpi, codigoRastreio: codigosRastreio[0], codigosRastreio, copias: 50 }));
+    expect(zpl.match(/\^PQ1,0,1,N/g)).toHaveLength(50);
+    expect(zpl.match(/\^XF/g)).toHaveLength(50);
+    expect(zpl.match(/\^GFA/g)).toHaveLength(1);
+    expect(zpl.length).toBeLessThanOrEqual(200_000);
+    expect(zpl).toMatch(/^[\x00-\x7F]+$/);
+  });
+
+  it.each([
+    { copias: 2, codigosRastreio: ["A1B2C3"] },
+    { copias: 1, codigosRastreio: ["A1B2C3", "D4E5F6"] },
+    { copias: 2, codigosRastreio: ["A1B2C3", "A1B2C3"] },
+    { copias: 2, codigosRastreio: ["A1B2C3", "abc123"] },
+    { copias: 2, codigosRastreio: ["A1B2C3", "ABCDE"] },
+    { copias: 2, codigosRastreio: ["A1B2C3", "AB^XZ1"] },
+    { copias: 2, codigosRastreio: ["D4E5F6", "A1B2C3"] },
+    { copias: 0, codigosRastreio: [] },
+  ])("recusa lista de códigos incompatível antes de gerar ZPL: %j", (parcial) => {
+    expect(() => gerarZplEtiqueta(dados({ codigoRastreio: "A1B2C3", ...parcial }))).toThrow(/códigos das etiquetas/);
+  });
+
+  it("recusa lista esparsa ou valores que não sejam strings", () => {
+    const listaEsparsa = new Array<string>(2);
+    listaEsparsa[0] = "A1B2C3";
+    for (const codigosRastreio of [listaEsparsa, ["A1B2C3", 123456] as unknown as string[], null as unknown as string[]]) {
+      expect(() => gerarZplEtiqueta(dados({ codigoRastreio: "A1B2C3", codigosRastreio, copias: 2 }))).toThrow(/códigos das etiquetas/);
+    }
+  });
+
+  it.each(["MM_60X40", "MM_60X60"] as const)("usa as métricas da prévia para códigos largos e estreitos no formato %s", (tamanho) => {
+    const codigosRastreio = ["IIIIII", "WWWWWW", "M0A9Z7"];
+    const entrada = dados({ tamanho, codigoRastreio: codigosRastreio[0], codigosRastreio, copias: 3 });
+    const zpl = gerarZplEtiqueta(entrada);
+    const formatos = zpl.match(/\^XA[\s\S]*?\^XZ/g)!;
+    for (const [indice, codigo] of codigosRastreio.entries()) {
+      const linha = comporLinhasEtiqueta({ ...entrada, codigoRastreio: codigo }).find((item) => item.chave === "codigo")!;
+      const { larguraFonte } = dimensionarFonte0(linha.texto, linha.larguraLetra);
+      const fontes = [...formatos[indice + 1].matchAll(/\^A0N,(\d+),(\d+)\n\^FD#/g)];
+      expect(fontes).toHaveLength(2);
+      for (const fonte of fontes) {
+        expect(Number(fonte[1])).toBe(tamanho === "MM_60X40" ? 18 : 22);
+        expect(Number(fonte[2])).toBe(larguraFonte);
+      }
+      expect(formatos[indice + 1]).toContain(`^FO${linha.x},${linha.y}`);
+      expect(formatos[indice + 1]).toContain(`^FO${linha.x + 1},${linha.y}`);
+    }
+  });
+
   it("serializa cada cópia na Zebra sem repetir o logo ou aumentar o pacote por cópia", () => {
     const lote = gerarZplEtiqueta(dados({ codigoRastreio: "ET000001-001", copias: 50 }));
     expect(lote.match(/\^SN#ET000001-001,1,Y\^FS/g)).toHaveLength(2);

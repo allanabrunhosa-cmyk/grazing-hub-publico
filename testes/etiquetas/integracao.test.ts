@@ -7,7 +7,11 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { PrismaClient } from "@/generated/prisma/client";
-const simulacao = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient, sessao: vi.fn() }));
+const simulacao = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient, sessao: vi.fn(), sorteio: vi.fn() }));
+vi.mock("node:crypto", async importar => {
+  const original = await importar<typeof import("node:crypto")>();
+  return { ...original, randomInt: (limite: number) => simulacao.sorteio(limite) ?? original.randomInt(limite) };
+});
 vi.mock("@/lib/prisma", () => ({ get prisma() { return simulacao.prisma; } }));
 vi.mock("@/lib/session", () => ({ getSession: simulacao.sessao }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -16,7 +20,6 @@ vi.mock("server-only", () => ({}));
 import { prepararEtiquetaAction, registrarExportacaoEtiquetaAction, confirmarImpressaoEtiquetaAction, salvarConfiguracaoProdutoEtiquetaAction, salvarConfiguracaoImpressoraAction } from "@/app/(protegido)/producao/etiquetas/actions";
 import { restaurarPontoImpressaoAction, excluirPontoImpressaoAction, baixarEtiquetaAction, configurarUsuarioResponsavelAction, salvarResponsavelEtiquetaAction } from "@/app/(protegido)/producao/etiquetas/operacao-actions";
 import { enfileirarPontoAction } from "@/app/(protegido)/producao/etiquetas/pontos-actions";
-import { codigoCopiaEtiqueta } from "@/lib/etiquetas/rastreio";
 import { GET as consultarSifs } from "@/app/api/etiquetas/produtos/[id]/sifs/route";
 const esquema = "teste_etiquetas_" + randomUUID().replaceAll("-", "");
 let banco: Client | undefined;
@@ -67,7 +70,7 @@ describe.skipIf(process.env.ETIQUETAS_BANCO_TESTE !== "1")("etiquetas no Postgre
     }
     expect(await simulacao.prisma.trabalhoEtiqueta.count()).toBe(1);
     expect(await simulacao.prisma.trabalhoEtiqueta.findUniqueOrThrow({ where: { id: trabalhoId } })).toMatchObject({
-      marcaFornecedor: "Aurora", sif: "953", validadeOriginal: "2099-12-31", codigoRastreio: expect.stringMatching(/^ET[A-Z0-9]{6}-001$/), versaoTemplate: 5,
+      marcaFornecedor: "Aurora", sif: "953", validadeOriginal: "2099-12-31", codigoRastreio: expect.stringMatching(/^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{6}$/), versaoTemplate: 6,
     });
     expect(await simulacao.prisma.insumo.count()).toBe(2);
     expect(await simulacao.prisma.movimentacaoEstoque.count()).toBe(0);
@@ -85,23 +88,80 @@ describe.skipIf(process.env.ETIQUETAS_BANCO_TESTE !== "1")("etiquetas no Postgre
     expect(await confirmarImpressaoEtiquetaAction(trabalhoId)).toEqual({ ok: true });
     expect(await simulacao.prisma.movimentacaoEstoque.count()).toBe(0);
   });
-  it("emissões concorrentes com o mesmo prefixo antigo têm códigos individuais distintos", async () => {
+  it("emissões concorrentes têm um código aleatório persistido por cópia e reutilizam o lote", async () => {
     const entradas = Array.from({ length: 4 }, () => ({ ...entrada, copias: 30, chaveIdempotencia: "abcdef" + randomUUID().slice(6) }));
     const resultados = await Promise.all(entradas.map(prepararEtiquetaAction));
     const codigos: string[] = [];
     for (const resultado of resultados) {
       if ("erro" in resultado) throw new Error(resultado.erro);
-      const primeiro = resultado.trabalho.dados.codigoRastreio!;
-      expect(resultado.trabalho.zpl).toContain(`^SN#${primeiro},1,Y^FS`);
-      for (let i = 1; i <= 30; i++) codigos.push(codigoCopiaEtiqueta(primeiro, i));
+      const emitidos = resultado.trabalho.dados.codigosRastreio!;
+      expect(emitidos).toHaveLength(30);
+      expect(resultado.trabalho.dados.codigoRastreio).toBe(emitidos[0]);
+      for (const codigo of emitidos) expect(codigo).toMatch(/^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{6}$/);
+      const gravados = await simulacao.prisma.codigoEtiqueta.findMany({
+        where: { trabalhoId: resultado.trabalho.id }, orderBy: { copia: "asc" },
+      });
+      expect(gravados.map(item => item.copia)).toEqual(Array.from({ length: 30 }, (_, indice) => indice + 1));
+      expect(gravados.map(item => item.codigo)).toEqual(emitidos);
+      codigos.push(...emitidos);
     }
     expect(new Set(codigos).size).toBe(120);
     const repetida = await prepararEtiquetaAction(entradas[0]);
     if ("erro" in repetida || "erro" in resultados[0]) throw new Error("Falha na preparação fictícia");
     expect(repetida.trabalho.dados.codigoRastreio).toBe(resultados[0].trabalho.dados.codigoRastreio);
+    expect(repetida.trabalho.dados.codigosRastreio).toEqual(resultados[0].trabalho.dados.codigosRastreio);
     expect(repetida.trabalho.zpl).toBe(resultados[0].trabalho.zpl);
     expect(repetida.trabalho.reutilizado).toBe(true);
   });
+  it("uma colisão no banco repete a transação sem duplicar trabalhos ou auditoria", async () => {
+    const codigoReservado = "A1B2C3";
+    await simulacao.prisma.codigoEtiqueta.create({ data: { codigo: codigoReservado } });
+    const antes = await simulacao.prisma.trabalhoEtiqueta.count();
+    simulacao.sorteio.mockReturnValueOnce(parseInt(codigoReservado, 36));
+    try {
+      const resultado = await prepararEtiquetaAction({ ...entrada, chaveIdempotencia: randomUUID(), copias: 2 });
+      if ("erro" in resultado) throw new Error(resultado.erro);
+      expect(resultado.trabalho.dados.codigosRastreio).toHaveLength(2);
+      expect(resultado.trabalho.dados.codigosRastreio).not.toContain(codigoReservado);
+      expect(await simulacao.prisma.trabalhoEtiqueta.count()).toBe(antes + 1);
+      expect(await simulacao.prisma.codigoEtiqueta.count({ where: { trabalhoId: resultado.trabalho.id } })).toBe(2);
+      expect(await simulacao.prisma.eventoAuditoriaEtiqueta.count({ where: { entidadeId: resultado.trabalho.id, acao: "PREPARADO" } })).toBe(1);
+      expect(await simulacao.prisma.codigoEtiqueta.findUnique({ where: { codigo: codigoReservado } }))
+        .toEqual({ codigo: codigoReservado, trabalhoId: null, copia: null });
+    } finally {
+      simulacao.sorteio.mockReset();
+    }
+  });
+
+  it("migration reserva os códigos curtos históricos sem alterar os snapshots", async () => {
+    const schema = "teste_codigos_etiquetas_" + randomUUID().replaceAll("-", "");
+    const c = new Client({ connectionString: process.env.DATABASE_URL });
+    await c.connect();
+    try {
+      await c.query(`CREATE SCHEMA "${schema}"`);
+      await c.query(`SET search_path TO "${schema}"`);
+      await c.query(`CREATE TABLE "TrabalhoEtiqueta" (id text PRIMARY KEY, "codigoRastreio" text NOT NULL, zpl text NOT NULL);
+        INSERT INTO "TrabalhoEtiqueta" VALUES
+          ('antigo-1','a1b2c3','ZPL original 1'), ('antigo-2','A1B2C3','ZPL original 2'),
+          ('antigo-3','AAAAAA','ZPL original 3'), ('antigo-4','123456','ZPL original 4'),
+          ('antigo-5','ET000001-001','ZPL original 5'), ('antigo-6','ABC','ZPL original 6');`);
+      const antes = (await c.query('SELECT * FROM "TrabalhoEtiqueta" ORDER BY id')).rows;
+      await c.query(await readFile("prisma/migrations/20261109120000_codigos_aleatorios_etiquetas/migration.sql", "utf8"));
+      expect((await c.query('SELECT * FROM "TrabalhoEtiqueta" ORDER BY id')).rows).toEqual(antes);
+      expect((await c.query('SELECT * FROM "CodigoEtiqueta" ORDER BY codigo')).rows).toEqual([
+        { codigo: "123456", trabalhoId: null, copia: null },
+        { codigo: "A1B2C3", trabalhoId: null, copia: null },
+        { codigo: "AAAAAA", trabalhoId: null, copia: null },
+      ]);
+      await expect(c.query(`INSERT INTO "CodigoEtiqueta" (codigo) VALUES ('A1B2C3')`)).rejects.toMatchObject({ code: "23505" });
+      await expect(c.query(`INSERT INTO "CodigoEtiqueta" (codigo, "trabalhoId") VALUES ('Z1Y2X3','antigo-1')`)).rejects.toMatchObject({ code: "23514" });
+    } finally {
+      await c.query('SET search_path TO public');
+      await c.query(`DROP SCHEMA "${schema}" CASCADE`);
+      await c.end();
+    }
+  });
+
   it("resolve responsável ativo no mesmo cadastro, ignorando nome enviado pelo navegador", async () => {
     await simulacao.prisma.usuario.create({ data: { id: "responsavel", nome: "Ana da cozinha", email: "ana@example.invalid", senhaHash: "sem-login" } });
     expect((await simulacao.prisma.usuario.findUniqueOrThrow({ where: { id: "responsavel" } })).responsavelEtiquetaHabilitado).toBe(false);
@@ -264,7 +324,9 @@ describe.skipIf(process.env.ETIQUETAS_BANCO_TESTE !== "1")("etiquetas no Postgre
     const repetida = await prepararEtiquetaAction({ ...entrada, chaveIdempotencia, copias: 30 });
     expect(repetida).toMatchObject({ ok: true, trabalho: { id: resultado.trabalho.id, reutilizado: true } });
     const salvo = await simulacao.prisma.trabalhoEtiqueta.findUniqueOrThrow({ where: { id: resultado.trabalho.id } });
-    expect(salvo.copias).toBe(30); expect(salvo.zpl).toContain("^PQ30,0,1,N");
+    expect(salvo.copias).toBe(30);
+    expect(salvo.zpl.match(/\^PQ1,0,1,N/g)).toHaveLength(30);
+    expect(resultado.trabalho.dados.codigosRastreio).toHaveLength(30);
     expect(await simulacao.prisma.eventoAuditoriaEtiqueta.count({ where: { entidadeId: salvo.id, acao: "PREPARADO" } })).toBe(1);
     const antes = await simulacao.prisma.trabalhoEtiqueta.count();
     expect(await prepararEtiquetaAction({ ...entrada, chaveIdempotencia: randomUUID(), copias: 31 })).toHaveProperty("erro");

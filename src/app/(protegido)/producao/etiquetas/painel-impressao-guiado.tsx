@@ -186,7 +186,7 @@ export function PainelImpressaoGuiado({ produtos, loja, maximoCopias, perfil, po
       marcaFornecedor: marcaFornecedor.trim() || null,
       sif: sif.trim() || null,
       validadeOriginal: validadeOriginal || null,
-      codigoRastreio: "PRÉVIA",
+      codigoRastreio: "A1B2C3",
       responsavelManipulacao: responsavel,
       manipuladoEm: agoraPrevia.toISOString(),
       validoAte: validade.toISOString(),

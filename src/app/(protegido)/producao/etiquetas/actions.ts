@@ -11,7 +11,7 @@ import { contextoExecucao } from "@/lib/contexto-execucao";
 import { exigirPermissao } from "@/lib/permissoes/servidor";
 import { fimDoDiaLocal, somarDiasDeCalendario, fusoHorarioValido } from "@/lib/etiquetas/datas";
 import { gerarZplEtiqueta, nomeArquivoZpl } from "@/lib/etiquetas/zpl";
-import { codigoInicialEtiqueta } from "@/lib/etiquetas/rastreio";
+import { prepararComCodigosAleatorios } from "@/lib/etiquetas/codigos-aleatorios";
 import { consultarSifsSalvos } from "@/lib/etiquetas/sifs-salvos";
 import {
   chaveMarcaEtiqueta,
@@ -28,7 +28,7 @@ import type {
 } from "@/lib/etiquetas/tipos";
 
 const LOJA_ID = "singleton";
-const VERSAO_TEMPLATE = 5;
+const VERSAO_TEMPLATE = 6;
 
 type Resultado<T> = { erro: string } | T;
 
@@ -69,6 +69,7 @@ function dadosDoTrabalho(trabalho: {
   sif: string | null;
   validadeOriginal: string | null;
   codigoRastreio: string;
+  codigos?: { codigo: string; copia: number | null }[];
   responsavelManipulacao: string;
   manipuladoEm: Date;
   validoAte: Date;
@@ -91,6 +92,7 @@ function dadosDoTrabalho(trabalho: {
     sif: trabalho.sif,
     validadeOriginal: trabalho.validadeOriginal,
     codigoRastreio: trabalho.codigoRastreio,
+    ...(trabalho.codigos?.length ? { codigosRastreio: trabalho.codigos.map(item => item.codigo) } : {}),
     responsavelManipulacao: trabalho.responsavelManipulacao,
     manipuladoEm: trabalho.manipuladoEm.toISOString(),
     validoAte: trabalho.validoAte.toISOString(),
@@ -127,6 +129,7 @@ export async function prepararEtiquetaAction(
     const chaveIdempotencia = validarChaveIdempotencia(entrada.chaveIdempotencia);
     const existente = await prisma.trabalhoEtiqueta.findUnique({
       where: { lojaId_chaveIdempotencia: { lojaId: LOJA_ID, chaveIdempotencia } },
+      include: { codigos: { orderBy: { copia: "asc" } } },
     });
     if (existente) {
       if (existente.emitidoPorId !== usuario.id) return { erro: "Esta solicitação não pertence ao usuário atual." };
@@ -210,9 +213,8 @@ export async function prepararEtiquetaAction(
     const limiteOriginal = validadeOriginal ? fimDoDiaLocal(validadeOriginal, loja.fusoHorario) : null;
     if (limiteOriginal && limiteOriginal < manipuladoEm) return { erro: "A validade original não pode estar vencida." };
     const validoAte = limiteOriginal && limiteOriginal < validadeCalculada ? limiteOriginal : validadeCalculada;
-    const trabalho = await prisma.$transaction(async (tx) => {
-      const [sequencia] = await tx.$queryRaw<Array<{ numero: string }>>(Prisma.sql`SELECT nextval('"SequenciaCodigoEtiqueta"')::text AS numero`);
-      const codigoRastreio = codigoInicialEtiqueta(sequencia.numero);
+    const trabalho = await prepararComCodigosAleatorios(entrada.copias, codigosRastreio => prisma.$transaction(async (tx) => {
+      const codigoRastreio = codigosRastreio[0];
       const dados: DadosEtiqueta = {
         produtoNome: insumo.nome,
         lojaNome: loja.nome?.trim() || "Grazing Table & Co",
@@ -226,6 +228,7 @@ export async function prepararEtiquetaAction(
         sif,
         validadeOriginal,
         codigoRastreio,
+        codigosRastreio,
         responsavelManipulacao: responsavel,
         manipuladoEm: manipuladoEm.toISOString(),
         validoAte: validoAte.toISOString(),
@@ -270,7 +273,9 @@ export async function prepararEtiquetaAction(
           versaoTemplate: VERSAO_TEMPLATE,
           zpl,
           hashPayload,
+          codigos: { create: codigosRastreio.map((codigo, indice) => ({ codigo, copia: indice + 1 })) },
         },
+        include: { codigos: { orderBy: { copia: "asc" } } },
       });
       await tx.eventoAuditoriaEtiqueta.create({
         data: {
@@ -283,7 +288,7 @@ export async function prepararEtiquetaAction(
         },
       });
       return criado;
-    });
+    }));
 
     revalidatePath("/producao/etiquetas");
     return { ok: true, trabalho: retornoTrabalho(trabalho, false) };
@@ -293,7 +298,7 @@ export async function prepararEtiquetaAction(
       const usuario = await obterUsuarioAtivo();
       const chave = entrada.chaveIdempotencia?.toLowerCase();
       const existente = usuario && chave
-        ? await prisma.trabalhoEtiqueta.findUnique({ where: { lojaId_chaveIdempotencia: { lojaId: LOJA_ID, chaveIdempotencia: chave } } })
+        ? await prisma.trabalhoEtiqueta.findUnique({ where: { lojaId_chaveIdempotencia: { lojaId: LOJA_ID, chaveIdempotencia: chave } }, include: { codigos: { orderBy: { copia: "asc" } } } })
         : null;
       if (existente && usuario && existente.emitidoPorId === usuario.id) {
         return { ok: true, trabalho: retornoTrabalho(existente, true) };

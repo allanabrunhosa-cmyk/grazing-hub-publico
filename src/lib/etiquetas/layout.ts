@@ -241,7 +241,7 @@ export function comporEtiqueta(dados: DadosEtiqueta): ComposicaoEtiqueta {
   if (textos.cnpj) linhas.push(linhaAjustada({ chave: "cnpj", texto: textos.cnpj, xMm: 2, yMm: yRodapeMm + (compacto ? 4.35 : 6.25), larguraMm: limiteRodapeMm - 2, fonteMm: compacto ? 1.55 : 1.9, minimoMm: 1.2, dpi }));
   if (compacto && textos.endereco) linhas.push(linhaAjustada({ chave: "endereco", texto: textos.endereco, xMm: 2, yMm: yRodapeMm + 6.3, larguraMm: limiteRodapeMm - 2, fonteMm: 1.35, minimoMm: 1.05, dpi }));
   if (!compacto) linhas.push(...enderecoEmLinhas(dados));
-  linhas.push(linhaAjustada({ chave: "codigo", texto: textos.codigo, xMm: 2, yMm: compacto ? 37 : 56.2, larguraMm: 18, fonteMm: compacto ? 1.65 : 2.1, minimoMm: 1.3, dpi, negrito: true }));
+  linhas.push(linhaAjustada({ chave: "codigo", texto: textos.codigo, xMm: 2, yMm: compacto ? 36.8 : 56.2, larguraMm: 24, fonteMm: compacto ? 2.2 : 2.7, minimoMm: 1.3, dpi, negrito: true }));
 
   for (const linha of linhas) {
     if (dimensionarFonte0(linha.texto, linha.larguraLetra).larguraTexto > linha.texto.length * linha.larguraLetra + 1) {

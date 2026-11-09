@@ -137,7 +137,7 @@ function PainelHistorico({ historico, pagina, caminhoBase, pontos, envios }: { h
   const [busca, setBusca] = useState("");
   const [pendente, iniciarTransicao] = useTransition();
   const [pontoReimpressao, setPontoReimpressao] = useState(pontos.find((ponto) => ponto.padrao)?.id ?? pontos[0]?.id ?? "");
-  const filtrado = historico.filter((item) => item.produtoNome.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR")) || correspondeCodigoEtiqueta(item.dados.codigoRastreio, item.copias, busca));
+  const filtrado = historico.filter((item) => item.produtoNome.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR")) || correspondeCodigoEtiqueta(item.dados.codigoRastreio, item.copias, busca, item.dados.codigosRastreio));
   function exportar(item: HistoricoEtiquetaTela) {
     baixarArquivo(item.nomeArquivo, item.zpl);
     iniciarTransicao(async () => {
@@ -169,7 +169,7 @@ function PainelHistorico({ historico, pagina, caminhoBase, pontos, envios }: { h
           <Table className="w-full  text-left text-sm">
             <TableHeader className="bg-muted text-muted-foreground"><TableRow><TableHead className="p-3">Produto</TableHead><TableHead className="p-3">Manipulação / validade</TableHead><TableHead className="p-3">Responsáveis</TableHead><TableHead className="p-3">Cópias</TableHead><TableHead className="p-3">Resultado</TableHead><TableHead className="p-3">Ações</TableHead></TableRow></TableHeader>
             <TableBody>{filtrado.map((item) => <TableRow key={item.id} className="border-t align-top">
-              <TableCell className="p-3"><strong>{item.produtoNome}</strong><div className="text-xs text-muted-foreground">{rotuloConservacaoEtiqueta(item.conservacao)} · {item.tamanho === "MM_60X40" ? "60×40" : "60×60"}</div><div className="text-xs text-muted-foreground">{faixaCodigosEtiqueta(item.dados.codigoRastreio, item.copias)}</div></TableCell>
+              <TableCell className="p-3"><strong>{item.produtoNome}</strong><div className="text-xs text-muted-foreground">{rotuloConservacaoEtiqueta(item.conservacao)} · {item.tamanho === "MM_60X40" ? "60×40" : "60×60"}</div><div className="text-xs text-muted-foreground">{faixaCodigosEtiqueta(item.dados.codigoRastreio, item.copias, item.dados.codigosRastreio)}</div></TableCell>
               <TableCell className="p-3 text-xs"><div>{new Intl.DateTimeFormat("pt-BR", { timeZone: item.fusoHorario, dateStyle: "short", timeStyle: "short" }).format(new Date(item.manipuladoEm))}</div><div>até {new Intl.DateTimeFormat("pt-BR", { timeZone: item.fusoHorario, dateStyle: "short", timeStyle: "short" }).format(new Date(item.validoAte))}</div></TableCell>
               <TableCell className="p-3 text-xs"><div>Manipulou: {item.responsavelManipulacao}</div><div>Emitiu: {item.emitidoPorNome}</div></TableCell>
               <TableCell className="p-3">{item.copias}<div className="text-xs text-muted-foreground">{item.tentativas} tentativa(s)</div></TableCell>

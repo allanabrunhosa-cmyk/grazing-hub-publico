@@ -34,6 +34,7 @@ export default async function EtiquetasPage({ searchParams }: { searchParams: Pr
         copiasBaixadas: true, validoAte: true, manipuladoEm: true, fusoHorario: true, responsavelManipulacao: true,
         conservacao: true, copias: true, status: true, lojaNome: true, lojaCnpj: true, lojaEndereco: true,
         marcaFornecedor: true, sif: true, validadeOriginal: true, codigoRastreio: true,
+        codigos: { select: { codigo: true }, orderBy: { copia: "asc" } },
         resolucaoDpi: true, tamanho: true, mostrarHora: true,
       }, orderBy: [{ validoAte: "asc" }, { id: "asc" }] }),
       prisma.trabalhoEtiqueta.count({ where }),
@@ -69,6 +70,7 @@ export default async function EtiquetasPage({ searchParams }: { searchParams: Pr
           sif: item.sif,
           validadeOriginal: item.validadeOriginal,
           codigoRastreio: item.codigoRastreio,
+          codigosRastreio: item.codigos.length ? item.codigos.map(codigo => codigo.codigo) : undefined,
           responsavelManipulacao: item.responsavelManipulacao,
           manipuladoEm: item.manipuladoEm.toISOString(),
           validoAte: item.validoAte.toISOString(),
@@ -106,6 +108,7 @@ export default async function EtiquetasPage({ searchParams }: { searchParams: Pr
     prisma.trabalhoEtiqueta.findMany({
       where: { lojaId: "singleton" },
       include: {
+        codigos: { select: { codigo: true }, orderBy: { copia: "asc" } },
         emitidoPor: { select: { nome: true } },
         _count: { select: { tentativas: true } },
         enviosPonto: { select: { estado: true, createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
@@ -173,6 +176,7 @@ export default async function EtiquetasPage({ searchParams }: { searchParams: Pr
       sif: trabalho.sif,
       validadeOriginal: trabalho.validadeOriginal,
       codigoRastreio: trabalho.codigoRastreio,
+      codigosRastreio: trabalho.codigos.length ? trabalho.codigos.map(codigo => codigo.codigo) : undefined,
       responsavelManipulacao: trabalho.responsavelManipulacao,
       manipuladoEm: trabalho.manipuladoEm.toISOString(),
       validoAte: trabalho.validoAte.toISOString(),
