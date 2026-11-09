@@ -23,6 +23,7 @@ export type DadosEtiqueta = {
   sif?: string | null;
   validadeOriginal?: string | null;
   codigoRastreio?: string;
+  codigosRastreio?: string[];
   responsavelManipulacao: string;
   manipuladoEm: string;
   validoAte: string;

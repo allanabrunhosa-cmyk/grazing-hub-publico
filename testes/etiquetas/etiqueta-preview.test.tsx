@@ -4,6 +4,7 @@ import { afterEach, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { EtiquetaPreview } from "@/app/(protegido)/producao/etiquetas/etiqueta-preview";
 import { gerarZplEtiqueta } from "@/lib/etiquetas/zpl";
+import { comporLinhasEtiqueta } from "@/lib/etiquetas/layout";
 import type { DadosEtiqueta } from "@/lib/etiquetas/tipos";
 
 const dados: DadosEtiqueta = {
@@ -31,6 +32,13 @@ const enderecoCompleto = "Avenida das Palmeiras, 123, sala 4, Jardim Fictício, 
 const enderecoLongo = `Avenida ${"nome fictício muito extenso ".repeat(12)}, 123, Cidade Exemplo - SP, 12345-678, Brasil`;
 
 afterEach(cleanup);
+
+it.each(["MM_60X40", "MM_60X60"] as const)("destaca o código de seis caracteres sem cortar em %s", tamanho => {
+  const codigo = comporLinhasEtiqueta({ ...dados, tamanho }).find(linha => linha.chave === "codigo")!;
+  expect(codigo.texto).toBe("#A1B2C3");
+  expect(codigo.fonte).toBeGreaterThanOrEqual(tamanho === "MM_60X60" ? 21 : 17);
+  expect(codigo.y + codigo.fonte).toBeLessThanOrEqual(Math.round((tamanho === "MM_60X60" ? 60 : 40) * 203 / 25.4));
+});
 
 it("mostra o endereço completo em 60×60 com CEP, avenida abreviada e cidade separados", () => {
   render(<EtiquetaPreview dados={{ ...dados, lojaEndereco: enderecoCompleto }} />);

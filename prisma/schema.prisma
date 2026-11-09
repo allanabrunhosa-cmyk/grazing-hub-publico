@@ -1498,12 +1498,22 @@ model TrabalhoEtiqueta {
 
   tentativas TentativaEtiqueta[]
   enviosPonto EnvioPontoImpressao[]
+  codigos CodigoEtiqueta[]
 
   @@unique([lojaId, chaveIdempotencia])
   @@index([lojaId, createdAt])
   @@index([insumoId, createdAt])
   @@index([lojaId, validoAte, id])
   @@index([emitidoPorId, createdAt])
+}
+
+model CodigoEtiqueta {
+  codigo String @id @db.VarChar(6)
+  trabalhoId String?
+  trabalho TrabalhoEtiqueta? @relation(fields: [trabalhoId], references: [id], onDelete: Restrict)
+  copia Int?
+
+  @@unique([trabalhoId, copia])
 }
 
 enum EstadoEnvioPonto {

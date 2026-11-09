@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 import { codigoCopiaEtiqueta, codigoInicialEtiqueta, correspondeCodigoEtiqueta, faixaCodigosEtiqueta } from "@/lib/etiquetas/rastreio";
 
 describe("identidade individual das etiquetas", () => {
+  it("consulta os códigos aleatórios de cada cópia sem inferir uma sequência", () => {
+    const codigos = ["A1B2C3", "Z9X8W7", "K4L5M6"];
+    expect(codigoCopiaEtiqueta(codigos[0], 2, codigos)).toBe("Z9X8W7");
+    expect(faixaCodigosEtiqueta(codigos[0], 3, codigos)).toBe("A1B2C3 · 3 códigos");
+    expect(correspondeCodigoEtiqueta(codigos[0], 3, "#z9x8w7", codigos)).toBe(true);
+    expect(correspondeCodigoEtiqueta(codigos[0], 3, "A1B2C4", codigos)).toBe(false);
+    expect(() => codigoCopiaEtiqueta(codigos[0], 4, codigos)).toThrow();
+  });
   it("distingue todas as cópias de emissões diferentes", () => {
     const codigos = Array.from({ length: 100 }, (_, emissao) => Array.from({ length: 50 }, (_, copia) => codigoCopiaEtiqueta(codigoInicialEtiqueta(String(emissao + 1)), copia + 1))).flat();
     expect(new Set(codigos).size).toBe(5000);
