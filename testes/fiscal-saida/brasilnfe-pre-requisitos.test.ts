@@ -1,6 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 import { acompanhamentoCertificadoBrasilNfe, dataCivilCertificadoBrasilNfe, restaurarPreRequisitosBrasilNfe, camposEnderecoExternoAusentesBrasilNfe, ufAusenteConferidaNoPainelBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/pre-requisitos-dominio";
 describe("Pré-requisitos e acompanhamento local sem segredos", () => {
+  it("renovação confirmada pela API supera a validade antiga do painel sem reescrever sua origem", () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-11T12:00:00Z"));
+    try {
+      const agora = "2026-11-11T12:00:00.000Z";
+      const painel = { origem: "PAINEL_BRASIL_NFE", observadoEm: "2026-10-16T12:00:00.000Z", registradoEm: "2026-10-16T12:00:00.000Z", servicoNfeNfceAtivo: true, homologacaoInformadaPeloUsuario: true, certificadoValidade: "2026-11-07", csc: { homologacao: { codigo: false, identificador: false }, producao: { codigo: true, identificador: true } } };
+      const r = restaurarPreRequisitosBrasilNfe({ verificadoEm: agora, empresaCorrespondente: true, certificado: { situacao: "VALIDO", validade: "2027-10-22", verificadoEm: agora, httpStatus: 200 }, evidenciaPainel: painel }, 1);
+      expect(r.certificado).toMatchObject({ situacao: "VALIDO", validade: "2027-10-22", httpStatus: 200 });
+      expect(r.evidenciaPainel).toEqual(painel);
+      expect(acompanhamentoCertificadoBrasilNfe(r.certificado.validade).situacao).toBe("VIGENTE");
+      expect(dataCivilCertificadoBrasilNfe("2027-10-22T09:11:51")).toBeNull();
+      expect(r.transmissaoAutorizada).toBe(false);
+    } finally { vi.useRealTimers(); }
+  });
   it("conferência de UF no painel é restrita, datada e não transforma a consulta incompleta em sucesso", () => {
     const dados = { verificadoEm: "2026-10-12T12:00:00.000Z", empresaCorrespondente: true, emitenteExterno: { endereco: false }, camposEnderecoAusentes: ["uf"], evidenciaPainel: { origem: "PAINEL_BRASIL_NFE", ufEmitente: "SP", observadoEm: "2026-10-12T12:00:00.000Z", registradoEm: "2026-10-12T12:00:00.000Z", servicoNfeNfceAtivo: true, homologacaoInformadaPeloUsuario: true, certificadoValidade: "2026-11-07", csc: { homologacao: { codigo: false, identificador: false }, producao: { codigo: false, identificador: false } } } };
     const r = restaurarPreRequisitosBrasilNfe(dados, 1), hoje = new Date("2026-10-12T12:01:00Z");

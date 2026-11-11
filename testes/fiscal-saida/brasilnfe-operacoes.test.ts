@@ -46,6 +46,36 @@ describe("Operações técnicas Brasil NFe, exclusivamente simuladas", () => {
     expect(JSON.parse(String(m.transporte.mock.calls[0][1]?.body))).toEqual({ Interno: true });
     expect(m.transporte.mock.calls[0][1]?.headers).toMatchObject({ Token: TOKEN, UserToken: USER });
   });
+  it.each(["2027-10-22", "2027-10-22T09:11:51", "2028-02-29T23:59:59"])("certificado normaliza somente a data civil do formato permitido %s", async DtExpiracao => {
+    const m = montar([{ status: true, Error: "", Expirado: false, DtExpiracao, Avisos: [] }]);
+    expect(await m.cliente.verificarCertificadoInterno()).toEqual({ valido: true, expirado: false, dataExpiracao: DtExpiracao.slice(0, 10), avisosPresentes: false });
+    expect(m.transporte).toHaveBeenCalledTimes(1);
+  });
+  it.each([
+    "2027-02-29", "2027-02-29T09:11:51", "2027-04-31T09:11:51", "2027-13-01", "2027-10-00",
+    "2027-10-22T24:00:00", "2027-10-22T09:60:00", "2027-10-22T09:11:60", "2027-10-22T9:11:51",
+    "2027-10-22T09:11:51Z", "2027-10-22T09:11:51-03:00", "2027-10-22T09:11:51.000",
+    " 2027-10-22", "2027-10-22 ", "2027-10-22\n", "2027-10-22T09:11:51\n", "<html>falha</html>",
+    20271022, null, undefined,
+  ])("certificado recusa data, relógio ou representação inválida %j", async DtExpiracao => {
+    const m = montar([{ status: true, Error: "", Expirado: false, DtExpiracao }]);
+    await expect(m.cliente.verificarCertificadoInterno()).rejects.toMatchObject({ codigo: "RESPOSTA_INVALIDA", etapaContrato: "CERTIFICADO_DATA" });
+  });
+  it.each(["2027-10-22", "2027-10-22T09:11:51"])("certificado mantém Expirado true mesmo com data futura %s", async DtExpiracao => {
+    const m = montar([{ status: true, Error: "", Expirado: true, DtExpiracao }]);
+    expect(await m.cliente.verificarCertificadoInterno()).toMatchObject({ valido: false, expirado: true, dataExpiracao: "2027-10-22" });
+  });
+  it.each([
+    { campo: "Token", segredo: "2027-10-22" },
+    { campo: "UserToken", segredo: "2027-10-22T09:11:51" },
+  ])("certificado não expõe $campo refletido em uma data válida antes de cortar a hora", async ({ campo, segredo }) => {
+    const transporte = vi.fn<typeof fetch>().mockResolvedValue(json({ status: true, Error: "", Expirado: false, DtExpiracao: segredo }));
+    const c = new ClienteBrasilNfe({ token: campo === "Token" ? segredo : TOKEN, userToken: campo === "UserToken" ? segredo : USER }, { fetch: transporte });
+    const erro = await c.verificarCertificadoInterno().catch(e => e);
+    expect(erro).toMatchObject({ codigo: "RESPOSTA_INVALIDA", etapaContrato: "SEGREDO_REFLETIDO" });
+    expect(String(erro)).not.toContain(segredo);
+    expect(JSON.stringify(erro)).not.toContain(segredo);
+  });
   it.each([0, 1, false, "true"])("certificado status %s não vira sucesso booleano", async status => {
     const m = montar([{ status, Error: "", Expirado: false, DtExpiracao: "2026-11-07" }]);
     await expect(m.cliente.verificarCertificadoInterno()).rejects.toThrow();
