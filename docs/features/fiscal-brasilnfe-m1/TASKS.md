@@ -1691,3 +1691,17 @@ As pendências materiais da Cesta continuam específicas da mercadoria. O alerta
 de soma pode resultar das linhas bloqueadas; não exige alterar preços comerciais.
 Rodadas de testes, SHA publicado e conferência real desta correção serão registrados
 na PR correspondente, sem atribuir reexecução às evidências da PR36.
+
+## Renovação de certificado —11/11/2026
+
+A consulta de leitura confirmou certificado vigente no Brasil NFe, mas o HUB
+rejeitava DtExpiracao com hora. A fronteira agora aceita a data ISO documentada e
+o formato ISO sem fuso observado. Valida calendário e relógio; conserva somente
+a data civil. Não altera a validação de Expirado nem usa o certificado local como
+prova do certificado externo. Segredos refletidos são rejeitados antes do corte.
+
+O certificado local SEFAZ e o cadastrado no Brasil NFe continuam independentes.
+A conferência administrativa normal atualiza os metadados externos após publicar.
+Não substituir certificado, credenciais, CSC, séries ou contadores para corrigir isso.
+Testes e publicação pertencem à PR desta correção no repositório efetivamente usado
+pelo serviço: grazing-hub-publico. Nenhuma transmissão foi autorizada nesta execução.

@@ -486,10 +486,14 @@ export class ClienteBrasilNfe {
       if (typeof dados.Expirado !== "boolean") invalida("CERTIFICADO_EXPIRADO");
       if (typeof dados.Error !== "string") invalida("CERTIFICADO_ERROR");
       if (!dados.status || erroPresente(dados.Error)) negocio();
-      if (typeof dados.DtExpiracao !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(dados.DtExpiracao)) invalida("CERTIFICADO_DATA");
-      const civil = Date.parse(`${dados.DtExpiracao}T00:00:00Z`);
-      if (!Number.isFinite(civil) || new Date(civil).toISOString().slice(0, 10) !== dados.DtExpiracao) invalida("CERTIFICADO_DATA");
-      return { valido: !dados.Expirado, expirado: dados.Expirado, dataExpiracao: dados.DtExpiracao, avisosPresentes: avisosPresentes(dados.Avisos) };
+      if (typeof dados.DtExpiracao !== "string" || ![10, 19].includes(dados.DtExpiracao.length)) invalida("CERTIFICADO_DATA");
+      this.#semCredenciais(dados.DtExpiracao);
+      // O fornecedor também retorna data/hora sem fuso. Preserve a data civil, sem conversão de horário.
+      const dataExpiracao = /^(\d{4}-\d{2}-\d{2})(?:T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d)?$/.exec(dados.DtExpiracao)?.[1];
+      if (!dataExpiracao) invalida("CERTIFICADO_DATA");
+      const civil = Date.parse(`${dataExpiracao}T00:00:00Z`);
+      if (!Number.isFinite(civil) || new Date(civil).toISOString().slice(0, 10) !== dataExpiracao) invalida("CERTIFICADO_DATA");
+      return { valido: !dados.Expirado, expirado: dados.Expirado, dataExpiracao, avisosPresentes: avisosPresentes(dados.Avisos) };
     });
   }
 
