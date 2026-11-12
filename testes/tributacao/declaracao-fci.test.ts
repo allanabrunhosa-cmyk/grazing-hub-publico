@@ -41,6 +41,15 @@ describe("Declaração administrativa exclusiva de origem/FCI/GTIN", () => {
     const fotografia = { ...m.documento, payload: { ...m.documento.payload, versao: 2, tributacao: { apto: true, pendencias: [], emitenteCnpj: m.cadastro.cnpj, emitenteUf: "SP", crt: 1, documento: payload, previa: { contexto: { data: "2026-10-15", estabelecimento: "singleton", ufDestino: "SP" }, linhas: [{ produtoId: d.produtoId, fci, classificacaoVersao: { id: "classificacao-nova-ficticia", versao: 4, materiaisHash: d.materiaisHash } }] } } } };
     const r = prepararPayloadSnapshotBrasilNfeLocal(fotografia, 55, { cnpj: m.cadastro.cnpj, ambiente: "HOMOLOGACAO" });
     const wire = JSON.parse(serializarPayloadLocalBrasilNfe(r)); expect(wire.Produtos[0]).not.toHaveProperty("nFCI"); expect(JSON.stringify(wire)).not.toMatch(/declaracaoResponsavel|valorParcelaImportada|registro|responsavel-ficticio/);
+    const comCodigo = structuredClone(fotografia);
+    Object.assign(comCodigo.payload.tributacao, { codigosProdutos: [{ linhaId: "item-sintetico", produtoId: d.produtoId, codigo: "P0100001" }] });
+    Object.assign(comCodigo.payload.tributacao.previa.linhas[0], { id: "item-sintetico" });
+    comCodigo.payload.tributacao.documento.Produtos[0].CodProdutoServico = "P0100001";
+    const wireCurto = JSON.parse(serializarPayloadLocalBrasilNfe(prepararPayloadSnapshotBrasilNfeLocal(comCodigo, 55, { cnpj: m.cadastro.cnpj, ambiente: "HOMOLOGACAO" })));
+    expect(wireCurto.Produtos[0].CodProdutoServico).toBe("P0100001"); expect(wireCurto.Produtos[0]).not.toHaveProperty("nFCI");
+    expect(comCodigo.payload.tributacao.previa.linhas[0].produtoId).toBe(d.produtoId);
+    comCodigo.payload.tributacao.previa.linhas[0].produtoId = "outro-produto";
+    expect(() => prepararPayloadSnapshotBrasilNfeLocal(comCodigo, 55, { cnpj: m.cadastro.cnpj, ambiente: "HOMOLOGACAO" })).toThrow("Código comercial");
     fotografia.payload.tributacao.previa.linhas[0].classificacaoVersao.materiaisHash = "b".repeat(64);
     expect(() => prepararPayloadSnapshotBrasilNfeLocal(fotografia, 55, { cnpj: m.cadastro.cnpj, ambiente: "HOMOLOGACAO" })).toThrow("FCI");
   });

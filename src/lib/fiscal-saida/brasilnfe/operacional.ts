@@ -1,4 +1,5 @@
 import "server-only";
+import { codigoFiscalCorrespondeProduto } from "../codigos-produtos";
 import { presencaAutomaticaPedido } from "@/lib/tributacao/pedidos";
 import { rejeicaoFiscalCorrigivel } from "../rejeicao";
 import { createHash } from "node:crypto";
@@ -356,8 +357,8 @@ export async function prepararEmissaoPedidoBrasilNfe(pedidoId: string, versaoPed
     emitente: { nome: texto(dadosEmitente.nome), cnpj: texto(dadosEmitente.cnpj), ie: regime.ie, crtDescricao: regime.crt && regime.descricaoCrt ? `${regime.crt} — ${regime.descricaoCrt}` : null },
     destinatario: { nome: texto(comprador.tipo === "PJ" ? comprador.razaoSocial : comprador.nome), documento: texto(comprador.documento), endereco: [endereco.logradouro, endereco.numero, endereco.cidade, endereco.uf].map(v => texto(v)).filter(Boolean).join(", ") || null },
     itens: (Array.isArray(payload.itens) ? payload.itens : []).map((v, indice) => {
-      const i = objeto(v), candidatas = Array.isArray(produtosFiscais) ? produtosFiscais.filter(v => objeto(v).CodProdutoServico === i.produtoId) : [];
-      const mesmoIndice = Array.isArray(produtosFiscais) && Array.isArray(payload.itens) && produtosFiscais.length === payload.itens.length && objeto(produtosFiscais[indice]).CodProdutoServico === i.produtoId;
+      const i = objeto(v), candidatas = Array.isArray(produtosFiscais) ? produtosFiscais.filter((v, n) => codigoFiscalCorrespondeProduto(payload.tributacao, n, i.produtoId, v)) : [];
+      const mesmoIndice = Array.isArray(produtosFiscais) && Array.isArray(payload.itens) && produtosFiscais.length === payload.itens.length && codigoFiscalCorrespondeProduto(payload.tributacao, indice, i.produtoId, produtosFiscais[indice]);
       const f = mesmoIndice ? objeto(produtosFiscais[indice]) : candidatas.length === 1 ? objeto(candidatas[0]) : null, imposto = objeto(f?.Imposto);
       return { id: texto(i.id, 100) ?? "", produtoId: texto(i.produtoId, 100) ?? "", nome: texto(objeto(i.produto).nome) ?? "Produto", quantidade: texto(i.quantidade, 30) ?? "", unidade: texto(i.unidade, 10) ?? "", total: texto(i.total, 30) ?? "",
         fiscal: f ? { ncm: codigo(f.NCM, /^\d{8}$/), cfop: codigo(f.CFOP, /^\d{4}$/), origem: codigo(f.OrigemProduto, /^[0-8]$/), icms: codigo(objeto(imposto.ICMS).CodSituacaoTributaria, /^(?:\d{2}|\d{3})$/), pis: codigo(objeto(imposto.PIS).CodSituacaoTributaria, /^\d{2}$/), cofins: codigo(objeto(imposto.COFINS).CodSituacaoTributaria, /^\d{2}$/) } : null };

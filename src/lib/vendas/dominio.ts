@@ -4,6 +4,7 @@ import { CORES_CATEGORIA, type CorCategoria, type EscopoCategoria } from "./clas
 import { preservarCodigoMunicipio } from "./municipio";
 import { cobrancasDoCliente, identidadePrincipalCliente, LIMITE_COBRANCAS_CLIENTE } from "./cliente-cobranca";
 import { normalizarEmailCliente } from "./cliente-identificadores";
+import { codigoProdutoValido } from "./codigo-produto";
 import { entregasDoCliente, LIMITE_ENTREGAS_CLIENTE } from "./cliente-entrega";
 import { chaveEnderecoPostal, pendenciaEnderecoPostal } from "./cliente-enderecos";
 export class ErroCadastroVenda extends Error {}
@@ -283,6 +284,8 @@ export function validarGrupo(entrada: unknown): GrupoEntrada {
 }
 export function validarProduto(entrada: unknown): ProdutoEntrada {
   const d = objeto(entrada);
+  const codigo = opcional(d.codigo, "Código do produto", 8);
+  if (codigo && !codigoProdutoValido(codigo)) throw new ErroCadastroVenda("Código do produto: use até 8 letras maiúsculas ou números.");
   if (d.tipo !== "PADRAO" && d.tipo !== "PERSONALIZADO" && d.tipo !== "REVENDA") throw new ErroCadastroVenda("Tipo de produto inválido.");
   const categorias = lista(d.categorias, "Categorias", 30).map(c => texto(c, "Categoria", 100, true));
   const grupos = lista(d.grupos, "Grupos", 50).map(valor => { const g = objeto(valor); const opcoesExcluidas = lista(g.opcoesExcluidas ?? [], "Opções excluídas", 500).map(o => texto(o, "Opção", 100, true)); semDuplicados(opcoesExcluidas, "Opções excluídas"); return { grupoId: texto(g.grupoId, "Grupo", 100, true), usarPadrao: booleano(g.usarPadrao, "Regra padrão"), ...validarLimites(g.minimo, g.maximo), opcoesExcluidas, ...(g.ajustesOpcoes === undefined ? {} : { ajustesOpcoes: lerAjustesOpcoes(g.ajustesOpcoes) }) }; });
@@ -304,7 +307,7 @@ export function validarProduto(entrada: unknown): ProdutoEntrada {
   if (fotoUrl && !/^\/api\/vendas\/fotos\/[a-zA-Z0-9_-]+$/.test(fotoUrl)) throw new ErroCadastroVenda("Utilize uma foto enviada pelo cadastro de produtos.");
   return { ...identidade(d), ...embalagem, ...slots,
     pausasComplementos: lista(d.pausasComplementos ?? [], "Pausas de complementos", 500).map(valor => { const p = objeto(valor); const grupos = lista(p.grupos, "Grupos afetados", 500).map(valor => identidade(objeto(valor))); semDuplicados(grupos.map(g => g.id), "Grupos afetados"); return { opcaoId: texto(p.opcaoId, "Complemento", 100, true), ativo: booleano(p.ativo, "Complemento ativo"), grupos }; }),
-    classificacao: classificacoes[0], classificacoes, tempoPreparoMinutos, novoVinculoComplemento, nome: texto(d.nome, "Nome", 160, true), especificacao: opcional(d.especificacao, "Especificação", 300), descricao: opcional(d.descricao, "Descrição", 3000), tipo: d.tipo, codigo: opcional(d.codigo, "Código interno", 80), unidade: texto(d.unidade, "Unidade", 10, true).toUpperCase(), fotoUrl, observacoes: opcional(d.observacoes, "Observações", 3000), modoPreparo: opcional(d.modoPreparo, "Modo de preparo", 5000), ativo: booleano(d.ativo, "Ativo"), categorias, grupos, preco, componentes };
+    classificacao: classificacoes[0], classificacoes, tempoPreparoMinutos, novoVinculoComplemento, nome: texto(d.nome, "Nome", 160, true), especificacao: opcional(d.especificacao, "Especificação", 300), descricao: opcional(d.descricao, "Descrição", 3000), tipo: d.tipo, codigo, unidade: texto(d.unidade, "Unidade", 10, true).toUpperCase(), fotoUrl, observacoes: opcional(d.observacoes, "Observações", 3000), modoPreparo: opcional(d.modoPreparo, "Modo de preparo", 5000), ativo: booleano(d.ativo, "Ativo"), categorias, grupos, preco, componentes };
 }
 export function validarFiscal(entrada: unknown, revisado: boolean): FiscalVenda {
   const d = objeto(entrada);

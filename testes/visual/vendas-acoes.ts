@@ -5,6 +5,7 @@ export const salvarFormaPagamentoVendaAction = resposta;
 export const salvarCategoriaVendaAction = async (d: Record<string, unknown>) => ({ ok: true, id: "nova-categoria", registro: { ...d, id: "nova-categoria", versao: 1, ordem: 2, produtos: [] } });
 export const salvarGrupoVendaAction = async (d: { id: string; opcoes: Record<string, unknown>[] }) => ({ ok: true, id: d.id || "novo-grupo", registro: { ...d, id: d.id || "novo-grupo", versao: 1, produtos: [], opcoes: d.opcoes.map((o, i) => ({ ...o, id: o.id || `nova-opcao-${i}`, grupoId: d.id || "novo-grupo", ordem: i })) } });
 export const salvarProdutoVendaAction = resposta;
+export const organizarCodigosProdutosVendaAction = async () => ({ ok: true as const, atualizados: 4 });
 export const salvarTipoEmbalagemAction = async () => ({ erro: "Cadastro de embalagem desabilitado na prévia visual." });
 export const alterarSituacaoProdutoVendaAction = resposta;
 export const alterarPrecoProdutoVendaAction = async (_id: string, versao: number) => ({ ...await resposta(), versao: versao + 1 });
