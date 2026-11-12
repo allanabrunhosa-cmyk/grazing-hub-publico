@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { ErroCadastroVenda } from "./dominio";
 import { lerPacoteCatalogo, type PacoteCatalogo } from "./importacao-dominio";
 import { historico, transacao, type Autor } from "./persistencia";
+import { alocarCodigoProdutoNaTransacao } from "./codigos-produtos";
 
 type Entidade = "CATEGORIA" | "GRUPO" | "PRODUTO";
 type Situacao = "NOVO" | "ATUALIZAR" | "MANTER" | "CONFLITO";
@@ -125,7 +126,9 @@ export async function aplicarImportacao(conteudo: string, token: string, autor: 
       anteriores.set(p.chave, antes);
       const campos = { nome: p.nome, especificacao: p.especificacao, descricao: p.descricao, tipo: p.tipo, unidade: p.unidade, preco: p.preco };
       if (antes) await tx.produtoVenda.update({ where: { id: antes.id }, data: { ...campos, versao: { increment: 1 } } });
-      else { const classificacao = !p.categorias.length && pacote.grupos.some(g => g.opcoes.some(o => o.produtoChave === p.chave)) ? "COMPLEMENTO" : "PRINCIPAL"; await tx.produtoVenda.create({ data: { ...campos, classificacao, classificacoes: [classificacao], id: id("PRODUTO", p.chave), ativo: false, observacoes: [`Importado de ${pacote.origem}. Conferir antes de ativar.`, ...p.pendencias].join("\n").slice(0, 3000) } }); }
+      else { const classificacao = !p.categorias.length && pacote.grupos.some(g => g.opcoes.some(o => o.produtoChave === p.chave)) ? "COMPLEMENTO" : "PRINCIPAL";
+        const codigo = await alocarCodigoProdutoNaTransacao(tx, { codigoAntes: null, codigoInformado: null, classificacao, categorias: p.categorias.map(c => id("CATEGORIA", c)) }, autor);
+        await tx.produtoVenda.create({ data: { ...campos, codigo, classificacao, classificacoes: [classificacao], id: id("PRODUTO", p.chave), ativo: false, observacoes: [`Importado de ${pacote.origem}. Conferir antes de ativar.`, ...p.pendencias].join("\n").slice(0, 3000) } }); }
     }
     for (const l of processar.filter(l => l.entidade === "GRUPO")) {
       const g = pacote.grupos.find(g => g.chave === l.chave)!;

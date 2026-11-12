@@ -2,7 +2,9 @@
 /* Fotos autenticadas: servir diretamente preserva a sessão, sem cache público do otimizador. */
 /* eslint-disable @next/next/no-img-element */
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { codigoProdutoValido } from "@/lib/vendas/codigo-produto";
 import { entidadeInicial } from "@/lib/atividades/entidade-inicial";
 import { Plus, Printer, Package, ChevronRight, ListOrdered } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,7 +20,7 @@ import { PreviaFichaProduto } from "./previa-ficha";
 import { EditorCategoria, EditorGrupo } from "../catalogo/catalogo-client";
 import { OrdemProdutos } from "../catalogo/ordem-produtos";
 import { OrdemCategorias } from "../catalogo/ordem-categorias";
-import { salvarProdutoVendaAction } from "../actions";
+import { organizarCodigosProdutosVendaAction, salvarProdutoVendaAction } from "../actions";
 import { FiscalProdutoUnificado } from "../../financeiro/fiscal/ficha-produto";
 import type { CrtFiscal } from "@/lib/fiscal/catalogos/tipos";
 import { PrecoProduto } from "./preco-produto";
@@ -44,6 +46,30 @@ const novo = (categoriaId?: string): ProdutoEntrada => ({ id: "", versao: 0, nom
 export function ProdutosVenda({ dados, adicionar, editar, adicionarCatalogo = false, editarCatalogo = false, podeCadastrarInsumo = false, podeVerFiscal = false, podeEditarFiscal = false, situacaoInicial = "ativos", entidadeInicialId, complementos = false, semCabecalho = false, renderEditor, crt }: {
   dados: DadosProdutos; adicionar: boolean; editar: boolean; adicionarCatalogo?: boolean; editarCatalogo?: boolean; podeCadastrarInsumo?: boolean; podeVerFiscal?: boolean; podeEditarFiscal?: boolean; situacaoInicial?: string; entidadeInicialId?: string; crt?: CrtFiscal; complementos?: boolean; semCabecalho?: boolean; renderEditor?: (produto: ProdutoEntrada, fechar: () => void) => React.ReactNode;
 }) {
+  const router = useRouter();
+  const organizacaoEmCurso = useRef(false);
+  const [organizandoCodigos, definirOrganizandoCodigos] = useState(false);
+  const [resultadoCodigos, definirResultadoCodigos] = useState<{ erro?: string; mensagem?: string } | null>(null);
+  async function organizarCodigos() {
+    if (organizacaoEmCurso.current) return;
+    organizacaoEmCurso.current = true;
+    definirOrganizandoCodigos(true);
+    definirResultadoCodigos(null);
+    try {
+      const resposta = await organizarCodigosProdutosVendaAction();
+      if ("erro" in resposta) definirResultadoCodigos({ erro: resposta.erro });
+      else {
+        definirResultadoCodigos({ mensagem: `${resposta.atualizados} ${resposta.atualizados === 1 ? "código organizado" : "códigos organizados"}.` });
+        router.refresh();
+      }
+    } catch {
+      definirResultadoCodigos({ erro: "Não foi possível confirmar a organização dos códigos. Atualize a lista antes de tentar novamente." });
+    } finally {
+      organizacaoEmCurso.current = false;
+      definirOrganizandoCodigos(false);
+    }
+  }
+  const precisaOrganizarCodigos = dados.produtos.some(p => !codigoProdutoValido(p.codigo));
   const alvoInicial = entidadeInicial(entidadeInicialId) ? dados.produtos.find(p => p.id === entidadeInicialId && (!complementos || ehComplemento(p))) : undefined;
   const [busca, setBusca] = useState(""); const [categoria, setCategoria] = useState(""); const [situacao, setSituacao] = useState(alvoInicial ? alvoInicial.ativo ? "ativos" : "inativos" : situacaoInicial);
   const categoriasDoEscopo = dados.categorias.filter(c => (c.escopo ?? "PRODUTO") === (complementos ? "COMPLEMENTO" : "PRODUTO"));
@@ -59,9 +85,10 @@ export function ProdutosVenda({ dados, adicionar, editar, adicionarCatalogo = fa
   const filtrados = dados.produtos.filter(p => (complementos ? ehComplemento(p) : !ehComplemento(p)) && (situacao === "todos" || p.ativo === (situacao === "ativos")) && (!categoria || p.categorias.includes(categoria)) && normal(p.nome + " " + (p.especificacao ?? "") + " " + (p.codigo ?? "")).includes(normal(busca)));
   const categoriaAtual = categoriasDoEscopo.find(c => c.id === categoria);
   if (categoriaAtual) { const posicoes = new Map(categoriaAtual.produtos.map(v => [v.produtoId, v.ordem])); filtrados.sort((a, b) => (posicoes.get(a.id) ?? 0) - (posicoes.get(b.id) ?? 0) || a.nome.localeCompare(b.nome, "pt-BR")); }
-  const acoesCabecalho = <>{editarCatalogo && !complementos && <Button variant="outline" onClick={() => setOrdemCategorias(true)}><ListOrdered className="size-4" />Ordenar categorias</Button>}{adicionarCatalogo && <Button variant="outline" onClick={() => setCategoriaRapida({ id:"",versao:0,nome:"",ativo:true,escopo:complementos ? "COMPLEMENTO" : "PRODUTO",cor:"azul" })}><Plus className="size-4" />Nova categoria</Button>}{adicionar && <Button onClick={() => setProduto(novoItem())}><Plus className="size-4" />Novo {nomeItem}</Button>}</>;
+  const acoesCabecalho = <>{editar && precisaOrganizarCodigos && <Button variant="entrada-outline" disabled={organizandoCodigos} aria-busy={organizandoCodigos} onClick={() => void organizarCodigos()}><ListOrdered className="size-4" />{organizandoCodigos ? "Organizando códigos…" : "Organizar códigos"}</Button>}{editarCatalogo && !complementos && <Button variant="outline" onClick={() => setOrdemCategorias(true)}><ListOrdered className="size-4" />Ordenar categorias</Button>}{adicionarCatalogo && <Button variant="outline" onClick={() => setCategoriaRapida({ id:"",versao:0,nome:"",ativo:true,escopo:complementos ? "COMPLEMENTO" : "PRODUTO",cor:"azul" })}><Plus className="size-4" />Nova categoria</Button>}{adicionar && <Button onClick={() => setProduto(novoItem())}><Plus className="size-4" />Novo {nomeItem}</Button>}</>;
   return <div className="space-y-5">
     {semCabecalho ? <div className="flex flex-wrap justify-end gap-2">{acoesCabecalho}</div> : <CabecalhoVendas titulo={titulo} descricao={complementos ? "Complementos organizados por categoria. Abra um complemento para conferir os detalhes." : "Cardápio organizado por categoria. Abra um produto para conferir os detalhes."}>{acoesCabecalho}</CabecalhoVendas>}
+    {resultadoCodigos && <p role={resultadoCodigos.erro ? "alert" : "status"} className={resultadoCodigos.erro ? "text-sm text-destructive" : "text-sm text-muted-foreground"}>{resultadoCodigos.erro ?? resultadoCodigos.mensagem}</p>}
     <div className="flex flex-wrap items-center gap-2">
       <Input className="max-w-sm" aria-label={complementos ? "Buscar complementos" : "Buscar produtos"} placeholder="Nome, especificação ou código" value={busca} onChange={e => setBusca(e.target.value)} />
       <SelecaoFormulario aria-label="Categoria" className="max-w-60" value={categoria} onValueChange={valor => setCategoria(valor)}><option value="">Todas as categorias</option>{categoriasDoEscopo.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</SelecaoFormulario>
@@ -93,7 +120,7 @@ function LinhaProduto({ produto: p, dados, aberto, alternar, status, acoes, edit
     <TableCell className="px-4 py-3"><Button type="button" variant="ghost" className="h-auto w-full justify-start gap-3 p-0 text-left font-normal whitespace-normal" aria-label={`${aberto ? "Fechar" : "Abrir"} detalhes de ${p.nome}`} aria-expanded={aberto} aria-controls={"detalhes-" + p.id} onClick={alternar}>
       <ChevronRight className={"size-4 shrink-0 text-muted-foreground transition-transform duration-200 " + (aberto ? "rotate-90" : "")} />
       <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted">{p.fotoUrl ? <img src={p.fotoUrl} alt="" loading="lazy" width={80} height={80} className="h-full w-full object-cover" /> : <Package className="size-7 text-muted-foreground" />}</span>
-      <span className="min-w-0 flex-1"><span className="block font-semibold">{p.nome}</span>{p.especificacao && <span className="mt-1 block text-xs text-muted-foreground">{p.especificacao}</span>}<span className="mt-1 block text-xs text-muted-foreground">{classes[classificacaoComercial(p)]}</span></span>
+      <span className="min-w-0 flex-1"><span className="block font-semibold">{p.nome}</span><span className="mt-1 block text-xs text-muted-foreground">Código: <span className="font-mono">{p.codigo || "Atribuição pendente"}</span></span>{p.especificacao && <span className="mt-1 block text-xs text-muted-foreground">{p.especificacao}</span>}<span className="mt-1 block text-xs text-muted-foreground">{classes[classificacaoComercial(p)]}</span></span>
     </Button></TableCell>
     {complemento && <TableCell data-categoria className="px-3 py-3"><div className="flex flex-wrap gap-1">{dados.categorias.filter(c => p.categorias.includes(c.id) && c.escopo === "COMPLEMENTO").map(c => <TagCategoriaComplemento key={c.id} categoria={c} />)}{!dados.categorias.some(c => p.categorias.includes(c.id) && c.escopo === "COMPLEMENTO") && <span className="text-xs text-muted-foreground">Sem categoria</span>}</div></TableCell>}
     <TableCell data-preco className="py-3 pl-3 pr-6 align-middle tabular-nums"><PrecoProduto key={p.preco} produto={p} editar={editarPreco} custo={custo} configuracaoObrigatoriaPaga={configuracaoObrigatoriaPaga} /></TableCell>
@@ -101,7 +128,7 @@ function LinhaProduto({ produto: p, dados, aberto, alternar, status, acoes, edit
     <TableCell data-acoes className="px-3 py-3"><GrupoAcoes nome={`Ações de ${p.nome}`}>{acoes}</GrupoAcoes></TableCell>
   </TableRow>
   {aberto && <TableRow id={"detalhes-" + p.id} className="border-b bg-muted/15"><TableCell colSpan={complemento ? 5 : 4} className="p-5"><div className="grid gap-5 md:grid-cols-3">
-    <div><h3 className="mb-2 font-medium">Informações do {complemento ? "complemento" : "produto"}</h3><p className="whitespace-pre-wrap text-sm text-muted-foreground">{p.descricao || "Sem descrição comercial."}</p><p className="mt-3 text-xs">{p.codigo || "Sem código"} · {p.unidade}</p><p className="mt-1 text-xs">Tempo de preparo: {p.tempoPreparoMinutos == null ? "não informado" : p.tempoPreparoMinutos + " min"}</p></div>
+    <div><h3 className="mb-2 font-medium">Informações do {complemento ? "complemento" : "produto"}</h3><p className="whitespace-pre-wrap text-sm text-muted-foreground">{p.descricao || "Sem descrição comercial."}</p><p className="mt-3 text-xs">Código: <span className="font-mono">{p.codigo || "Atribuição pendente"}</span> · {p.unidade}</p><p className="mt-1 text-xs">Tempo de preparo: {p.tempoPreparoMinutos == null ? "não informado" : p.tempoPreparoMinutos + " min"}</p></div>
     <div><h3 className="mb-2 font-medium">Composição por unidade</h3>{p.componentes.length ? <ul className="space-y-1 text-xs text-muted-foreground">{p.componentes.map(c => <li key={c.insumoId}>{c.quantidade.replace(".", ",")} {c.unidade} · {dados.insumos.find(i => i.id === c.insumoId)?.nome ?? "Ingrediente indisponível"}{c.observacaoPorcao ? " · " + c.observacaoPorcao : ""}</li>)}</ul> : <p className="text-xs text-muted-foreground">Composição ainda não cadastrada.</p>}</div>
     <div><h3 className="mb-2 font-medium">Grupos e escolhas</h3>{p.grupos.length ? p.grupos.map(v => { const g = dados.grupos.find(g => g.id === v.grupoId); if (!g) return null; const l = limitesEfetivos(g,v); return <details key={g.id} className="mb-2 rounded-lg border bg-card p-2 text-xs"><summary className="cursor-pointer font-medium">{g.nome} · {l.minimo} a {l.maximo ?? "ilimitado"}</summary><ul className="mt-2 space-y-1 text-muted-foreground">{opcoesEfetivas(precosOpcoes(g.opcoes, dados.produtos), v).filter(o => o.ativo && !v.opcoesExcluidas?.includes(o.id)).map(o => <li key={o.id}>{o.nome} · {moeda(o.preco)}</li>)}</ul></details>; }) : <p className="text-xs text-muted-foreground">Sem grupos de escolhas.</p>}</div>
   </div></TableCell></TableRow>}</>;
@@ -146,7 +173,7 @@ function EditorProduto({ inicial, dados: dadosOriginais, fechar, adicionarCatalo
   }
   return <><EditorVenda titulo={d.id ? "Editar produto" : "Novo produto"} descricao="Cadastro comercial, composição e fiscal do produto." fechar={fechar} salvar={() => salvarProdutoVendaAction(d)} impedido={enviandoFoto} abrirSecao={selecionarAba}
     cabecalho={<div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex flex-wrap gap-1">{abas.map(([id,nome]) => <Button key={id} data-abrir-secao={id} size="sm" variant={aba === id ? "default" : "outline"} onClick={() => selecionarAba(id)}>{nome}</Button>)}</div>
+      <div className="min-w-0 space-y-2"><p className="text-xs text-muted-foreground">Código do produto: <span className="font-mono font-medium text-foreground">{d.codigo || "Gerado ao salvar"}</span></p><div className="flex flex-wrap gap-1">{abas.map(([id,nome]) => <Button key={id} data-abrir-secao={id} size="sm" variant={aba === id ? "default" : "outline"} onClick={() => selecionarAba(id)}>{nome}</Button>)}</div></div>
       <Button type="button" variant="outline" size="sm" onClick={() => setFichaAberta(true)}><Printer className="size-4" />Imprimir ficha técnica</Button>
     </div>}
     exibirIndependente={aba === "fiscal"}
@@ -158,7 +185,8 @@ function EditorProduto({ inicial, dados: dadosOriginais, fechar, adicionarCatalo
       <div className="grid gap-4 sm:grid-cols-2"><FotoCampo produtoId={d.id} url={d.fotoUrl} mudar={url => campo("fotoUrl",url)} aoEnviar={setEnviandoFoto} /><div className="space-y-3">
         <Campo nome="Classificação"><SelecaoFormulario aria-label="Classificação" value={classificacaoComercial(d)} onValueChange={valor => { const classificacao = valor as "PRINCIPAL" | "COMPLEMENTO"; setD(a => ({ ...a, classificacao, classificacoes: [classificacao], categorias: [], grupos: classificacao === "COMPLEMENTO" ? [] : a.grupos })); }}><option value="PRINCIPAL">Produto</option><option value="COMPLEMENTO">Complemento</option></SelecaoFormulario></Campo>
         <p className="text-xs text-muted-foreground">Produto pode ser vendido sozinho. Complemento precisa estar dentro de um produto.</p>
-        <Texto nome="Código interno (único)" maxLength={80} value={d.codigo ?? ""} onChange={e => campo("codigo",e.target.value)} />
+        <Texto nome="Código do produto" maxLength={8} value={d.codigo ?? ""} readOnly placeholder="Gerado ao salvar" />
+        <p className="text-xs text-muted-foreground">Código automático da categoria de origem. Não muda ao reorganizar categorias.</p>
         <Texto nome="Unidade comercial *" maxLength={10} required value={d.unidade} onChange={e => campo("unidade",e.target.value)} />
         <Check checked={d.ativo} onChange={e => campo("ativo",e.target.checked)}>Produto ativo</Check>
       </div></div>

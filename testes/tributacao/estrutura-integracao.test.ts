@@ -30,7 +30,7 @@ import { obterAdaptadorFiscalSaida } from "@/lib/fiscal-saida/provedor";
 
 const esquema = `teste_estrutura_fiscal_${randomUUID().replaceAll("-", "")}`;
 let banco: Client | undefined, criado = false;
-let sessao: SessaoAtual, operador: SessaoAtual, produtoId: string, perfilAdminId: string, perfilConsultaId: string;
+let sessao: SessaoAtual, operador: SessaoAtual, produtoId: string, codigoProduto: string, perfilAdminId: string, perfilConsultaId: string;
 const legado = { ncm: "19059090", cfop: "5102", observacoes: "Cadastro anterior exclusivamente fictício" };
 function entrada(alteracoes: Partial<SalvarVersaoFiscalEntrada> = {}): SalvarVersaoFiscalEntrada {
   const classificacao: ClassificacaoFiscal = { produtoId, grupo: "GF05", natureza: "FRACIONADO", tratamento: "NORMAL",
@@ -66,7 +66,8 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Estrutura fis
     const leitor = await sim.prisma.usuario.create({ data: { nome: "Operador fictício", email: `${randomUUID()}@example.invalid`, senhaHash: "inutil", perfilAcessoId: perfilConsultaId } });
     sessao = { userId: autor.id, nome: autor.nome, email: autor.email, versao: 0, admin: true, permissoes: {}, excecoes: {}, perfilNome: "Administrador" };
     operador = { ...sessao, userId: leitor.id, nome: leitor.nome, email: leitor.email, admin: false, perfilNome: "Operador" };
-    produtoId = (await sim.prisma.produtoVenda.create({ data: { nome: "Produto exclusivamente fictício", codigo: randomUUID(), fiscal: legado, fiscalRevisado: true, grupoFiscalId: "fiscal-grupo-gf05", versao: 3 } })).id;
+    codigoProduto = randomUUID().slice(0, 8).toUpperCase();
+    produtoId = (await sim.prisma.produtoVenda.create({ data: { nome: "Produto exclusivamente fictício", codigo: codigoProduto, fiscal: legado, fiscalRevisado: true, grupoFiscalId: "fiscal-grupo-gf05", versao: 3 } })).id;
   });
   afterAll(async () => {
     await sim.prisma?.$disconnect();
@@ -167,7 +168,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Estrutura fis
   it("Kit é escolha explícita; corrigir preparação gera uma linha 55/65 e preserva frutas, pedido e tentativa incerta", async () => {
     sim.hoje = "2026-10-22";
     const grupo = await sim.prisma.grupoFiscalVenda.create({ data: { nome: `Preparações sintéticas ${randomUUID()}` } });
-    const fruta = await sim.prisma.produtoVenda.create({ data: { nome: "Fruta exclusivamente sintética", unidade: "UN" } });
+    const fruta = await sim.prisma.produtoVenda.create({ data: { nome: "Fruta exclusivamente sintética", codigo: randomUUID().slice(0, 8).toUpperCase(), unidade: "UN" } });
     const perfil: PerfilFiscal = { estabelecimento: "singleton", cnpj: "12345678000195", uf: "SP", codigoMunicipio: "3550308", inscricaoEstadual: "123456789012", regime: "SIMPLES_NACIONAL", crt: 1, confirmado: true, evidenciaEnquadramento: "Fixture", modelos: ["55", "65"], emissor: "BRASIL_NFE", reforma: "DISPENSADO_SIMPLES_2026", beneficioOpcional: null };
     const tributo = { cst: "49", aliquota: null, reducaoBase: "0", modalidade: "SEM_DESTAQUE" as const, justificativa: "Fixture sem efeito real" };
     const regra: RegraFiscal = { estabelecimento: "singleton", regime: "SIMPLES_NACIONAL", operacao: "VENDA", ufDestino: "SP", destinatario: "CONSUMIDOR_FINAL", grupo: null, produtoId: fruta.id, natureza: null, ncm: null, cfop: "5101", csosn: "900", icms: { ...tributo, cst: "00" }, pis: tributo, cofins: tributo, ipi: null, st: "NAO_APLICAVEL", cest: null, segregacaoReceita: "FIXTURE", reforma: null, seletivo: "NAO_APLICAVEL" };
@@ -194,7 +195,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Estrutura fis
     const p = await sim.prisma.pedidoVenda.create({ data: { chaveCriacao: randomUUID(), hashCriacao: "fixture", status: "CONFIRMADO", canalNomeSnapshot: "Site", atendimento: "ENTREGA", criadoPorId: sessao.userId, subtotal: 100, frete: 10, total: 110, formaPagamentoInformada: "DINHEIRO", enderecoSnapshot: { uf: "SP" }, cobrancaSnapshot: { pais: "BRASIL", cep: "01001000", uf: "SP", codigoMunicipio: "3550308", cidade: "São Paulo", logradouro: "Rua fictícia", numero: "1", bairro: "Centro" }, compradorSnapshot: { tipo: "PF", nome: "Fixture", documento: "00000000000" }, itens: { create: { produtoId, versaoPedido: 1, ordem: 0, quantidade: 1, unidadeSnapshot: "UN", produtoSnapshot: { nome: "Preparação final sintética", fotografiaKitFiscal: foto }, escolhasSnapshot: [], composicaoSnapshot: [{ insumoId: "ingrediente-ficticio", quantidade: "1", unidade: "KG" }], estadoComposicao: "CONHECIDA", precoOriginal: 100, precoAplicado: 100, acrescimos: 0, totalLinha: 100 } } }, include: { itens: true } });
     try {
     const antes = await sim.prisma.$transaction(tx => calcularPreviaPedido(tx, p, "55", { consumidorFinal: true }));
-    expect(antes.documento.Produtos[0].CodProdutoServico).toBe(fruta.id);
+    expect(antes.documento.Produtos[0].CodProdutoServico).toBe(fruta.codigo);
     expect(antes.pendencias.join(" ")).toContain("900");
     const incerta = await sim.prisma.documentoFiscalSaida.create({ data: { pedidoId: p.id, versaoPedido: 1, payload: { fixture: "kit fotografado anteriormente" }, hashPayload: "e".repeat(64), criadoPorId: sessao.userId, criadoPorNome: sessao.nome, status: "PENDENTE_CONFERENCIA", tentativas: 1, modeloDocumento: 55, serie: "6" } });
     const frutaAntes = await sim.prisma.versaoEstruturaFiscal.findUniqueOrThrow({ where: { id: regraFrutaId } });
@@ -205,7 +206,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Estrutura fis
       const pre = await sim.prisma.$transaction(tx => calcularPreviaPedido(tx, p, modelo, { consumidorFinal: true }));
       expect(pre.pendencias).toEqual([]); expect(pre.apto).toBe(true);
       expect(pre.documento.Produtos).toHaveLength(1);
-      expect(pre.documento.Produtos[0]).toMatchObject({ CodProdutoServico: produtoId, NCM: "21069090", ValorTotal: "100.00", ValorFrete: "10.00", EAN: "SEM GTIN", Imposto: { ICMS: { CodSituacaoTributaria: "102" } } });
+      expect(pre.documento.Produtos[0]).toMatchObject({ CodProdutoServico: codigoProduto, NCM: "21069090", ValorTotal: "100.00", ValorFrete: "10.00", EAN: "SEM GTIN", Imposto: { ICMS: { CodSituacaoTributaria: "102" } } });
       expect(pre.documento.ValorTotal).toBe("110.00");
     }
     expect(await sim.prisma.versaoEstruturaFiscal.findUniqueOrThrow({ where: { id: regraFrutaId } })).toEqual(frutaAntes);
@@ -235,7 +236,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Estrutura fis
     sim.hoje = "2026-10-15";
     const rede = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("Rede proibida neste teste sintético"));
     try {
-      await sim.prisma.produtoVenda.create({ data: { id: PRODUTO_DECLARACAO_FCI_GRAZING1, codigo: randomUUID(), nome: "Preparação exclusivamente sintética", unidade: "UN" } });
+      await sim.prisma.produtoVenda.create({ data: { id: PRODUTO_DECLARACAO_FCI_GRAZING1, codigo: randomUUID().slice(0, 8).toUpperCase(), nome: "Preparação exclusivamente sintética", unidade: "UN" } });
       const dados = classificacaoFicticia(); delete dados.fci;
       dados.origem = null; dados.pendencias = [PENDENCIA_ORIGEM_GRAZING1];
       const inicial = await salvarVersaoFiscal(entrada({ chave: PRODUTO_DECLARACAO_FCI_GRAZING1, vigenciaInicio: sim.hoje, dados }), sessao);

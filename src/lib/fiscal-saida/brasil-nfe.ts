@@ -11,6 +11,7 @@ import { conferirFciFiscal, NUMERO_FCI_FISCAL } from "@/lib/tributacao/fci";
 import { validarLayoutRtc, type SnapshotLayoutRtc } from "@/lib/tributacao/layout-rtc";
 import { exigirTransmissaoBrasilNfeLiberada } from "./brasilnfe/bloqueio-transmissao";
 import { PADRAO_DESCRICAO_PRODUTO_NFE } from "./brasilnfe/texto-xml";
+import { codigoFiscalCorrespondeProduto, referenciasCodigosProdutosFiscaisValidas } from "./codigos-produtos";
 
 const BASE = "https://api.brasilnfe.com.br/services/";
 const LIMITE_RESPOSTA = 20 * 1024 * 1024;
@@ -71,6 +72,7 @@ export function validarSnapshotBrasilNfe(payload: Prisma.JsonValue, c: Pick<Conf
   if (c.somentePrevia !== true && c.ambiente === "PRODUCAO" && (t.revisaoConsolidada !== undefined || t.previa && typeof t.previa === "object" && !Array.isArray(t.previa) && "revisaoConsolidada" in t.previa)) throw new ErroValidacaoSnapshotBrasilNfe("Produção exige recálculo com versões ativas após aprovação interna; propostas de revisão não autorizam envio.");
   if (["Serie", "Numero", "Lote"].some(campo => Object.hasOwn(d, campo))) throw new ErroValidacaoSnapshotBrasilNfe("Numeração automática Brasil NFe exige omitir Serie, Numero e Lote. Não enviar contador ou reservar número local.");
   if (p.schema !== "grazing.fiscal-saida" || p.versao !== 2 || t.apto !== true || !Array.isArray(t.pendencias) || t.pendencias.length || t.emitenteCnpj !== c.cnpj || ![1, 2, 3, 4].includes(t.crt as number)) throw new ErroValidacaoSnapshotBrasilNfe("Solicitação exige cálculo servidor sem pendências fiscais.");
+  if (!referenciasCodigosProdutosFiscaisValidas(t)) throw new ErroValidacaoSnapshotBrasilNfe("Código comercial não corresponde à identidade do produto e à linha fiscal fotografada.");
   if (t.emitenteIE !== undefined) inscricaoEstadual(t.emitenteIE);
   if (![55, 65].includes(d.ModeloDocumento as number) || d.TipoAmbiente !== ambiente(c) || d.Finalidade !== 1 || ![0, 1, 2, 3, 4, 5, 9].includes(d.IndicadorPresenca as number) || typeof d.ConsumidorFinal !== "boolean") throw new ErroValidacaoSnapshotBrasilNfe("Modelo, ambiente ou operação fiscal inválida.");
   texto(d.NaturezaOperacao, 60, undefined, "Natureza da operação");
@@ -100,7 +102,7 @@ export function validarSnapshotBrasilNfe(payload: Prisma.JsonValue, c: Pick<Conf
           produtoId: typeof linhaFci?.produtoId === "string" ? linhaFci.produtoId : undefined, estabelecimento: typeof contextoFci.estabelecimento === "string" ? contextoFci.estabelecimento : undefined, emitenteCnpj: c.cnpj, gtin: typeof produto.EAN === "string" ? produto.EAN : undefined, ambiente: c.ambiente,
           classificacaoVersaoId: typeof versaoClassificacao.id === "string" ? versaoClassificacao.id : undefined, classificacaoVersaoNumero: typeof versaoClassificacao.versao === "number" ? versaoClassificacao.versao : undefined, materiaisHash: typeof versaoClassificacao.materiaisHash === "string" ? versaoClassificacao.materiaisHash : undefined,
           natureza: versaoClassificacao.natureza === "REVENDA" || versaoClassificacao.natureza === "FRACIONADO" ? versaoClassificacao.natureza : undefined, ncm: String(produto.NCM) });
-        if (linhaFci?.produtoId !== produto.CodProdutoServico || fci.pendencias.length || fci.numero !== (produto.nFCI ?? null)) throw new ErroValidacaoSnapshotBrasilNfe("Conteúdo de importação, decisão FCI e item calculado exigem comprovação coerente.");
+        if (!codigoFiscalCorrespondeProduto(t, indice, linhaFci?.produtoId, produto) || fci.pendencias.length || fci.numero !== (produto.nFCI ?? null)) throw new ErroValidacaoSnapshotBrasilNfe("Conteúdo de importação, decisão FCI e item calculado exigem comprovação coerente.");
       }
       const situacao = texto(icms.CodSituacaoTributaria, 3, undefined, t.crt === 1 || t.crt === 4 ? "CSOSN do ICMS" : "CST do ICMS");
       const pendenciaCsosn = pendenciaCsosnNaoContribuinte({ modelo: d.ModeloDocumento, crt: t.crt, finalidade: d.Finalidade, indicadorIe: d.Cliente === undefined ? undefined : objeto(d.Cliente, "Dados do destinatário").IndicadorIe,

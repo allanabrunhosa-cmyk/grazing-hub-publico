@@ -2,6 +2,7 @@ import "server-only";
 import { pendenciaCsosnNaoContribuinte } from "@/lib/fiscal-saida/brasilnfe/csosn-nao-contribuinte";
 import { apresentacaoCanalVenda } from "@/lib/vendas/canais-apresentacao";
 import { descricaoProdutoNfe } from "@/lib/fiscal-saida/brasilnfe/texto-xml";
+import { fotografarCodigosProdutosFiscais } from "@/lib/fiscal-saida/codigos-produtos";
 import { identidadeFiscalCobranca } from "@/lib/vendas/cliente-cobranca";
 import { Prisma } from "@/generated/prisma/client";
 import type { SessaoAtual } from "@/lib/session";
@@ -71,7 +72,7 @@ async function calcularPreviaPedidoBase(tx: Prisma.TransactionClient, p: PedidoF
   const consultadas = await consultarVersoesFiscais(tx); const data = hojeFiscal();
   const revisao = selecionadas === undefined ? null : selecionarVersoesRevisaoConsolidada(consultadas, selecionadas, data, opcoes.ambiente ?? "HOMOLOGACAO");
   const vs = revisao?.versoes ?? consultadas;
-  const catalogo = await tx.produtoVenda.findMany({ select: { id: true, nome: true, unidade: true } });
+  const catalogo = await tx.produtoVenda.findMany({ select: { id: true, nome: true, unidade: true, codigo: true } });
   const itens = itensParaTributacao(p), vigentes = versoesVigentes(vs, data);
   const alcance = new Set(itens.map(i => i.produtoId));
   for (const item of itens) for (const escolha of item.escolhas) {
@@ -112,6 +113,8 @@ async function calcularPreviaPedidoBase(tx: Prisma.TransactionClient, p: PedidoF
   const previa = calcularTributacao({ data, estabelecimento: "singleton", ufDestino: uf, destinatario: indicadorIe === 1 ? "CONTRIBUINTE" : "CONSUMIDOR_FINAL", consumidorFinal, modelo, operacao: "VENDA", frete: p.frete.toFixed(2), outrosCustos: p.outrosCustos.toFixed(2), ...(temDeclaracaoAdministrativa ? { ambiente: opcoes.ambiente ?? "HOMOLOGACAO" } : {}) }, itens, vs, catalogo, tecnicasAtuais, insumos);
   if (revisao) previa.revisaoConsolidada = revisao.revisao;
   const pendencia = (s: string) => { if (!previa.pendencias.includes(s)) previa.pendencias.push(s); previa.apto = false; };
+  const identificacao = fotografarCodigosProdutosFiscais(previa.linhas, catalogo);
+  identificacao.pendencias.forEach(pendencia);
   if (!perfil?.crt) pendencia("Confirmar e aprovar o CRT explícito no regime central vigente. A opção pelo Simples, isoladamente, não define o CRT.");
   if (perfil?.crt === 2) pendencia("CRT2 exige tributação do ICMS fora do Simples e regras específicas aprovadas. Este alcance ainda não está homologado.");
   if ((comprador.tipo === "PJ" || comprador.inscricaoEstadual) && opcoes.consumidorFinal === undefined) pendencia("Confirmar finalidade da operação: consumo final ou revenda. Inscrição estadual não determina a finalidade.");
@@ -138,7 +141,7 @@ async function calcularPreviaPedidoBase(tx: Prisma.TransactionClient, p: PedidoF
   const pesos = previa.linhas.map(l => l.valor);
   const rateio = (v: Prisma.Decimal) => pesos.length && v.gt(0) ? ratearFiscal(v.toFixed(2), pesos.map(x => new Prisma.Decimal(x).gt(0) ? x : "0.000001")) : pesos.map(() => "0.00");
   const fretes = rateio(p.frete); const custos = rateio(p.outrosCustos);
-  const documento: DocumentoBrasilNfe = { ModeloDocumento: Number(modelo) as 55 | 65, TipoAmbiente: opcoes.ambiente === "PRODUCAO" ? 1 : 2, NaturezaOperacao: "Venda de mercadorias", Finalidade: 1, IndicadorPresenca: presenca, ConsumidorFinal: consumidorFinal, ValorTotal: p.total.toFixed(2), Pagamentos: forma ? [{ FormaPagamento: forma, VlPago: p.total.toFixed(2), ...(pagamentoCartaoNaoIntegrado ? { TipoIntegracao: false } : {}) }] : [], Produtos: previa.linhas.map((l, n) => ({ NmProduto: descricaoProdutoNfe(l.nome), CodProdutoServico: l.produtoId, NCM: l.ncm, EAN: l.gtin ?? "", ...(l.cest ? { CEST: l.cest } : {}), OrigemProduto: Number(l.origem), CFOP: Number(l.cfop), UnidadeComercial: l.unidade, UnidadeComercialTributavel: l.unidade, Quantidade: l.quantidade, QuantidadeTributavel: l.quantidade, ValorUnitario: new Prisma.Decimal(l.valor).div(l.quantidade).toFixed(10), ValorUnitarioTributavel: new Prisma.Decimal(l.valor).div(l.quantidade).toFixed(10), ValorTotal: l.valor, ValorFrete: fretes[n], ValorOutrasDespesas: custos[n], Imposto: traduzirImpostosBrasilNfe(l) })), ...(doc ? { Cliente: { CpfCnpj: doc, NmCliente: String(comprador.nome ?? ""), IndicadorIe: consumidorFinal ? 9 as const : 1 as const } } : {}) };
+  const documento: DocumentoBrasilNfe = { ModeloDocumento: Number(modelo) as 55 | 65, TipoAmbiente: opcoes.ambiente === "PRODUCAO" ? 1 : 2, NaturezaOperacao: "Venda de mercadorias", Finalidade: 1, IndicadorPresenca: presenca, ConsumidorFinal: consumidorFinal, ValorTotal: p.total.toFixed(2), Pagamentos: forma ? [{ FormaPagamento: forma, VlPago: p.total.toFixed(2), ...(pagamentoCartaoNaoIntegrado ? { TipoIntegracao: false } : {}) }] : [], Produtos: previa.linhas.map((l, n) => ({ NmProduto: descricaoProdutoNfe(l.nome), CodProdutoServico: identificacao.codigosProdutos[n].codigo, NCM: l.ncm, EAN: l.gtin ?? "", ...(l.cest ? { CEST: l.cest } : {}), OrigemProduto: Number(l.origem), CFOP: Number(l.cfop), UnidadeComercial: l.unidade, UnidadeComercialTributavel: l.unidade, Quantidade: l.quantidade, QuantidadeTributavel: l.quantidade, ValorUnitario: new Prisma.Decimal(l.valor).div(l.quantidade).toFixed(10), ValorUnitarioTributavel: new Prisma.Decimal(l.valor).div(l.quantidade).toFixed(10), ValorTotal: l.valor, ValorFrete: fretes[n], ValorOutrasDespesas: custos[n], Imposto: traduzirImpostosBrasilNfe(l) })), ...(doc ? { Cliente: { CpfCnpj: doc, NmCliente: String(comprador.nome ?? ""), IndicadorIe: consumidorFinal ? 9 as const : 1 as const } } : {}) };
   previa.linhas.forEach((linha, indice) => { if (linha.fci?.situacao === "EXIGIDA" && linha.fci.numero) documento.Produtos[indice].nFCI = linha.fci.numero; });
   const indicacoes = [...new Set(previa.linhas.flatMap(l => l.justificativas.filter(j => /Imposto Recolhido por Substitui/i.test(j))))];
   if (indicacoes.length) documento.Observacao = indicacoes.join("; ").slice(0, 5000);
@@ -163,7 +166,7 @@ async function calcularPreviaPedidoBase(tx: Prisma.TransactionClient, p: PedidoF
     const indices = itens.flatMap((item, n) => mensagem.startsWith(`${item.nome}:`) || mensagem.startsWith(`${item.nome} /`) ? [n + 1] : []);
     return indices.length ? `Item ${indices.join(", ")} — ${mensagem}` : mensagem;
   });
-  const snapshot: SnapshotTributacaoBrasilNfe & { previa: PreviaTributacao; perfilEmissor: string | null; revisaoConsolidada?: PreviaTributacao["revisaoConsolidada"] } = { apto: previa.apto, pendencias: previa.pendencias, emitenteCnpj: perfil?.cnpj ?? "", emitenteIE: perfil?.inscricaoEstadual ?? "", ...(previa.linhas.some(l => l.fci) ? { emitenteUf: perfil?.uf ?? "" } : {}), crt: perfil?.crt ?? 0, documento: documentoCalculado, previa, perfilEmissor: perfil?.emissor ?? null, ...(pagamentoCartaoNaoIntegrado ? { pagamentoCartaoNaoIntegrado: true } : {}), ...(revisao ? { revisaoConsolidada: revisao.revisao } : {}), ...(rtc2027 ? { rtc2027 } : {}) };
+  const snapshot: SnapshotTributacaoBrasilNfe & { previa: PreviaTributacao; perfilEmissor: string | null; revisaoConsolidada?: PreviaTributacao["revisaoConsolidada"] } = { codigosProdutos: identificacao.codigosProdutos, apto: previa.apto, pendencias: previa.pendencias, emitenteCnpj: perfil?.cnpj ?? "", emitenteIE: perfil?.inscricaoEstadual ?? "", ...(previa.linhas.some(l => l.fci) ? { emitenteUf: perfil?.uf ?? "" } : {}), crt: perfil?.crt ?? 0, documento: documentoCalculado, previa, perfilEmissor: perfil?.emissor ?? null, ...(pagamentoCartaoNaoIntegrado ? { pagamentoCartaoNaoIntegrado: true } : {}), ...(revisao ? { revisaoConsolidada: revisao.revisao } : {}), ...(rtc2027 ? { rtc2027 } : {}) };
   return snapshot;
 }
 export async function previaFiscalPedido(pedidoId: string, versao: number, sessao: SessaoAtual, modelo: "55" | "65" = "65", opcoes: OpcoesOperacaoFiscal = {}) {

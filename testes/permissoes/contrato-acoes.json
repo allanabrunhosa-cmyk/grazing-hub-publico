@@ -201,6 +201,12 @@
   },
   {
     "arquivo": "src/app/(protegido)/vendas/actions.ts",
+    "funcao": "organizarCodigosProdutosVendaAction",
+    "recurso": "vendas.produtos",
+    "acao": "editar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/vendas/actions.ts",
     "funcao": "salvarFiscalVendaAction",
     "recurso": "vendas.fiscal",
     "acao": "editar"

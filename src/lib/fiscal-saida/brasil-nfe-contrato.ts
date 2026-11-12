@@ -1,4 +1,5 @@
 import type { SnapshotLayoutRtc } from "@/lib/tributacao/layout-rtc";
+import type { ReferenciaCodigoProdutoFiscal } from "./codigos-produtos";
 
 /** Contrato do documento calculado pelo motor servidor; não é cadastro comercial. */
 export type DecimalBrasilNfe = string | number;
@@ -50,6 +51,8 @@ export type DocumentoBrasilNfe = {
   [campo: string]: unknown;
 };
 export type SnapshotTributacaoBrasilNfe = {
+  /** Vínculo prospectivo entre o código comercial e as identidades da linha fiscal. */
+  codigosProdutos?: ReferenciaCodigoProdutoFiscal[];
   apto: boolean;
   pendencias: unknown[];
   emitenteCnpj: string;

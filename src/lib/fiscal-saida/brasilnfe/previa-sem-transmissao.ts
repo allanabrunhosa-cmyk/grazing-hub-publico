@@ -1,5 +1,6 @@
 import { atalhoPendenciaFiscal, referenciasFiscaisPedido } from "@/lib/tributacao/atalhos";
 import "server-only";
+import { codigoFiscalCorrespondeProduto } from "../codigos-produtos";
 import { identidadeFiscalCobranca } from "@/lib/vendas/cliente-cobranca";
 import { prisma } from "@/lib/prisma";
 import type { SessaoAtual } from "@/lib/session";
@@ -57,8 +58,8 @@ export async function previaPedidoSemTransmissaoBrasilNfe(pedidoId: string, vers
     emitente: { nome: texto(loja?.nome), cnpj: texto(loja?.cnpj), ie: regime.ie, crtDescricao: regime.crt && regime.descricaoCrt ? `${regime.crt} — ${regime.descricaoCrt}` : null },
     destinatario: { nome: texto(comprador.tipo === "PJ" ? comprador.razaoSocial : comprador.nome), documento: texto(comprador.documento), endereco: [endereco.logradouro, endereco.numero, endereco.cidade, endereco.uf].map(v => texto(v)).filter(Boolean).join(", ") || null },
     itens: p.itens.map((i, indice) => {
-      const produtos = tributacao.documento.Produtos, candidatas = produtos.filter(f => f.CodProdutoServico === i.produtoId);
-      const f = produtos.length === p.itens.length && produtos[indice].CodProdutoServico === i.produtoId ? produtos[indice] : candidatas.length === 1 ? candidatas[0] : null;
+      const produtos = tributacao.documento.Produtos, candidatas = produtos.filter((f, n) => codigoFiscalCorrespondeProduto(tributacao, n, i.produtoId, f));
+      const f = produtos.length === p.itens.length && codigoFiscalCorrespondeProduto(tributacao, indice, i.produtoId, produtos[indice]) ? produtos[indice] : candidatas.length === 1 ? candidatas[0] : null;
       const imposto = objeto(f?.Imposto);
       return { id: i.id, produtoId: i.produtoId ?? "", nome: texto(objeto(i.produtoSnapshot).nome) ?? "Produto", quantidade: i.quantidade.toString(), unidade: i.unidadeSnapshot, total: i.totalLinha.toFixed(2),
         fiscal: f ? { ncm: codigo(f.NCM, /^\d{8}$/), cfop: codigo(f.CFOP, /^\d{4}$/), origem: codigo(f.OrigemProduto, /^[0-8]$/), icms: codigo(objeto(imposto.ICMS).CodSituacaoTributaria, /^(?:\d{2}|\d{3})$/), pis: codigo(objeto(imposto.PIS).CodSituacaoTributaria, /^\d{2}$/), cofins: codigo(objeto(imposto.COFINS).CodSituacaoTributaria, /^\d{2}$/) } : null };

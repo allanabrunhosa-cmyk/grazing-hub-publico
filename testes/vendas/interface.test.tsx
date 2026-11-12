@@ -7,14 +7,14 @@ import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockarCatalogoFiscal } from "../fiscal-saida/catalogo-fiscal-fixture";
-const sim = vi.hoisted(() => ({ listarPorcoes: vi.fn(async () => ({ porcoes: [] as { id: string; insumoId: string; nome: string; quantidade: string; unidade: string; versao: number }[], podeCadastrar: false })), salvar: vi.fn(), atualizar: vi.fn(), cep: vi.fn() }));
+const sim = vi.hoisted(() => ({ listarPorcoes: vi.fn(async () => ({ porcoes: [] as { id: string; insumoId: string; nome: string; quantidade: string; unidade: string; versao: number }[], podeCadastrar: false })), salvar: vi.fn(), organizarCodigos: vi.fn(), atualizar: vi.fn(), cep: vi.fn() }));
 vi.mock("@/lib/vendas/cliente-identidade-http", () => ({ consultarIdentidadeClienteCadastro: vi.fn().mockResolvedValue({ email: false, documento: false }), consultarIdentidadeClientePedido: vi.fn().mockResolvedValue({ email: false, documento: false }) }));
 vi.mock("@/app/(protegido)/vendas/produtos/embalagens-actions",()=>({salvarTipoEmbalagemAction:vi.fn()}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: sim.atualizar }) }));
 vi.mock("next/link", () => ({ default: ({ children, href }: { children: React.ReactNode; href: string }) => <a href={href}>{children}</a> }));
 vi.mock("@/app/(protegido)/insumos/actions", () => ({ saveInsumoAction: vi.fn() }));
 vi.mock("@/lib/insumos/consulta-porcoes-cliente", () => ({ consultarPorcoesNoCliente: sim.listarPorcoes, salvarPorcaoAction: vi.fn() }));
-vi.mock("@/app/(protegido)/vendas/actions", () => ({ alterarSituacaoProdutoVendaAction: sim.salvar, alterarPrecoProdutoVendaAction: sim.salvar, criarCanalVendaAction: sim.salvar, salvarPrecoCanalVendaAction: sim.salvar, excluirCadastroVendaAction: sim.salvar, salvarClienteVendaAction: sim.salvar, salvarProdutoVendaAction: sim.salvar, salvarGrupoVendaAction: sim.salvar, salvarCategoriaVendaAction: sim.salvar, salvarCategoriaGrupoVendaAction: sim.salvar, reordenarCategoriasVendaAction: sim.salvar, reordenarProdutosVendaAction: sim.salvar, enviarFotoProdutoVendaAction: sim.salvar }));
+vi.mock("@/app/(protegido)/vendas/actions", () => ({ alterarSituacaoProdutoVendaAction: sim.salvar, alterarPrecoProdutoVendaAction: sim.salvar, criarCanalVendaAction: sim.salvar, salvarPrecoCanalVendaAction: sim.salvar, excluirCadastroVendaAction: sim.salvar, salvarClienteVendaAction: sim.salvar, salvarProdutoVendaAction: sim.salvar, organizarCodigosProdutosVendaAction: sim.organizarCodigos, salvarGrupoVendaAction: sim.salvar, salvarCategoriaVendaAction: sim.salvar, salvarCategoriaGrupoVendaAction: sim.salvar, reordenarCategoriasVendaAction: sim.salvar, reordenarProdutosVendaAction: sim.salvar, enviarFotoProdutoVendaAction: sim.salvar }));
 vi.mock("@/app/(protegido)/vendas/clientes/credito-actions", () => ({ ajustarCreditoClienteAction: vi.fn() }));
 vi.mock("@/app/(protegido)/vendas/clientes/historico-actions", () => ({ consultarHistoricoPedidosClienteAction: vi.fn() }));
 vi.mock("@/app/(protegido)/vendas/clientes/cadastro-actions", () => ({  buscarCnpjClienteAction: vi.fn(), buscarCepClienteAction: sim.cep }));
@@ -22,6 +22,7 @@ vi.mock("@/app/(protegido)/vendas/pedidos/cadastro-cliente-actions", () => ({  b
 import { ClientesVenda } from "@/app/(protegido)/vendas/clientes/clientes-client";
 import { ProdutosVenda } from "@/app/(protegido)/vendas/produtos/produtos-client";
 import { CatalogoVenda, EditorGrupo } from "@/app/(protegido)/vendas/catalogo/catalogo-client";
+import { EditorComplemento } from "@/app/(protegido)/vendas/catalogo/editor-complemento";
 import { ProvedorAcesso } from "@/components/layout/acesso-contexto";
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.unstubAllGlobals(); sim.listarPorcoes.mockResolvedValue({ porcoes: [], podeCadastrar: false }); });
 const vazio = { tiposEmbalagem: [], canais: [], produtos: [], insumos: [], categorias: [], categoriasGrupos: [], grupos: [], gruposFiscais: [] };
@@ -134,6 +135,79 @@ const catalogo = {
   produtos:[{tipoEmbalagemId:null,slotsEntrega:null,id:"p",versao:1,nome:"Produto catálogo",especificacao:null,descricao:"Descrição detalhada",tipo:"PADRAO" as const,classificacao:"PRINCIPAL" as const,classificacoes:["PRINCIPAL" as const],tempoPreparoMinutos:12,codigo:null,unidade:"UN",fotoUrl:"/api/vendas/fotos/foto",observacoes:null,modoPreparo:null,ativo:true,fiscalRevisado:false,fiscal:{},grupoFiscalId:null,categorias:["c"],grupos:[{grupoId:"g",usarPadrao:true,minimo:1,maximo:2,opcoesExcluidas:[]}],preco: "80",componentes:[{insumoId:"i",quantidade:"0.1",unidade:"KG" as const,observacaoPorcao:null}]}],
 };
 describe("catálogo expansível e regras próprias",()=>{
+  it("organiza códigos só por ação explícita, impede repetição e atualiza a lista após confirmar", async () => {
+    let concluir!: (resposta: { ok: true; atualizados: number }) => void;
+    sim.organizarCodigos.mockImplementation(() => new Promise(resolver => { concluir = resolver; }));
+    render(<ProdutosVenda dados={catalogo} adicionar editar />);
+    const organizar = screen.getByRole("button", { name: "Organizar códigos" });
+    expect(sim.organizarCodigos).not.toHaveBeenCalled();
+    fireEvent.click(organizar);
+    fireEvent.click(organizar);
+    expect(sim.organizarCodigos).toHaveBeenCalledTimes(1);
+    expect(organizar).toHaveProperty("disabled", true);
+    expect(sim.atualizar).not.toHaveBeenCalled();
+    concluir({ ok: true, atualizados: 2 });
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("2 códigos organizados."));
+    expect(sim.atualizar).toHaveBeenCalledTimes(1);
+    expect(sim.salvar).not.toHaveBeenCalled();
+  });
+  it("não oferece organização para consulta nem para um catálogo com códigos válidos", () => {
+    const consulta = render(<ProdutosVenda dados={catalogo} adicionar={false} editar={false} />);
+    expect(screen.queryByRole("button", { name: "Organizar códigos" })).toBeNull();
+    consulta.unmount();
+    render(<ProdutosVenda dados={{ ...catalogo, produtos: [{ ...catalogo.produtos[0], codigo: "P0100001" }] }} adicionar editar />);
+    expect(screen.queryByRole("button", { name: "Organizar códigos" })).toBeNull();
+    expect(sim.organizarCodigos).not.toHaveBeenCalled();
+  });
+  it("mantém a falha da organização visível sem confirmar nem atualizar a lista", async () => {
+    sim.organizarCodigos.mockResolvedValue({ erro: "Falha sintética na organização." });
+    render(<ProdutosVenda dados={catalogo} adicionar editar />);
+    await userEvent.click(screen.getByRole("button", { name: "Organizar códigos" }));
+    expect((await screen.findByRole("alert")).textContent).toBe("Falha sintética na organização.");
+    expect(sim.atualizar).not.toHaveBeenCalled();
+    expect(sim.salvar).not.toHaveBeenCalled();
+  });
+  it("mantém o código automático visível também na interna do complemento", async () => {
+    render(<EditorComplemento inicial={{ ...catalogo.produtos[0], classificacao: "COMPLEMENTO", classificacoes: ["COMPLEMENTO"], grupos: [], codigo: "C0200001" }} dados={catalogo} fechar={vi.fn()} podeCadastrarInsumo={false} />);
+    const campo = screen.getByRole("textbox", { name: "Código do produto" });
+    expect(campo).toHaveProperty("readOnly", true);
+    expect(campo).toHaveProperty("value", "C0200001");
+    await userEvent.click(screen.getByRole("tab", { name: "Disponibilidade" }));
+    expect(screen.getByRole("textbox", { name: "Código do produto" })).toBe(campo);
+    expect(sim.salvar).not.toHaveBeenCalled();
+  });
+  it("mostra e busca o código curto, preservando-o somente leitura em todas as abas", async () => {
+    const codigo = "P0100001";
+    render(<ProdutosVenda dados={{ ...catalogo, produtos: [{ ...catalogo.produtos[0], codigo }] }} adicionar editar />);
+    expect(screen.getByText(codigo)).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Buscar produtos" }), { target: { value: codigo.toLowerCase() } });
+    expect(screen.getByText("Produto catálogo")).toBeTruthy();
+    const usuario = userEvent.setup();
+    await usuario.click(screen.getByRole("button", { name: "Editar Produto catálogo" }));
+    const editor = within(screen.getByRole("dialog", { name: "Editar produto" }));
+    const campo = editor.getByRole("textbox", { name: "Código do produto" });
+    expect(campo).toHaveProperty("readOnly", true);
+    expect(campo).toHaveProperty("maxLength", 8);
+    expect(campo).toHaveProperty("value", codigo);
+    await usuario.type(campo, "OUTRO123");
+    expect(campo).toHaveProperty("value", codigo);
+    await usuario.click(editor.getByRole("button", { name: "Preço" }));
+    expect(editor.getByText(codigo)).toBeTruthy();
+    await usuario.click(editor.getByRole("button", { name: "Imprimir ficha técnica" }));
+    const ficha = within(await screen.findByRole("dialog", { name: "Ficha técnica · P0100001 · Produto catálogo" }));
+    expect(ficha.getByTitle("Ficha técnica de Produto catálogo").getAttribute("srcdoc")).toContain("Código P0100001");
+    expect(sim.salvar).not.toHaveBeenCalled();
+  });
+  it("informa a atribuição automática do código ao salvar um produto novo", async () => {
+    render(<ProdutosVenda dados={vazio} adicionar editar />);
+    await userEvent.click(screen.getByRole("button", { name: "Novo produto" }));
+    const campo = screen.getByRole("textbox", { name: "Código do produto" });
+    expect(campo).toHaveProperty("readOnly", true);
+    expect(campo).toHaveProperty("value", "");
+    expect(campo.getAttribute("placeholder")).toBe("Gerado ao salvar");
+    expect(screen.getByText("Código automático da categoria de origem. Não muda ao reorganizar categorias.")).toBeTruthy();
+    expect(sim.salvar).not.toHaveBeenCalled();
+  });
   it("link da atividade mostra detalhes de produto inativo sem abrir editor ou liberar preço", () => {
     render(<ProdutosVenda dados={{ ...catalogo, produtos: [{ ...catalogo.produtos[0], ativo: false }] }} entidadeInicialId="p" adicionar={false} editar={false} />);
     expect(screen.getByText("Descrição detalhada")).toBeTruthy();

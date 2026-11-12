@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { definirContextoAtividade } from "@/lib/atividades/registro";
 import { validarCliente, validarProduto } from "./dominio";
 import { historico, salvarClienteNaTransacao, type Autor } from "./persistencia";
+import { alocarCodigoProdutoNaTransacao } from "./codigos-produtos";
 import { classificarNaturezaCliente } from "./clientes-identidade";
 import { normalizarEmailCliente } from "./cliente-identificadores";
 import { resolverClienteCanonico } from "./clientes-unicidade";
@@ -322,7 +323,8 @@ export async function executarImportacaoHistorica(entrada: Entrada & { tokenPrev
         let produto = mapa.produtoId ? previa.produtos.find(p => p.id === mapa.produtoId) : produtosCriados.get(mapa.chave);
         if (!produto && mapa.regra === "CRIAR_INATIVO") {
           const validado = entradaProduto(item.nome_normalizado);
-          produto = await tx.produtoVenda.create({ data: { nome: validado.nome, tipo: validado.tipo, classificacao: validado.classificacao,
+          const codigo = await alocarCodigoProdutoNaTransacao(tx, { codigoAntes: null, codigoInformado: null, classificacao: validado.classificacao ?? "PRINCIPAL", categorias: [] }, autor);
+          produto = await tx.produtoVenda.create({ data: { codigo, nome: validado.nome, tipo: validado.tipo, classificacao: validado.classificacao,
             classificacoes: validado.classificacoes, unidade: validado.unidade, ativo: false, preco: validado.preco,
             fiscal: {}, fiscalRevisado: false, observacoes: validado.observacoes }, include: incluirProduto });
           produtosCriados.set(mapa.chave, produto); produtosNovos++;

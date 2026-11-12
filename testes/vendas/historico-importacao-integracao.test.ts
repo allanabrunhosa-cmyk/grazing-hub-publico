@@ -5,6 +5,7 @@ import { Client } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "@/generated/prisma/client";
 import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararDependenciaAtendimento } from "./dependencia-atendimento";
 import { hashCanonico } from "@/lib/vendas/historico-dominio";
 import { contexto, data, pacote, registro } from "./historico-importacao.fixture";
 import { fixtureComplementoHistorico, rehashComplementoSintetico } from "./historico-complemento.fixture";
@@ -49,7 +50,7 @@ describe.skipIf(process.env.HISTORICO_BANCO_TESTE !== "1")("importação histór
     const pastas = (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
     for (const pasta of pastas) {
       await banco.query("BEGIN");
-      try { await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8"))); await banco.query("COMMIT"); }
+      try { const sql = await prepararDependenciaAtendimento(banco, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")); await banco.query(prepararSqlMigrationFiscal(pasta.name, sql)); await banco.query("COMMIT"); }
       catch (erro) { await banco.query("ROLLBACK"); throw erro; }
     }
     sim.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${esquema}` }, { schema: esquema }) });

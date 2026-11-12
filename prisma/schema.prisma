@@ -1045,6 +1045,7 @@ model UsoMapaEntrega {
 }
 
 model ConfiguracaoLoja {
+  codigosProdutos Json?
   regrasBrasilNfe RegraFiscalBrasilNfe[]
   brasilNfe ConfiguracaoBrasilNfe?
   autorizacoesMcp McpAutorizacao[]

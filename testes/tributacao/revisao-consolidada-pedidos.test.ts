@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
-import type { PerfilFiscal, VersaoFiscalDto } from "@/lib/tributacao/tipos";
+import type { LinhaFiscalCalculada, PerfilFiscal, VersaoFiscalDto } from "@/lib/tributacao/tipos";
 import { classificacaoFicticia } from "./declaracao-fci-fixtures";
-const s = vi.hoisted(() => ({ versoes: [] as VersaoFiscalDto[], calcular: vi.fn() }));
+const s = vi.hoisted(() => ({ versoes: [] as VersaoFiscalDto[], calcular: vi.fn(), catalogo: [] as { id: string; nome: string; unidade: string; codigo: string | null }[] }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/tributacao/servico", () => ({ consultarVersoesFiscais: async () => s.versoes, conferirAutorFiscal: vi.fn() }));
 vi.mock("@/lib/tributacao/motor", async original => ({ ...await original<typeof import("@/lib/tributacao/motor")>(), calcularTributacao: s.calcular }));
@@ -17,9 +17,14 @@ function massa() {
     compradorSnapshot: { nome: "Comprador exclusivamente sintético", documento: "52998224725", tipo: "PF" }, cobrancaSnapshot: { cep: "01001000", logradouro: "Logradouro sintético", numero: "1", bairro: "Bairro sintético", cidade: "São Paulo", uf: "SP", pais: "BRASIL", codigoMunicipio: "3550308" }, enderecoSnapshot: { uf: "SP" },
     itens: [{ id: "item-ficticio", produtoId: classificacaoFicticia().produtoId!, produtoSnapshot: { nome: "Produto exclusivamente sintético" }, quantidade: decimal("1"), unidadeSnapshot: "UN", precoAplicado: decimal("139"), totalLinha: decimal("139"), composicaoSnapshot: [], escolhasSnapshot: [], estadoComposicao: "CONHECIDA" }] } as unknown as Parameters<typeof calcularPreviaPedido>[1];
 }
-const tx = { produtoVenda: { findMany: async () => [] }, insumo: { findMany: async () => [] }, historicoPedidoVenda: { count: async () => 0 } } as unknown as Prisma.TransactionClient;
+function linhaComercialFicticia(p: ReturnType<typeof massa>): LinhaFiscalCalculada {
+  const imposto = { cst: "49", base: "139.00", aliquota: null, valor: "0.00" };
+  return { id: p.itens[0].id, produtoId: p.itens[0].produtoId!, nome: "Produto exclusivamente sintético", quantidade: "1.000000", unidade: "UN", valor: "139.00", ncm: "19059090", origem: "0", cest: null, cfop: "5101", csosn: "102", gtin: "SEM GTIN",
+    impostos: { icms: { ...imposto, cst: "102" }, pis: imposto, cofins: imposto, ipi: null }, reforma: null, segregacaoReceita: "EXCLUSIVAMENTE_SINTETICA", versoes: [], justificativas: [] };
+}
+const tx = { produtoVenda: { findMany: async () => s.catalogo }, insumo: { findMany: async () => [] }, historicoPedidoVenda: { count: async () => 0 } } as unknown as Prisma.TransactionClient;
 beforeEach(() => {
-  vi.clearAllMocks(); s.versoes = [];
+  vi.clearAllMocks(); s.versoes = []; s.catalogo = [];
   const dados: PerfilFiscal = { estabelecimento: "singleton", cnpj: "00000000000000", inscricaoEstadual: "000000000000", uf: "SP", codigoMunicipio: "3550308", regime: "SIMPLES_NACIONAL", crt: 1, confirmado: true, evidenciaEnquadramento: "Prova exclusivamente sintética", emissor: "BRASIL_NFE", modelos: ["55", "65"], reforma: "DISPENSADO_SIMPLES_2026", beneficioOpcional: null };
   s.versoes.push({ id: "perfil-ficticio", tipo: "PERFIL", chave: "singleton", versao: 1, vigenciaInicio: "2026-01-01", status: "ATIVO", dados, hash: hashDeclaracaoFci(dados), fontes: ["FONTE-SINTETICA"], justificativa: "Perfil sintético", criadoPorNome: "Pessoa sintética", createdAt: "2026-01-01T12:00:00Z" });
   s.calcular.mockImplementation(contexto => ({ apto: false, pendencias: ["Revisão de parâmetros ainda pendente."], contexto, perfilId: "perfil-ficticio", regime: "SIMPLES_NACIONAL", linhas: [], totalMercadorias: "0.00", justificativas: [] }));
@@ -43,6 +48,33 @@ describe("Canal Site fotografado no pedido", () => {
     s.calcular.mockImplementation(contexto => ({ apto: false, pendencias: ["Produto exclusivamente sintético: falta preencher NCM (8 dígitos) e Origem ICMS."], contexto, linhas: [], totalMercadorias: "139.00", justificativas: [] }));
     const r = await calcularPreviaPedido(tx, massa(), "65");
     expect(r.pendencias).toContain("Item 1 — Produto exclusivamente sintético: falta preencher NCM (8 dígitos) e Origem ICMS.");
+  });
+});
+
+describe("Código comercial curto nas futuras revisões fiscais", () => {
+  it.each(["55", "65"] as const)("modelo%s usa o cadastro atual e preserva a fotografia comercial, valores e identidade", async modelo => {
+    const p = massa(), produtoId = p.itens[0].produtoId!;
+    p.itens[0].produtoSnapshot = { nome: "Produto exclusivamente sintético", codigo: "codigo-historico-do-pedido" };
+    const antes = JSON.stringify(p);
+    s.catalogo = [{ id: produtoId, nome: "Produto atual", unidade: "UN", codigo: "P0100001" }];
+    s.calcular.mockImplementation(contexto => ({ apto: true, pendencias: [], contexto, perfilId: "perfil-ficticio", regime: "SIMPLES_NACIONAL", linhas: [linhaComercialFicticia(p)], totalMercadorias: "139.00", justificativas: [] }));
+    const r = await calcularPreviaPedido(tx, p, modelo, { ambiente: "PRODUCAO", consumidorFinal: true, indicadorIe: 9, indicadorPresenca: 2 });
+    expect(r.apto).toBe(true); expect(r.pendencias).toEqual([]);
+    expect(r.documento.Produtos[0]).toMatchObject({ CodProdutoServico: "P0100001", ValorTotal: "139.00", ValorFrete: "26.00" });
+    expect(r.documento.ValorTotal).toBe("165.00");
+    expect(r.codigosProdutos).toEqual([{ linhaId: p.itens[0].id, produtoId, codigo: "P0100001" }]);
+    expect(r.previa.linhas[0].produtoId).toBe(produtoId); expect(JSON.stringify(p)).toBe(antes);
+    s.catalogo[0].codigo = "P0100002";
+    const nova = await calcularPreviaPedido(tx, p, modelo, { ambiente: "PRODUCAO", consumidorFinal: true, indicadorIe: 9, indicadorPresenca: 2 });
+    expect(nova.codigosProdutos![0].codigo).toBe("P0100002"); expect(r.codigosProdutos![0].codigo).toBe("P0100001");
+    expect(JSON.stringify(p)).toBe(antes);
+  });
+  it("ausência de código informa o produto e impede montagem apta sem fallback no ID", async () => {
+    const p = massa();
+    s.calcular.mockImplementation(contexto => ({ apto: true, pendencias: [], contexto, linhas: [linhaComercialFicticia(p)], totalMercadorias: "139.00", justificativas: [] }));
+    const r = await calcularPreviaPedido(tx, p, "55", { ambiente: "PRODUCAO", consumidorFinal: true, indicadorIe: 9, indicadorPresenca: 2 });
+    expect(r.apto).toBe(false); expect(r.documento.Produtos[0].CodProdutoServico).toBe("");
+    expect(r.pendencias.join(" ")).toContain("Produto exclusivamente sintético: configurar código do produto");
   });
 });
 describe("Montagem de revisão e identidade em homologação", () => {

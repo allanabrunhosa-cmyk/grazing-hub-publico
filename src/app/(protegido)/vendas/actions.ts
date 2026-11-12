@@ -16,6 +16,8 @@ import type { ReferenciaOrdem } from "@/lib/vendas/ordem";
 import { alterarStatusCadastroVenda } from "@/lib/vendas/persistencia";
 import { RECURSOS_STATUS_VENDA, type TipoStatusVenda } from "@/lib/vendas/status-cadastro";
 import { validarClienteCadastro } from "@/lib/vendas/cliente-pedido";
+import { organizarCodigosProdutos } from "@/lib/vendas/codigos-produtos";
+import { ErroCodigoProduto } from "@/lib/vendas/codigo-produto";
 
 function atualizarCadastrosFiscais() {
   revalidatePath("/financeiro/fiscal/grupos");
@@ -82,6 +84,15 @@ export async function salvarProdutoVendaAction(entrada: ProdutoEntrada) {
   if (entrada?.salvarFiscal) { await exigirPermissao("vendas.fiscal", "editar"); return { erro: "Salve e aplique a configuração na própria aba Fiscal. O salvamento comercial não altera parâmetros fiscais." }; }
   try { const id = await salvarProduto(entrada, autor, entrada?.salvarFiscal ? { fiscal: entrada.fiscal, revisado: entrada.fiscalRevisado === true, grupoFiscalId: entrada.grupoFiscalId ?? null } : undefined); revalidatePath("/vendas", "layout"); atualizarCadastrosFiscais(); return { ok: true as const, id }; }
   catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
+}
+export async function organizarCodigosProdutosVendaAction() {
+  const sessao = await exigirPermissao("vendas.produtos", "editar");
+  try {
+    const resultado = await organizarCodigosProdutos(sessao);
+    revalidatePath("/vendas", "layout");
+    atualizarCadastrosFiscais();
+    return { ok: true as const, ...resultado };
+  } catch (erro) { return { erro: erro instanceof ErroCodigoProduto ? erro.message : mensagemErroCadastro(erro) }; }
 }
 /** Compatibilidade: a ficha antiga não escreve mais parâmetros paralelos. */
 export async function salvarFiscalVendaAction(id: string, versao: number, entrada: unknown, revisado: boolean, grupoFiscalId: string | null = null, referencia?: { classificacaoId: string | null; regraId: string | null; contexto: ContextoEdicaoFiscal }): Promise<{ ok: true; versao: number; referenciaFiscal?: { classificacaoId: string | null; regraId: string | null; contexto: ContextoEdicaoFiscal }; erro?: never } | { erro: string }> {

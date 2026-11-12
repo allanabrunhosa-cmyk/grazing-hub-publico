@@ -1,5 +1,17 @@
 # Vendas
 
+## Códigos comerciais dos produtos
+
+`ProdutoVenda.codigo` usa até oito letras maiúsculas/números. A geração automática
+usa P/C, família da categoria de origem e sequência. `ConfiguracaoLoja.codigosProdutos`
+preserva famílias e últimos números; não disputa a numeração fiscal do fornecedor.
+`codigo-produto.ts` valida/planeja e `codigos-produtos.ts` persiste com a trava de
+cadastros, permissão e auditoria existentes. Renomear ou mover o produto não o renumera.
+A interna, a busca e a ficha técnica exibem o código. Novas revisões fiscais fotografam
+o vínculo com o ID; notas anteriores e snapshots comerciais não são reescritos.
+Referências internas de insumos em KIT discriminado continuam fora do cadastro SKU
+de ProdutoVenda. Execução e verificações: [códigos de produtos](../features/codigos-produtos/TASKS.md).
+
 ## Cadastro e Data da compra — 20/10/2026
 
 CPF/CNPJ e CEP aceitam colagem formatada e mostram máscara; serviços recebem

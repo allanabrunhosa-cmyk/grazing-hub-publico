@@ -18,6 +18,7 @@ export function EditorComplemento({ inicial, dados, fechar, podeCadastrarInsumo 
   const [aba, setAba] = useState("cadastro");
   const [d, setD] = useState(() => ({ ...inicial }));
   return <EditorVenda titulo={d.id ? `Editar ${inicial.nome}` : "Novo complemento"} descricao="Defina o padrão. Preço e composição podem ser ajustados em cada grupo ou produto." fechar={fechar} impedido={enviandoFoto} abrirSecao={setAba} salvar={() => salvarProdutoVendaAction(d)}>
+    <div className="space-y-1.5"><Texto nome="Código do produto" maxLength={8} value={d.codigo ?? ""} readOnly placeholder="Gerado ao salvar" /><p className="text-xs text-muted-foreground">Código automático da categoria de origem. Não muda ao reorganizar categorias.</p></div>
     <Tabs value={aba} onValueChange={setAba}><TabsList variant="buttons"><TabsTriggerBotao value="cadastro">Cadastro</TabsTriggerBotao><TabsTriggerBotao value="disponibilidade">Disponibilidade</TabsTriggerBotao></TabsList>
     <TabsContent value="cadastro" keepMounted data-secao="cadastro" className="space-y-4">
     <Texto nome="Nome do complemento *" required maxLength={160} value={d.nome} onChange={e => setD(a => ({ ...a, nome: e.target.value }))} />

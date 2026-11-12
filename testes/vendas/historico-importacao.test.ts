@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 import { hashCanonico, identidadeComprador, validarPacoteHistorico, type RegistroHistorico } from "@/lib/vendas/historico-dominio";
 
-const sim = vi.hoisted(() => ({ transaction: vi.fn(), salvarCliente: vi.fn(), historico: vi.fn() }));
+const sim = vi.hoisted(() => ({ transaction: vi.fn(), salvarCliente: vi.fn(), historico: vi.fn(), alocarCodigo: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/prisma", () => ({ prisma: { $transaction: (...args: unknown[]) => sim.transaction(...args) } }));
 vi.mock("@/lib/vendas/persistencia", () => ({ salvarClienteNaTransacao: (...args: unknown[]) => sim.salvarCliente(...args), historico: (...args: unknown[]) => sim.historico(...args) }));
+// O alocador tem integração SQL própria. Esta suíte mantém a fronteira cadastral
+// simulada, assim como salvarCliente, para conferir somente a importação histórica.
+vi.mock("@/lib/vendas/codigos-produtos", () => ({ alocarCodigoProdutoNaTransacao: (...args: unknown[]) => sim.alocarCodigo(...args) }));
 import { executarImportacaoHistorica, prepararImportacaoHistorica, reverterImportacaoHistorica } from "@/lib/vendas/historico-importacao";
 
 import { contexto, pacote, registro } from "./historico-importacao.fixture";
@@ -64,6 +67,7 @@ const tx = {
 async function importar(p = pacote(), loteId = contexto.loteId) { const previa = await prepararImportacaoHistorica({ ...contexto, loteId, pacote: p }); return executarImportacaoHistorica({ ...contexto, loteId, pacote: p, tokenPrevia: previa.token }); }
 beforeEach(() => {
   vi.clearAllMocks(); estado = { produtos: [], clientes: [], pedidos: [], itens: [], fontes: [], eventos: [] }; administrador = true; sessaoVersao = 7; trava = true; sequencia = 0;
+  sim.alocarCodigo.mockImplementation(async () => `P${String(estado.produtos.length + 1).padStart(7, "0")}`);
   sim.salvarCliente.mockImplementation(async (_tx, entrada: Linha) => { const cliente = { ...entrada, id: id(), versao: 1 }; estado.clientes.push(cliente); return cliente.id; });
   sim.transaction.mockImplementation(async (executar: (client: unknown) => Promise<unknown>) => { const antes = Object.fromEntries(Object.entries(estado).map(([k, v]) => [k, [...v]])) as Estado; try { return await executar(tx); } catch (erro) { estado = antes; throw erro; } });
 });
@@ -75,8 +79,9 @@ describe("serviço de importação histórica segregada", () => {
     expect(comandos[0]).toBe("SET TRANSACTION READ ONLY");expect(tx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(tx.$queryRaw.mock.invocationCallOrder[0]);
     expect(consultas.some(sql=>sql.includes("FOR UPDATE"))).toBe(false);expect(tx.usuario.findUnique).toHaveBeenCalledOnce();
     expect(previa).toMatchObject({ contagens: { novos: 1 }, preservacao: null });expect(estado).toEqual(antes);
-    expect(sim.salvarCliente).not.toHaveBeenCalled();expect(sim.historico).not.toHaveBeenCalled();expect(tx.pedidoVenda.create).not.toHaveBeenCalled();expect(tx.produtoVenda.create).not.toHaveBeenCalled();expect(tx.identidadeExternaVenda.upsert).not.toHaveBeenCalled();expect(tx.historicoPedidoVenda.create).not.toHaveBeenCalled();
+    expect(sim.salvarCliente).not.toHaveBeenCalled();expect(sim.historico).not.toHaveBeenCalled();expect(sim.alocarCodigo).not.toHaveBeenCalled();expect(tx.pedidoVenda.create).not.toHaveBeenCalled();expect(tx.produtoVenda.create).not.toHaveBeenCalled();expect(tx.identidadeExternaVenda.upsert).not.toHaveBeenCalled();expect(tx.historicoPedidoVenda.create).not.toHaveBeenCalled();
     vi.clearAllMocks();await executarImportacaoHistorica({...contexto,pacote:pacote(),tokenPrevia:previa.token});
+    expect(sim.alocarCodigo).toHaveBeenCalledOnce(); expect(tx.produtoVenda.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ codigo: "P0000001" }) }));
     expect(tx.$queryRaw.mock.calls.some(([sql])=>(Array.isArray(sql)?sql.join(""):(sql as Prisma.Sql).sql).includes("FOR UPDATE"))).toBe(true);expect(tx.$executeRaw.mock.calls.some(([sql])=>sql.join("") === "SET TRANSACTION READ ONLY")).toBe(false);
   });
   it("exige comprovantes e relê administrador, atividade e versão real na transação", async () => {

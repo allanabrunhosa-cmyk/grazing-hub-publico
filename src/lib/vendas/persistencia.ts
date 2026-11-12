@@ -10,6 +10,8 @@ import { historicoFiscalGrupoJsonb, historicoFiscalJsonb, lerFiscalGrupoTexto, l
 import { formatarNomesClienteNovo, preservarNomesNaMudancaTipo } from "./clientes-identidade";
 import { conferirIdentidadeCliente } from "./clientes-unicidade";
 import { conferirPreparacaoCliente, prepararClienteParaSalvar } from "./cliente-cobranca-servidor";
+import { alocarCodigoProdutoNaTransacao } from "./codigos-produtos";
+import { ErroCodigoProduto } from "./codigo-produto";
 
 export type Autor = { userId: string; nome: string; versao?: number };
 type Banco = Prisma.TransactionClient;
@@ -177,7 +179,8 @@ export async function salvarProduto(entrada: unknown, autor: Autor, dadosFiscais
     }
     if (dadosFiscais?.grupoFiscalId && !await tx.grupoFiscalVenda.count({ where: { id: dadosFiscais.grupoFiscalId, ...(dadosFiscais.grupoFiscalId === antes?.grupoFiscalId ? {} : { ativo: true }) } })) throw new ErroCadastroVenda("Grupo fiscal indisponível.");
     if (id && fiscal) await mesclarFiscalJsonb(tx, id, fiscal);
-    const dadosCompletos = { ...dados, ...(dadosFiscais ? { ...(!id ? { fiscal } : {}), fiscalRevisado: dadosFiscais.revisado, grupoFiscalId: dadosFiscais.grupoFiscalId } : {}) };
+    const codigo = await alocarCodigoProdutoNaTransacao(tx, { codigoAntes: antes?.codigo ?? null, codigoInformado: dados.codigo, classificacao: dados.classificacao ?? "PRINCIPAL", categorias }, autor);
+    const dadosCompletos = { ...dados, codigo, ...(dadosFiscais ? { ...(!id ? { fiscal } : {}), fiscalRevisado: dadosFiscais.revisado, grupoFiscalId: dadosFiscais.grupoFiscalId } : {}) };
     const depois = id ? await tx.produtoVenda.update({ where: { id }, data: { ...dadosCompletos, versao: { increment: 1 } } }) : await tx.produtoVenda.create({ data: dadosCompletos });
     if (dadosFiscais) await historicoFiscalJsonb(tx, autor, "FISCAL", depois.id, antes ? { revisado: antes.fiscalRevisado, grupoFiscalId: antes.grupoFiscalId } : null, { revisado: dadosFiscais.revisado, grupoFiscalId: dadosFiscais.grupoFiscalId }, fiscalAntesTexto);
     if (grupoDestino && novoVinculoComplemento) {
@@ -389,6 +392,7 @@ export async function excluirCadastroVenda(tipo: "PRODUTO" | "CATEGORIA" | "GRUP
   }, { timeout: 20000 });
 }
 export function mensagemErroCadastro(erro: unknown) {
+  if (erro instanceof ErroCodigoProduto) return erro.message;
   if (erro instanceof ErroCadastroVenda) return erro.message;
   if (erro instanceof Prisma.PrismaClientKnownRequestError && erro.code === "P2002") return "Já existe um cadastro com esse nome, documento ou código. Confira antes de salvar.";
   return "Não foi possível salvar. O preenchimento foi preservado; atualize a página se houver uma publicação em andamento.";

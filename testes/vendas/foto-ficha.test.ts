@@ -5,6 +5,24 @@ import { gerarFichaProduto } from "@/lib/vendas/ficha";
 import type { ProdutoEntrada } from "@/lib/vendas/dominio";
 import { produtoTeste } from "./dominio.test";
 describe("foto e ficha de produto", () => {
+  it("imprime o código comercial no cabeçalho sem substituir pelo identificador interno", () => {
+    const id = "12345678-aaaa-bbbb-cccc-123456789012";
+    const html = gerarFichaProduto({ ...produtoTeste, id, codigo: "P0100001" }, { categorias: [], grupos: [], insumos: [] });
+    const documento = new DOMParser().parseFromString(html, "text/html");
+    expect(documento.title).toContain("P0100001");
+    expect(documento.querySelector("header small")?.textContent).toContain("Código P0100001");
+    expect(html).not.toContain(id);
+    const semCodigo = gerarFichaProduto({ ...produtoTeste, id, codigo: null }, { categorias: [], grupos: [], insumos: [] });
+    expect(semCodigo).toContain("Código Não atribuído");
+    expect(semCodigo).not.toContain(id);
+  });
+  it("escapa o código no título e no cabeçalho da impressão", () => {
+    const html = gerarFichaProduto({ ...produtoTeste, codigo: '<img src=x onerror="alert(1)">' }, { categorias: [], grupos: [], insumos: [] });
+    const documento = new DOMParser().parseFromString(html, "text/html");
+    expect(documento.querySelector("header img")).toBeNull();
+    expect(html).not.toContain('<img src=x');
+    expect(documento.querySelector("header small")?.textContent).toContain('<img src=x onerror="alert(1)">');
+  });
   it("mantém porção e especificação comercial, sem especificação de compra dos ingredientes", () => {
     const html = gerarFichaProduto({ ...produtoTeste, especificacao: "Tábua para compartilhar", componentes: [
       { insumoId: "damasco", quantidade: "0.08", unidade: "KG", observacaoPorcao: "8 un", exibirFicha: true },
