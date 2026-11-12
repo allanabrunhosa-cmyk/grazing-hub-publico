@@ -1,4 +1,5 @@
 import type { ItemConciliacaoRow } from "@/app/(protegido)/notas-fiscais/types";
+import type { CustosNotaFiscal, DetalhamentoTributos } from "@/lib/notas-fiscais/custos";
 
 // Fronteira exclusiva da prévia: não importa ações Next nem acessa serviços fiscais.
 export function registrarChamada(acao: string, entrada: unknown) {
@@ -14,10 +15,11 @@ async function resultadoSimulado(acao: string, entrada: unknown) {
 }
 
 export async function obterItensNotaFiscalAction(notaFiscalId: string) {
-  const consumo = notaFiscalId === "consumo";
+  const comDesconto = notaFiscalId === "desconto";
+  const consumo = notaFiscalId === "consumo" || comDesconto;
   const item: ItemConciliacaoRow = {
     id: `item-${notaFiscalId}`, numeroItem: 1, codigoProdutoFornecedor: "FICTICIO-01",
-    descricaoProduto: consumo ? "Material de uso e consumo de exemplo" : "Equipamento devolvido de exemplo",
+    descricaoProduto: comDesconto ? "Produto com desconto de exemplo" : consumo ? "Material de uso e consumo de exemplo" : "Equipamento devolvido de exemplo",
     codigoEan: null, ncm: null, unidadeComercial: "UN", quantidadeComercial: 1,
     valorUnitarioComercial: 100, valorTotalItem: 100,
     status: "PENDENTE", destino: consumo ? "USO_E_CONSUMO" : "ESTOQUE",
@@ -26,9 +28,12 @@ export async function obterItensNotaFiscalAction(notaFiscalId: string) {
     categoriaFinanceiraNome: consumo ? "Material de consumo" : null,
     quantidadeConciliada: null, valorTotalConciliado: null,
   };
+  const tributos: DetalhamentoTributos = { icmsIncluso: 0, fcpIncluso: 0, pisIncluso: 0, cofinsIncluso: 0, icmsSt: 0, icmsMonofasicoRetido: 0, fcpSt: 0, impostoImportacao: 0, pisSt: 0, cofinsSt: 0, ipiDevolvido: 0 };
+  const custo = { produtos: 100, frete: 0, ipi: 0, seguro: 0, outrasDespesas: 0, outrosTributos: 0, abatimentos: 0, desconto: 10, tributos };
+  const custos: CustosNotaFiscal | null = comDesconto ? { ...custo, itens: [{ ...custo, numeroItem: 1 }], totalNota: 90 } : null;
   return {
-    itens: [item], custos: null, cartoes: [],
-    duplicatas: [{ id: `parcela-${notaFiscalId}`, numero: "001", dataVencimento: "2026-11-20", valor: 100, formaPagamento: "BOLETO" as const }],
+    itens: [item], custos, cartoes: [],
+    duplicatas: [{ id: `parcela-${notaFiscalId}`, numero: "001", dataVencimento: "2026-11-20", valor: comDesconto ? 90 : 100, formaPagamento: "BOLETO" as const }],
     detalhes: {
       naturezaOperacao: consumo ? "Venda de material para uso e consumo" : "Retorno de equipamento",
       modelo: "55", serie: "1", numero: "123", codigoUnico: "000001", versao: "4.00",

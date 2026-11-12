@@ -1,5 +1,12 @@
 # Fiscal
 
+No manifesto de notas recebidas, uma nota com desconto e sem decisão persistida
+abre sem distribuição selecionada. O operador deve escolher Conforme a nota,
+Proporcional ou Personalizado antes do aceite. Escolhas não aplicadas são
+descartadas ao reabrir. Composição já conciliada permanece preservada e bloqueada.
+`validarCustosConciliacao` recusa a distribuição ausente antes da manifestação
+externa e da gravação local. Notas sem desconto conservam seu fluxo.
+
 ## NFS-e — destino financeiro (06/11/2026)
 
 No aceite, **Gerar despesa** oferece o formulário financeiro com vencimento

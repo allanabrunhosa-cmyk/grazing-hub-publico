@@ -75,8 +75,15 @@ it("volta à lista após salvar a edição aberta pelos detalhes", async () => {
   render(<MovimentacoesView {...props} />);
   fireEvent.click(screen.getByText("Ocupação"));
   fireEvent.click(screen.getByRole("button", { name: "Editar" }));
+  const editor = screen.getByRole("dialog");
+  for (const nome of ["Descrição", "Valor", "Competência", "Vencimento", "Contraparte, se não houver cadastro", "Observações"]) {
+    expect(within(editor).getByLabelText(nome).id).toBeTruthy();
+  }
+  expect((within(editor).getByLabelText("Valor") as HTMLInputElement).type).toBe("text");
 
   fireEvent.change(screen.getByDisplayValue("Aluguel da cozinha"), { target: { value: "Aluguel atualizado" } });
+  expect(screen.getByRole("button", { name: "Salvar alterações" }).classList.contains("bg-success")).toBe(true);
+  expect(screen.getByRole("button", { name: "Salvar alterações" }).classList.contains("bg-destructive")).toBe(false);
   fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
   await waitFor(() => expect(simulados.atualizar).toHaveBeenCalled());
@@ -229,4 +236,43 @@ it("conta linhas agrupadas no período em todas as situações sem duplicar os i
   expect(grupo.getByRole("button", { name: "Pendentes (1)" })).toBeTruthy();
   fireEvent.click(grupo.getByRole("button", { name: "Pendentes (1)" }));
   expect(grupo.getByRole("button", { name: "Tudo (2)" })).toBeTruthy();
+});
+
+it("busca por texto ou valor sem recalcular os saldos e restaura a lista ao limpar", () => {
+  render(<MovimentacoesView {...props} linhas={[pendente, lancamentoTeste({ id: "embalagem", descricao: "Embalagens personalizadas", valor: 1234.56 })]} />);
+  const saldo = screen.getAllByText("Saldo final projetado")[0].parentElement!;
+  const saldoAntes = saldo.textContent;
+  const busca = screen.getByRole("textbox", { name: "Buscar movimentações" });
+  fireEvent.change(busca, { target: { value: "1234.56" } });
+  expect(screen.queryByRole("row", { name: "Ver detalhes: Aluguel da cozinha" })).toBeNull();
+  expect(screen.getByRole("row", { name: "Ver detalhes: Embalagens personalizadas" })).toBeTruthy();
+  expect(saldo.textContent).toBe(saldoAntes);
+  expect(screen.getByRole("status").textContent).toContain("1 movimentação encontrada");
+  expect(screen.getByRole("button", { name: "Tudo (1)" })).toBeTruthy();
+  fireEvent.change(busca, { target: { value: "ocupacao" } });
+  expect(screen.getAllByRole("row", { name: /^Ver detalhes:/ })).toHaveLength(2);
+  fireEvent.change(busca, { target: { value: "nada encontrado" } });
+  expect(screen.getByText("Nenhuma movimentação encontrada. Tente outra descrição ou valor.")).toBeTruthy();
+  expect(saldo.textContent).toBe(saldoAntes);
+  fireEvent.click(screen.getByRole("button", { name: "Limpar busca" }));
+  expect(screen.getByRole("row", { name: "Ver detalhes: Aluguel da cozinha" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Tudo (2)" })).toBeTruthy();
+  expect(simulados.baixar).not.toHaveBeenCalled(); expect(simulados.atualizar).not.toHaveBeenCalled();
+});
+
+it("busca pelo item preserva a parcela e abre todos os componentes do grupo correto", () => {
+  const notaFiscal = { id: "nf-busca-ficticia", numero: "31562", serie: "1", fornecedorNome: "Fornecedor de frios", parcela: { id: "parcela", numero: "1", valor: 76 } };
+  render(<MovimentacoesView {...props} linhas={[
+    { ...pendente, id: "queijo-busca", descricao: "Queijo", notaFiscalItemDescricao: "Queijo", valor: 70, notaFiscal },
+    { ...pendente, id: "frio-busca", descricao: "Frios", notaFiscalItemDescricao: "Frios", valor: 30, notaFiscal },
+  ]} />);
+  fireEvent.change(screen.getByRole("textbox", { name: "Buscar movimentações" }), { target: { value: "70,00" } });
+  const linha = screen.getByRole("row", { name: "Ver detalhes: Fornecedor de frios" });
+  expect(within(linha).getByText(/76,00/)).toBeTruthy();
+  expect(within(linha).queryByText(/70,00/)).toBeNull();
+  fireEvent.click(linha);
+  const dialogo = screen.getByRole("dialog");
+  expect(within(dialogo).getByRole("button", { name: /Queijo/ })).toBeTruthy();
+  expect(within(dialogo).getByRole("button", { name: /Frios/ })).toBeTruthy();
+  expect(within(dialogo).getByText("Valor final da parcela")).toBeTruthy();
 });

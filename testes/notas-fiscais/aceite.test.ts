@@ -43,6 +43,13 @@ beforeEach(() => {
 });
 
 describe("aceite integrado à conciliação", () => {
+  it.each([undefined, { modo: null, itens: [] }, { modo: "", itens: [] }])("exige distribuição explícita de desconto antes da SEFAZ: %j", async distribuicaoDesconto => {
+    const xmlDesconto = nota.xml.replace("</prod>", "<vDesc>10</vDesc></prod>").replace("<vNF>100</vNF>", "<vDesc>10</vDesc><vNF>90</vNF>");
+    simulacao.nota.mockResolvedValue({ ...nota, xml: xmlDesconto });
+    const entradaDesconto = { ...entrada, distribuicaoDesconto, itens: [{ ...entrada.itens[0], valorTotal: 90 }], duplicatas: [{ ...entrada.duplicatas[0], valor: 90 }] } as unknown as EntradaConciliacao;
+    expect(await aceitarNotaAction(entradaDesconto)).toMatchObject({ erro: "Escolha a distribuição do desconto." });
+    expect(simulacao.manifestar).not.toHaveBeenCalled(); expect(simulacao.conciliar).not.toHaveBeenCalled();
+  });
   it.each(["DEVOLUCAO_REGISTRADA", "IGNORADA"])("formulário antigo não aceita como compra nota com %s", async tratamentoLocal => {
     simulacao.nota.mockResolvedValue({ ...nota, tratamentoLocal });
     expect(await aceitarNotaAction(entrada)).toHaveProperty("erro");

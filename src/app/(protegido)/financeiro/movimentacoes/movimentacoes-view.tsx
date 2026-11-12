@@ -17,11 +17,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { FiltroPeriodo } from "@/components/filtro-periodo";
+import { CampoBusca } from "@/components/campo-busca";
 import { LancamentoDialog } from "../lancamentos/lancamento-dialog";
 import { baixarLancamentoAction, estornarBaixaLancamentoAction } from "@/app/(protegido)/financeiro/contas/actions";
 import { ExcluirLancamentoDialog } from "../lancamentos/excluir-lancamento-dialog";
 import { calcularExtrato, dataValida, montarLinhasExtrato, type FiltroMovimentacoes, type LinhaExtrato } from "@/lib/financeiro/extrato";
 import { agruparMovimentacoes, type MovimentoAgrupado } from "@/lib/financeiro/agrupar-movimentacoes";
+import { correspondeBuscaMovimentacao } from "@/lib/financeiro/busca-movimentacoes";
 import { baixarNotaFiscalAction } from "./baixar-nota";
 import { formatarMoeda } from "@/lib/financeiro/formatarMoeda";
 import { estilosNaturezaFinanceira, naturezaFinanceiraDoValor } from "@/lib/financeiro/natureza-financeira";
@@ -46,6 +48,7 @@ export function MovimentacoesView({ conciliacao, linhas, avulsas, saldoInicial, 
   const [conciliando, setConciliando] = useState(false);
   const [periodoInformado, definirPeriodo] = useState(periodoMesAteHoje);
   const [filtro, definirFiltro] = useState<FiltroMovimentacoes>("TUDO");
+  const [busca, definirBusca] = useState("");
   const [selecionadaId, definirSelecionadaId] = useState<string | null>(movimentoInicial?.id ?? null);
   const [leituraInicial, definirLeituraInicial] = useState(Boolean(movimentoInicial));
   const [baixa, definirBaixa] = useState<(LinhaExtrato & { idsAgrupados?: string[] }) | null>(null);
@@ -61,11 +64,16 @@ export function MovimentacoesView({ conciliacao, linhas, avulsas, saldoInicial, 
   const extrato = useMemo(() => calcularExtrato(movimentos, saldoInicial, periodo, filtro, saldosIniciais), [movimentos, saldoInicial, periodo, filtro, saldosIniciais]);
   const contagensSituacao = useMemo(() => {
     const completo = filtro === "TUDO" ? extrato : calcularExtrato(movimentos, saldoInicial, periodo, "TUDO", saldosIniciais);
-    const grupos = completo.dias.flatMap(dia => agruparMovimentacoes(dia.linhas));
+    const grupos = completo.dias.flatMap(dia => agruparMovimentacoes(dia.linhas)).filter(grupo => correspondeBuscaMovimentacao(grupo, busca));
     return { TUDO: grupos.length, BAIXADO: grupos.filter(g => g.status === "BAIXADO").length, PENDENTE: grupos.filter(g => g.status === "PENDENTE").length };
-  }, [extrato, filtro, movimentos, saldoInicial, periodo, saldosIniciais]);
+  }, [extrato, filtro, movimentos, saldoInicial, periodo, saldosIniciais, busca]);
   const selecionada = movimentos.find((l) => l.id === selecionadaId);
   const diasAgrupados = useMemo(() => extrato.dias.map((dia) => ({ ...dia, grupos: agruparMovimentacoes(dia.linhas) })), [extrato]);
+  const buscando = !!busca.trim();
+  const diasVisiveis = useMemo(() => !buscando ? diasAgrupados : diasAgrupados.map(dia => ({ ...dia,
+    grupos: dia.grupos.filter(grupo => correspondeBuscaMovimentacao(grupo, busca)),
+  })).filter(dia => dia.grupos.length > 0), [diasAgrupados, busca, buscando]);
+  const quantidadeEncontrada = diasVisiveis.reduce((soma, dia) => soma + dia.grupos.length, 0);
   const diasComMovimentacao = diasAgrupados.filter((dia) => dia.grupos.length > 0).length;
   const grupoSelecionado = diasAgrupados.flatMap((dia) => dia.grupos).find((grupo) => grupo.id === grupoId);
   const periodoValido = dataValida(periodo.de) && dataValida(periodo.ate) && periodo.de <= periodo.ate;
@@ -135,7 +143,9 @@ export function MovimentacoesView({ conciliacao, linhas, avulsas, saldoInicial, 
         <div className="min-w-0">
           <FiltroPeriodo {...periodoInformado} aoAlterar={definirPeriodo} />
         </div>
-        <div className="ml-auto flex items-center gap-2">
+        <CampoBusca aria-label="Buscar movimentações" placeholder="Descrição, categoria, fornecedor ou valor" maxLength={120}
+          value={busca} onChange={valor => definirBusca(valor.replace(/[\p{Cc}\p{Cf}<>]/gu, "").slice(0, 120))} containerClassName="min-w-0 flex-1 basis-56" />
+        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">
           <span className="shrink-0 text-xs font-medium sm:text-sm">Situação</span>
           <FiltroOpcoesContadas nome="Situação das movimentações" valor={filtro} onValueChange={definirFiltro}
             opcoes={([["TUDO", "Tudo"], ["BAIXADO", "Realizados"], ["PENDENTE", "Pendentes"]] as const).map(([valor, nome]) =>
@@ -165,10 +175,13 @@ export function MovimentacoesView({ conciliacao, linhas, avulsas, saldoInicial, 
           : "Saldo de todas as contas, incluindo o histórico realizado anterior ao período. Pendências não entram no saldo."}
       </p>
       {saldosIniciais?.some((conta) => conta.dataSaldoInicial) && <p className="text-xs text-muted-foreground">O saldo inicial de cada conta passa a valer na data definida. O histórico anterior dessa conta não é somado novamente a partir dela. Pendências sem conta continuam na projeção.</p>}
-      <p className="text-xs text-muted-foreground" role="status">{diasComMovimentacao} {diasComMovimentacao === 1 ? "dia com movimentação" : "dias com movimentação"} · {extrato.dias.length - diasComMovimentacao} {extrato.periodoResumido ? "datas exibidas sem movimentação" : "sem movimentação neste filtro"}. {extrato.periodoResumido ? "Intervalos maiores que 366 dias mostram as movimentações, os saldos iniciais e os limites do período. Os totais incluem todo o intervalo." : "Todas as datas do período estão abaixo."}</p>
+      <p className="text-xs text-muted-foreground" role="status">{buscando
+        ? `${quantidadeEncontrada} ${quantidadeEncontrada === 1 ? "movimentação encontrada" : "movimentações encontradas"}. Saldos e totais consideram todo o período selecionado.`
+        : <>{diasComMovimentacao} {diasComMovimentacao === 1 ? "dia com movimentação" : "dias com movimentação"} · {extrato.dias.length - diasComMovimentacao} {extrato.periodoResumido ? "datas exibidas sem movimentação" : "sem movimentação neste filtro"}. {extrato.periodoResumido ? "Intervalos maiores que 366 dias mostram as movimentações, os saldos iniciais e os limites do período. Os totais incluem todo o intervalo." : "Todas as datas do período estão abaixo."}</>}</p>
+      {buscando && quantidadeEncontrada === 0 && <p className="py-6 text-center text-sm text-muted-foreground">Nenhuma movimentação encontrada. Tente outra descrição ou valor.</p>}
       <div className="space-y-6">
         <div className="flex flex-wrap justify-between gap-2 px-1 text-sm text-muted-foreground"><span>Saldo anterior a {formatarData(periodo.de)}</span><strong className="tabular-nums">{formatarMoeda(extrato.saldoAnterior)}</strong></div>
-        {diasAgrupados.map((dia) => <section key={dia.data} className={dia.grupos.length > 0 ? "space-y-3" : "space-y-2 border-b border-dashed border-border/70 pb-4"} aria-label={`Movimentações de ${formatarData(dia.data)}`}>
+        {diasVisiveis.map((dia) => <section key={dia.data} className={dia.grupos.length > 0 ? "space-y-3" : "space-y-2 border-b border-dashed border-border/70 pb-4"} aria-label={`Movimentações de ${formatarData(dia.data)}`}>
             <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 px-1">
               <div className="space-y-1">
                 <h2 className={`text-sm first-letter:uppercase ${dia.grupos.length > 0 ? "font-semibold" : "font-medium text-muted-foreground"}`}>{new Date(`${dia.data}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</h2>

@@ -35,3 +35,18 @@ it("não gera parcelas com ano incompleto e recupera a prévia quando a data é 
   fireEvent.change(vencimento, { target: { value: "2026-10-10" } });
   expect(screen.getByText("Vencimentos das parcelas (ajuste fino, se precisar)")).toBeTruthy();
 });
+
+it("associa nomes acessíveis aos campos da criação e das parcelas sem alterar os dados", () => {
+  render(<LancamentoDialog categorias={[]} fornecedores={[]} formasPagamento={[]} contasBancarias={[]} />);
+  fireEvent.click(screen.getByRole("button", { name: "Novo Lançamento" }));
+  for (const nome of ["Descrição", "Valor", "Competência", "Vencimento", "Fornecedor ou beneficiário", "Contraparte, se não houver cadastro", "Forma de Pagamento", "Quantidade de vezes", "Recorrência", "Observações"]) {
+    expect(screen.getByLabelText(nome).id).toBeTruthy();
+  }
+  fireEvent.change(screen.getByLabelText("Vencimento"), { target: { value: "2026-11-11" } });
+  fireEvent.change(screen.getByLabelText("Quantidade de vezes"), { target: { value: "2" } });
+  expect((screen.getByLabelText("Vencimento da parcela 1 de 2") as HTMLInputElement).value).toBe("2026-11-11");
+  expect(screen.getByLabelText("Vencimento da parcela 2 de 2")).toBeTruthy();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Já foi paga" }));
+  expect(screen.getByLabelText("Data do pagamento")).toBeTruthy();
+  expect(screen.getByLabelText("Conta Bancária")).toBeTruthy();
+});

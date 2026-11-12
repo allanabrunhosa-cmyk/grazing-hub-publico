@@ -18,7 +18,9 @@ const notaBase: NotaFiscalRow = {
   tratamentoLocal: null, dataDevolucao: null, motivoTratamentoLocal: null,
   tratamentoLocalEm: null, tratamentoLocalVersao: 0,
 };
-const notasNfeIniciais: NotaFiscalRow[] = [
+const notasNfeIniciais: NotaFiscalRow[] = parametros.has("desconto") ? [
+  { ...notaBase, id: "desconto", chaveAcesso: "4".repeat(44), fornecedorNome: "Fornecedor fictício com desconto", valorTotal: 90 },
+] : [
   notaBase,
   { ...notaBase, id: "consumo", chaveAcesso: "1".repeat(44), fornecedorNome: "Fornecedor fictício de material de consumo" },
   { ...notaBase, id: "ignorada", chaveAcesso: "2".repeat(44), fornecedorNome: "Documento ignorado de exemplo", tratamentoLocal: "IGNORADA", motivoTratamentoLocal: "Documento fora do controle de compras da loja.", tratamentoLocalEm: "2026-11-03T12:00:00.000Z", tratamentoLocalVersao: 1 },
