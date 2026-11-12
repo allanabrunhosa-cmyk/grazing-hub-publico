@@ -1,7 +1,7 @@
 "use client";
 
 import { CategoriaFinanceiraCombobox } from "@/components/categoria-financeira-combobox";
-import { useMemo, useState, useTransition, type ReactElement } from "react";
+import { useId, useMemo, useState, useTransition, type ReactElement } from "react";
 import { toast } from "sonner";
 import { Loader2, Plus, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,8 @@ export function LancamentoDialog({
   aoSalvar?: () => void;
 }) {
   const editando = lancamento != null;
+  const prefixoCampo = useId();
+  const campoId = (nome: string) => `${prefixoCampo}-${nome}`;
 
   const [open, setOpen] = useState(false);
   const [tipo, setTipo] = useState<TipoLancamento>(lancamento?.tipo ?? "DESPESA");
@@ -194,14 +196,14 @@ export function LancamentoDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Descrição</Label>
-            <Input name="descricao" placeholder="Aluguel de setembro, venda do dia..." defaultValue={lancamento?.descricao} disabled={pending} required autoCapitalize="characters" onInput={(evento) => aplicarCaixaAltaNoCampo(evento.currentTarget)} />
+            <Label htmlFor={campoId("descricao")}>Descrição</Label>
+            <Input id={campoId("descricao")} name="descricao" placeholder="Aluguel de setembro, venda do dia..." defaultValue={lancamento?.descricao} disabled={pending} required autoCapitalize="characters" onInput={(evento) => aplicarCaixaAltaNoCampo(evento.currentTarget)} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Valor</Label>
-              <CurrencyInput name="valor" defaultValue={lancamento?.valor} disabled={pending} required />
+              <Label htmlFor={campoId("valor")}>Valor</Label>
+              <CurrencyInput id={campoId("valor")} name="valor" defaultValue={lancamento?.valor} disabled={pending} required />
             </div>
             <div className="space-y-1.5">
               <Label>Categoria</Label>
@@ -218,8 +220,9 @@ export function LancamentoDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Competência</Label>
+              <Label htmlFor={campoId("competencia")}>Competência</Label>
               <Input
+                id={campoId("competencia")}
                 name="dataCompetencia"
                 type="date" min={DATA_LANCAMENTO_MIN} max={DATA_LANCAMENTO_MAX}
                 value={dataCompetencia}
@@ -233,8 +236,9 @@ export function LancamentoDialog({
               <p className="text-xs text-muted-foreground">Mês do fato gerador — é o que o DRE usa.</p>
             </div>
             <div className="space-y-1.5">
-              <Label>Vencimento</Label>
+              <Label htmlFor={campoId("vencimento")}>Vencimento</Label>
               <Input
+                id={campoId("vencimento")}
                 name="dataVencimento"
                 type="date" min={DATA_LANCAMENTO_MIN} max={DATA_LANCAMENTO_MAX}
                 value={dataVencimentoBase}
@@ -250,9 +254,9 @@ export function LancamentoDialog({
 
           {tipo === "DESPESA" && (
             <div className="space-y-1.5">
-              <Label>Fornecedor ou beneficiário</Label>
+              <Label htmlFor={campoId("fornecedor")}>Fornecedor ou beneficiário</Label>
               <Select value={fornecedorId} onValueChange={(value) => setFornecedorId(value ?? NENHUM)} disabled={pending}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger id={campoId("fornecedor")} className="w-full">
                   <SelectValue placeholder="Nenhum">{() => fornecedorNome ?? "Nenhum"}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -285,14 +289,14 @@ export function LancamentoDialog({
           )}
 
           <div className="space-y-1.5">
-            <Label>{tipo === "RECEITA" ? "Cliente / Contraparte (opcional)" : "Contraparte, se não houver cadastro"}</Label>
-            <Input name="contraparteNome" placeholder="Nome" defaultValue={lancamento?.contraparteNome ?? ""} disabled={pending} autoCapitalize="characters" onInput={(evento) => aplicarCaixaAltaNoCampo(evento.currentTarget)} />
+            <Label htmlFor={campoId("contraparte")}>{tipo === "RECEITA" ? "Cliente / Contraparte (opcional)" : "Contraparte, se não houver cadastro"}</Label>
+            <Input id={campoId("contraparte")} name="contraparteNome" placeholder="Nome" defaultValue={lancamento?.contraparteNome ?? ""} disabled={pending} autoCapitalize="characters" onInput={(evento) => aplicarCaixaAltaNoCampo(evento.currentTarget)} />
           </div>
 
           <div className="space-y-1.5">
-            <Label>Forma de Pagamento</Label>
+            <Label htmlFor={campoId("forma-pagamento")}>Forma de Pagamento</Label>
             <Select value={formaPagamentoId} onValueChange={(value) => setFormaPagamentoId(value ?? NENHUM)} disabled={pending}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id={campoId("forma-pagamento")} className="w-full">
                 <SelectValue placeholder="Nenhuma">{() => formaPagamentoNome ?? "Nenhuma"}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -316,13 +320,13 @@ export function LancamentoDialog({
               {jaBaixado && (
                 <div className="grid grid-cols-2 gap-3 rounded-lg border p-3">
                   <div className="space-y-1.5">
-                    <Label>Data do pagamento</Label>
-                    <Input name="dataPagamento" type="date" min={DATA_LANCAMENTO_MIN} max={DATA_LANCAMENTO_MAX} defaultValue={hojeIso()} disabled={pending} />
+                    <Label htmlFor={campoId("data-pagamento")}>Data do pagamento</Label>
+                    <Input id={campoId("data-pagamento")} name="dataPagamento" type="date" min={DATA_LANCAMENTO_MIN} max={DATA_LANCAMENTO_MAX} defaultValue={hojeIso()} disabled={pending} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Conta Bancária</Label>
+                    <Label htmlFor={campoId("conta-bancaria")}>Conta Bancária</Label>
                     <Select value={contaBancariaId} onValueChange={(value) => setContaBancariaId(value ?? "")} disabled={pending}>
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger id={campoId("conta-bancaria")} className="w-full">
                         <SelectValue placeholder="Escolha">{() => contaBancariaNome ?? "Escolha"}</SelectValue>
                       </SelectTrigger>
                       <SelectContent>
@@ -341,8 +345,9 @@ export function LancamentoDialog({
                 <div className="space-y-3 rounded-lg border p-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label>Quantidade de vezes</Label>
+                      <Label htmlFor={campoId("quantidade-vezes")}>Quantidade de vezes</Label>
                       <Input
+                        id={campoId("quantidade-vezes")}
                         type="number"
                         min={1}
                         max={36}
@@ -356,7 +361,7 @@ export function LancamentoDialog({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label>Recorrência</Label>
+                      <Label htmlFor={campoId("recorrencia")}>Recorrência</Label>
                       <Select
                         value={frequencia}
                         onValueChange={(value) => {
@@ -366,7 +371,7 @@ export function LancamentoDialog({
                         }}
                         disabled={pending || repetirPor <= 1}
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger id={campoId("recorrencia")} className="w-full">
                           <SelectValue placeholder="Mensal">{() => frequenciaRecorrenciaLabels[frequencia]}</SelectValue>
                         </SelectTrigger>
                         <SelectContent>
@@ -390,6 +395,7 @@ export function LancamentoDialog({
                               {i + 1}/{vencimentosParcelas.length}
                             </span>
                             <Input
+                              aria-label={`Vencimento da parcela ${i + 1} de ${vencimentosParcelas.length}`}
                               type="date" min={DATA_LANCAMENTO_MIN} max={DATA_LANCAMENTO_MAX}
                               value={data}
                               onChange={(e) =>
@@ -409,13 +415,13 @@ export function LancamentoDialog({
           )}
 
           <div className="space-y-1.5">
-            <Label>Observações</Label>
-            <Textarea name="observacoes" defaultValue={lancamento?.observacoes ?? ""} disabled={pending} rows={2} />
+            <Label htmlFor={campoId("observacoes")}>Observações</Label>
+            <Textarea id={campoId("observacoes")} name="observacoes" defaultValue={lancamento?.observacoes ?? ""} disabled={pending} rows={2} />
           </div>
 
           <DialogFooter>
             <DialogClose render={<Button type="button" variant="outline" disabled={pending} />}>Cancelar</DialogClose>
-            <Button type="submit" variant={estiloTipo.varianteBotao} disabled={pending}>
+            <Button type="submit" variant={editando ? "entrada" : estiloTipo.varianteBotao} disabled={pending}>
               {pending && <Loader2 className="size-4 animate-spin" />}
               {editando ? "Salvar alterações" : `Lançar ${tipo === "RECEITA" ? "receita" : "despesa"}`}
             </Button>

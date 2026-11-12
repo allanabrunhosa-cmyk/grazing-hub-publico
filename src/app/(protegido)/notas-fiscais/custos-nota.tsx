@@ -26,7 +26,7 @@ function impostosInclusos(tributos: DetalhamentoTributos): [string, number][] {
 }
 
 export function ResumoCustosNota({ custos, modo, aoMudarModo, bloqueado, descontoDistribuido, erro }: {
-  custos: CustosNotaFiscal; modo: ModoDescontoNota; aoMudarModo: (modo: ModoDescontoNota) => void;
+  custos: CustosNotaFiscal; modo: ModoDescontoNota | null; aoMudarModo: (modo: ModoDescontoNota) => void;
   bloqueado: boolean; descontoDistribuido: number; erro: string | null;
 }) {
   const valores: [string, number][] = [["Produtos", custos.produtos], ["Frete", custos.frete], ["IPI", custos.ipi]];

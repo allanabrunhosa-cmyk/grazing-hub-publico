@@ -28,6 +28,7 @@ import { NotaFiscalDialog } from "@/app/(protegido)/notas-fiscais/nota-fiscal-di
 import { manifestarAction, obterItensNotaFiscalAction, confirmarConciliacaoNotaAction, obterResumoCancelamentoNotaAction } from "@/app/(protegido)/notas-fiscais/actions";
 import { xmlCustos } from "./custos-dados";
 import { extrairCustosNFe } from "@/lib/sefaz/custosNFe";
+import { calcularCustosNota } from "@/lib/notas-fiscais/custos";
 import { notaTeste, opcoesTeste, detalhesTeste } from "./dados";
 import { compraFicticia } from "../visual/cancelamento-compra-dados";
 
@@ -55,6 +56,69 @@ async function preencherDataEntrada() {
 }
 
 describe("Ver nota", () => {
+  function detalhesComDesconto() {
+    return { ...detalhesTeste, custos: extrairCustosNFe(xmlCustos),
+      itens: [detalhesTeste.itens[0], { ...detalhesTeste.itens[0], id: "segundo", numeroItem: 2, descricaoProduto: "Outro queijo", valorTotalItem: 300 }],
+      duplicatas: [{ ...detalhesTeste.duplicatas[0], valor: 445 }],
+    };
+  }
+  it("exige escolha explícita do desconto antes do aceite, mesmo com os outros campos completos", async () => {
+    vi.mocked(obterItensNotaFiscalAction).mockResolvedValue(detalhesComDesconto() as never);
+    const usuario = await abrir({ ...notaTeste, valorTotal: 445 });
+    for (const nome of ["Conforme a nota", "Proporcional", "Personalizado"]) expect((await screen.findByRole("button", { name: nome })).getAttribute("aria-pressed")).toBe("false");
+    await preencherDataEntrada();
+    await usuario.click(screen.getByRole("button", { name: "Aceitar nota" }));
+    expect((screen.getByRole("button", { name: "Confirmar aceite" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText("Escolha a distribuição do desconto.")).toBeTruthy();
+    expect(aceitarNotaAction).not.toHaveBeenCalled();
+    await usuario.click(screen.getByRole("button", { name: "Conforme a nota" }));
+    expect((screen.getByRole("button", { name: "Confirmar aceite" }) as HTMLButtonElement).disabled).toBe(false);
+    await usuario.click(screen.getByRole("button", { name: "Confirmar aceite" }));
+    await waitFor(() => expect(aceitarNotaAction).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ distribuicaoDesconto: { modo: "NOTA", itens: [{ numeroItem: 1, desconto: 5 }, { numeroItem: 2, desconto: 15 }] } })));
+  });
+  it("descarta escolha não salva ao reabrir a nota pendente", async () => {
+    vi.mocked(obterItensNotaFiscalAction).mockResolvedValue(detalhesComDesconto() as never);
+    const usuario = await abrir({ ...notaTeste, valorTotal: 445 });
+    await usuario.click(await screen.findByRole("button", { name: "Proporcional" }));
+    expect(screen.getByRole("button", { name: "Proporcional" }).getAttribute("aria-pressed")).toBe("true");
+    await usuario.click(screen.getByRole("button", { name: "Fechar nota" }));
+    await usuario.click(await screen.findByRole("button", { name: "Sair sem salvar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await usuario.click(screen.getByRole("button", { name: "Ver nota" }));
+    for (const nome of ["Conforme a nota", "Proporcional", "Personalizado"]) expect((await screen.findByRole("button", { name: nome })).getAttribute("aria-pressed")).toBe("false");
+    expect(aceitarNotaAction).not.toHaveBeenCalled();
+  });
+  it("mantém a escolha já persistida em itens conciliados sem permitir redistribuição", async () => {
+    const detalhes = detalhesComDesconto();
+    const calculo = calcularCustosNota(detalhes.custos, { modo: "PERSONALIZADO", itens: [{ numeroItem: 1, desconto: 20 }, { numeroItem: 2, desconto: 0 }] });
+    if ("erro" in calculo) throw new Error(calculo.erro);
+    vi.mocked(obterItensNotaFiscalAction).mockResolvedValue({ ...detalhes, itens: detalhes.itens.map((item, indice) => ({ ...item, status: "CONCILIADO", composicaoCusto: calculo.itens[indice] })) } as never);
+    await abrir({ ...notaTeste, valorTotal: 445, ultimaManifestacao: "CONFIRMACAO_DA_OPERACAO" });
+    const personalizado = await screen.findByRole("button", { name: "Personalizado" });
+    expect(personalizado.getAttribute("aria-pressed")).toBe("true");
+    for (const nome of ["Conforme a nota", "Proporcional", "Personalizado"]) expect((screen.getByRole("button", { name: nome }) as HTMLButtonElement).disabled).toBe(true);
+    expect(aceitarNotaAction).not.toHaveBeenCalled();
+  });
+  it("preserva a proteção de outros campos quando o modo de desconto não muda", async () => {
+    const usuario = await abrir();
+    await preencherDataEntrada();
+    await usuario.click(screen.getByRole("button", { name: "Fechar nota" }));
+    expect(await screen.findByRole("button", { name: "Sair sem salvar" })).toBeTruthy();
+    await usuario.click(screen.getByRole("button", { name: "Continuar editando" }));
+    expect((screen.getByLabelText("Data de entrada no estoque") as HTMLInputElement).value).toBe("2026-09-10");
+    expect(aceitarNotaAction).not.toHaveBeenCalled();
+  });
+  it("pede escolha em legado parcialmente conciliado sem inventar uma decisão anterior", async () => {
+    const detalhes = detalhesComDesconto();
+    vi.mocked(obterItensNotaFiscalAction).mockResolvedValue({ ...detalhes, itens: [{ ...detalhes.itens[0], status: "CONCILIADO" }, detalhes.itens[1]] } as never);
+    const usuario = await abrir({ ...notaTeste, valorTotal: 445, ultimaManifestacao: "CONFIRMACAO_DA_OPERACAO" });
+    const conforme = await screen.findByRole("button", { name: "Conforme a nota" });
+    expect(conforme.getAttribute("aria-pressed")).toBe("false");
+    expect((conforme as HTMLButtonElement).disabled).toBe(false);
+    await usuario.click(conforme);
+    expect(conforme.getAttribute("aria-pressed")).toBe("true");
+    expect(aceitarNotaAction).not.toHaveBeenCalled();
+  });
   it("envia custo líquido e distribuição junto do aceite, mantendo o fator de conversão", async () => {
     vi.mocked(obterItensNotaFiscalAction).mockResolvedValue({ ...detalhesTeste, custos: extrairCustosNFe(xmlCustos),
       itens: [{ ...detalhesTeste.itens[0], fatorConversao: 2 }, { ...detalhesTeste.itens[0], id: "segundo", numeroItem: 2, descricaoProduto: "Outro queijo", valorTotalItem: 300 }],

@@ -1,5 +1,12 @@
 # Financeiro
 
+Em Movimentações, `CampoBusca` filtra os grupos já calculados por texto ou valor em
+centavos, com formatos brasileiros ou decimais. Um item encontrado mantém o grupo
+e o valor líquido da parcela completos. A busca não recalcula cartões, saldos ou
+totais do período. O helper é `src/lib/financeiro/busca-movimentacoes.ts`.
+Salvar alterações no editor usa `Button entrada`; a criação conserva a intenção
+de receita ou despesa. Campos visíveis do editor têm rótulos associados.
+
 ## Data da compra em Pedidos — 20/10/2026
 
 Pedidos novos usam a Data da compra na competência dos títulos HUB. O dia vem da

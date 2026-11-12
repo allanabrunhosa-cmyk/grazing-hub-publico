@@ -6,6 +6,8 @@ import { LancamentoDialog } from "@/app/(protegido)/financeiro/lancamentos/lanca
 import { lancamentoTeste } from "../financeiro/dados-movimentacoes";
 import "@/app/globals.css";
 
+document.documentElement.classList.toggle("dark", new URLSearchParams(location.search).has("escuro"));
+
 const opcoes = { categorias: [{ id: "despesas", nome: "Ocupação", grupo: "DESPESAS_OPERACIONAIS" as const }], fornecedores: [], formasPagamento: [], contasBancarias: [{ id: "banco", nome: "Conta principal" }] };
 const linhas = [lancamentoTeste(), lancamentoTeste({ id: "vendas", descricao: "Vendas de tábuas · delivery", tipo: "RECEITA", valor: 2450, status: "BAIXADO", dataPagamento: "2026-09-10T12:00:00Z", categoriaNome: "Vendas", contraparteNome: "Clientes", contaBancariaNome: "Conta principal" }), lancamentoTeste({ id: "fornecedor", descricao: "Compra de queijos e frios (1/2)", valor: 685.88, dataVencimento: "2026-09-15T12:00:00Z", categoriaNome: "Insumos", contraparteNome: "Fornecedor de frios" })];
 const notaFiscal = { id: "nf-31562", numero: "31562", serie: "1", fornecedorNome: "Distribuidora de Frios" };

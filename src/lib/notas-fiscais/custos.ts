@@ -41,7 +41,7 @@ export function ratearValor(total: number, valores: number[]): number[] {
   return partes.map(parte => parte.valor / 100);
 }
 
-export function calcularCustosNota(custos: CustosNotaFiscal, distribuicao: DistribuicaoDesconto): { erro: string } | { itens: ComposicaoCusto[]; total: number } {
+export function calcularCustosNota(custos: CustosNotaFiscal, distribuicao: DistribuicaoDesconto | null): { erro: string } | { itens: ComposicaoCusto[]; total: number } {
   if (!distribuicao || !["NOTA", "PROPORCIONAL", "PERSONALIZADO"].includes(distribuicao.modo) || !Array.isArray(distribuicao.itens)) return { erro: "Escolha a distribuição do desconto." };
   const descontos = distribuicao.modo === "PROPORCIONAL" ? ratearDesconto(custos.desconto, custos.itens) : custos.itens.map(item => item.desconto);
   if (distribuicao.modo === "PERSONALIZADO") {

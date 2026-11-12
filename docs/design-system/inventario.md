@@ -1,5 +1,14 @@
 # Inventário de padrões reais
 
+## Manifesto e Movimentações — 11/11/2026 — Em revisão visual
+
+O manifesto conserva `ResumoCustosNota` e seus Buttons. Nota com desconto não
+recebe seleção implícita; o aceite exige a escolha explícita do operador.
+Movimentações reutiliza `CampoBusca` como na conciliação, com busca textual e
+monetária sobre grupos completos. Editar lançamento usa a variante verde
+`entrada`, com rótulos associados aos campos. Não há token ou variante global nova.
+As prévias `manifestacao-nf.*` e `movimentacoes.*` usam dados e ações fictícios.
+
 ## Fiscal unificado — 21/10/2026 — Em revisão visual
 
 A ficha e a central reutilizam Card com `vidro-painel`, Button, GrupoAcoes,

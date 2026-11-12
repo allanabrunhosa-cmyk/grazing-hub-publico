@@ -12,6 +12,7 @@ export function validarCustosConciliacao(xml: string | null, registros: Registro
   try { custos = extrairCustosNFe(xml ?? ""); }
   catch { return { erro: "Não foi possível conferir os custos no XML. Reabra a nota." }; }
   if (!distribuicao) {
+    if (custos.desconto > 0) return { erro: "Escolha a distribuição do desconto." };
     const temCustos = custos.itens.some(item => item.frete || item.ipi || item.seguro || item.outrasDespesas || item.outrosTributos || item.abatimentos || item.desconto) || custos.desconto || custos.frete || custos.ipi;
     return temCustos ? { erro: "Reabra a nota para conferir frete, impostos e descontos antes de aceitar." } : { composicoes };
   }

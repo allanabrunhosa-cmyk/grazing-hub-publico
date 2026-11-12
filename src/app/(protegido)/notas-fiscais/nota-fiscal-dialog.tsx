@@ -138,7 +138,8 @@ export function NotaFiscalDialog({
   const [duplicatas, setDuplicatas] = useState<DuplicataLinha[]>([]);
   const [detalhes, setDetalhes] = useState<DetalhesFiscaisRow | null>(null);
   const [custos, setCustos] = useState<CustosNotaFiscal | null>(null);
-  const [modoDesconto, setModoDesconto] = useState<ModoDescontoNota>("NOTA");
+  const [modoDesconto, setModoDesconto] = useState<ModoDescontoNota | null>(null);
+  const [modoDescontoCarregado, setModoDescontoCarregado] = useState<ModoDescontoNota | null>(null);
   const [descontos, setDescontos] = useState<Record<number, string>>({});
   const [localId, setLocalId] = useState(locais[0]?.id ?? "");
   const [dataEntradaEstoque, setDataEntradaEstoque] = useState("");
@@ -255,7 +256,10 @@ export function NotaFiscalDialog({
       }
       setItens(resultado.itens);
       setCustos(resultado.custos ?? null);
-      setModoDesconto(resultado.itens.find(item => item.composicaoCusto)?.composicaoCusto?.modoDesconto ?? "NOTA");
+      const modoSalvo = resultado.itens.find(item => item.status !== "PENDENTE" && item.composicaoCusto)?.composicaoCusto?.modoDesconto;
+      const modoCarregado = modoSalvo ?? (resultado.custos && resultado.custos.desconto > 0 ? null : "NOTA");
+      setModoDescontoCarregado(modoCarregado);
+      setModoDesconto(modoCarregado);
       setDescontos(Object.fromEntries((resultado.custos?.itens ?? []).map(custo => [custo.numeroItem,
         (resultado.itens.find(item => item.numeroItem === custo.numeroItem)?.composicaoCusto?.desconto ?? custo.desconto).toFixed(2)])));
       setDetalhes(resultado.detalhes);
@@ -300,8 +304,8 @@ export function NotaFiscalDialog({
     atualizarLinha(itemId, { insumoId });
   }
 
-  const distribuicaoDesconto: DistribuicaoDesconto = { modo: modoDesconto,
-    itens: (custos?.itens ?? []).map(item => ({ numeroItem: item.numeroItem, desconto: paraNumero(descontos[item.numeroItem] ?? "0") || 0 })) };
+  const distribuicaoDesconto: DistribuicaoDesconto | null = modoDesconto ? { modo: modoDesconto,
+    itens: (custos?.itens ?? []).map(item => ({ numeroItem: item.numeroItem, desconto: paraNumero(descontos[item.numeroItem] ?? "0") || 0 })) } : null;
   const calculoCustos = custos ? calcularCustosNota(custos, distribuicaoDesconto) : null;
   const erroCustos = calculoCustos && "erro" in calculoCustos ? calculoCustos.erro
     : calculoCustos && custos && centavos(calculoCustos.total) !== centavos(custos.totalNota)
@@ -313,7 +317,8 @@ export function NotaFiscalDialog({
     if (!original) return null;
     const desconto = modoDesconto === "PERSONALIZADO" ? paraNumero(descontos[item.numeroItem] ?? "0") || 0 : original.desconto;
     const custo = { ...original, desconto };
-    return { ...custo, modoDesconto, total: totalCustoItem(custo) };
+    // Sem escolha, exibe apenas os valores originais do XML; o aceite fica bloqueado.
+    return { ...custo, modoDesconto: modoDesconto ?? "NOTA", total: totalCustoItem(custo) };
   }
   function totalParaItem(item: ItemConciliacaoRow): number {
     return composicaoParaItem(item)?.total ?? paraNumero(linhas[item.id]?.valorTotal ?? "");
@@ -394,7 +399,7 @@ export function NotaFiscalDialog({
           dataEntradaEstoque: haAlgoAConciliar ? dataEntradaEstoque : undefined,
           itens: itensInput,
           duplicatas: duplicatasInput,
-          ...(custos ? { distribuicaoDesconto } : {}),
+          ...(custos && distribuicaoDesconto ? { distribuicaoDesconto } : {}),
         });
         if ("erro" in resultado) {
           toast.error(resultado.erro);
@@ -415,7 +420,7 @@ export function NotaFiscalDialog({
   const categoriaAtual = categoriaDaNota(nota.ultimaManifestacao, nota.tratamentoLocal);
 
   return (
-    <Dialog open={open} onOpenChange={alternarAbertura}>
+    <Dialog open={open} onOpenChange={alternarAbertura} alterado={modoDesconto !== modoDescontoCarregado ? true : undefined}>
       <DialogTrigger render={trigger} />
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl" showCloseButton={false}>
         <DialogHeader className="pr-14">
@@ -534,8 +539,8 @@ export function NotaFiscalDialog({
               onConciliado={fornecedor => setDetalhes(atual => atual ? { ...atual, fornecedorCadastrado: fornecedor } : atual)} />
 
             {custos && <ResumoCustosNota custos={custos} modo={modoDesconto} aoMudarModo={mudarModoDesconto}
-              bloqueado={operacaoPendente || itens.some(item => item.status !== "PENDENTE")}
-              descontoDistribuido={distribuicaoDesconto.itens.reduce((soma, item) => soma + item.desconto, 0)} erro={erroCustos} />}
+              bloqueado={operacaoPendente || itens.some(item => item.status !== "PENDENTE" && item.composicaoCusto)}
+              descontoDistribuido={distribuicaoDesconto?.itens.reduce((soma, item) => soma + item.desconto, 0) ?? 0} erro={erroCustos} />}
             <ParcelasNota parcelas={duplicatas} cartoes={cartoes} dataEmissao={nota.dataEmissao ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(nota.dataEmissao)) : ""} bloqueado={operacaoPendente || importando || salvandoFornecedor} mostrarErros={mostrarCamposInvalidos} onChange={setDuplicatas} />
             {duplicatas.length > 0 && nota.valorTotal != null && Math.abs(somaDuplicatas - nota.valorTotal) > 0.01 && <p className="text-xs text-amber-600">Soma das parcelas ({formatarMoeda(somaDuplicatas)}) diferente do valor da nota ({formatarMoeda(nota.valorTotal)}).</p>}
 

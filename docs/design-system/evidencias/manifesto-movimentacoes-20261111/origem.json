@@ -1,0 +1,79 @@
+{
+  "estado": "EM_REVISAO",
+  "dadosFicticios": true,
+  "commitFonte": "cb34a539358b9f22d93fa4a1a5b672ec2221d1ee",
+  "fonteConferida": {
+    "src/app/(protegido)/notas-fiscais/nota-fiscal-dialog.tsx": "129a81df589df42a04967ce427b064861edbdc9e44a1db89e1055f73f0f0ab88",
+    "src/app/(protegido)/notas-fiscais/custos-nota.tsx": "dd0e226c9624b07bd763db60141ff0ecd3d5d7b51dcdc658472c9d2d47f6d7a7",
+    "src/lib/notas-fiscais/custos.ts": "1c0c37fdb4b96499c750698f1e7cefff5b32befe75c9106a28f8515162507f8f",
+    "src/lib/notas-fiscais/validar-custos.ts": "68a8998f2ad86e6231db5588522660a41995328b3183a10052618458d43bf772",
+    "src/app/(protegido)/financeiro/movimentacoes/movimentacoes-view.tsx": "c8efa314da64206d98ed0d25a78a8ca7f56435ed00a040d9fadb9752bee411d6",
+    "src/app/(protegido)/financeiro/lancamentos/lancamento-dialog.tsx": "24e39639dfab6268ca94d22c50126d7a591bf93ee93d1d9e185d8e4e3071d086",
+    "src/lib/financeiro/busca-movimentacoes.ts": "93527b9b3ec1de7385b45dab80ac6f4a7cd01218b2ec566e49e721b2c321f9ae"
+  },
+  "registroEm": "2026-11-12T02:05:03.281960+00:00",
+  "ambiente": "Windows, Chrome local, Playwright 1.64.0, DPR 1, pt-BR, America/Sao_Paulo, movimento reduzido",
+  "capturas": [
+    {
+      "arquivo": "manifesto-desktop.png",
+      "origem": ".tmp/manifesto-movimentacoes-20261111/visual-manifesto-final/manifestacao-nf-desconto-c-d8da0-itar-inclusive-após-reabrir-chromium-1440-claro-fino/desconto-sem-escolha.png",
+      "viewport": [
+        1440,
+        900
+      ],
+      "dimensoesImagem": [
+        1440,
+        900
+      ],
+      "tema": "claro",
+      "ponteiro": "fino",
+      "sha256": "84a67974c2a8d921c337feae3db577ede6f0f12e5ce3bc5511992dcb3161e07d"
+    },
+    {
+      "arquivo": "manifesto-mobile.png",
+      "origem": ".tmp/manifesto-movimentacoes-20261111/visual-manifesto-final/manifestacao-nf-desconto-c-d8da0-itar-inclusive-após-reabrir-chromium-390-claro-fino/desconto-sem-escolha.png",
+      "viewport": [
+        390,
+        900
+      ],
+      "dimensoesImagem": [
+        390,
+        900
+      ],
+      "tema": "claro",
+      "ponteiro": "fino",
+      "sha256": "48b2faf0a73c76a54a2721fe3012a82ef334b1cc25520decc3f45ad1bb073e65"
+    },
+    {
+      "arquivo": "busca-desktop.png",
+      "origem": ".tmp/manifesto-movimentacoes-20261111/visual-movimentacoes/movimentacoes-busca-busca--363f8-s-e-permite-limpar-o-filtro-chromium-1440-claro-fino/busca-com-valor.png",
+      "viewport": [
+        1440,
+        900
+      ],
+      "dimensoesImagem": [
+        1440,
+        900
+      ],
+      "tema": "claro",
+      "ponteiro": "fino",
+      "sha256": "6a141814fa4a45810f162f8b4b63fb87e7b9f87bd24ce22f195f8e0bc9af1c72"
+    },
+    {
+      "arquivo": "salvar-mobile.png",
+      "origem": ".tmp/manifesto-movimentacoes-20261111/visual-movimentacoes/movimentacoes-busca-salvar-5c441-serva-o-botão-verde-oficial-chromium-390-claro-fino/salvar-alteracoes-verde.png",
+      "viewport": [
+        390,
+        900
+      ],
+      "dimensoesImagem": [
+        358,
+        810
+      ],
+      "tema": "claro",
+      "ponteiro": "fino",
+      "sha256": "0382d7b5bb273083dea08d9ed95226cd1027ad83135dace7fbc6420e6b6db09d"
+    }
+  ],
+  "limites": "Capturas locais consultivas; nenhuma referência aprovada foi alterada. Dialogo móvel capturado com rolagem até a ação."
+}

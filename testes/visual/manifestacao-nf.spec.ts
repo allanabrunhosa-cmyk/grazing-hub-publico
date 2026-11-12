@@ -82,6 +82,37 @@ async function escolherOutrasOperacoes(page: Page) {
   await expect(page.getByText("Parcelas (duplicatas)", { exact: true })).toHaveCount(0);
 }
 
+test("desconto começa sem seleção e exige escolha para aceitar, inclusive após reabrir", async ({ page }, info) => {
+  await abrir(page, info, "desconto=1");
+  await abrirNfe(page, "Fornecedor fictício com desconto");
+  const grupo = page.getByRole("group", { name: "Distribuição do desconto", exact: true });
+  for (const botao of await grupo.getByRole("button").all()) await expect(botao).toHaveAttribute("aria-pressed", "false");
+  await grupo.getByRole("button", { name: "Proporcional", exact: true }).click();
+  await page.getByRole("button", { name: "Fechar nota", exact: true }).click();
+  await page.getByRole("button", { name: "Sair sem salvar", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await abrirNfe(page, "Fornecedor fictício com desconto");
+  for (const botao of await grupo.getByRole("button").all()) await expect(botao).toHaveAttribute("aria-pressed", "false");
+  await page.getByLabel("Data de recebimento dos produtos", { exact: true }).fill("2026-11-03");
+  await page.getByRole("button", { name: "Aceitar nota", exact: true }).click();
+  const confirmar = page.getByRole("button", { name: "Confirmar aceite", exact: true });
+  await expect(confirmar).toBeDisabled();
+  await expect(page.getByTestId("chamadas-simuladas")).toHaveText("[]");
+  await grupo.scrollIntoViewIfNeeded();
+  await capturar(page, info, "desconto-sem-escolha");
+  const conforme = grupo.getByRole("button", { name: "Conforme a nota", exact: true });
+  await conforme.focus(); await conforme.press("Enter");
+  await expect(conforme).toHaveAttribute("aria-pressed", "true");
+  await expect(confirmar).toBeEnabled();
+  await expect(page.getByTestId("chamadas-simuladas")).toHaveText("[]");
+  await capturar(page, info, "desconto-escolhido");
+  await confirmar.click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect.poll(async () => JSON.parse(await page.getByTestId("chamadas-simuladas").textContent() ?? "[]")).toEqual([
+    { acao: "ACEITAR_NFE", entrada: expect.objectContaining({ distribuicaoDesconto: { modo: "NOTA", itens: [{ numeroItem: 1, desconto: 10 }] }, itens: [expect.objectContaining({ valorTotal: 90 })] }) },
+  ]);
+});
+
 test("devolução realizada e nota ignorada saem das pendências sem perder histórico", async ({ page }, info) => {
   await abrir(page, info, "vazio=1");
   await capturar(page, info, "nfe-vazio");
