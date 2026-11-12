@@ -5,10 +5,11 @@
 - [x] Domínio, persistência, auditoria, ação administrativa e migração aditiva.
 - [x] Cadastro, busca, ficha técnica e consumidores fiscais.
 - [x] Node 22: 403 testes de domínio/permissões (26 opt-ins ignorados), 215 fiscais e 58 de interface/ficha.
-- [x] PostgreSQL isolado: 47 testes de organização, concorrência, cadastro e importações; nenhum skip.
+- [x] PostgreSQL isolado: 48 testes de organização, concorrência, cadastro e importações; nenhum skip.
 - [x] Prévia sintética: 8 contextos visuais, 24 capturas, auditoria sem diagnósticos. Referências consultivas.
 - [x] Prisma generate/validate e lint dos arquivos alterados.
-- [ ] Verificação de tipos e build da revisão final.
+- [x] Verificação de tipos Node 22 da revisão final; importação da prévia ajustada ao padrão `.mjs`.
+- [ ] Build e controles de CI da revisão final; bateria geral em execução.
 - [ ] Backup, CI, integração e publicação autorizada.
 - [ ] Organização administrativa no HUB e conferência de códigos/persistência.
 

@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import type { SessaoAtual } from "@/lib/session";
 import { autorEntregas } from "./entregas";
 import { ErroCadastroVenda } from "./dominio";
+import { classificacaoComercial } from "./classificacao";
 import { historico, transacao, type Autor } from "./persistencia";
 import { codigoProdutoValido, lerEstadoCodigosProdutos, prepararFamiliasCodigos, registrarCodigosExistentes, proximoCodigoProduto, type EstadoCodigosProdutos } from "./codigo-produto";
 type Tx = Prisma.TransactionClient;
@@ -11,7 +12,7 @@ const json = (v: EstadoCodigosProdutos) => JSON.parse(JSON.stringify(v)) as Pris
 async function estadoNaTransacao(tx: Tx) {
   const loja = await tx.configuracaoLoja.findUnique({ where: { id: "singleton" }, select: { codigosProdutos: true } });
   const categorias = await tx.categoriaVenda.findMany({ select: { id: true, escopo: true, nome: true, ordem: true } });
-  const produtos = await tx.produtoVenda.findMany({ orderBy: [{ nome: "asc" }, { id: "asc" }], select: { id: true, nome: true, codigo: true, versao: true, classificacao: true, categorias: { select: { categoriaId: true } } } });
+  const produtos = await tx.produtoVenda.findMany({ orderBy: [{ nome: "asc" }, { id: "asc" }], select: { id: true, nome: true, codigo: true, versao: true, classificacao: true, classificacoes: true, categorias: { select: { categoriaId: true } } } });
   const antes = loja?.codigosProdutos ?? null;
   const estado = prepararFamiliasCodigos(lerEstadoCodigosProdutos(antes), categorias);
   registrarCodigosExistentes(estado, produtos.map(p => p.codigo));
@@ -38,7 +39,7 @@ export async function organizarCodigosProdutos(sessao: SessaoAtual): Promise<{ a
     let atualizados = 0;
     for (const p of produtos) {
       if (codigoProdutoValido(p.codigo)) continue;
-      const codigo = proximoCodigoProduto(estado, p.classificacao, p.categorias.map(c => c.categoriaId));
+      const codigo = proximoCodigoProduto(estado, classificacaoComercial(p), p.categorias.map(c => c.categoriaId));
       await tx.produtoVenda.update({ where: { id: p.id }, data: { codigo, versao: { increment: 1 } } });
       await historico(tx, autor, "CODIGO_PRODUTO", p.id, { codigo: p.codigo, versao: p.versao }, { codigo, versao: p.versao + 1, origem: "ORGANIZACAO_ADMINISTRATIVA" });
       atualizados++;

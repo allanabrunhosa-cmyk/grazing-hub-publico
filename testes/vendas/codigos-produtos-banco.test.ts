@@ -208,4 +208,16 @@ describe.skipIf(process.env.VENDAS_BANCO_TESTE !== "1")("Códigos dos produtos e
     expect(await sim.prisma.historicoCadastroVenda.count()).toBe(historicos);
     expect(escritasProtegidas()).toEqual([]);
   });
+
+  it("respeita o papel comercial canônico e o legado OPCAO ao escolher a família", async () => {
+    const opcao = await sim.prisma.produtoVenda.create({ data: { nome: "Opção sintética legada", classificacao: "OPCAO", classificacoes: ["OPCAO"] } });
+    const complemento = await sim.prisma.produtoVenda.create({ data: { nome: "Complemento sintético com campo legado", classificacao: "PRINCIPAL", classificacoes: ["COMPLEMENTO"] } });
+    expect((await organizarCodigosProdutos(admin)).atualizados).toBe(2);
+    const salvos = await sim.prisma.produtoVenda.findMany({ where: { id: { in: [opcao.id, complemento.id] } } });
+    expect(salvos.every(p => /^C00\d{5}$/.test(p.codigo!) && p.versao === 2)).toBe(true);
+    expect(new Set(salvos.map(p => p.codigo)).size).toBe(2);
+    expect(salvos.find(p => p.id === opcao.id)).toMatchObject({ classificacao: "OPCAO", classificacoes: ["OPCAO"] });
+    expect(salvos.find(p => p.id === complemento.id)).toMatchObject({ classificacao: "PRINCIPAL", classificacoes: ["COMPLEMENTO"] });
+    expect(escritasProtegidas()).toEqual([]);
+  });
 });
