@@ -1,17 +1,27 @@
 import { createRoot } from "react-dom/client";
+import { useEffect, useState } from "react";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Sidebar } from "@/components/layout/sidebar";
 import { CabecalhoConteudo } from "@/components/layout/cabecalho-conteudo";
 import { EntradaAvulsaForm } from "@/app/(protegido)/inventario/entrada-avulsa/entrada-avulsa-form";
 import { Toaster } from "@/components/ui/sonner";
+import { gerarCssTema } from "@/lib/design-system/gerar-css";
+import { cartoes, contas, type ChamadaEntradaSimulada } from "./entrada-avulsa-previa";
 import "@/app/globals.css";
 
-createRoot(document.getElementById("root")!).render(
-  <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+function PreviaEntrada() {
+  const [chamadas, setChamadas] = useState<ChamadaEntradaSimulada[]>([]);
+  useEffect(() => {
+    const registrar = (evento: Event) => setChamadas(atuais => [...atuais, (evento as CustomEvent<ChamadaEntradaSimulada>).detail]);
+    window.addEventListener("entrada-avulsa-simulada", registrar);
+    return () => window.removeEventListener("entrada-avulsa-simulada", registrar);
+  }, []);
+  return <ThemeProvider attribute="class" forcedTheme={new URLSearchParams(location.search).get("escuro") === "1" ? "dark" : "light"}>
+    <style>{gerarCssTema()}</style>
     <div className="estrutura-sistema">
       <Sidebar />
       <div className="painel-sistema">
-        <CabecalhoConteudo sessao={{ nome: "Allan Abrunhosa", email: "equipe@example.com", admin: true }} />
+        <CabecalhoConteudo sessao={{ nome: "Operador fictício", email: "equipe@example.com", admin: true }} />
         <main className="conteudo-sistema">
           <p className="mb-4 text-xs text-muted-foreground">Prévia com dados fictícios. Ações simuladas, sem gravação.</p>
           <EntradaAvulsaForm
@@ -28,15 +38,15 @@ createRoot(document.getElementById("root")!).render(
               { id: "mercado", nome: "MERCADO CENTRAL LTDA" },
               { id: "distribuidora", nome: "DISTRIBUIDORA GASTRONÔMICA" },
             ]}
-            contasBancarias={[
-              { id: "itau", nome: "ITAÚ — CONTA CORRENTE" },
-              { id: "caixa", nome: "CAIXA OPERACIONAL" },
-            ]}
-            insumoIdPreselecionado={null}
+            contasBancarias={contas}
+            cartoes={cartoes}
+            insumoIdPreselecionado="brie"
           />
         </main>
       </div>
     </div>
+    <output className="sr-only" data-testid="chamadas-simuladas">{JSON.stringify(chamadas)}</output>
     <Toaster />
-  </ThemeProvider>,
-);
+  </ThemeProvider>;
+}
+createRoot(document.getElementById("root")!).render(<PreviaEntrada />);

@@ -29,10 +29,11 @@ import { formatarMoeda } from "@/lib/financeiro/formatarMoeda";
 import { calcularCompraSemNota } from "@/lib/inventario/entrada-avulsa";
 import type { InsumoOption, LocalOption } from "@/app/(protegido)/inventario/types";
 import type { ContaBancariaOption, FornecedorOption } from "@/app/(protegido)/financeiro/types";
-import { dataCalendarioValida, vencimentoCartao, type CartaoOption } from "@/lib/financeiro/cartoes";
-import type { PagamentoNota } from "@/lib/notas-fiscais/pagamentos";
+import type { CartaoOption } from "@/lib/financeiro/cartoes";
+import { PagamentoEntradaAvulsa, pagamentoDoRascunho, rascunhoPagamentoEntrada } from "@/components/inventario/pagamento-entrada-avulsa";
 import type { InsumoCriado } from "@/app/(protegido)/insumos/types";
 import { FornecedorCombobox } from "@/app/(protegido)/compras/fornecedor-combobox";
+import type { PagamentoEntradaInput } from "@/lib/inventario/entrada-avulsa-pagamento";
 
 type LinhaItem = {
   chave: string;
@@ -102,14 +103,10 @@ export function EntradaAvulsaForm({
   const [desconto, setDesconto] = useState("");
   const [custosAdicionais, setCustosAdicionais] = useState<LinhaCusto[]>([]);
   const [data, setData] = useState(hoje());
-  const [dataVencimento, setDataVencimento] = useState("");
   const [pago, setPago] = useState(false);
   const [dataPagamento, setDataPagamento] = useState(hoje());
   const [contaBancariaId, setContaBancariaId] = useState<string | null>(null);
-  const [formaPagamento, setFormaPagamento] = useState<PagamentoNota["formaPagamento"]>("BOLETO");
-  const [cartaoCreditoId, setCartaoCreditoId] = useState<string | null>(null);
-  const [dataCompra, setDataCompra] = useState(hoje());
-  const [parcelaCartao, setParcelaCartao] = useState(1);
+  const [pagamento, setPagamento] = useState(() => rascunhoPagamentoEntrada({ formaPagamento: "BOLETO", parcelas: [{ valor: 0, dataVencimento: hoje() }] }));
   const [observacao, setObservacao] = useState("");
   const [insumosCriados, setInsumosCriados] = useState<InsumoCriado[]>([]);
   const [pending, startTransition] = useTransition();
@@ -122,7 +119,7 @@ export function EntradaAvulsaForm({
   const ehCompra = tipo === "COMPRA_SIMPLES";
   const insumosDisponiveis: InsumoOption[] = [...insumos, ...insumosCriados.filter((criado) => !insumos.some((insumo) => insumo.id === criado.id))];
   const contaSelecionada = contasBancarias.find(conta => conta.id === contaBancariaId) ?? null;
-  const cartaoSelecionado = cartoes.find(cartao => cartao.id === cartaoCreditoId) ?? null;
+  const ehCartao = pagamento.formaPagamento === "CARTAO";
   const itensNumericos = itens.map(item => ({
     insumoId: item.insumoId ?? "",
     localId: item.localId ?? "",
@@ -152,12 +149,16 @@ export function EntradaAvulsaForm({
     setCustosAdicionais(atuais => atuais.map(custo => custo.chave === chaveCusto ? { ...custo, ...dados } : custo));
   }
 
+  function atualizarDataEntrada(novaData: string) {
+    setData(novaData);
+    setPagamento(atual => atual.formaPagamento !== "CARTAO" && atual.parcelas.length === 1 && atual.parcelas[0].dataVencimento === data
+      ? { ...atual, parcelas: [{ ...atual.parcelas[0], dataVencimento: novaData }] } : atual);
+  }
+
   function mudarTipo(novoTipo: "COMPRA_SIMPLES" | "OUTRO_MOTIVO") {
     setTipo(novoTipo);
     if (novoTipo === "OUTRO_MOTIVO") {
       setPago(false);
-      setFormaPagamento("BOLETO");
-      setCartaoCreditoId(null);
     }
   }
 
@@ -167,19 +168,18 @@ export function EntradaAvulsaForm({
     setFrete("");
     setDesconto("");
     setCustosAdicionais([]);
-    setDataVencimento("");
     setPago(false);
     setDataPagamento(hoje());
     setContaBancariaId(null);
-    setFormaPagamento("BOLETO");
-    setCartaoCreditoId(null);
-    setDataCompra(hoje());
-    setParcelaCartao(1);
+    setPagamento(rascunhoPagamentoEntrada({ formaPagamento: "BOLETO", parcelas: [{ valor: 0, dataVencimento: hoje() }] }));
     setObservacao("");
   }
 
   function registrar() {
     if (trava.current) return;
+    let plano: PagamentoEntradaInput | undefined;
+    try { plano = ehCompra ? pagamentoDoRascunho(pagamento, valorTotal) : undefined; }
+    catch (falha) { setErro(falha instanceof Error ? falha.message : "Confira as parcelas da compra."); return; }
     trava.current = true;
     setErro(null);
     startTransition(async () => {
@@ -191,14 +191,15 @@ export function EntradaAvulsaForm({
         desconto: ehCompra ? paraNumero(desconto) : 0,
         custosAdicionais: ehCompra ? adicionaisNumericos : [],
         data,
-        dataVencimento: ehCompra && dataVencimento ? dataVencimento : null,
-        pago: ehCompra && pago,
-        dataPagamento: ehCompra && pago ? dataPagamento : null,
-        contaBancariaId: ehCompra && pago ? contaBancariaId : null,
-        formaPagamento: ehCompra ? formaPagamento : "BOLETO",
-        cartaoCreditoId: ehCompra && formaPagamento === "CARTAO" ? cartaoCreditoId : null,
-        dataCompra: ehCompra && formaPagamento === "CARTAO" ? dataCompra : null,
-        parcelaCartao: ehCompra && formaPagamento === "CARTAO" ? parcelaCartao : 1,
+        dataVencimento: plano?.parcelas[0]?.dataVencimento ?? null,
+        pago: ehCompra && !ehCartao && pago,
+        dataPagamento: ehCompra && !ehCartao && pago ? dataPagamento : null,
+        contaBancariaId: ehCompra && !ehCartao && pago ? contaBancariaId : null,
+        formaPagamento: plano?.formaPagamento ?? "BOLETO",
+        cartaoCreditoId: plano?.cartaoCreditoId ?? null,
+        dataCompra: plano?.dataCompra ?? null,
+        parcelaCartao: plano?.parcelaCartao ?? 1,
+        pagamento: plano,
         observacao: observacao.trim() || null,
       };
       const assinatura = JSON.stringify(dados);
@@ -216,40 +217,6 @@ export function EntradaAvulsaForm({
       } catch { setErro("Não foi possível confirmar a entrada. Tente novamente; a mesma tentativa não será duplicada."); }
       finally { trava.current = false; }
     });
-  }
-
-  function atualizarFormaPagamento(valor: PagamentoNota["formaPagamento"]) {
-    setFormaPagamento(valor);
-    if (valor !== "CARTAO") {
-      setCartaoCreditoId(null);
-      setParcelaCartao(1);
-      return;
-    }
-    setPago(false);
-    const cartao = cartoes.find(item => item.id === cartaoCreditoId);
-    if (cartao && dataCalendarioValida(dataCompra)) {
-      try { setDataVencimento(vencimentoCartao(dataCompra, cartao.diaFechamento, cartao.diaVencimento, parcelaCartao)); } catch { setDataVencimento(""); }
-    }
-  }
-
-  function atualizarCartao(id: string | null) {
-    setCartaoCreditoId(id);
-    if (!id) { setDataVencimento(""); return; }
-    const cartao = cartoes.find(item => item.id === id);
-    if (!cartao || !dataCalendarioValida(dataCompra)) return;
-    try { setDataVencimento(vencimentoCartao(dataCompra, cartao.diaFechamento, cartao.diaVencimento, parcelaCartao)); } catch { setDataVencimento(""); }
-  }
-
-  function atualizarDataCompra(valor: string) {
-    setDataCompra(valor);
-    if (!cartaoSelecionado || !dataCalendarioValida(valor)) return;
-    try { setDataVencimento(vencimentoCartao(valor, cartaoSelecionado.diaFechamento, cartaoSelecionado.diaVencimento, parcelaCartao)); } catch { setDataVencimento(""); }
-  }
-
-  function atualizarParcela(valor: number) {
-    setParcelaCartao(valor);
-    if (!cartaoSelecionado || !dataCalendarioValida(dataCompra) || !Number.isInteger(valor) || valor < 1 || valor > 120) return;
-    try { setDataVencimento(vencimentoCartao(dataCompra, cartaoSelecionado.diaFechamento, cartaoSelecionado.diaVencimento, valor)); } catch { setDataVencimento(""); }
   }
 
   if (locais.length === 0) {
@@ -288,7 +255,7 @@ export function EntradaAvulsaForm({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="data-entrada-avulsa">Data de entrada *</Label>
-              <Input id="data-entrada-avulsa" type="date" value={data} onChange={evento => setData(evento.target.value)} disabled={pending} />
+              <Input id="data-entrada-avulsa" type="date" value={data} onChange={evento => atualizarDataEntrada(evento.target.value)} disabled={pending} />
             </div>
           </CardContent>
         </Card>
@@ -431,45 +398,20 @@ export function EntradaAvulsaForm({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><BadgeDollarSign className="size-5 text-primary" /> Pagamento</CardTitle>
-            <CardDescription>Será criada uma única despesa para o fornecedor com o total completo da compra.</CardDescription>
+            <CardDescription>O total da compra será distribuído entre as parcelas do fornecedor.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-1.5">
-                <Label>Forma de pagamento *</Label>
-                <Select value={formaPagamento ?? "BOLETO"} onValueChange={valor => atualizarFormaPagamento(valor as PagamentoNota["formaPagamento"])} disabled={pending}>
-                  <SelectTrigger aria-label="Forma de pagamento da compra" className="w-full"><SelectValue>{() => ({ BOLETO: "Boleto", PIX: "Pix", CARTAO: "Cartão de crédito" }[formaPagamento ?? "BOLETO"])}</SelectValue></SelectTrigger>
-                  <SelectContent><SelectItem value="BOLETO">Boleto</SelectItem><SelectItem value="PIX">Pix</SelectItem><SelectItem value="CARTAO">Cartão de crédito</SelectItem></SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="vencimento-entrada-avulsa">Vencimento</Label>
-                <Input id="vencimento-entrada-avulsa" type="date" value={dataVencimento} onChange={evento => setDataVencimento(evento.target.value)} disabled={pending || formaPagamento === "CARTAO"} />
-                <p className="text-xs text-muted-foreground">{formaPagamento === "CARTAO" ? "Calculado pela fatura do cartão." : "Vazio = mesma data da entrada."}</p>
-              </div>
+            <PagamentoEntradaAvulsa value={pagamento} valorTotal={valorTotal} cartoes={cartoes} dataPadrao={data} disabled={pending} redistribuirAoAlterarTotal onChange={novoPagamento => { setPagamento(novoPagamento); if (novoPagamento.formaPagamento === "CARTAO") setPago(false); }} />
+            <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Situação</Label>
                 <label className="flex h-10 items-center gap-2 rounded-md border px-3 text-sm">
-                  <Checkbox checked={pago} onCheckedChange={(marcado) => setPago(marcado === true)} disabled={pending || formaPagamento === "CARTAO"} />
+                  <Checkbox checked={pago} onCheckedChange={(marcado) => setPago(marcado === true)} disabled={pending || ehCartao} />
                   Já está pago
                 </label>
               </div>
             </div>
-            {formaPagamento === "CARTAO" && (
-              <div className="grid gap-3 rounded-xl border bg-muted/30 p-3 sm:grid-cols-[minmax(0,1fr)_10rem_9rem]">
-                <div className="space-y-1.5">
-                  <Label>Cartão / conta bancária *</Label>
-                  <Select value={cartaoCreditoId ?? ""} onValueChange={atualizarCartao} disabled={pending}>
-                    <SelectTrigger aria-label="Cartão da compra" className="w-full"><SelectValue placeholder="Selecione o cartão">{() => cartaoSelecionado ? `${cartaoSelecionado.nome} · ${cartaoSelecionado.contaBancariaNome}` : "Selecione o cartão"}</SelectValue></SelectTrigger>
-                    <SelectContent>{cartoes.filter(cartao => cartao.ativo).map(cartao => <SelectItem key={cartao.id} value={cartao.id}>{cartao.nome} · {cartao.contaBancariaNome}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5"><Label htmlFor="data-compra-entrada-avulsa">Data da compra *</Label><Input id="data-compra-entrada-avulsa" aria-label="Data da compra" type="date" value={dataCompra} onChange={evento => atualizarDataCompra(evento.target.value)} disabled={pending} /></div>
-                <div className="space-y-1.5"><Label htmlFor="parcela-cartao-entrada-avulsa">Parcela do cartão *</Label><Input id="parcela-cartao-entrada-avulsa" aria-label="Parcela do cartão" type="number" min={1} max={120} value={parcelaCartao} onChange={evento => atualizarParcela(Number(evento.target.value))} disabled={pending} /></div>
-                <p className="text-xs text-muted-foreground sm:col-span-3">O vencimento é calculado pela fatura. A compra fica pendente até a baixa da fatura do cartão.</p>
-              </div>
-            )}
-            {pago && (
+            {pago && !ehCartao && (
               <div className="grid gap-3 rounded-xl border p-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="pagamento-entrada-avulsa">Data do pagamento *</Label>
@@ -495,7 +437,7 @@ export function EntradaAvulsaForm({
           {!ehCompra && (
             <div className="space-y-1.5">
               <Label htmlFor="data-ajuste-avulso">Data de entrada *</Label>
-              <Input id="data-ajuste-avulso" type="date" value={data} onChange={evento => setData(evento.target.value)} disabled={pending} className="max-w-52" />
+              <Input id="data-ajuste-avulso" type="date" value={data} onChange={evento => atualizarDataEntrada(evento.target.value)} disabled={pending} className="max-w-52" />
             </div>
           )}
           <div className="space-y-1.5">

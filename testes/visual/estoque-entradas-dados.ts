@@ -8,3 +8,11 @@ export const detalhe: EntradaDetalheDTO = { id: "entrada-ficticia", identificado
 }, versoes: [{ versao: 2, autorNome: "Conferente fictício", data: "2026-10-11T10:15:00-03:00", diferencas: [{ campo: "Item 1 · Quantidade", anterior: "3", novo: "2" }], ajustes: [{ movimentoId: "ajuste-ficticio", quantidade: "-5", tipo: "AJUSTE_SAIDA" }] }, { versao: 1, autorNome: "Operador fictício", data: "2026-10-10T14:23:00-03:00", diferencas: [], ajustes: [] }] };
 
 export const linhaHistorico = { id: detalhe.id, identificador: detalhe.identificador, data: "2026-10-10T15:00:00Z", criadoEm: detalhe.criadoEm, responsavel: detalhe.responsavel, totalItens: 2, situacao: "Corrigida", tipo: "Completa", produtos: detalhe.snapshot.itens.map(i => i.nome).join(", "), fornecedor: detalhe.snapshot.fornecedorNome!, itens: detalhe.snapshot.itens.map(i => ({ nome: i.nome, quantidade: String(i.quantidade), unidade: i.unidadeEntrada! })), valorTotal: detalhe.snapshot.valorTotal, versao: detalhe.versao };
+
+export function detalhePagamentoSimulado(pago = false): EntradaDetalheDTO {
+  const copia = structuredClone(detalhe);
+  const pagamento = { formaPagamento: "PIX" as const, parcelas: [{ valor: 160, dataVencimento: "2026-11-28" }] };
+  copia.snapshot.pagamento = pagamento;
+  copia.financeiro = { pagamento, revisao: "revisao-financeira-ficticia", ...(pago ? { bloqueio: "A compra possui pagamento realizado. Estorne o pagamento no Financeiro antes de alterar a forma ou as parcelas." } : {}) };
+  return copia;
+}

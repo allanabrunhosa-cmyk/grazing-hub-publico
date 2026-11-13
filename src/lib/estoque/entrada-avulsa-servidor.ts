@@ -13,6 +13,8 @@ import type { EntradaAvulsaInput } from "@/app/(protegido)/inventario/entrada-av
 
 import { numeroEntradaLegada } from "./numero-entrada";
 import { cancelarObrigacoesEntradaAvulsa } from "@/lib/financeiro/cancelamento-compra";
+import { alterarPagamentoEntrada, consultarFinanceiroEntrada } from "./entrada-avulsa-financeiro";
+import { ErroPagamentoEntrada } from "@/lib/inventario/entrada-avulsa-pagamento";
 
 const json = (v: unknown) => JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
 export const hashEntrada = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex");
@@ -48,6 +50,7 @@ export async function gravarRegistroEntrada(tx: Prisma.TransactionClient, input:
   ]);
   const snapshot = calcularSnapshotEntrada({ tipo: input.tipo, data: input.data, fornecedorId: input.fornecedorId, fornecedorNome: fornecedor?.nome ?? null,
     frete: input.frete, desconto: input.desconto, custosAdicionais: input.custosAdicionais, observacao: input.observacao,
+    ...(input.pagamento ? { pagamento: input.pagamento } : {}),
     dadosOriginais: { dataVencimento: input.dataVencimento, pago: input.pago, dataPagamento: input.dataPagamento,
       formaPagamento: input.formaPagamento ?? "BOLETO", cartaoCreditoId: input.cartaoCreditoId ?? null, contaBancariaId: input.contaBancariaId,
       dataCompra: input.dataCompra ?? null, parcelaCartao: String(input.parcelaCartao ?? 1) } }, input.itens, catalogo, locais);
@@ -80,11 +83,13 @@ async function detalheLegado(tx: Prisma.TransactionClient, id: string): Promise<
     const itens = compra.movimentacoes.map(m => ({ insumoId: m.insumoId, localId: m.localId, nome: m.insumo.nome, localNome: m.local.nome,
       unidade: m.insumo.unidade, unidadeEntrada: m.insumo.unidade, quantidade: Number(m.quantidade), fatorConversao: 1,
       quantidadeEstoque: m.quantidade.toString(), valorProdutos: Number(m.valorTotal ?? 0), valorFinal: Number(m.valorTotal ?? 0), custoUnitario: Number(m.custoUnitario ?? 0) }));
-    return { id, identificador: String(await numeroEntradaLegada(tx, id)), versao: 0, criadoEm: compra.createdAt.toISOString(), responsavel: compra.criadoPor?.nome ?? "Não registrado", bloqueio,
+    const detalhe: EntradaDetalheDTO = { id, identificador: String(await numeroEntradaLegada(tx, id)), versao: 0, criadoEm: compra.createdAt.toISOString(), responsavel: compra.criadoPor?.nome ?? "Não registrado", bloqueio,
       snapshot: { tipo: "COMPRA_SIMPLES", data: compra.dataEntrada.toISOString().slice(0, 10), fornecedorId: compra.fornecedorId, fornecedorNome: compra.fornecedor.nome,
         frete: 0, desconto: 0, custosAdicionais: [], observacao: compra.observacao, valorTotal: Number(compra.valorTotal), itens, reconstruida: true,
         dadosOriginais: { frete: compra.frete.toString(), desconto: compra.desconto.toString(), outrosCustos: JSON.stringify(compra.outrosCustos),
           dataVencimento: compra.dataVencimento?.toISOString().slice(0, 10) ?? null, pago: compra.pago, dataPagamento: compra.dataPagamento?.toISOString().slice(0, 10) ?? null } }, versoes: [] };
+    detalhe.financeiro = await consultarFinanceiroEntrada(tx, compra.id, detalhe.snapshot);
+    return detalhe;
   }
   if (id.startsWith("movimento:")) {
     const m = await tx.movimentacaoEstoque.findFirst({ where: { id: id.slice(10) }, include: { ...movimentoInclude, criadoPor: true, registroAvulsoLegado: true } });
@@ -102,10 +107,12 @@ async function detalheLegado(tx: Prisma.TransactionClient, id: string): Promise<
 async function detalheRegistro(tx: Prisma.TransactionClient, registro: EntradaAvulsaRegistro): Promise<EntradaDetalheDTO> {
   const versoes = await tx.entradaAvulsaVersao.findMany({ where: { registroId: registro.id }, orderBy: { versao: "desc" } });
   const estornada = await tx.movimentacaoEstoque.count({ where: { entradaAvulsaRegistroId: registro.id, estornoCompra: { isNot: null } } });
-  return { id: registro.id, identificador: String(registro.numero), versao: registro.versao,
+  const detalhe: EntradaDetalheDTO = { id: registro.id, identificador: String(registro.numero), versao: registro.versao,
     criadoEm: registro.createdAt.toISOString(), responsavel: registro.criadoPorNome, snapshot: (registro.snapshot as EntradaSnapshot).cancelada ? { ...(versoes[0]?.antes as EntradaSnapshot ?? registro.snapshot as EntradaSnapshot), cancelada: true } : registro.snapshot as EntradaSnapshot,
     ...((registro.snapshot as EntradaSnapshot).cancelada ? { bloqueio: "Esta entrada foi excluída por estorno. O histórico permanece disponível para consulta." } : estornada ? { bloqueio: "Esta compra foi estornada no Financeiro. O histórico permanece disponível para consulta; não é possível corrigir uma entrada estornada." } : {}),
     versoes: versoes.map(v => ({ versao: v.versao, autorNome: v.autorNome, data: v.createdAt.toISOString(), diferencas: v.diferencas as VersaoEntradaDTO["diferencas"], ajustes: v.ajustes as VersaoEntradaDTO["ajustes"] })) };
+  if (registro.compraId) detalhe.financeiro = await consultarFinanceiroEntrada(tx, registro.compraId, detalhe.snapshot);
+  return detalhe;
 }
 export async function consultarEntrada(tx: Prisma.TransactionClient, id: string) {
   if (typeof id !== "string" || !/^(?:(?:compra|movimento):)?[a-zA-Z0-9_-]{1,160}$/.test(id)) throw new ErroCorrecaoEntrada("Identificador de entrada inválido.");
@@ -137,7 +144,17 @@ async function alterarEntradaAvulsa(input: CorrecaoEntradaInput, sessao: SessaoA
     if (!detalhe) throw new ErroCorrecaoEntrada("Entrada não encontrada.");
     if (detalhe.bloqueio) throw new ErroCorrecaoEntrada(detalhe.bloqueio);
     if (detalhe.versao !== input.versao) throw new ErroCorrecaoEntrada("Este lançamento foi alterado por outra pessoa. Reabra o detalhe e confira a versão atual.");
-    const antes = detalhe.snapshot;
+    let antes = detalhe.snapshot;
+    let alteracaoPagamento: Awaited<ReturnType<typeof alterarPagamentoEntrada>> | null = null;
+    if (input.pagamento && !excluir) {
+      if (antes.tipo !== "COMPRA_SIMPLES") throw new ErroCorrecaoEntrada("O plano de pagamento está disponível apenas para compras.");
+      const registro = detalhe.versao > 0 ? await tx.entradaAvulsaRegistro.findUniqueOrThrow({ where: { id: detalhe.id } }) : null;
+      const compraId = registro?.compraId ?? (input.id.startsWith("compra:") ? input.id.slice(7) : null);
+      if (!compraId) throw new ErroCorrecaoEntrada("A referência financeira está incompleta. Reabra a entrada.");
+      try { alteracaoPagamento = await alterarPagamentoEntrada(tx, compraId, antes, input.pagamento, autor); }
+      catch (erro) { if (erro instanceof ErroPagamentoEntrada) throw new ErroCorrecaoEntrada(erro.message); throw erro; }
+      if (alteracaoPagamento.mudou) antes = { ...antes, pagamento: alteracaoPagamento.anterior };
+    }
     const ids = [...new Set([...antes.itens, ...input.itens].map(i => i.insumoId))].sort();
     await tx.$queryRaw(Prisma.sql`SELECT id FROM "Insumo" WHERE id IN (${Prisma.join(ids)}) ORDER BY id FOR UPDATE`);
     const [catalogo, locais] = await Promise.all([
@@ -147,6 +164,7 @@ async function alterarEntradaAvulsa(input: CorrecaoEntradaInput, sessao: SessaoA
     if (antes.itens.some(i => catalogo.find(c => c.id === i.insumoId)?.unidade !== i.unidade)) throw new ErroCorrecaoEntrada("A unidade de um produto mudou desde a entrada. Concilie a conversão antes de corrigir.");
     if (input.itens.some(i => (!catalogo.find(c => c.id === i.insumoId)?.ativo || !locais.find(l => l.id === i.localId)?.ativo) && !antes.itens.some(a => a.insumoId === i.insumoId && a.localId === i.localId))) throw new ErroCorrecaoEntrada("Selecione produtos e locais ativos para novos itens.");
     const depois: EntradaSnapshot = excluir ? { ...antes, cancelada: true, itens: [], valorTotal: 0, frete: 0, desconto: 0, custosAdicionais: [], observacao: input.observacao } : calcularSnapshotEntrada({ ...antes, observacao: input.observacao, frete: input.frete, desconto: input.desconto, custosAdicionais: input.custosAdicionais }, input.itens, catalogo, locais);
+    if (alteracaoPagamento?.mudou) depois.pagamento = alteracaoPagamento.pagamento;
     if (!excluir && antes.tipo === "COMPRA_SIMPLES" && !new DecimalEstoque(antes.valorTotal).equals(depois.valorTotal)) throw new ErroCorrecaoEntrada("O total deve permanecer igual à obrigação financeira original. Redistribua os valores entre os itens; alterações do total exigem correção no Financeiro.");
     if (excluir && antes.tipo === "COMPRA_SIMPLES") {
       const registro = detalhe.versao > 0 ? await tx.entradaAvulsaRegistro.findUniqueOrThrow({ where: { id: detalhe.id } }) : null;
@@ -155,7 +173,8 @@ async function alterarEntradaAvulsa(input: CorrecaoEntradaInput, sessao: SessaoA
       try { await cancelarObrigacoesEntradaAvulsa(tx, compraId, sessao, input.observacao!); }
       catch (erro) { throw new ErroCorrecaoEntrada(erro instanceof Error ? erro.message : "Não foi possível cancelar a obrigação financeira."); }
     }
-    const diferencas = [...diferencasEntrada(antes, depois), ...(excluir ? [{ campo: "Status", anterior: "Registrada", novo: "Excluída por estorno" }] : [])];
+    const diferencas = [...diferencasEntrada(antes, depois), ...(excluir ? [{ campo: "Status", anterior: "Registrada", novo: "Excluída por estorno" }] : []),
+      ...(alteracaoPagamento?.mudou ? [{ campo: "Títulos do pagamento", anterior: alteracaoPagamento.anteriores.join(", "), novo: alteracaoPagamento.novos.join(", ") }] : [])];
     if (!diferencas.length) return detalhe.id;
     const deltas = planejarCorrecaoEntrada(antes, depois);
     // Na entrada simples, valor estimado ausente/zero não apurava custo no gravador.

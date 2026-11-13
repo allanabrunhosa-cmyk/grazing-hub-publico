@@ -2070,7 +2070,7 @@ model EntradaAvulsaCompra {
   createdAt              DateTime @default(now())
 
   movimentacoes         MovimentacaoEstoque[]
-  lancamentoFinanceiro  LancamentoFinanceiro?
+  lancamentosFinanceiros LancamentoFinanceiro[]
 
   @@index([fornecedorId])
   @@index([dataEntrada])
@@ -2335,7 +2335,7 @@ model LancamentoFinanceiro {
   origemMovimentacaoEstoqueId String?              @unique
   origemMovimentacaoEstoque   MovimentacaoEstoque? @relation(fields: [origemMovimentacaoEstoqueId], references: [id])
 
-  origemEntradaAvulsaCompraId String?               @unique
+  origemEntradaAvulsaCompraId String?
   origemEntradaAvulsaCompra   EntradaAvulsaCompra?  @relation(fields: [origemEntradaAvulsaCompraId], references: [id], onDelete: Restrict)
 
   observacoes String?
@@ -2361,6 +2361,7 @@ model LancamentoFinanceiro {
   @@index([dataVencimento])
   @@index([dataCompetencia])
   @@index([recorrenciaGrupoId])
+  @@index([origemEntradaAvulsaCompraId])
   @@index([itemFaturaId])
   @@index([cartaoCreditoId, dataVencimento])
   @@unique([pedidoVendaId, pedidoEfeitoChave])

@@ -1,6 +1,7 @@
 import type { UnidadeMedida } from "@/generated/prisma/browser";
 import { DecimalEstoque } from "@/lib/estoque/quantidade";
 import { calcularCompraSemNota, type ItemCompraSemNota, type CustoAdicionalEntrada } from "./entrada-avulsa";
+import type { PagamentoEntradaInput } from "./entrada-avulsa-pagamento";
 
 export class ErroCorrecaoEntrada extends Error {}
 /** A fronteira HTTP pode manter o prefixo legado percent-encoded nos params. */
@@ -20,12 +21,14 @@ export type EntradaSnapshot = {
   fornecedorId: string | null; fornecedorNome: string | null;
   frete: number; desconto: number; custosAdicionais: CustoAdicionalEntrada[];
   valorTotal: number; itens: ItemEntradaSnapshot[]; dadosOriginais?: Record<string, string | boolean | null>;
+  pagamento?: PagamentoEntradaInput;
   reconstruida?: boolean;
   cancelada?: boolean;
 };
 export type CorrecaoEntradaInput = {
   id: string; versao: number; chave: string; itens: ItemCompraSemNota[];
   observacao: string | null; frete: number; desconto: number; custosAdicionais: CustoAdicionalEntrada[];
+  pagamento?: PagamentoEntradaInput & { revisao: string };
 };
 export type DiferencaEntrada = { campo: string; anterior: string; novo: string };
 export type VersaoEntradaDTO = { versao: number; autorNome: string; data: string; diferencas: DiferencaEntrada[]; ajustes: { movimentoId: string; quantidade: string; tipo: string }[] };
@@ -33,6 +36,7 @@ export type EntradaDetalheDTO = {
   bloqueio?: string;
   id: string; identificador: string; versao: number; criadoEm: string; responsavel: string;
   snapshot: EntradaSnapshot; versoes: VersaoEntradaDTO[];
+  financeiro?: { pagamento: PagamentoEntradaInput; revisao: string; bloqueio?: string };
 };
 
 export function validarItensEntrada(itens: ItemCompraSemNota[]) {
@@ -92,6 +96,15 @@ export function diferencasEntrada(antes: EntradaSnapshot, depois: EntradaSnapsho
   const mostrar = (v: unknown) => v == null || v === "" ? "—" : String(v);
   const campo = (nome: string, a: unknown, b: unknown) => { if (JSON.stringify(a) !== JSON.stringify(b)) diferencas.push({ campo: nome, anterior: mostrar(a), novo: mostrar(b) }); };
   campo("Observação", antes.observacao, depois.observacao);
+  if (JSON.stringify(antes.pagamento) !== JSON.stringify(depois.pagamento)) {
+    const rotulos = { BOLETO: "Boleto", PIX: "Pix", CARTAO: "Cartão de crédito" };
+    campo("Forma de pagamento", antes.pagamento ? rotulos[antes.pagamento.formaPagamento] : null, depois.pagamento ? rotulos[depois.pagamento.formaPagamento] : null);
+    campo("Cartão", antes.pagamento?.cartaoCreditoId, depois.pagamento?.cartaoCreditoId);
+    campo("Data da compra no cartão", antes.pagamento?.dataCompra, depois.pagamento?.dataCompra);
+    campo("Parcela inicial do cartão", antes.pagamento?.parcelaCartao, depois.pagamento?.parcelaCartao);
+    const resumo = (plano?: PagamentoEntradaInput) => plano?.parcelas.map((parcela, indice) => `${indice + 1} · ${parcela.valor.toFixed(2)} · ${parcela.dataVencimento}`).join(" / ");
+    campo("Parcelas", resumo(antes.pagamento), resumo(depois.pagamento));
+  }
   campo("Frete", antes.frete, depois.frete); campo("Desconto", antes.desconto, depois.desconto);
   campo("Custos adicionais", antes.custosAdicionais.map(c => `${c.descricao}: ${c.valor}`).join("; "), depois.custosAdicionais.map(c => `${c.descricao}: ${c.valor}`).join("; "));
   for (let i = 0; i < Math.max(antes.itens.length, depois.itens.length); i++) {

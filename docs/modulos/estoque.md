@@ -1,5 +1,13 @@
 # Estoque
 
+## Pagamentos da entrada avulsa — 13/11/2026
+
+A inclusão e a edição compartilham o plano com parcelas para Boleto, Pix e
+Cartão de crédito. O total é preservado. A edição consulta os títulos atuais
+e impede alterar pagamentos ou vínculos em uso. Correções financeiras cancelam
+os títulos pendentes substituídos e registram as parcelas novas com a origem
+da compra. Conferir o [contrato](../features/estoque-entradas/SPEC.md#pagamento-e-parcelas--13112026).
+
 Mapa conferido em 23/09/2026, base 2fac409. Posição, movimentos, contagem, entradas sem nota e perdas.
 
 ## Rotas e componentes

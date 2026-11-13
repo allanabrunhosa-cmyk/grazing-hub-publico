@@ -1,3 +1,4 @@
+import { prepararDependenciaAtendimento } from "../vendas/dependencia-atendimento";
 import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
@@ -19,6 +20,9 @@ import { registrarMovimentacao } from "@/lib/estoque/registrarMovimentacao";
 import { consultarExtratoIndividual } from "@/lib/estoque/extrato-individual";
 import { listarEntradas } from "@/lib/estoque/consultar-entradas";
 import { prepararCancelamentoCompra } from "@/lib/financeiro/cancelamento-compra";
+import { baixarLancamento } from "@/lib/financeiro/baixarLancamento";
+import { vencimentoCartao } from "@/lib/financeiro/cartoes";
+import type { PagamentoEntradaInput } from "@/lib/inventario/entrada-avulsa-pagamento";
 import type { SessaoAtual } from "@/lib/session";
 import type { CorrecaoEntradaInput } from "@/lib/inventario/entrada-avulsa-historico";
 const sessao: SessaoAtual = { userId: "usuario-entrada", nome: "Usuário de teste", email: "entrada@example.invalid", admin: true, versao: 0, permissoes: {}, excecoes: {}, perfilNome: "Teste" };
@@ -45,7 +49,7 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
       .filter(pasta => pasta.isDirectory())
       .sort((a, b) => a.name.localeCompare(b.name));
     for (const migracao of migracoes) {
-      await conexao.query(prepararSqlMigrationFiscal(migracao.name, await readFile(`prisma/migrations/${migracao.name}/migration.sql`, "utf8")));
+      await conexao.query(prepararSqlMigrationFiscal(migracao.name, await prepararDependenciaAtendimento(conexao, migracao.name, await readFile(`prisma/migrations/${migracao.name}/migration.sql`, "utf8"))));
     }
 
     simulacao.prisma = new PrismaClient({
@@ -69,6 +73,9 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
     });
     await simulacao.prisma.contaBancaria.create({
       data: { id: "conta", nome: "Conta de teste", saldoInicial: 0 },
+    });
+    await simulacao.prisma.cartaoCredito.create({
+      data: { id: "cartao-entrada-teste", nome: "Cartão sintético", contaBancariaId: "conta", diaFechamento: 5, diaVencimento: 15 },
     });
     await simulacao.prisma.insumo.createMany({
       data: [
@@ -110,7 +117,7 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
 
     expect(resultado).toMatchObject({ ok: true });
     const compra = await simulacao.prisma.entradaAvulsaCompra.findFirstOrThrow({
-      include: { movimentacoes: { orderBy: { insumoId: "asc" } }, lancamentoFinanceiro: true },
+      include: { movimentacoes: { orderBy: { insumoId: "asc" } }, lancamentosFinanceiros: true },
     });
     expect({
       fornecedorId: compra.fornecedorId,
@@ -147,7 +154,7 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
     expect((await simulacao.prisma.insumo.findMany({ orderBy: { id: "asc" } }))
       .map(insumo => Number(insumo.custoMedio))).toEqual([11.125, 11.125]);
 
-    expect(compra.lancamentoFinanceiro).toMatchObject({
+    expect(compra.lancamentosFinanceiros[0]).toMatchObject({
       tipo: "DESPESA",
       descricao: "COMPRA SEM NOTA — FORNECEDOR TESTE",
       status: "BAIXADO",
@@ -155,7 +162,7 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
       contaBancariaId: "conta",
       origemEntradaAvulsaCompraId: compra.id,
     });
-    expect(Number(compra.lancamentoFinanceiro?.valor)).toBe(445);
+    expect(Number(compra.lancamentosFinanceiros[0]?.valor)).toBe(445);
     const movimentoBancario = await simulacao.prisma.movimentacaoBancaria.findFirstOrThrow();
     expect({
       tipo: movimentoBancario.tipo,
@@ -164,7 +171,7 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
     }).toEqual({
       tipo: "SAIDA",
       valor: 445,
-      lancamentoId: compra.lancamentoFinanceiro?.id,
+      lancamentoId: compra.lancamentosFinanceiros[0]?.id,
     });
     const atividadesEstoque = await simulacao.prisma.atividadeUsuario.findMany({
       where: { fonteTabela: "MovimentacaoEstoque", fonteId: { in: compra.movimentacoes.map(movimento => movimento.id) } },
@@ -175,7 +182,7 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
       acao: "ENTRADA_COMPRA", fonteId: movimento.id, antes: null, depois: null, correlacaoId: compra.id,
     }))));
     expect(await simulacao.prisma.atividadeUsuario.findMany({
-      where: { entidade: "LancamentoFinanceiro", entidadeId: compra.lancamentoFinanceiro!.id, acao: "BAIXA" },
+      where: { entidade: "LancamentoFinanceiro", entidadeId: compra.lancamentosFinanceiros[0]!.id, acao: "BAIXA" },
     })).toEqual([expect.objectContaining({ autorId: "usuario-entrada", resultado: "SUCESSO" })]);
   });
 
@@ -264,10 +271,10 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
     const segunda = await consultarExtratoIndividual({ insumoId: e.insumoId, de: "", ate: "", tipo: "", ordem: "desc", pagina: 2 }); expect(segunda.total).toBe(27); expect(segunda.linhas).toHaveLength(2);
   });
   it("recusa alteração do total financeiro sem tocar na despesa", async () => {
-    const compra = await simulacao.prisma.entradaAvulsaCompra.findFirstOrThrow({ include: { registro: true, lancamentoFinanceiro: true } });
+    const compra = await simulacao.prisma.entradaAvulsaCompra.findFirstOrThrow({ include: { registro: true, lancamentosFinanceiros: true } });
     const comando = await correcao(compra.registro!.id); comando.itens = comando.itens.map((i, n) => n === 0 ? { ...i, valorProdutos: i.valorProdutos + 1 } : i);
     await expect(corrigirEntradaAvulsa(comando, sessao)).rejects.toThrow("total deve permanecer");
-    expect((await simulacao.prisma.lancamentoFinanceiro.findUniqueOrThrow({ where: { id: compra.lancamentoFinanceiro!.id } })).valor.toString()).toBe("445");
+    expect((await simulacao.prisma.lancamentoFinanceiro.findUniqueOrThrow({ where: { id: compra.lancamentosFinanceiros[0]!.id } })).valor.toString()).toBe("445");
   });
   it("protege reservas de pedidos sem ativar a integração automática", async () => {
     const e = await entradaIsolada();
@@ -367,6 +374,134 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
     const registro = await simulacao.prisma.entradaAvulsaRegistro.findUniqueOrThrow({ where: { id: r.registroId } });
     return { id: r.registroId, compraId: registro.compraId!, insumoId: e.insumoId };
   }
+
+  function planoParcelado(formaPagamento: PagamentoEntradaInput["formaPagamento"]): PagamentoEntradaInput {
+    return {
+      formaPagamento,
+      cartaoCreditoId: formaPagamento === "CARTAO" ? "cartao-entrada-teste" : null,
+      dataCompra: formaPagamento === "CARTAO" ? "2026-11-05" : null,
+      parcelaCartao: 1,
+      parcelas: [33.34, 33.33, 33.33].map((valor, indice) => ({
+        valor,
+        dataVencimento: formaPagamento === "CARTAO"
+          ? vencimentoCartao("2026-11-05", 5, 15, indice + 1)
+          : ["2026-11-30", "2026-12-30", "2027-01-30"][indice],
+      })),
+    };
+  }
+
+  async function corrigirPagamento(id: string, pagamento: PagamentoEntradaInput) {
+    const detalhe = await simulacao.prisma.$transaction(tx => consultarEntrada(tx, id));
+    if (!detalhe?.financeiro) throw new Error("Plano financeiro sintético indisponível.");
+    return { ...await correcao(id), pagamento: { ...pagamento, revisao: detalhe.financeiro.revisao } };
+  }
+
+  it.each(["BOLETO", "PIX", "CARTAO"] as const)("registra três parcelas em %s sem duplicar a entrada física", async forma => {
+    const base = await entradaIsolada();
+    const pagamento = planoParcelado(forma);
+    const input: EntradaAvulsaInput = {
+      ...base.input, chave: randomUUID(), tipo: "COMPRA_SIMPLES", fornecedorId: "fornecedor",
+      itens: [{ ...base.input.itens[0], valorProdutos: 100 }], pagamento,
+    };
+    const resultado = await registrarEntradaAvulsaAction(input);
+    if ("erro" in resultado) throw new Error(resultado.erro);
+    const repetida = await registrarEntradaAvulsaAction(input);
+    expect(repetida).toEqual(resultado);
+    const titulos = await simulacao.prisma.lancamentoFinanceiro.findMany({
+      where: { origemEntradaAvulsaCompraId: resultado.entradaAvulsaCompraId }, orderBy: { dataVencimento: "asc" },
+    });
+    expect(titulos.map(t => Number(t.valor))).toEqual([33.34, 33.33, 33.33]);
+    expect(titulos.map(t => t.dataVencimento.toISOString().slice(0, 10))).toEqual(pagamento.parcelas.map(p => p.dataVencimento));
+    expect(titulos.every(t => t.status === "PENDENTE")).toBe(true);
+    expect(new Set(titulos.map(t => t.recorrenciaGrupoId)).size).toBe(1);
+    expect(titulos[0].recorrenciaGrupoId).toBeTruthy();
+    expect(await simulacao.prisma.movimentacaoEstoque.count({ where: { entradaAvulsaRegistroId: resultado.registroId } })).toBe(1);
+    const detalhe = await simulacao.prisma.$transaction(tx => consultarEntrada(tx, resultado.registroId));
+    expect(detalhe?.financeiro?.pagamento).toMatchObject(pagamento);
+  });
+
+  it("edita condição e reparcela com títulos antigos cancelados, histórico e estoque preservados", async () => {
+    const e = await compraIsolada();
+    const antes = await simulacao.prisma.lancamentoFinanceiro.findFirstOrThrow({ where: { origemEntradaAvulsaCompraId: e.compraId } });
+    const quantidade = await saldo(e.insumoId);
+    const movimentos = await simulacao.prisma.movimentacaoEstoque.count({ where: { entradaAvulsaRegistroId: e.id } });
+    const comando = await corrigirPagamento(e.id, planoParcelado("PIX"));
+    expect(await corrigirEntradaAvulsa(comando, sessao)).toBe(e.id);
+    expect(await corrigirEntradaAvulsa(comando, sessao)).toBe(e.id);
+    expect(await saldo(e.insumoId)).toBe(quantidade);
+    expect(await simulacao.prisma.movimentacaoEstoque.count({ where: { entradaAvulsaRegistroId: e.id } })).toBe(movimentos);
+    expect(await simulacao.prisma.lancamentoFinanceiro.findUnique({ where: { id: antes.id } })).toMatchObject({ status: "CANCELADO" });
+    const ativas = await simulacao.prisma.lancamentoFinanceiro.findMany({ where: { origemEntradaAvulsaCompraId: e.compraId, status: "PENDENTE" } });
+    expect(ativas).toHaveLength(3);
+    expect(ativas.reduce((s, p) => s + Math.round(Number(p.valor) * 100), 0)).toBe(10000);
+    const historico = await simulacao.prisma.entradaAvulsaVersao.findFirstOrThrow({ where: { registroId: e.id, versao: 2 } });
+    expect(JSON.stringify(historico.diferencas)).toContain("pagamento");
+    await excluirEntradaAvulsa(comandoExclusao(e.id, 2), sessao);
+    expect(await simulacao.prisma.lancamentoFinanceiro.count({ where: { origemEntradaAvulsaCompraId: e.compraId, status: "PENDENTE" } })).toBe(0);
+  });
+
+  it("rejeita revisão financeira antiga e conserva a entrada ao falhar o histórico", async () => {
+    const e = await compraIsolada();
+    const comando = await corrigirPagamento(e.id, planoParcelado("PIX"));
+    const titulo = await simulacao.prisma.lancamentoFinanceiro.findFirstOrThrow({ where: { origemEntradaAvulsaCompraId: e.compraId } });
+    await simulacao.prisma.lancamentoFinanceiro.update({ where: { id: titulo.id }, data: { dataVencimento: new Date("2027-02-20T12:00:00Z") } });
+    await expect(corrigirEntradaAvulsa(comando, sessao)).rejects.toThrow("O pagamento foi alterado por outra pessoa.");
+    expect(await simulacao.prisma.entradaAvulsaVersao.count({ where: { registroId: e.id } })).toBe(1);
+    expect(await simulacao.prisma.lancamentoFinanceiro.count({ where: { origemEntradaAvulsaCompraId: e.compraId } })).toBe(1);
+    const atual = await corrigirPagamento(e.id, planoParcelado("PIX"));
+    await conexao!.query(`CREATE FUNCTION falhar_versao_pagamento() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."registroId" = '${e.id}' AND NEW.versao = 2 THEN RAISE EXCEPTION 'Falha sintética'; END IF; RETURN NEW; END $$`);
+    await conexao!.query('CREATE TRIGGER falhar_versao_pagamento BEFORE INSERT ON "EntradaAvulsaVersao" FOR EACH ROW EXECUTE FUNCTION falhar_versao_pagamento()');
+    try { await expect(corrigirEntradaAvulsa(atual, sessao)).rejects.toThrow(); }
+    finally { await conexao!.query('DROP TRIGGER falhar_versao_pagamento ON "EntradaAvulsaVersao"'); }
+    expect(await simulacao.prisma.lancamentoFinanceiro.findUnique({ where: { id: titulo.id } })).toMatchObject({ status: "PENDENTE" });
+    expect(await simulacao.prisma.lancamentoFinanceiro.count({ where: { origemEntradaAvulsaCompraId: e.compraId } })).toBe(1);
+  });
+
+  it("protege a baixa em disputa com o reparcelamento e conserva o valor pago", async () => {
+    const e = await compraIsolada();
+    const titulo = await simulacao.prisma.lancamentoFinanceiro.findFirstOrThrow({ where: { origemEntradaAvulsaCompraId: e.compraId } });
+    const comando = await corrigirPagamento(e.id, planoParcelado("BOLETO"));
+    const resultados = await Promise.allSettled([
+      corrigirEntradaAvulsa(comando, sessao),
+      baixarLancamento({ lancamentoId: titulo.id, contaBancariaId: "conta", dataPagamento: new Date("2026-11-13T12:00:00Z") }),
+    ]);
+    expect(resultados.filter(r => r.status === "fulfilled")).toHaveLength(1);
+    const movimento = await simulacao.prisma.movimentacaoBancaria.findUnique({ where: { lancamentoId: titulo.id } });
+    if (movimento) {
+      expect(Number(movimento.valor)).toBe(100);
+      expect(await simulacao.prisma.lancamentoFinanceiro.count({ where: { origemEntradaAvulsaCompraId: e.compraId } })).toBe(1);
+    } else {
+      expect(await simulacao.prisma.lancamentoFinanceiro.findUnique({ where: { id: titulo.id } })).toMatchObject({ status: "CANCELADO" });
+      expect(await simulacao.prisma.lancamentoFinanceiro.count({ where: { origemEntradaAvulsaCompraId: e.compraId, status: "PENDENTE" } })).toBe(3);
+    }
+  });
+
+  it("mantém pagamento e títulos de uma compra já baixada ao tentar mudar as parcelas", async () => {
+    const e = await compraIsolada(true);
+    const antes = await saldo(e.insumoId);
+    const comando = await corrigirPagamento(e.id, planoParcelado("PIX"));
+    await expect(corrigirEntradaAvulsa(comando, sessao)).rejects.toThrow(/pagamento|vínculo|baix|financeir/i);
+    expect(await saldo(e.insumoId)).toBe(antes);
+    expect(await simulacao.prisma.lancamentoFinanceiro.count({ where: { origemEntradaAvulsaCompraId: e.compraId, status: "BAIXADO" } })).toBe(1);
+    expect(await simulacao.prisma.entradaAvulsaVersao.count({ where: { registroId: e.id } })).toBe(1);
+  });
+
+  it("exige edição financeira na sessão atual sem impedir a correção física autorizada", async () => {
+    const e = await compraIsolada();
+    const perfil = await simulacao.prisma.perfilAcesso.create({
+      data: { nome: "Estoque sintético", permissoes: { inventario: ["visualizar", "editar"] } },
+    });
+    const usuario = await simulacao.prisma.usuario.create({
+      data: { nome: "Operador de estoque", email: "operador-entrada@example.invalid", senhaHash: "sem-login", perfilAcessoId: perfil.id },
+    });
+    const operador = { ...sessao, userId: usuario.id, nome: usuario.nome, admin: false };
+    const pagamento = await corrigirPagamento(e.id, planoParcelado("PIX"));
+    await expect(corrigirEntradaAvulsa(pagamento, operador)).rejects.toThrow("Seu acesso atual não permite alterar o pagamento");
+    const fisica = await correcao(e.id);
+    fisica.itens[0].quantidade += 1;
+    await expect(corrigirEntradaAvulsa(fisica, operador)).resolves.toBe(e.id);
+    expect(await simulacao.prisma.lancamentoFinanceiro.count({ where: { origemEntradaAvulsaCompraId: e.compraId, status: "PENDENTE" } })).toBe(1);
+  });
   it("cancela título pendente e estorna quantidade corrigida na mesma transação", async () => {
     const e = await compraIsolada();
     const d = await correcao(e.id); d.itens[0].quantidade = 8;

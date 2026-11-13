@@ -17,8 +17,8 @@ bloqueia automaticamente. A avaliação residual conserva os valores já consumi
 custos anteriores permanecem nos registros. Mudança de unidade cadastral bloqueia
 correção até conciliação, pois não há conversão histórica confiável.
 
-Compras conservam fornecedor, datas e obrigação financeira original. Correções de
-itens e rateio não podem alterar o total financeiro; valores que exigiriam reabrir
+Compras conservam fornecedor, data de entrada e total da obrigação financeira.
+Correções de itens e rateio não podem alterar esse total; valores que exigiriam reabrir
 liquidação/fatura devem ser tratados no domínio Financeiro. Nenhuma integração de
 Pedidos é ligada. Não há lotes físicos nas entradas atuais; controles de produção e
 validade permanecem em seus registros de origem.
@@ -45,3 +45,25 @@ autoria e movimentos posteriores. Exigir confirmação, motivo, autorização e 
 atual. Cancelar títulos pendentes com as guardas financeiras existentes na mesma
 transação. Pagamento/vínculo ativo, falta de saldo livre ou custo residual inseguro
 impedem a exclusão com mensagem. Não apagar registros contábeis ou operacionais.
+
+## Pagamento e parcelas — 13/11/2026
+
+Inclusão e edição permitem de 1 a 36 parcelas em Boleto, Pix e Cartão de crédito.
+A soma deve fechar com o total, em centavos. Valores e vencimentos de Boleto/Pix
+podem ser ajustados. No cartão, o vencimento segue a fatura e a parcela inicial.
+
+O editor consulta os títulos atuais e exige sua revisão ao salvar. Alterar o
+pagamento exige a permissão financeira de edição. Baixa, conciliação, fatura,
+liquidação ou vínculo operacional impedem alterar o plano. A correção física
+continua sujeita às regras de estoque já existentes.
+
+A mudança de plano cancela os títulos pendentes e cria as parcelas novas na
+mesma transação da versão auditada. Os títulos cancelados conservam sua origem.
+Uma tentativa antiga de baixa deve falhar. A operação não movimenta estoque
+quando só o plano de pagamento muda. Total, histórico e movimentos posteriores
+continuam preservados.
+
+A migration `20261113120000_entrada_avulsa_parcelas` substitui a unicidade
+da origem financeira por índice, mantendo a chave estrangeira e os registros.
+Cada parcela aponta para a mesma compra. O vínculo físico único pode continuar
+no título original, inclusive após seu cancelamento.

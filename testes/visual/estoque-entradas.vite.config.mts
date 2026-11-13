@@ -9,4 +9,4 @@ export default defineConfig({ ...configuracao, resolve: { alias: [
   { find: "@/app/(protegido)/insumos/actions", replacement: caminho("./conversoes-acoes.ts") },
   { find: "@/app/(protegido)/insumos/insumo-dialog", replacement: caminho("../../src/app/(protegido)/insumos/insumo-dialog.tsx") },
   ...configuracao.resolve!.alias as { find: string; replacement: string }[],
-] }, server: { host: "127.0.0.1", port: 4187, strictPort: true } });
+] }, server: { host: "127.0.0.1", port: 4187, strictPort: true, hmr: false } });
