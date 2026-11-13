@@ -488,7 +488,7 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
       criadoPorId: sessao.userId,
     } });
     const movimento = await registrarMovimentacao({ insumoId: e.insumoId, localId: "local", tipo: "ENTRADA_COMPRA", quantidade: 10, custoUnitario: 10, valorTotal: 100,
-      entradaAvulsaCompraId: compra.id, lancamentoFinanceiroId: titulo.id, criadoPorId: sessao.userId });
+      entradaAvulsaCompraId: compra.id, criadoPorId: sessao.userId });
     const legadoId = `compra:${compra.id}`;
     const detalhe = await simulacao.prisma.$transaction(tx => consultarEntrada(tx, legadoId));
     expect(detalhe?.versao).toBe(0);
