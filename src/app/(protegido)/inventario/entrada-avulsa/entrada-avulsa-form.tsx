@@ -171,7 +171,7 @@ export function EntradaAvulsaForm({
     setPago(false);
     setDataPagamento(hoje());
     setContaBancariaId(null);
-    setPagamento(rascunhoPagamentoEntrada({ formaPagamento: "BOLETO", parcelas: [{ valor: 0, dataVencimento: hoje() }] }));
+    setPagamento(rascunhoPagamentoEntrada({ formaPagamento: "BOLETO", parcelas: [{ valor: 0, dataVencimento: data }] }));
     setObservacao("");
   }
 
