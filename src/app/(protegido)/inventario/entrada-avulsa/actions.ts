@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { registrarMovimentacao } from "@/lib/estoque/registrarMovimentacao";
 import { baixarLancamento } from "@/lib/financeiro/baixarLancamento";
-import { paraCaixaAlta } from "@/lib/caixa-alta";
+import { tituloEntradaAvulsa } from "@/lib/inventario/entrada-avulsa-titulo";
 import type { PagamentoNota } from "@/lib/notas-fiscais/pagamentos";
 import { vencimentoCartao, dataCalendarioValida } from "@/lib/financeiro/cartoes";
 import { prepararRegistroEntrada, gravarRegistroEntrada } from "@/lib/estoque/entrada-avulsa-servidor";
@@ -122,7 +122,7 @@ export async function registrarEntradaAvulsaAction(input: EntradaAvulsaInput): P
       const idsInsumos = [...new Set(input.itens.map(item => item.insumoId))];
       const idsLocais = [...new Set(input.itens.map(item => item.localId))];
       const [insumos, locais] = await Promise.all([
-        tx.insumo.findMany({ where: { id: { in: idsInsumos }, ativo: true }, select: { id: true } }),
+        tx.insumo.findMany({ where: { id: { in: idsInsumos }, ativo: true }, select: { id: true, nome: true } }),
         tx.localEstoque.findMany({ where: { id: { in: idsLocais }, ativo: true }, select: { id: true } }),
       ]);
       if (insumos.length !== idsInsumos.length) throw new ErroEntradaAvulsa("Um dos insumos está inativo ou não existe.");
@@ -157,6 +157,7 @@ export async function registrarEntradaAvulsaAction(input: EntradaAvulsaInput): P
       ]);
       if (!fornecedor) throw new ErroEntradaAvulsa("Selecione um fornecedor ativo.");
       if (!categoriaCmv) throw new ErroEntradaAvulsa("Cadastre uma categoria ativa de CMV no Plano de Contas.");
+      const descricaoCompra = tituloEntradaAvulsa(fornecedor.nome, input.itens.map(item => insumos.find(insumo => insumo.id === item.insumoId)!.nome));
       const composicao = calculo!.composicao;
       const dataEntrada = dataLocal(input.data);
       let dataVencimentoTexto = input.dataVencimento || input.data;
@@ -226,7 +227,7 @@ export async function registrarEntradaAvulsaAction(input: EntradaAvulsaInput): P
         const lancamento = await tx.lancamentoFinanceiro.create({
           data: {
             tipo: "DESPESA",
-            descricao: paraCaixaAlta(`Compra sem nota — ${fornecedor.nome}`),
+            descricao: descricaoCompra,
             valor: parcela.valor,
             categoriaId: categoriaCmv.id,
             dataCompetencia: dataEntrada,

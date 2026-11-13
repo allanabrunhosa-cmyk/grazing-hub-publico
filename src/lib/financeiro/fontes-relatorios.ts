@@ -5,6 +5,7 @@ import { caminhoCategoria, SELECAO_CATEGORIA_COM_CAMINHO } from "./caminho-categ
 import { valoresCompetenciaPedidos } from "./competencia-pedidos";
 import type { LancamentoParaDre } from "./calcularDre";
 import type { LancamentoRow } from "@/app/(protegido)/financeiro/types";
+import { descricaoTituloEntradaAvulsa, incluirTituloEntradaAvulsa } from "./titulo-entrada-avulsa";
 
 export async function carregarFonteDre(db: Pick<Prisma.TransactionClient, "lancamentoFinanceiro"> = prisma, take?: number) {
   const lancamentos = await db.lancamentoFinanceiro.findMany({ where: { status: { not: "CANCELADO" } }, take,
@@ -29,9 +30,9 @@ export async function carregarFonteDre(db: Pick<Prisma.TransactionClient, "lanca
 export async function carregarFonteFluxo(db: Pick<Prisma.TransactionClient, "lancamentoFinanceiro"> = prisma, take?: number): Promise<LancamentoRow[]> {
   const lancamentos = await db.lancamentoFinanceiro.findMany({
     where: { status: { not: "CANCELADO" } }, take, orderBy: { dataVencimento: "asc" },
-    include: { categoria: { select: SELECAO_CATEGORIA_COM_CAMINHO }, fornecedor: { select: { nome: true } }, contaBancaria: { select: { nome: true } }, formaPagamento: { select: { nome: true } } },
+    include: { ...incluirTituloEntradaAvulsa, categoria: { select: SELECAO_CATEGORIA_COM_CAMINHO }, fornecedor: { select: { nome: true } }, contaBancaria: { select: { nome: true } }, formaPagamento: { select: { nome: true } } },
   });
-  return lancamentos.map(l => ({ id: l.id, tipo: l.tipo, descricao: l.descricao, valor: Number(l.valor), categoriaId: l.categoriaId,
+  return lancamentos.map(l => ({ id: l.id, tipo: l.tipo, descricao: descricaoTituloEntradaAvulsa(l), valor: Number(l.valor), categoriaId: l.categoriaId,
     categoriaNome: caminhoCategoria(l.categoria), categoriaGrupo: l.categoria.grupo, dataCompetencia: l.dataCompetencia.toISOString(),
     dataVencimento: l.dataVencimento.toISOString(), status: l.status, dataPagamento: l.dataPagamento?.toISOString() ?? null,
     pedidoQuitadoCredito: l.pedidoQuitadoCredito, pedidoVendaId: l.pedidoVendaId, contaBancariaId: l.contaBancariaId,

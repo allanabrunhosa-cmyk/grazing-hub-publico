@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../../login/migrations-hub-isoladas";
 import {afterAll,beforeAll,beforeEach,describe,expect,it,vi} from "vitest";
 import {Client} from "pg";
 import {PrismaPg} from "@prisma/adapter-pg";
@@ -39,11 +39,11 @@ describe.skipIf(process.env.FATURAS_BANCO_TESTE!=="1")("faturas: PostgreSQL isol
  beforeAll(async()=>{
   const url=new URL(process.env.DATABASE_URL!);if(!["localhost","127.0.0.1"].includes(url.hostname))throw new Error("Somente PostgreSQL local de teste.");
   banco=new Client({connectionString:url.toString()});await banco.connect();await banco.query(`CREATE SCHEMA "${esquema}"`);criado=true;await banco.query(`SET search_path TO "${esquema}"`);
-  for(const p of (await readdir("prisma/migrations",{withFileTypes:true})).filter(p=>p.isDirectory()).sort((a,b)=>a.name.localeCompare(b.name)))await banco.query(prepararSqlMigrationFiscal(p.name, await readFile(`prisma/migrations/${p.name}/migration.sql`,"utf8")));
+  for(const p of (await readdir("prisma/migrations",{withFileTypes:true})).filter(p=>p.isDirectory()).sort((a,b)=>a.name.localeCompare(b.name)))await banco.query(await prepararMigrationHubIsolada(banco,esquema,p.name,await readFile(`prisma/migrations/${p.name}/migration.sql`,"utf8")));
   estado.prisma=new PrismaClient({adapter:new PrismaPg({connectionString:url.toString(),options:`-c search_path=${esquema}`},{schema:esquema})});
   expect(await estado.prisma.$queryRaw`SELECT current_schema() AS esquema`).toEqual([{esquema}]);
  },60000);
- afterAll(async()=>{await estado.prisma?.$disconnect();if(!banco)return;await banco.query("ROLLBACK");if(criado){if(!/^teste_faturas_[a-f0-9]{32}$/.test(esquema))throw new Error("Schema inesperado");await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);}await banco.end();});
+ afterAll(async()=>{await estado.prisma?.$disconnect();if(!banco)return;await limparIntegracaoHubIsolada(banco,esquema);if(criado){if(!/^teste_faturas_[a-f0-9]{32}$/.test(esquema))throw new Error("Schema inesperado");await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);}await banco.end();});
  beforeEach(async()=>{
   await banco!.query('TRUNCATE "FaturaCartao", "Usuario", "ContaBancaria", "Fornecedor", "CentroCusto", "RegraCartao", "ParcelamentoCartao" CASCADE');
   await estado.prisma.usuario.create({data:{id:"admin",nome:"Teste Fictício",email:"fatura@example.invalid",senhaHash:"sem-login",perfilAcessoId:"perfil-administrador"}});

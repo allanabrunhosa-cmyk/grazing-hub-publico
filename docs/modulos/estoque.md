@@ -1,5 +1,17 @@
 # Estoque
 
+## Título financeiro da entrada avulsa — 13/11/2026
+
+As despesas novas usam `FORNECEDOR — PRODUTO 1, PRODUTO 2`, sem o prefixo
+“Compra sem nota”. O título usa os nomes do catálogo na inclusão e não repete
+um produto recebido em locais diferentes. Parcelas conservam o mesmo título.
+Movimentações, Fluxo de caixa e Faturas também apresentam as entradas antigas
+nesse formato, por leitura dos vínculos existentes. A composição vigente do
+registro prevalece sobre os movimentos originais após uma correção.
+Não há migration, atualização em lote ou mudança nos valores, pagamentos,
+datas, vínculos e históricos. Helpers: `inventario/entrada-avulsa-titulo.ts`
+e `financeiro/titulo-entrada-avulsa.ts`, em `src/lib`.
+
 ## Pagamentos da entrada avulsa — 13/11/2026
 
 A inclusão e a edição compartilham o plano com parcelas para Boleto, Pix e

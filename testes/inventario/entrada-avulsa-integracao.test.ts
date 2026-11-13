@@ -25,6 +25,7 @@ import { vencimentoCartao } from "@/lib/financeiro/cartoes";
 import type { PagamentoEntradaInput } from "@/lib/inventario/entrada-avulsa-pagamento";
 import type { SessaoAtual } from "@/lib/session";
 import type { CorrecaoEntradaInput } from "@/lib/inventario/entrada-avulsa-historico";
+import { descricaoTituloEntradaAvulsa, incluirTituloEntradaAvulsa } from "@/lib/financeiro/titulo-entrada-avulsa";
 const sessao: SessaoAtual = { userId: "usuario-entrada", nome: "Usuário de teste", email: "entrada@example.invalid", admin: true, versao: 0, permissoes: {}, excecoes: {}, perfilNome: "Teste" };
 
 const esquema = "teste_entrada_avulsa_" + randomUUID().replaceAll("-", "");
@@ -156,13 +157,21 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
 
     expect(compra.lancamentosFinanceiros[0]).toMatchObject({
       tipo: "DESPESA",
-      descricao: "COMPRA SEM NOTA — FORNECEDOR TESTE",
+      descricao: "FORNECEDOR TESTE — QUEIJO, PRESUNTO",
       status: "BAIXADO",
       fornecedorId: "fornecedor",
       contaBancariaId: "conta",
       origemEntradaAvulsaCompraId: compra.id,
     });
     expect(Number(compra.lancamentosFinanceiros[0]?.valor)).toBe(445);
+    const idTitulo = compra.lancamentosFinanceiros[0].id;
+    const consultarTitulo = () => simulacao.prisma.lancamentoFinanceiro.findUniqueOrThrow({ where: { id: idTitulo }, include: incluirTituloEntradaAvulsa });
+    expect(descricaoTituloEntradaAvulsa(await consultarTitulo())).toBe("FORNECEDOR TESTE — QUEIJO, PRESUNTO");
+    // Simula um título antigo. A consulta corrige a apresentação sem regravar o título.
+    const legado = await simulacao.prisma.lancamentoFinanceiro.update({ where: { id: idTitulo }, data: { descricao: "COMPRA SEM NOTA — FORNECEDOR TESTE" } });
+    expect(descricaoTituloEntradaAvulsa(await consultarTitulo())).toBe("FORNECEDOR TESTE — QUEIJO, PRESUNTO");
+    expect(await simulacao.prisma.lancamentoFinanceiro.findUniqueOrThrow({ where: { id: idTitulo } })).toEqual(legado);
+    await simulacao.prisma.lancamentoFinanceiro.update({ where: { id: idTitulo }, data: { descricao: compra.lancamentosFinanceiros[0].descricao } });
     const movimentoBancario = await simulacao.prisma.movimentacaoBancaria.findFirstOrThrow();
     expect({
       tipo: movimentoBancario.tipo,
