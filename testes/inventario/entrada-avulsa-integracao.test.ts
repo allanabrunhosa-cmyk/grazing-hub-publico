@@ -418,6 +418,11 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
     expect(await simulacao.prisma.movimentacaoEstoque.count({ where: { entradaAvulsaRegistroId: resultado.registroId } })).toBe(1);
     const detalhe = await simulacao.prisma.$transaction(tx => consultarEntrada(tx, resultado.registroId));
     expect(detalhe?.financeiro?.pagamento).toMatchObject(pagamento);
+    expect(detalhe?.snapshot.dadosOriginais).toMatchObject({
+      formaPagamento: pagamento.formaPagamento, cartaoCreditoId: pagamento.cartaoCreditoId,
+      dataCompra: pagamento.dataCompra, parcelaCartao: String(pagamento.parcelaCartao),
+      dataVencimento: pagamento.parcelas[0].dataVencimento,
+    });
   });
 
   it("edita condição e reparcela com títulos antigos cancelados, histórico e estoque preservados", async () => {

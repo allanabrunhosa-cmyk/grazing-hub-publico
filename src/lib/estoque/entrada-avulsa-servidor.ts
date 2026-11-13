@@ -43,6 +43,9 @@ export async function prepararRegistroEntrada(tx: Prisma.TransactionClient, inpu
 }
 
 export async function gravarRegistroEntrada(tx: Prisma.TransactionClient, input: EntradaAvulsaInput, autor: { id: string; nome: string }, hash: string, compraId: string | null, movimentos: string[]) {
+  const pagamento = input.pagamento;
+  const formaPagamento = pagamento?.formaPagamento ?? input.formaPagamento ?? "BOLETO";
+  const noCartao = formaPagamento === "CARTAO";
   const [catalogo, locais, fornecedor] = await Promise.all([
     tx.insumo.findMany({ where: { id: { in: input.itens.map(i => i.insumoId) } }, select: { id: true, nome: true, unidade: true } }),
     tx.localEstoque.findMany({ where: { id: { in: input.itens.map(i => i.localId) } }, select: { id: true, nome: true } }),
@@ -51,9 +54,10 @@ export async function gravarRegistroEntrada(tx: Prisma.TransactionClient, input:
   const snapshot = calcularSnapshotEntrada({ tipo: input.tipo, data: input.data, fornecedorId: input.fornecedorId, fornecedorNome: fornecedor?.nome ?? null,
     frete: input.frete, desconto: input.desconto, custosAdicionais: input.custosAdicionais, observacao: input.observacao,
     ...(input.pagamento ? { pagamento: input.pagamento } : {}),
-    dadosOriginais: { dataVencimento: input.dataVencimento, pago: input.pago, dataPagamento: input.dataPagamento,
-      formaPagamento: input.formaPagamento ?? "BOLETO", cartaoCreditoId: input.cartaoCreditoId ?? null, contaBancariaId: input.contaBancariaId,
-      dataCompra: input.dataCompra ?? null, parcelaCartao: String(input.parcelaCartao ?? 1) } }, input.itens, catalogo, locais);
+    dadosOriginais: { dataVencimento: pagamento?.parcelas[0]?.dataVencimento ?? input.dataVencimento, pago: input.pago, dataPagamento: input.dataPagamento,
+      formaPagamento, cartaoCreditoId: noCartao ? (pagamento ? pagamento.cartaoCreditoId : input.cartaoCreditoId) ?? null : null, contaBancariaId: input.contaBancariaId,
+      dataCompra: noCartao ? (pagamento ? pagamento.dataCompra : input.dataCompra) ?? null : null,
+      parcelaCartao: String(noCartao ? (pagamento ? pagamento.parcelaCartao : input.parcelaCartao) ?? 1 : 1) } }, input.itens, catalogo, locais);
   const registro = await tx.entradaAvulsaRegistro.create({ data: { ...(compraId ? { numero: await numeroEntradaLegada(tx, `compra:${compraId}`) } : {}), compraId, tipo: input.tipo,
     dataEntrada: new Date(`${input.data}T12:00:00-03:00`), criadoPorId: autor.id, criadoPorNome: autor.nome,
     snapshot: json(snapshot), chaveOperacao: input.chave, hashOperacao: hash } });

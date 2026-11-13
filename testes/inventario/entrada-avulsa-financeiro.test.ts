@@ -2,10 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 import type { EntradaSnapshot } from "@/lib/inventario/entrada-avulsa-historico";
 import type { PagamentoEntradaInput } from "@/lib/inventario/entrada-avulsa-pagamento";
+import type { EntradaAvulsaInput } from "@/app/(protegido)/inventario/entrada-avulsa/actions";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/atividades/registro", () => ({ registrarAtividade: vi.fn() }));
+vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/estoque/numero-entrada", () => ({ numeroEntradaLegada: vi.fn(async () => 17) }));
 import { alterarPagamentoEntrada, consultarFinanceiroEntrada } from "@/lib/estoque/entrada-avulsa-financeiro";
+import { gravarRegistroEntrada } from "@/lib/estoque/entrada-avulsa-servidor";
 
 const pagamento: PagamentoEntradaInput = { formaPagamento: "BOLETO", parcelas: [{ valor: 100, dataVencimento: "2026-11-20" }] };
 const snapshot: EntradaSnapshot = { tipo: "COMPRA_SIMPLES", data: "2026-11-13", fornecedorId: "fornecedor", fornecedorNome: "Fornecedor fictício", frete: 0, desconto: 0, custosAdicionais: [], observacao: null, valorTotal: 100, itens: [], pagamento };
@@ -37,6 +41,28 @@ beforeEach(() => {
 });
 
 describe("fonte financeira e correção da entrada avulsa", () => {
+  it.each(["PIX", "CARTAO"] as const)("audita o plano %s explícito sem depender de campos legados duplicados", async formaPagamento => {
+    const plano: PagamentoEntradaInput = { formaPagamento, parcelas: [{ valor: 100, dataVencimento: "2026-12-20" }],
+      ...(formaPagamento === "CARTAO" ? { cartaoCreditoId: "cartao", dataCompra: "2026-11-05", parcelaCartao: 2 } : {}) };
+    const input: EntradaAvulsaInput = { chave: "chave-criacao-auditavel", tipo: "COMPRA_SIMPLES", data: "2026-11-13", fornecedorId: "fornecedor",
+      itens: [{ insumoId: "produto", localId: "local", quantidade: 1, valorProdutos: 100 }], frete: 0, desconto: 0, custosAdicionais: [], observacao: null,
+      pago: false, dataVencimento: null, dataPagamento: null, contaBancariaId: null, pagamento: plano };
+    const gravacao = {
+      insumo: { findMany: vi.fn(async () => [{ id: "produto", nome: "Produto fictício", unidade: "KG" }]) },
+      localEstoque: { findMany: vi.fn(async () => [{ id: "local", nome: "Local fictício" }]) },
+      fornecedor: { findUnique: vi.fn(async () => ({ nome: "Fornecedor fictício" })) },
+      entradaAvulsaRegistro: { create: vi.fn(async () => ({ id: "registro" })) },
+      entradaAvulsaVersao: { create: vi.fn() }, movimentacaoEstoque: { updateMany: vi.fn() },
+    };
+    await gravarRegistroEntrada(gravacao as unknown as Prisma.TransactionClient, input, autor, "hash-do-input-original", "compra", ["movimento"]);
+    const registro = gravacao.entradaAvulsaRegistro.create.mock.calls[0] as unknown as [{ data: { snapshot: EntradaSnapshot; hashOperacao: string } }];
+    expect(registro[0].data.snapshot.pagamento).toEqual(plano);
+    expect(registro[0].data.snapshot.dadosOriginais).toMatchObject({ formaPagamento, dataVencimento: "2026-12-20", cartaoCreditoId: plano.cartaoCreditoId ?? null,
+      dataCompra: plano.dataCompra ?? null, parcelaCartao: String(plano.parcelaCartao ?? 1) });
+    expect(registro[0].data.hashOperacao).toBe("hash-do-input-original");
+    expect(gravacao.entradaAvulsaVersao.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ depois: registro[0].data.snapshot }) }));
+  });
+
   it("projeta títulos atuais e não o pagamento antigo do snapshot", async () => {
     titulos[0].formaPagamento.nome = "Pix";
     titulos[0].dataVencimento = new Date("2026-12-05T12:00:00Z");
