@@ -1,0 +1,77 @@
+{
+  "estado": "EM_REVISAO",
+  "dadosFicticios": true,
+  "commitFonte": "30e8154c7a9fb49ae32008f62e1ec8c830132515",
+  "fontesConferidas": {
+    "src/app/(protegido)/financeiro/fiscal/painel-fiscal.tsx": "7ec113b74e4188a4726d3b13fb283c00c4a383a974da746f4acbf9268908bb18",
+    "src/app/(protegido)/financeiro/fiscal/documento-detalhe.tsx": "a669e0703649f4636cda7251fa4c934e8f915000189c1151b9e88ca61761e33a",
+    "src/app/(protegido)/vendas/pedidos/emitir-nota-pedido.tsx": "9e57a13a43e8d96c5861d9dd3ea582086cc8eef8dfb340feefb9db5e919b4d64",
+    "src/components/filtro-periodo.tsx": "a7c4354cc68612f00102fe450c06b7034a006ad5262b92706af93cc52cac0a88",
+    "src/lib/financeiro/periodos.ts": "09f5d7ff2d6f3b5d5ea927ceb31b28ee6241b5a1965798687790b97aa966dca9"
+  },
+  "capturas": [
+    {
+      "arquivo": "dashboard-desktop.png",
+      "origem": "recapturas/resultados/fiscal-documentos-lista-of-9abf6-m-teclado-e-retorno-de-foco-chromium-1440-claro-fino/lista.png",
+      "viewport": [
+        1440,
+        900
+      ],
+      "tema": "claro",
+      "sha256": "cd6ae6182ebe0f85adfc0ac34b4e4c89f79237fdedb8192ad8cb7ed9c42bd41b"
+    },
+    {
+      "arquivo": "arquivos-desktop.png",
+      "origem": "recapturas/resultados/fiscal-documentos-lista-of-9abf6-m-teclado-e-retorno-de-foco-chromium-1440-escuro-fino/arquivos.png",
+      "viewport": [
+        1440,
+        900
+      ],
+      "tema": "escuro",
+      "sha256": "083526d893bcf042c30043cd50385c27297ec96d68ab5465116917c4e4e72d57"
+    },
+    {
+      "arquivo": "arquivos-mobile.png",
+      "origem": "recapturas/resultados/fiscal-documentos-lista-of-9abf6-m-teclado-e-retorno-de-foco-chromium-390-escuro-fino/arquivos.png",
+      "viewport": [
+        390,
+        900
+      ],
+      "tema": "escuro",
+      "sha256": "8390e9b9523ec13b745dcbd6795cb6a7939edb9b27be4c10edffe1b29a340973"
+    },
+    {
+      "arquivo": "recuperacao-mobile.png",
+      "origem": "recapturas/resultados/fiscal-documentos-XML-ause-0bd1f-ração-admite-nova-tentativa-chromium-390-claro-fino/xml-pendente.png",
+      "viewport": [
+        390,
+        900
+      ],
+      "tema": "claro",
+      "sha256": "4d59fe1a1e5ffabfbb9943c59d81da36b6f0f1e387052725cb495b047b4dd219"
+    },
+    {
+      "arquivo": "pedido-desktop.png",
+      "origem": "recapturas-pedido/resultados/pedido-arquivos-PDF-e-XML--1cde7-o-oferece-emissão-duplicada-chromium-1440-claro-fino/pedido-autorizado.png",
+      "viewport": [
+        1440,
+        900
+      ],
+      "tema": "claro",
+      "sha256": "0ff9da180ef5cb7e8fbf952af6117b91671d5ce2ebf318ba86219dd4d4a4e2da"
+    },
+    {
+      "arquivo": "pedido-mobile.png",
+      "origem": "recapturas-pedido/resultados/pedido-arquivos-PDF-e-XML--1cde7-o-oferece-emissão-duplicada-chromium-390-escuro-fino/pedido-autorizado.png",
+      "viewport": [
+        390,
+        900
+      ],
+      "tema": "escuro",
+      "sha256": "b4042fdb24a335147e57748d958cc754d168100f8e2ed64dd748f75f3471f402"
+    }
+  ],
+  "registradoEm": "2026-11-13T18:36:07.130617+00:00",
+  "ambiente": "Windows, Chrome local, Playwright1.64.0, DPR1, pt-BR, America/Sao_Paulo, movimento reduzido",
+  "limites": "Capturas consultivas com dados e ações fictícios. Nenhuma referência aprovada foi alterada. Enquadramento da tela conserva cabeçalho e painel fixos."
+}

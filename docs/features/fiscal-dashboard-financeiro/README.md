@@ -30,7 +30,9 @@ O filtro padrão oferece Mês completo, com referência editável, e Mês anteri
 calculado no calendário de Brasília. Abrir PDF/DANFE usa a mesma variante verde
 de Baixar XML. Componentes, cartões e navegação existentes foram preservados.
 
-Validações e capturas desta correção serão registradas junto à PR de publicação.
+Validações e capturas desta correção estão no
+[relatório de revisão](../../design-system/evidencias/fiscal-documentos-20261113/README.md).
+O resultado de produção fica registrado na PR de publicação.
 Mocks, capturas e testes de banco usam dados fictícios; não homologam a SEFAZ.
 
 Implementação original: `codex/fiscal-dashboard-financeiro`, commit `478b30b2`.
