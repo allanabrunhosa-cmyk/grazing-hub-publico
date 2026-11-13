@@ -67,3 +67,17 @@ A migration `20261113120000_entrada_avulsa_parcelas` substitui a unicidade
 da origem financeira por índice, mantendo a chave estrangeira e os registros.
 Cada parcela aponta para a mesma compra. O vínculo físico único pode continuar
 no título original, inclusive após seu cancelamento.
+
+### Correção do pagamento antigo — 13/11/2026
+
+Forma ausente ou desconhecida, divergência entre forma e cartão e falta de data
+da compra no cartão geram aviso. Esses dados antigos não impedem informar um
+novo plano completo. O servidor valida o cartão, a data da compra e os vencimentos
+das faturas antes de substituir qualquer título. O aviso não remove bloqueios
+de baixa, conciliação, fatura, liquidação ou custo de entrega.
+
+A troca de uma parcela por duas funciona também na compra legada, sem apagar
+ou repetir a entrada física. Fornecedor e contraparte financeiros são preservados
+dos títulos atuais; devem ser iguais entre as parcelas, mas podem diferir do
+cabeçalho da compra. Categoria, competência, tipo de despesa e total continuam
+consistentes. O histórico imutável mantém as referências dos títulos substituídos.

@@ -12,7 +12,7 @@ import { InsumoDialog } from "@/app/(protegido)/insumos/insumo-dialog";
 import { ProvedorAcesso } from "@/components/layout/acesso-contexto";
 import { Button } from "@/components/ui/button";
 import { insumoStatus } from "../cadastros/dados";
-import { detalhe, detalhePagamentoSimulado, insumos, locais, linhaHistorico } from "./estoque-entradas-dados";
+import { detalhe, detalhePagamentoLegadoSimulado, detalhePagamentoSimulado, insumos, locais, linhaHistorico } from "./estoque-entradas-dados";
 import { cartoes, contas, type ChamadaEntradaSimulada } from "./entrada-avulsa-previa";
 import { auditarInterface } from "../../scripts/auditar-interface.mjs";
 import { gerarCssTema } from "@/lib/design-system/gerar-css";
@@ -22,7 +22,8 @@ Object.assign(window, { auditarEstoque: () => auditarInterface(document) });
 function PreviaEstoque() {
   const [chamadas, setChamadas] = useState<ChamadaEntradaSimulada[]>([]);
   const parametros = new URLSearchParams(location.search);
-  const detalheDaPrevia = parametros.has("pagamento") ? detalhePagamentoSimulado(parametros.get("pagamento") === "pago") : detalhe;
+  const pagamentoDaPrevia = parametros.get("pagamento");
+  const detalheDaPrevia = pagamentoDaPrevia?.startsWith("legado") ? detalhePagamentoLegadoSimulado(pagamentoDaPrevia === "legado-cartao", pagamentoDaPrevia === "legado-pago") : parametros.has("pagamento") ? detalhePagamentoSimulado(pagamentoDaPrevia === "pago") : detalhe;
   useEffect(() => {
     const registrar = (evento: Event) => setChamadas(atuais => [...atuais, (evento as CustomEvent<ChamadaEntradaSimulada>).detail]);
     window.addEventListener("entrada-avulsa-simulada", registrar);

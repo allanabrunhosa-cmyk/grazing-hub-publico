@@ -445,6 +445,92 @@ describe.skipIf(process.env.ENTRADA_AVULSA_BANCO_TESTE !== "1")("compra sem nota
     expect(await simulacao.prisma.lancamentoFinanceiro.count({ where: { origemEntradaAvulsaCompraId: e.compraId, status: "PENDENTE" } })).toBe(0);
   });
 
+  it.each(["BOLETO", null] as const)("corrige uma parcela antiga em duas com fornecedor financeiro nulo e forma %s", async forma => {
+    const e = await compraIsolada();
+    const original = await simulacao.prisma.lancamentoFinanceiro.findFirstOrThrow({ where: { origemEntradaAvulsaCompraId: e.compraId } });
+    await simulacao.prisma.lancamentoFinanceiro.update({ where: { id: original.id }, data: {
+      fornecedorId: null, contraparteNome: "Contraparte sintética preservada", ...(forma ? {} : { formaPagamentoId: null }),
+    } });
+    const detalhe = await simulacao.prisma.$transaction(tx => consultarEntrada(tx, e.id));
+    expect(detalhe?.financeiro?.bloqueio).toBeUndefined();
+    if (!forma) expect(detalhe?.financeiro?.aviso).toContain("antigas");
+    const quantidade = await saldo(e.insumoId);
+    const movimentos = await simulacao.prisma.movimentacaoEstoque.count({ where: { entradaAvulsaRegistroId: e.id } });
+    const pagamento = { ...planoParcelado("BOLETO"), parcelas: [
+      { valor: 50, dataVencimento: "2026-11-30" }, { valor: 50, dataVencimento: "2026-12-30" },
+    ] };
+    const comando = await corrigirPagamento(e.id, pagamento);
+    expect(await corrigirEntradaAvulsa(comando, sessao)).toBe(e.id);
+    expect(await corrigirEntradaAvulsa(comando, sessao)).toBe(e.id);
+    expect(await saldo(e.insumoId)).toBe(quantidade);
+    expect(await simulacao.prisma.movimentacaoEstoque.count({ where: { entradaAvulsaRegistroId: e.id } })).toBe(movimentos);
+    expect(await simulacao.prisma.lancamentoFinanceiro.findUnique({ where: { id: original.id } })).toMatchObject({ status: "CANCELADO" });
+    const atuais = await simulacao.prisma.lancamentoFinanceiro.findMany({ where: { origemEntradaAvulsaCompraId: e.compraId, status: "PENDENTE" }, include: { formaPagamento: true } });
+    expect(atuais).toHaveLength(2);
+    expect(atuais.every(t => Number(t.valor) === 50 && t.fornecedorId === null && t.contraparteNome === "Contraparte sintética preservada" && t.formaPagamento?.nome === "Boleto")).toBe(true);
+    expect(await simulacao.prisma.entradaAvulsaCompra.findUnique({ where: { id: e.compraId } })).toMatchObject({ fornecedorId: "fornecedor" });
+    const auditoria = await simulacao.prisma.atividadeUsuario.findFirstOrThrow({ where: { entidadeId: e.compraId, acao: "ALTERAR_PAGAMENTO_ENTRADA" } });
+    expect(auditoria.antes).toMatchObject({ tipo: forma ?? "NAO_RECONSTRUIDO", itens: 1, valorTotal: 100, camposAlterados: "pagamento" });
+    expect(auditoria.depois).toMatchObject({ tipo: "BOLETO", itens: 2, dataVencimento: "2026-11-30", valorTotal: 100, camposAlterados: "pagamento" });
+    const versao = await simulacao.prisma.entradaAvulsaVersao.findFirstOrThrow({ where: { registroId: e.id, versao: 2 } });
+    expect(versao.diferencas).toEqual(expect.arrayContaining([expect.objectContaining({ campo: "Títulos do pagamento", anterior: original.id })]));
+  });
+
+  it("reparcela a compra legada sem forma registrada e adota o histórico sem recriar entrada física", async () => {
+    const e = await entradaIsolada(1);
+    const compra = await simulacao.prisma.entradaAvulsaCompra.create({ data: {
+      fornecedorId: "fornecedor", dataEntrada: new Date("2026-09-01T12:00:00-03:00"), dataVencimento: new Date("2026-10-15T12:00:00-03:00"),
+      valorProdutos: 100, valorTotal: 100, outrosCustos: [], criadoPorId: sessao.userId,
+    } });
+    const titulo = await simulacao.prisma.lancamentoFinanceiro.create({ data: {
+      tipo: "DESPESA", descricao: "Compra sintética legada", valor: 100, categoriaId: "cmv", fornecedorId: "fornecedor",
+      dataCompetencia: compra.dataEntrada, dataVencimento: compra.dataVencimento!, origemEntradaAvulsaCompraId: compra.id,
+      criadoPorId: sessao.userId,
+    } });
+    const movimento = await registrarMovimentacao({ insumoId: e.insumoId, localId: "local", tipo: "ENTRADA_COMPRA", quantidade: 10, custoUnitario: 10, valorTotal: 100,
+      entradaAvulsaCompraId: compra.id, criadoPorId: sessao.userId });
+    const legadoId = `compra:${compra.id}`;
+    const detalhe = await simulacao.prisma.$transaction(tx => consultarEntrada(tx, legadoId));
+    expect(detalhe?.versao).toBe(0);
+    expect(detalhe?.financeiro?.aviso).toBeTruthy();
+    expect(detalhe?.financeiro?.bloqueio).toBeUndefined();
+    const pagamento = { ...planoParcelado("BOLETO"), parcelas: [{ valor: 50, dataVencimento: "2026-11-30" }, { valor: 50, dataVencimento: "2026-12-30" }] };
+    const comando = await corrigirPagamento(legadoId, pagamento);
+    const registroId = await corrigirEntradaAvulsa(comando, sessao);
+    expect(await corrigirEntradaAvulsa(comando, sessao)).toBe(registroId);
+    expect((await simulacao.prisma.movimentacaoEstoque.findUniqueOrThrow({ where: { id: movimento.movimentacaoId } })).quantidade.toString()).toBe("10");
+    expect(await simulacao.prisma.movimentacaoEstoque.count({ where: { entradaAvulsaCompraId: compra.id } })).toBe(1);
+    expect(await saldo(e.insumoId)).toBe("11");
+    expect(await simulacao.prisma.lancamentoFinanceiro.findUnique({ where: { id: titulo.id } })).toMatchObject({ status: "CANCELADO" });
+    expect(await simulacao.prisma.lancamentoFinanceiro.count({ where: { origemEntradaAvulsaCompraId: compra.id, status: "PENDENTE" } })).toBe(2);
+    const atual = await simulacao.prisma.$transaction(tx => consultarEntrada(tx, legadoId));
+    expect(atual).toMatchObject({ id: registroId, versao: 2, identificador: detalhe?.identificador, financeiro: { pagamento } });
+  });
+
+  it("recupera cartão antigo sem data da compra e valida as duas faturas antes de substituir títulos", async () => {
+    const e = await compraIsolada();
+    const forma = await simulacao.prisma.formaPagamento.upsert({ where: { nome: "Cartão de crédito" }, create: { nome: "Cartão de crédito" }, update: {} });
+    const original = await simulacao.prisma.lancamentoFinanceiro.findFirstOrThrow({ where: { origemEntradaAvulsaCompraId: e.compraId } });
+    await simulacao.prisma.lancamentoFinanceiro.update({ where: { id: original.id }, data: { formaPagamentoId: forma.id, cartaoCreditoId: "cartao-entrada-teste" } });
+    const detalhe = await simulacao.prisma.$transaction(tx => consultarEntrada(tx, e.id));
+    expect(detalhe?.financeiro?.bloqueio).toBeUndefined();
+    expect(detalhe?.financeiro?.aviso).toContain("data da compra");
+    expect(detalhe?.financeiro?.pagamento.dataCompra).toBeNull();
+    const pagamento = { ...planoParcelado("CARTAO"), parcelas: [0, 1].map(i => ({ valor: 50, dataVencimento: vencimentoCartao("2026-11-05", 5, 15, i + 1) })) };
+    const invalido = { ...pagamento, parcelas: [{ ...pagamento.parcelas[0], dataVencimento: "2026-11-16" }, pagamento.parcelas[1]] };
+    await expect(corrigirEntradaAvulsa(await corrigirPagamento(e.id, invalido), sessao)).rejects.toThrow(/vencimento/i);
+    expect(await simulacao.prisma.lancamentoFinanceiro.findUnique({ where: { id: original.id } })).toMatchObject({ status: "PENDENTE" });
+    const quantidade = await saldo(e.insumoId);
+    await corrigirEntradaAvulsa(await corrigirPagamento(e.id, pagamento), sessao);
+    expect(await saldo(e.insumoId)).toBe(quantidade);
+    const atuais = await simulacao.prisma.lancamentoFinanceiro.findMany({ where: { origemEntradaAvulsaCompraId: e.compraId, status: "PENDENTE" }, orderBy: { dataVencimento: "asc" } });
+    expect(atuais.map(t => ({ valor: Number(t.valor), dataVencimento: t.dataVencimento.toISOString().slice(0, 10) }))).toEqual(pagamento.parcelas);
+    expect(atuais.every(t => t.cartaoCreditoId === "cartao-entrada-teste")).toBe(true);
+    const atualizado = await simulacao.prisma.$transaction(tx => consultarEntrada(tx, e.id));
+    expect(atualizado?.financeiro).toMatchObject({ pagamento });
+    expect(atualizado?.financeiro?.aviso).toBeUndefined();
+  });
+
   it("rejeita revisão financeira antiga e conserva a entrada ao falhar o histórico", async () => {
     const e = await compraIsolada();
     const comando = await corrigirPagamento(e.id, planoParcelado("PIX"));

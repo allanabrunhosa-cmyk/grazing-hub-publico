@@ -11,6 +11,7 @@ import { EntradaAvulsaDetalhe } from "@/app/(protegido)/inventario/entradas/entr
 import { MovimentacoesItem } from "@/app/(protegido)/insumos/movimentacoes-item";
 import { detalhe, insumos, locais } from "../visual/estoque-entradas-dados";
 import type { EntradaDetalheDTO } from "@/lib/inventario/entrada-avulsa-historico";
+import type { CartaoOption } from "@/lib/financeiro/cartoes";
 beforeEach(() => { mocks.corrigir.mockResolvedValue({ erro: "Saldo disponível insuficiente." }); });
 afterEach(cleanup);
 it("mostra campos anteriores/novos e conserva itens ao editar, adicionar e receber impedimento", async () => {
@@ -52,8 +53,8 @@ function entradaComPagamento(bloqueio?: string): EntradaDetalheDTO {
   return { ...detalhe, id: "compra:compra-legada", versao: 0, financeiro: { pagamento: { formaPagamento: "BOLETO", parcelas: [{ valor: 160, dataVencimento: "2026-10-20" }] }, revisao: "revisao-financeira-original", bloqueio } };
 }
 
-async function abrirEdicaoFinanceira(entrada: EntradaDetalheDTO, podeEditarPagamento = true) {
-  render(<EntradaAvulsaDetalhe detalhe={entrada} insumos={insumos} locais={locais} podeEditar podeEditarPagamento={podeEditarPagamento} />);
+async function abrirEdicaoFinanceira(entrada: EntradaDetalheDTO, podeEditarPagamento = true, cartoes: CartaoOption[] = []) {
+  render(<EntradaAvulsaDetalhe detalhe={entrada} insumos={insumos} locais={locais} cartoes={cartoes} podeEditar podeEditarPagamento={podeEditarPagamento} />);
   fireEvent.click(screen.getByRole("button", { name: "Editar entrada" }));
   return await screen.findByRole("dialog", { name: /Editar entrada avulsa/ });
 }
@@ -77,6 +78,79 @@ it("edita forma e parcelas da compra legada com revisão e preserva o rascunho e
   fireEvent.click(await within(dialogo).findByRole("button", { name: "Salvar correção" }));
   await waitFor(() => expect(mocks.corrigir).toHaveBeenCalledTimes(2));
   expect(mocks.corrigir.mock.calls[1][0].chave).toBe(chave);
+});
+
+it("divide uma parcela legada em duas com aviso informativo e salva pela correção", async () => {
+  const aviso = "A forma de pagamento original não foi registrada. Confira as condições ao corrigir a entrada.";
+  const entrada = entradaComPagamento();
+  entrada.financeiro!.aviso = aviso;
+  mocks.corrigir.mockResolvedValue({ ok: true, id: entrada.id });
+  const dialogo = await abrirEdicaoFinanceira(entrada);
+  expect(within(dialogo).getByRole("note")).toHaveProperty("textContent", aviso);
+  expect(within(dialogo).getByRole("combobox", { name: "Forma de pagamento da compra" })).toHaveProperty("disabled", false);
+  const quantidade = within(dialogo).getByLabelText("Quantidade de parcelas");
+  expect(quantidade).toHaveProperty("value", "1");
+  expect(quantidade.closest("fieldset")).toHaveProperty("disabled", false);
+  fireEvent.change(quantidade, { target: { value: "2" } });
+  expect(within(dialogo).getByLabelText("Valor da parcela 1")).toHaveProperty("value", "80,00");
+  expect(within(dialogo).getByLabelText("Valor da parcela 2")).toHaveProperty("value", "80,00");
+  expect(mocks.corrigir).not.toHaveBeenCalled();
+  fireEvent.click(within(dialogo).getByRole("button", { name: "Salvar correção" }));
+  await waitFor(() => expect(mocks.corrigir).toHaveBeenCalledOnce());
+  expect(mocks.corrigir).toHaveBeenCalledWith(expect.objectContaining({
+    id: entrada.id,
+    versao: 0,
+    pagamento: expect.objectContaining({
+      formaPagamento: "BOLETO",
+      revisao: "revisao-financeira-original",
+      parcelas: [{ valor: 80, dataVencimento: "2026-10-20" }, { valor: 80, dataVencimento: "2026-11-20" }],
+    }),
+  }));
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: /Editar entrada avulsa/ })).toBeNull());
+  expect(screen.getByRole("note")).toHaveProperty("textContent", aviso);
+});
+
+it("corrige o legado para cartão com data da compra e vencimentos de duas faturas", async () => {
+  const entrada = entradaComPagamento();
+  entrada.snapshot = { ...entrada.snapshot, reconstruida: true, pagamento: undefined, dadosOriginais: {} };
+  entrada.financeiro!.aviso = "Os dados originais do pagamento não foram registrados. Confira a forma e as parcelas.";
+  const cartoes: CartaoOption[] = [{ id: "cartao-legado", nome: "Visa teste", contaBancariaId: "banco", contaBancariaNome: "Banco teste", diaFechamento: 10, diaVencimento: 20, ativo: true }];
+  const dialogo = await abrirEdicaoFinanceira(entrada, true, cartoes);
+  const forma = within(dialogo).getByRole("combobox", { name: "Forma de pagamento da compra" });
+  forma.focus();
+  fireEvent.keyDown(forma, { key: "ArrowDown" });
+  const opcaoCartao = await screen.findByRole("option", { name: "Cartão de crédito" });
+  fireEvent.pointerDown(opcaoCartao, { pointerType: "mouse" });
+  fireEvent.click(opcaoCartao);
+  fireEvent.change(within(dialogo).getByLabelText("Quantidade de parcelas"), { target: { value: "2" } });
+  const seletorCartao = within(dialogo).getByRole("combobox", { name: "Cartão da compra" });
+  expect(seletorCartao.textContent).toContain("Selecione o cartão");
+  fireEvent.click(seletorCartao);
+  const visa = await screen.findByRole("option", { name: "Visa teste · Banco teste" });
+  fireEvent.pointerDown(visa, { pointerType: "mouse", button: 0 });
+  fireEvent.click(visa, { detail: 1 });
+  expect(seletorCartao.textContent).toContain("Visa teste · Banco teste");
+  fireEvent.change(within(dialogo).getByLabelText("Data da compra"), { target: { value: "2026-09-10" } });
+  expect(within(dialogo).getByLabelText("Data da compra")).toHaveProperty("value", "2026-09-10");
+  expect(within(dialogo).getByLabelText("Vencimento da parcela 1")).toHaveProperty("value", "2026-10-20");
+  expect(within(dialogo).getByLabelText("Vencimento da parcela 2")).toHaveProperty("value", "2026-11-20");
+  expect(within(dialogo).getByLabelText("Vencimento da parcela 1")).toHaveProperty("disabled", true);
+  expect(within(dialogo).getByLabelText("Vencimento da parcela 2")).toHaveProperty("disabled", true);
+  fireEvent.blur(within(dialogo).getByLabelText("Data da compra"));
+  expect(mocks.corrigir).not.toHaveBeenCalled();
+  fireEvent.click(within(dialogo).getByRole("button", { name: "Salvar correção" }));
+  await waitFor(() => expect(mocks.corrigir).toHaveBeenCalledOnce());
+  expect(mocks.corrigir).toHaveBeenCalledWith(expect.objectContaining({
+    id: entrada.id,
+    pagamento: expect.objectContaining({
+      formaPagamento: "CARTAO",
+      cartaoCreditoId: "cartao-legado",
+      dataCompra: "2026-09-10",
+      parcelaCartao: 1,
+      revisao: "revisao-financeira-original",
+      parcelas: [{ valor: 80, dataVencimento: "2026-10-20" }, { valor: 80, dataVencimento: "2026-11-20" }],
+    }),
+  }));
 });
 
 it.each([

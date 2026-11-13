@@ -7,6 +7,9 @@ Cartão de crédito. O total é preservado. A edição consulta os títulos atua
 e impede alterar pagamentos ou vínculos em uso. Correções financeiras cancelam
 os títulos pendentes substituídos e registram as parcelas novas com a origem
 da compra. Conferir o [contrato](../features/estoque-entradas/SPEC.md#pagamento-e-parcelas--13112026).
+Dados antigos incompletos geram aviso e permitem informar um plano novo. No cartão,
+selecionar cartão e data da compra calcula os vencimentos das faturas. A edição
+preserva fornecedor e contraparte dos títulos, inclusive quando diferem da compra.
 
 Mapa conferido em 23/09/2026, base 2fac409. Posição, movimentos, contagem, entradas sem nota e perdas.
 
@@ -106,8 +109,9 @@ do documento; não revaloriza saídas anteriores. Simples sem valor estimado man
 a base de custo vigente. Redução sem saldo livre, unidade cadastral divergente,
 estorno externo ou custo residual inviável bloqueiam com motivo e rollback.
 
-Uma compra corrigida conserva sua obrigação financeira e seu total. Não alterar
-pagamentos/faturas no editor de estoque. Cancelamento financeiro baseado nos itens
+Uma compra corrigida conserva sua obrigação financeira e seu total. O editor permite
+substituir parcelas pendentes sem vínculos ativos. Pagamentos baixados e faturas
+vinculadas exigem tratamento no Financeiro. Cancelamento financeiro baseado nos itens
 originais recusa uma compra cuja versão vigente mudou produtos/quantidades, evitando
 estorno indevido. Correções de observação/conversão sem mudar a quantidade física
 continuam compatíveis. Campos comerciais ausentes no legado não são inventados:

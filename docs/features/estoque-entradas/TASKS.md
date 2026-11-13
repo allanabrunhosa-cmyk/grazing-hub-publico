@@ -122,3 +122,23 @@ Branch codex/estoque-historico-filtros-20261012, base ddfc9d2d.
 - [ ] Build, PR/merge/deploy e smoke somente leitura; evidências finais na PR.
 
 Ajuste de consulta e interface. Sem migration ou alteração das regras de escrita/saldo.
+
+## Desbloqueio do pagamento antigo — 13/11/2026
+
+Branch `codex/entrada-avulsa-corrigir-pagamento-legado-20261113`, base `fe2ef8ac`.
+
+- [x] Forma antiga ausente/desconhecida e metadata incompleta de cartão geram aviso.
+  O editor permite preencher um plano válido, inclusive trocar uma parcela por duas.
+- [x] Preservar fornecedor e contraparte dos títulos. Manter bloqueios de baixa,
+  conciliação, fatura, liquidação, custo e inconsistências estruturais.
+- [x] Cartão e data da compra reutilizam o cálculo de faturas. O servidor confere
+  os vencimentos antes de cancelar os títulos antigos.
+- [x] Consumidor: 9 testes. Serviço financeiro: 27 testes, incluindo o filtro real
+  da auditoria. Lint focado aprovado.
+- [ ] Integração PostgreSQL, regressão do domínio, imagens, typecheck/design e compilação.
+- [x] Backup privado verificado por catálogo, leitura integral e SHA-256. Imagem
+  anterior preservada. Conferência somente leitura: nenhuma migration pendente.
+- [ ] PR, integração, publicação e smoke autenticado sem gravar operações reais.
+
+Sem migration nova. Evidência de produção será registrada após a publicação,
+sem disparar outro deploy apenas documental.
