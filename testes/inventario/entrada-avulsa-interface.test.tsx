@@ -121,8 +121,8 @@ it.each(["Boleto", "Pix"])("registra %s em parcelas mensais com soma exata", asy
       { valor: 33.33, dataVencimento: "2026-03-31" },
     ] }),
   }));
-  await waitFor(() => expect(screen.getByLabelText("Vencimento da parcela 1")).toHaveProperty("value", "2026-01-31"));
-  expect(screen.getByLabelText("Quantidade de parcelas")).toHaveProperty("value", "1");
+  await waitFor(() => expect(screen.getByLabelText("Quantidade de parcelas")).toHaveProperty("value", "1"));
+  expect(screen.getByLabelText("Vencimento da parcela 1")).toHaveProperty("value", "2026-01-31");
 });
 
 it("parcela no cartão, calcula cada fatura e impede pagamento direto", async () => {
