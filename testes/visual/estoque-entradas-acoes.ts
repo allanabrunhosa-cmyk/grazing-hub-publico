@@ -1,5 +1,8 @@
 import type { FiltroExtratoIndividual, ExtratoIndividualDTO } from "@/lib/estoque/extrato-individual";
-export async function corrigirEntradaAvulsaAction() {
+import { registrarChamadaEntrada } from "./entrada-avulsa-previa";
+export async function corrigirEntradaAvulsaAction(entrada: unknown) {
+  registrarChamadaEntrada("CORRIGIR", entrada);
+  if (new URLSearchParams(location.search).has("pagamento") && new URLSearchParams(location.search).get("erro") !== "1") return { ok: true as const, versao: 3 };
   await new Promise(resolve => setTimeout(resolve, 400));
   return { erro: "Simulação: saldo disponível insuficiente. O rascunho foi preservado." };
 }

@@ -21,12 +21,15 @@ import { unidadeMedidaAbreviada } from "@/lib/labels";
 import type { EntradaDetalheDTO } from "@/lib/inventario/entrada-avulsa-historico";
 import type { InsumoOption, LocalOption } from "../types";
 import { corrigirEntradaAvulsaAction } from "./actions";
+import { PagamentoEntradaAvulsa, pagamentoDoRascunho, rascunhoPagamentoEntrada } from "@/components/inventario/pagamento-entrada-avulsa";
+import type { CartaoOption } from "@/lib/financeiro/cartoes";
+import { pagamentosEntradaIguais, type PagamentoEntradaInput } from "@/lib/inventario/entrada-avulsa-pagamento";
 
 type Linha = { chave: string; insumoId: string | null; localId: string; quantidade: string; fatorConversao: string; unidadeEntrada: string; valorProdutos: string };
 const numero = (v: string) => Number(v.replace(",", "."));
 const dataHora = (v: string) => new Date(v).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
-export function EntradaAvulsaDetalhe({ detalhe, insumos, locais, podeEditar }: { detalhe: EntradaDetalheDTO; insumos: InsumoOption[]; locais: LocalOption[]; podeEditar: boolean }) {
+export function EntradaAvulsaDetalhe({ detalhe, insumos, locais, cartoes = [], podeEditar, podeEditarPagamento = false }: { detalhe: EntradaDetalheDTO; insumos: InsumoOption[]; locais: LocalOption[]; cartoes?: CartaoOption[]; podeEditar: boolean; podeEditarPagamento?: boolean }) {
   const [editar, setEditar] = useState(false);
   const s = detalhe.snapshot;
   return <div className="space-y-5">
@@ -44,6 +47,11 @@ export function EntradaAvulsaDetalhe({ detalhe, insumos, locais, podeEditar }: {
       {s.dadosOriginais && <dl className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">{Object.entries(s.dadosOriginais).map(([campo, valor]) => <div key={campo}><dt className="font-medium">{({ dataVencimento: "Vencimento original", pago: "Pago no registro", dataPagamento: "Pagamento original", formaPagamento: "Forma de pagamento", contaBancariaId: "Conta de origem", cartaoCreditoId: "Cartão de origem", dataCompra: "Compra no cartão", parcelaCartao: "Parcela", frete: "Frete original", desconto: "Desconto original", outrosCustos: "Custos originais" } as Record<string, string>)[campo] ?? campo}</dt><dd className="break-words">{typeof valor === "boolean" ? valor ? "Sim" : "Não" : valor ?? "—"}</dd></div>)}</dl>}
       <p className="whitespace-pre-wrap text-sm">{s.observacao || "Sem observação."}</p>
     </CardContent></Card>
+    {detalhe.financeiro && <Card><CardHeader><CardTitle>Pagamento da compra</CardTitle></CardHeader><CardContent className="space-y-3">
+      <p className="text-sm">Forma de pagamento: {{ BOLETO: "Boleto", PIX: "Pix", CARTAO: "Cartão de crédito" }[detalhe.financeiro.pagamento.formaPagamento]}</p>
+      <Table><TableHeader><TableRow><TableHead>Parcela</TableHead><TableHead>Valor</TableHead><TableHead>Vencimento</TableHead></TableRow></TableHeader><TableBody>{detalhe.financeiro.pagamento.parcelas.map((parcela, indice) => <TableRow key={indice}><TableCell>{indice + 1} de {detalhe.financeiro!.pagamento.parcelas.length}</TableCell><TableCell>{formatarMoeda(parcela.valor)}</TableCell><TableCell>{parcela.dataVencimento.split("-").reverse().join("/")}</TableCell></TableRow>)}</TableBody></Table>
+      {detalhe.financeiro.bloqueio && <p className="text-sm text-muted-foreground">{detalhe.financeiro.bloqueio}</p>}
+    </CardContent></Card>}
     <Card><CardHeader><CardTitle>Histórico de versões</CardTitle></CardHeader><CardContent className="space-y-4">
       {!detalhe.versoes.length && <p className="text-sm text-muted-foreground">Registro original, sem correções.</p>}
       {detalhe.versoes.map(v => <div key={v.versao} className="space-y-2 border-b pb-4 last:border-0"><p className="text-sm font-medium">Versão {v.versao} · {v.autorNome} · {dataHora(v.data)}</p>
@@ -51,21 +59,21 @@ export function EntradaAvulsaDetalhe({ detalhe, insumos, locais, podeEditar }: {
         {v.ajustes.length > 0 && <p className="break-words text-xs text-muted-foreground">Movimentos vinculados: {v.ajustes.map(a => a.movimentoId).join(", ")}</p>}
       </div>)}
     </CardContent></Card>
-    <EntradaAvulsaEdicaoDialog detalhe={detalhe} insumos={insumos} locais={locais} aberto={editar} aoFechar={() => setEditar(false)} />
+    <EntradaAvulsaEdicaoDialog detalhe={detalhe} insumos={insumos} locais={locais} cartoes={cartoes} podeEditarPagamento={podeEditarPagamento} aberto={editar} aoFechar={() => setEditar(false)} />
   </div>;
 }
 
-export function EntradaAvulsaEdicaoDialog({ detalhe, insumos, locais, aberto, aoFechar }: { detalhe: EntradaDetalheDTO; insumos: InsumoOption[]; locais: LocalOption[]; aberto: boolean; aoFechar: () => void }) {
+export function EntradaAvulsaEdicaoDialog({ detalhe, insumos, locais, cartoes = [], podeEditarPagamento = false, aberto, aoFechar }: { detalhe: EntradaDetalheDTO; insumos: InsumoOption[]; locais: LocalOption[]; cartoes?: CartaoOption[]; podeEditarPagamento?: boolean; aberto: boolean; aoFechar: () => void }) {
   const [salvando, setSalvando] = useState(false);
   const [alterado, setAlterado] = useState(false);
   const s = detalhe.snapshot;
   const catalogo = [...new Map([...s.itens.map(i => ({ id: i.insumoId, nome: i.nome, unidade: i.unidade })), ...insumos].map(i => [i.id, i])).values()];
   return <Dialog open={aberto} alterado={alterado} protegerAlteracoes={!salvando} onOpenChange={aberto => { if (!aberto && !salvando) aoFechar(); }}><DialogContent className="sm:max-w-5xl" showCloseButton={!salvando}><DialogHeader><DialogTitle>Editar entrada avulsa {detalhe.identificador}</DialogTitle><DialogDescription>{s.data.split("-").reverse().join("/")} · {s.fornecedorNome ?? "Entrada simples"} · {detalhe.responsavel}. Os movimentos e as versões anteriores serão preservados.</DialogDescription></DialogHeader>
-    {aberto && <EditorEntrada key={`${detalhe.id}-${detalhe.versao}`} detalhe={detalhe} insumos={catalogo} locais={locais} aoConcluir={aoFechar} aoSalvar={setSalvando} aoAlterar={setAlterado} />}
+    {aberto && <EditorEntrada key={`${detalhe.id}-${detalhe.versao}`} detalhe={detalhe} insumos={catalogo} locais={locais} cartoes={cartoes} podeEditarPagamento={podeEditarPagamento} aoConcluir={aoFechar} aoSalvar={setSalvando} aoAlterar={setAlterado} />}
   </DialogContent></Dialog>;
 }
 
-function EditorEntrada({ detalhe, insumos, locais, aoConcluir, aoSalvar, aoAlterar }: { detalhe: EntradaDetalheDTO; insumos: InsumoOption[]; locais: LocalOption[]; aoConcluir: () => void; aoSalvar: (salvando: boolean) => void; aoAlterar: (alterado: boolean) => void }) {
+function EditorEntrada({ detalhe, insumos, locais, cartoes, podeEditarPagamento, aoConcluir, aoSalvar, aoAlterar }: { detalhe: EntradaDetalheDTO; insumos: InsumoOption[]; locais: LocalOption[]; cartoes: CartaoOption[]; podeEditarPagamento: boolean; aoConcluir: () => void; aoSalvar: (salvando: boolean) => void; aoAlterar: (alterado: boolean) => void }) {
   const s = detalhe.snapshot;
   const router = useRouter();
   const [itens, setItens] = useState<Linha[]>(() => s.itens.map((i, n) => ({ chave: `original-${n}`, insumoId: i.insumoId, localId: i.localId, quantidade: String(i.quantidade), fatorConversao: String(i.fatorConversao ?? 1), unidadeEntrada: i.unidadeEntrada ?? i.unidade, valorProdutos: String(i.valorProdutos) })));
@@ -73,20 +81,32 @@ function EditorEntrada({ detalhe, insumos, locais, aoConcluir, aoSalvar, aoAlter
   const [frete, setFrete] = useState(String(s.frete));
   const [desconto, setDesconto] = useState(String(s.desconto));
   const [custos, setCustos] = useState(() => s.custosAdicionais.map((c, n) => ({ ...c, chave: `custo-${n}`, valor: String(c.valor) })));
+  const [pagamento, setPagamento] = useState(() => detalhe.financeiro ? rascunhoPagamentoEntrada(detalhe.financeiro.pagamento) : null);
+  const [pagamentoOriginal] = useState(() => JSON.stringify(pagamento));
+  const pagamentoAlterado = JSON.stringify(pagamento) !== pagamentoOriginal;
+  const bloqueioPagamento = detalhe.financeiro?.bloqueio || (!podeEditarPagamento ? "Sem permissão para editar o pagamento da compra." : undefined);
   const [erro, setErro] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const trava = useRef(false);
   const tentativa = useRef<{ assinatura: string; chave: string } | null>(null);
   const topo = useRef<HTMLDivElement>(null);
   const [focar, setFocar] = useState<string | null>(null);
-  const rascunho = JSON.stringify({ itens: itens.map(i => ({ insumoId: i.insumoId, localId: i.localId, quantidade: i.quantidade, fatorConversao: i.fatorConversao, unidadeEntrada: i.unidadeEntrada, valorProdutos: i.valorProdutos })), observacao, frete, desconto, custos: custos.map(c => ({ descricao: c.descricao, valor: c.valor })) });
+  const rascunho = JSON.stringify({ itens: itens.map(i => ({ insumoId: i.insumoId, localId: i.localId, quantidade: i.quantidade, fatorConversao: i.fatorConversao, unidadeEntrada: i.unidadeEntrada, valorProdutos: i.valorProdutos })), observacao, frete, desconto, custos: custos.map(c => ({ descricao: c.descricao, valor: c.valor })), pagamento });
   const baseRascunho = useRef(rascunho);
   useEffect(() => { aoAlterar(rascunho !== baseRascunho.current); }, [rascunho, aoAlterar]);
   const atualizar = (chave: string, dados: Partial<Linha>) => setItens(atuais => atuais.map(i => i.chave === chave ? { ...i, ...dados } : i));
   function salvar() {
     if (trava.current) return;
+    let plano: (PagamentoEntradaInput & { revisao: string }) | undefined;
+    if (pagamentoAlterado && pagamento && detalhe.financeiro && !bloqueioPagamento) {
+      try {
+        const novoPagamento = pagamentoDoRascunho(pagamento, s.valorTotal);
+        if (!pagamentosEntradaIguais(novoPagamento, detalhe.financeiro.pagamento)) plano = { ...novoPagamento, revisao: detalhe.financeiro.revisao };
+      }
+      catch (falha) { setErro(falha instanceof Error ? falha.message : "Confira as parcelas da compra."); return; }
+    }
     trava.current = true; setErro(null); aoSalvar(true);
-    const dados = { id: detalhe.id, versao: detalhe.versao, itens: itens.map(i => ({ insumoId: i.insumoId ?? "", localId: i.localId, quantidade: numero(i.quantidade), fatorConversao: numero(i.fatorConversao), unidadeEntrada: i.unidadeEntrada, valorProdutos: numero(i.valorProdutos) })), observacao: observacao.trim() || null, frete: numero(frete), desconto: numero(desconto), custosAdicionais: custos.map(c => ({ descricao: c.descricao, valor: numero(c.valor) })) };
+    const dados = { id: detalhe.id, versao: detalhe.versao, itens: itens.map(i => ({ insumoId: i.insumoId ?? "", localId: i.localId, quantidade: numero(i.quantidade), fatorConversao: numero(i.fatorConversao), unidadeEntrada: i.unidadeEntrada, valorProdutos: numero(i.valorProdutos) })), observacao: observacao.trim() || null, frete: numero(frete), desconto: numero(desconto), custosAdicionais: custos.map(c => ({ descricao: c.descricao, valor: numero(c.valor) })), ...(plano ? { pagamento: plano } : {}) };
     const assinatura = JSON.stringify(dados);
     if (tentativa.current?.assinatura !== assinatura) tentativa.current = { assinatura, chave: crypto.randomUUID() };
     startTransition(async () => {
@@ -118,6 +138,11 @@ function EditorEntrada({ detalhe, insumos, locais, aoConcluir, aoSalvar, aoAlter
     {custos.map((c, n) => <div key={c.chave} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]"><Input aria-label={`Descrição do custo ${n + 1}`} maxLength={120} value={c.descricao} onChange={e => setCustos(a => a.map(x => x.chave === c.chave ? { ...x, descricao: e.target.value } : x))} /><CurrencyInput aria-label={`Valor do custo ${n + 1}`} value={c.valor} onValueChange={valor => setCustos(a => a.map(x => x.chave === c.chave ? { ...x, valor } : x))} /><BotaoRemoverItem nome={`Remover custo ${n + 1}`} onClick={() => setCustos(a => a.filter(x => x.chave !== c.chave))} /></div>)}
 
     </div>}
+    {pagamento && <section aria-label="Pagamento da compra" className="space-y-3 rounded-xl border p-3">
+      <h3 className="text-sm font-semibold">Pagamento da compra</h3>
+      {bloqueioPagamento && <p className="text-sm text-muted-foreground">{bloqueioPagamento}</p>}
+      <PagamentoEntradaAvulsa value={pagamento} valorTotal={s.valorTotal} cartoes={cartoes} dataPadrao={s.data} disabled={pending || !!bloqueioPagamento} onChange={setPagamento} />
+    </section>}
     <div className="space-y-1.5"><Label htmlFor="observacao-correcao">Observação / motivo</Label><Textarea id="observacao-correcao" maxLength={2000} value={observacao} onChange={e => setObservacao(e.target.value)} /></div>
     {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
     <GrupoAcoes nome="Correção da entrada" className="flex-wrap border-t py-3">

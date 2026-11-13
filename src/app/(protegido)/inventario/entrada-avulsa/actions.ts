@@ -7,11 +7,13 @@ import { getSession } from "@/lib/session";
 import { registrarMovimentacao } from "@/lib/estoque/registrarMovimentacao";
 import { baixarLancamento } from "@/lib/financeiro/baixarLancamento";
 import { paraCaixaAlta } from "@/lib/caixa-alta";
-import { prepararPagamento, type PagamentoNota } from "@/lib/notas-fiscais/pagamentos";
+import type { PagamentoNota } from "@/lib/notas-fiscais/pagamentos";
 import { vencimentoCartao, dataCalendarioValida } from "@/lib/financeiro/cartoes";
 import { prepararRegistroEntrada, gravarRegistroEntrada } from "@/lib/estoque/entrada-avulsa-servidor";
 import { validarItensEntrada, ErroCorrecaoEntrada } from "@/lib/inventario/entrada-avulsa-historico";
 import { DecimalEstoque } from "@/lib/estoque/quantidade";
+import { ErroPagamentoEntrada, validarPagamentoEntrada, type PagamentoEntradaInput } from "@/lib/inventario/entrada-avulsa-pagamento";
+import { prepararParcelasEntrada } from "@/lib/estoque/entrada-avulsa-financeiro";
 import {
   calcularCompraSemNota,
   type CustoAdicionalEntrada,
@@ -35,6 +37,7 @@ export type EntradaAvulsaInput = {
   cartaoCreditoId?: string | null;
   dataCompra?: string | null;
   parcelaCartao?: number;
+  pagamento?: PagamentoEntradaInput;
   observacao: string | null;
 };
 
@@ -79,13 +82,13 @@ export async function registrarEntradaAvulsaAction(input: EntradaAvulsaInput): P
   if (erroItens) return { erro: erroItens };
   try { validarItensEntrada(input.itens); } catch (erro) { return { erro: erro instanceof Error ? erro.message : "Itens inválidos." }; }
   if (!REGEX_DATA.test(input.data) || !dataCalendarioValida(input.data)) return { erro: "Data de entrada inválida." };
-  if (input.dataVencimento && !REGEX_DATA.test(input.dataVencimento)) return { erro: "Data de vencimento inválida." };
-  if (input.pago && (!input.dataPagamento || !REGEX_DATA.test(input.dataPagamento))) return { erro: "Informe a data do pagamento." };
+  if (!input.pagamento && input.dataVencimento && !dataCalendarioValida(input.dataVencimento)) return { erro: "Data de vencimento inválida." };
+  if (input.pago && (!input.dataPagamento || !dataCalendarioValida(input.dataPagamento))) return { erro: "Informe a data do pagamento." };
   if (input.pago && !input.contaBancariaId) return { erro: "Selecione a conta usada no pagamento." };
-  const formaPagamento = input.formaPagamento ?? "BOLETO";
+  const formaPagamento = input.pagamento?.formaPagamento ?? input.formaPagamento ?? "BOLETO";
   if (!["BOLETO", "PIX", "CARTAO"].includes(formaPagamento)) return { erro: "Informe uma forma de pagamento válida." };
   if (formaPagamento === "CARTAO" && input.pago) return { erro: "Compras no cartão de crédito permanecem pendentes até a baixa da fatura." };
-  if (formaPagamento === "CARTAO" && (!input.cartaoCreditoId || !input.dataCompra || !REGEX_DATA.test(input.dataCompra) || !Number.isInteger(input.parcelaCartao ?? 1) || (input.parcelaCartao ?? 1) < 1 || (input.parcelaCartao ?? 1) > 120)) {
+  if (!input.pagamento && formaPagamento === "CARTAO" && (!input.cartaoCreditoId || !input.dataCompra || !dataCalendarioValida(input.dataCompra) || !Number.isInteger(input.parcelaCartao ?? 1) || (input.parcelaCartao ?? 1) < 1 || (input.parcelaCartao ?? 1) > 120)) {
     return { erro: "Selecione o cartão, a data da compra e uma parcela válida." };
   }
   if ((input.observacao?.trim().length ?? 0) > 2000) return { erro: "A observação deve ter no máximo 2.000 caracteres." };
@@ -103,6 +106,11 @@ export async function registrarEntradaAvulsaAction(input: EntradaAvulsaInput): P
       })
     : null;
   if (calculo && "erro" in calculo) return calculo;
+  if (input.pagamento) {
+    if (!ehCompra) return { erro: "O plano de pagamento está disponível apenas para compras." };
+    try { validarPagamentoEntrada(input.pagamento, calculo!.composicao.valorTotal); }
+    catch (erro) { return { erro: erro instanceof Error ? erro.message : "Plano de pagamento inválido." }; }
+  }
 
   const sessao = await getSession();
   if (!sessao) return { erro: "Sua sessão expirou. Entre novamente." };
@@ -152,26 +160,25 @@ export async function registrarEntradaAvulsaAction(input: EntradaAvulsaInput): P
       const composicao = calculo!.composicao;
       const dataEntrada = dataLocal(input.data);
       let dataVencimentoTexto = input.dataVencimento || input.data;
-      if (formaPagamento === "CARTAO") {
+      if (!input.pagamento && formaPagamento === "CARTAO") {
         const cartao = await tx.cartaoCredito.findUnique({ where: { id: input.cartaoCreditoId! }, select: { diaFechamento: true, diaVencimento: true, ativo: true, contaBancaria: { select: { ativo: true } } } });
         if (!cartao?.ativo || !cartao.contaBancaria.ativo) throw new ErroEntradaAvulsa("Selecione um cartão ativo vinculado a uma conta ativa.");
         dataVencimentoTexto = vencimentoCartao(input.dataCompra!, cartao.diaFechamento, cartao.diaVencimento, input.parcelaCartao ?? 1);
       }
-      const preparado = await prepararPagamento(tx, {
+      const plano = input.pagamento ?? {
         formaPagamento,
         cartaoCreditoId: input.cartaoCreditoId,
         dataCompra: input.dataCompra,
         parcelaCartao: input.parcelaCartao,
-        dataVencimento: dataVencimentoTexto,
-      });
-      const dataVencimento = preparado.dataVencimento;
+        parcelas: [{ valor: composicao.valorTotal, dataVencimento: dataVencimentoTexto }],
+      };
+      const preparado = await prepararParcelasEntrada(tx, plano, composicao.valorTotal);
+      const dataVencimento = preparado.parcelas[0].dataVencimento;
       const dataPagamento = input.pago ? dataLocal(input.dataPagamento!) : null;
       const contaBancaria = input.pago
         ? await tx.contaBancaria.findFirst({ where: { id: input.contaBancariaId!, ativo: true }, select: { id: true } })
         : null;
       if (input.pago && !contaBancaria) throw new ErroEntradaAvulsa("Selecione uma conta bancária ativa.");
-      const nomeForma = { BOLETO: "Boleto", PIX: "Pix", CARTAO: "Cartão de crédito" }[preparado.formaPagamento];
-      const forma = await tx.formaPagamento.upsert({ where: { nome: nomeForma }, create: { nome: nomeForma }, update: {} });
       const custosAdicionais = input.custosAdicionais.map(custo => ({
         descricao: custo.descricao.trim(),
         valor: Math.round(custo.valor * 100) / 100,
@@ -215,40 +222,43 @@ export async function registrarEntradaAvulsaAction(input: EntradaAvulsaInput): P
         }));
       }
 
-      const lancamento = await tx.lancamentoFinanceiro.create({
-        data: {
-          tipo: "DESPESA",
-          descricao: paraCaixaAlta(`Compra sem nota — ${fornecedor.nome}`),
-          valor: composicao.valorTotal,
-          categoriaId: categoriaCmv.id,
-          dataCompetencia: dataEntrada,
-          dataVencimento,
-          fornecedorId: fornecedor.id,
-          observacoes: input.observacao?.trim() || null,
-          criadoPorId: sessao.userId,
-          origemMovimentacaoEstoqueId: movimentos[0].movimentacaoId,
-          origemEntradaAvulsaCompraId: compra.id,
-          contaBancariaId: preparado.contaBancariaId,
-          formaPagamentoId: forma.id,
-          cartaoCreditoId: preparado.cartaoCreditoId,
-        },
-      });
-
-      if (input.pago) {
-        await baixarLancamento({
-          lancamentoId: lancamento.id,
-          contaBancariaId: contaBancaria!.id,
-          dataPagamento: dataPagamento!,
-          tx,
+      for (const [indice, parcela] of preparado.parcelas.entries()) {
+        const lancamento = await tx.lancamentoFinanceiro.create({
+          data: {
+            tipo: "DESPESA",
+            descricao: paraCaixaAlta(`Compra sem nota — ${fornecedor.nome}`),
+            valor: parcela.valor,
+            categoriaId: categoriaCmv.id,
+            dataCompetencia: dataEntrada,
+            dataVencimento: parcela.dataVencimento,
+            fornecedorId: fornecedor.id,
+            observacoes: input.observacao?.trim() || null,
+            criadoPorId: sessao.userId,
+            origemMovimentacaoEstoqueId: indice === 0 ? movimentos[0].movimentacaoId : null,
+            origemEntradaAvulsaCompraId: compra.id,
+            contaBancariaId: parcela.contaBancariaId,
+            formaPagamentoId: preparado.formaPagamentoId,
+            cartaoCreditoId: parcela.cartaoCreditoId,
+            recorrenciaGrupoId: preparado.recorrenciaGrupoId,
+          },
         });
+
+        if (input.pago) {
+          await baixarLancamento({
+            lancamentoId: lancamento.id,
+            contaBancariaId: contaBancaria!.id,
+            dataPagamento: dataPagamento!,
+            tx,
+          });
+        }
       }
-      const registro = await gravarRegistroEntrada(tx, input, preparacao.autor, preparacao.hash, compra.id, movimentos.map(m => m.movimentacaoId));
+      const registro = await gravarRegistroEntrada(tx, { ...input, pagamento: preparado.pagamento }, preparacao.autor, preparacao.hash, compra.id, movimentos.map(m => m.movimentacaoId));
       return { movimentacaoId: movimentos[0].movimentacaoId, entradaAvulsaCompraId: compra.id, registroId: registro.id };
     }, { timeout: 30000, maxWait: 10000 });
 
     revalidarEntrada();
     return { ok: true, ...resultado };
   } catch (erro) {
-    return { erro: erro instanceof ErroEntradaAvulsa || erro instanceof ErroCorrecaoEntrada ? erro.message : "Não foi possível registrar a entrada." };
+    return { erro: erro instanceof ErroEntradaAvulsa || erro instanceof ErroCorrecaoEntrada || erro instanceof ErroPagamentoEntrada ? erro.message : "Não foi possível registrar a entrada." };
   }
 }

@@ -9,6 +9,7 @@ const simulados = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/permissoes/servidor", () => ({ exigirPermissao: vi.fn() }));
+vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/session", () => ({ getSession: vi.fn(async () => ({ userId: "usuario" })) }));
 vi.mock("@/lib/prisma", () => ({ prisma: { $transaction: simulados.transacao } }));
@@ -63,6 +64,40 @@ beforeEach(() => {
 });
 
 describe("registro da compra sem nota", () => {
+  it.each(["BOLETO", "PIX", "CARTAO"] as const)("grava três parcelas %s com total exato e uma só origem física", async formaPagamento => {
+    const parcelas = [
+      { valor: 148.34, dataVencimento: "2026-09-20" },
+      { valor: 148.33, dataVencimento: "2026-10-20" },
+      { valor: 148.33, dataVencimento: "2026-11-20" },
+    ];
+    const resposta = await registrarEntradaAvulsaAction({ ...entrada, pagamento: { formaPagamento, parcelas,
+      ...(formaPagamento === "CARTAO" ? { cartaoCreditoId: "cartao", dataCompra: "2026-09-05", parcelaCartao: 1 } : {}) } });
+    expect(resposta).toMatchObject({ ok: true });
+    expect(simulados.movimento).toHaveBeenCalledTimes(2);
+    expect(simulados.lancamentoCriar).toHaveBeenCalledTimes(3);
+    const titulos = simulados.lancamentoCriar.mock.calls.map(([arg]) => arg.data);
+    expect(titulos.map(t => t.valor)).toEqual([148.34, 148.33, 148.33]);
+    expect(titulos.map(t => t.dataCompetencia.toISOString())).toEqual(Array(3).fill("2026-09-11T15:00:00.000Z"));
+    expect(titulos.map(t => t.origemEntradaAvulsaCompraId)).toEqual(["compra", "compra", "compra"]);
+    expect(titulos.map(t => t.origemMovimentacaoEstoqueId)).toEqual(["movimento-1", null, null]);
+    expect(new Set(titulos.map(t => t.recorrenciaGrupoId)).size).toBe(1);
+    expect(titulos[0].recorrenciaGrupoId).toBeTruthy();
+    expect(simulados.baixar).not.toHaveBeenCalled();
+  });
+
+  it("recusa parcelas divergentes ou data civil impossível antes da transação", async () => {
+    expect(await registrarEntradaAvulsaAction({ ...entrada, pagamento: { formaPagamento: "PIX", parcelas: [{ valor: 444.99, dataVencimento: "2026-09-20" }] } })).toEqual({ erro: "A soma das parcelas deve ser igual ao total da compra." });
+    expect(await registrarEntradaAvulsaAction({ ...entrada, pagamento: { formaPagamento: "BOLETO", parcelas: [{ valor: 445, dataVencimento: "2026-02-30" }] } })).toEqual({ erro: "Informe um vencimento válido em todas as parcelas." });
+    expect(simulados.transacao).not.toHaveBeenCalled();
+  });
+
+  it("recusa vencimento de cartão que não pertence à fatura e pagamento inicial no cartão", async () => {
+    const pagamento = { formaPagamento: "CARTAO" as const, cartaoCreditoId: "cartao", dataCompra: "2026-09-05", parcelas: [{ valor: 445, dataVencimento: "2026-09-21" }] };
+    expect(await registrarEntradaAvulsaAction({ ...entrada, pagamento })).toMatchObject({ erro: expect.stringContaining("não corresponde à fatura") });
+    expect(simulados.compraCriar).not.toHaveBeenCalled();
+    expect(await registrarEntradaAvulsaAction({ ...entrada, pagamento, pago: true, dataPagamento: "2026-09-05", contaBancariaId: "conta" })).toEqual({ erro: "Compras no cartão de crédito permanecem pendentes até a baixa da fatura." });
+  });
+
   it("cria o cabeçalho auditável, rateia os itens e gera uma única despesa do fornecedor", async () => {
     expect(await registrarEntradaAvulsaAction(entrada)).toEqual({
       ok: true,

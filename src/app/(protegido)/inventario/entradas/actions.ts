@@ -4,27 +4,34 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { consultarEntrada, excluirEntradaAvulsa, corrigirEntradaAvulsa } from "@/lib/estoque/entrada-avulsa-servidor";
 import { ErroCorrecaoEntrada, type CorrecaoEntradaInput } from "@/lib/inventario/entrada-avulsa-historico";
+import { permissaoEfetiva } from "@/lib/permissoes/catalogo";
 
 export async function corrigirEntradaAvulsaAction(input: CorrecaoEntradaInput): Promise<{ ok: true; id: string } | { erro: string }> {
   const sessao = await exigirPermissao("inventario", "editar");
   try {
     const id = await corrigirEntradaAvulsa(input, sessao);
-    for (const rota of ["/inventario", "/inventario/entradas", "/inventario/movimentacoes", "/insumos"]) revalidatePath(rota);
+    for (const rota of ["/inventario", "/inventario/entradas", "/inventario/movimentacoes", "/insumos", "/financeiro/movimentacoes", "/financeiro/fluxo-de-caixa", "/financeiro"]) revalidatePath(rota);
     revalidatePath("/inventario/entradas/[id]", "page");
     return { ok: true, id };
   } catch (erro) { return { erro: erro instanceof ErroCorrecaoEntrada ? erro.message : "Não foi possível corrigir a entrada. Nenhuma alteração foi confirmada." }; }
 }
 
 export async function consultarEntradaAvulsaAction(id: string) {
-  await exigirPermissao("inventario");
+  const sessao = await exigirPermissao("inventario");
+  const podeEditarPagamento = sessao.admin || permissaoEfetiva(sessao.permissoes, sessao.excecoes, "financeiro.movimentacoes", "editar");
   try {
     const detalhe = await prisma.$transaction(tx => consultarEntrada(tx, id), { isolationLevel: "RepeatableRead" });
     if (!detalhe) return { erro: "Entrada não encontrada." };
-    const [insumos, locais] = await Promise.all([
+    const [insumos, locais, cartoes] = await Promise.all([
       prisma.insumo.findMany({ where: { excluidoEm: null }, select: { id: true, nome: true, unidade: true }, orderBy: { nome: "asc" } }),
       prisma.localEstoque.findMany({ select: { id: true, nome: true }, orderBy: { nome: "asc" } }),
+      podeEditarPagamento ? prisma.cartaoCredito.findMany({
+        where: { OR: [{ ativo: true, contaBancaria: { ativo: true } }, { id: detalhe.financeiro?.pagamento.cartaoCreditoId ?? "" }] },
+        select: { id: true, nome: true, contaBancariaId: true, contaBancaria: { select: { nome: true } }, diaFechamento: true, diaVencimento: true, ativo: true },
+        orderBy: { nome: "asc" },
+      }) : [],
     ]);
-    return { detalhe, insumos, locais };
+    return { detalhe, insumos, locais, podeEditarPagamento, cartoes: cartoes.map(cartao => ({ id: cartao.id, nome: cartao.nome, contaBancariaId: cartao.contaBancariaId, contaBancariaNome: cartao.contaBancaria.nome, diaFechamento: cartao.diaFechamento, diaVencimento: cartao.diaVencimento, ativo: cartao.ativo })) };
   } catch (erro) { return { erro: erro instanceof ErroCorrecaoEntrada ? erro.message : "Não foi possível consultar a entrada. Tente novamente." }; }
 }
 export async function excluirEntradaAvulsaAction(input: { id: string; versao: number; chave: string; motivo: string }): Promise<{ ok: true } | { erro: string }> {
