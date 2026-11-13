@@ -36,7 +36,7 @@ export type EntradaDetalheDTO = {
   bloqueio?: string;
   id: string; identificador: string; versao: number; criadoEm: string; responsavel: string;
   snapshot: EntradaSnapshot; versoes: VersaoEntradaDTO[];
-  financeiro?: { pagamento: PagamentoEntradaInput; revisao: string; bloqueio?: string };
+  financeiro?: { pagamento: PagamentoEntradaInput; revisao: string; bloqueio?: string; aviso?: string };
 };
 
 export function validarItensEntrada(itens: ItemCompraSemNota[]) {

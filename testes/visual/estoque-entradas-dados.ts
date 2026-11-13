@@ -16,3 +16,17 @@ export function detalhePagamentoSimulado(pago = false): EntradaDetalheDTO {
   copia.financeiro = { pagamento, revisao: "revisao-financeira-ficticia", ...(pago ? { bloqueio: "A compra possui pagamento realizado. Estorne o pagamento no Financeiro antes de alterar a forma ou as parcelas." } : {}) };
   return copia;
 }
+
+export function detalhePagamentoLegadoSimulado(cartao = false, pago = false): EntradaDetalheDTO {
+  const copia = structuredClone(detalhe);
+  copia.snapshot.dadosOriginais = { pago: false, dataVencimento: "2026-11-28" };
+  copia.financeiro = {
+    pagamento: { formaPagamento: cartao ? "CARTAO" : "BOLETO", cartaoCreditoId: null, dataCompra: null, parcelaCartao: 1, parcelas: [{ valor: 160, dataVencimento: "2026-11-28" }] },
+    revisao: "f".repeat(64),
+    aviso: cartao
+      ? "A data da compra ou a parcela inicial antiga do cartão não está registrada. Selecione o cartão e informe a data da compra para conferir os novos vencimentos."
+      : "As condições de pagamento antigas estão incompletas ou são diferentes entre as parcelas. Informe a forma de pagamento e confira o novo plano.",
+    ...(pago ? { bloqueio: "O pagamento possui baixa, conciliação ou vínculo de fatura. Corrija os vínculos no Financeiro antes de alterar o plano." } : {}),
+  };
+  return copia;
+}

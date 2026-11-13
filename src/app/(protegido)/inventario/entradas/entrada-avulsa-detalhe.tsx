@@ -48,6 +48,7 @@ export function EntradaAvulsaDetalhe({ detalhe, insumos, locais, cartoes = [], p
       <p className="whitespace-pre-wrap text-sm">{s.observacao || "Sem observação."}</p>
     </CardContent></Card>
     {detalhe.financeiro && <Card><CardHeader><CardTitle>Pagamento da compra</CardTitle></CardHeader><CardContent className="space-y-3">
+      {detalhe.financeiro.aviso && <p role="note" className="text-sm text-muted-foreground">{detalhe.financeiro.aviso}</p>}
       <p className="text-sm">Forma de pagamento: {{ BOLETO: "Boleto", PIX: "Pix", CARTAO: "Cartão de crédito" }[detalhe.financeiro.pagamento.formaPagamento]}</p>
       <Table><TableHeader><TableRow><TableHead>Parcela</TableHead><TableHead>Valor</TableHead><TableHead>Vencimento</TableHead></TableRow></TableHeader><TableBody>{detalhe.financeiro.pagamento.parcelas.map((parcela, indice) => <TableRow key={indice}><TableCell>{indice + 1} de {detalhe.financeiro!.pagamento.parcelas.length}</TableCell><TableCell>{formatarMoeda(parcela.valor)}</TableCell><TableCell>{parcela.dataVencimento.split("-").reverse().join("/")}</TableCell></TableRow>)}</TableBody></Table>
       {detalhe.financeiro.bloqueio && <p className="text-sm text-muted-foreground">{detalhe.financeiro.bloqueio}</p>}
@@ -140,6 +141,7 @@ function EditorEntrada({ detalhe, insumos, locais, cartoes, podeEditarPagamento,
     </div>}
     {pagamento && <section aria-label="Pagamento da compra" className="space-y-3 rounded-xl border p-3">
       <h3 className="text-sm font-semibold">Pagamento da compra</h3>
+      {detalhe.financeiro?.aviso && <p role="note" className="text-sm text-muted-foreground">{detalhe.financeiro.aviso}</p>}
       {bloqueioPagamento && <p className="text-sm text-muted-foreground">{bloqueioPagamento}</p>}
       <PagamentoEntradaAvulsa value={pagamento} valorTotal={s.valorTotal} cartoes={cartoes} dataPadrao={s.data} disabled={pending || !!bloqueioPagamento} onChange={setPagamento} />
     </section>}

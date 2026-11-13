@@ -10,6 +10,8 @@ vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/lib/estoque/numero-entrada", () => ({ numeroEntradaLegada: vi.fn(async () => 17) }));
 import { alterarPagamentoEntrada, consultarFinanceiroEntrada } from "@/lib/estoque/entrada-avulsa-financeiro";
 import { gravarRegistroEntrada } from "@/lib/estoque/entrada-avulsa-servidor";
+import { registrarAtividade } from "@/lib/atividades/registro";
+import { diferencasPermitidas } from "@/lib/atividades/privacidade";
 
 const pagamento: PagamentoEntradaInput = { formaPagamento: "BOLETO", parcelas: [{ valor: 100, dataVencimento: "2026-11-20" }] };
 const snapshot: EntradaSnapshot = { tipo: "COMPRA_SIMPLES", data: "2026-11-13", fornecedorId: "fornecedor", fornecedorNome: "Fornecedor fictício", frete: 0, desconto: 0, custosAdicionais: [], observacao: null, valorTotal: 100, itens: [], pagamento };
@@ -28,6 +30,7 @@ const tx = {
   entradaAvulsaCompra: { findUnique: vi.fn(), update: vi.fn() },
   lancamentoFinanceiro: { findMany: vi.fn(), updateMany: vi.fn(), create: vi.fn() },
   formaPagamento: { upsert: vi.fn() },
+  cartaoCredito: { findUnique: vi.fn() },
 };
 const transacao = tx as unknown as Prisma.TransactionClient;
 beforeEach(() => {
@@ -38,6 +41,7 @@ beforeEach(() => {
   tx.lancamentoFinanceiro.updateMany.mockResolvedValue({ count: 1 });
   tx.lancamentoFinanceiro.create.mockImplementation(async () => ({ id: `novo-${tx.lancamentoFinanceiro.create.mock.calls.length}` }));
   tx.formaPagamento.upsert.mockResolvedValue({ id: "forma-nova" });
+  tx.cartaoCredito.findUnique.mockResolvedValue({ id: "cartao", ativo: true, diaFechamento: 10, diaVencimento: 20, contaBancariaId: "conta-cartao", contaBancaria: { ativo: true } });
 });
 
 describe("fonte financeira e correção da entrada avulsa", () => {
@@ -118,9 +122,12 @@ describe("fonte financeira e correção da entrada avulsa", () => {
     }
     expect(criados[0].recorrenciaGrupoId).toBe(criados[1].recorrenciaGrupoId);
     expect(criados[0].recorrenciaGrupoId).toBeTruthy();
+    const evento = vi.mocked(registrarAtividade).mock.calls[0][2];
+    expect(diferencasPermitidas(evento.antes, true)).toEqual({ tipo: "BOLETO", itens: 1, dataVencimento: "2026-11-20", valorTotal: 100, camposAlterados: "pagamento" });
+    expect(diferencasPermitidas(evento.depois, true)).toEqual({ tipo: "PIX", itens: 2, dataVencimento: "2026-11-20", valorTotal: 100, camposAlterados: "pagamento" });
   });
 
-  it("bloqueia títulos incompletos ou condições que não podem ser reconstruídas", async () => {
+  it("bloqueia total incompleto e orienta completar metadata antiga do cartão sem travar o editor", async () => {
     titulos[0].valor = new Prisma.Decimal(99.99);
     expect((await consultarFinanceiroEntrada(transacao, "compra", snapshot)).bloqueio).toContain("total");
     titulos[0].valor = new Prisma.Decimal(100);
@@ -128,7 +135,8 @@ describe("fonte financeira e correção da entrada avulsa", () => {
     titulos[0].cartaoCreditoId = "cartao";
     titulos[0].cartaoCredito = { diaFechamento: 10, diaVencimento: 20 };
     const dto = await consultarFinanceiroEntrada(transacao, "compra", snapshot);
-    expect(dto.bloqueio).toContain("não está registrada");
+    expect(dto.bloqueio).toBeUndefined();
+    expect(dto.aviso).toContain("não está registrada");
     expect(dto.pagamento.dataCompra).toBeNull();
   });
 
@@ -138,9 +146,81 @@ describe("fonte financeira e correção da entrada avulsa", () => {
     titulos[0].cartaoCredito = { diaFechamento: 10, diaVencimento: 20 };
     const legado = { ...snapshot, pagamento: undefined, dadosOriginais: { cartaoCreditoId: "cartao", dataCompra: "2026-11-05", parcelaCartao: "1" } };
     expect((await consultarFinanceiroEntrada(transacao, "compra", legado)).pagamento.dataCompra).toBe("2026-11-05");
-    expect((await consultarFinanceiroEntrada(transacao, "compra", { ...legado, dadosOriginais: { ...legado.dadosOriginais, cartaoCreditoId: "outro-cartao" } })).bloqueio).toContain("não está registrada");
+    expect((await consultarFinanceiroEntrada(transacao, "compra", { ...legado, dadosOriginais: { ...legado.dadosOriginais, cartaoCreditoId: "outro-cartao" } })).aviso).toContain("não está registrada");
     titulos[0].dataVencimento = new Date("2026-11-21T12:00:00Z");
-    expect((await consultarFinanceiroEntrada(transacao, "compra", legado)).bloqueio).toContain("não correspondem");
+    expect((await consultarFinanceiroEntrada(transacao, "compra", legado)).aviso).toContain("não correspondem");
+  });
+
+  it("normaliza espaços e caixa do rótulo conhecido sem substituir um plano igual", async () => {
+    titulos[0].formaPagamento.nome = "  bOlEtO  ";
+    const dto = await consultarFinanceiroEntrada(transacao, "compra", snapshot);
+    expect(dto.aviso).toBeUndefined();
+    expect((await alterarPagamentoEntrada(transacao, "compra", snapshot, { ...pagamento, revisao: dto.revisao }, autor)).mudou).toBe(false);
+    expect(tx.lancamentoFinanceiro.updateMany).not.toHaveBeenCalled();
+  });
+
+  it.each([null, "Forma antiga desconhecida"])("permite confirmar plano explícito quando a forma antiga é %s sem esconder correção como no-op", async nome => {
+    Object.assign(titulos[0], { formaPagamento: nome === null ? null : { nome }, formaPagamentoId: nome === null ? null : "forma-antiga" });
+    const dto = await consultarFinanceiroEntrada(transacao, "compra", snapshot);
+    expect(dto.bloqueio).toBeUndefined();
+    expect(dto.aviso).toContain("Informe a forma");
+    const resultado = await alterarPagamentoEntrada(transacao, "compra", snapshot, { ...pagamento, revisao: dto.revisao }, autor);
+    expect(resultado.mudou).toBe(true);
+    expect(tx.lancamentoFinanceiro.create).toHaveBeenCalledTimes(1);
+    const evento = vi.mocked(registrarAtividade).mock.calls[0][2];
+    expect(diferencasPermitidas(evento.antes, true)).toEqual({ tipo: "NAO_RECONSTRUIDO", itens: 1, dataVencimento: "2026-11-20", valorTotal: 100, camposAlterados: "pagamento" });
+    expect(diferencasPermitidas(evento.depois, true)).toEqual({ tipo: "BOLETO", itens: 1, dataVencimento: "2026-11-20", valorTotal: 100, camposAlterados: "pagamento" });
+  });
+
+  it("reparcela título com fornecedor nulo e preserva a contraparte registrada", async () => {
+    Object.assign(titulos[0], { fornecedorId: null, contraparteNome: "Contraparte fictícia anterior" });
+    const dto = await consultarFinanceiroEntrada(transacao, "compra", snapshot);
+    expect(dto.bloqueio).toBeUndefined();
+    await alterarPagamentoEntrada(transacao, "compra", snapshot, { ...pagamento, revisao: dto.revisao, parcelas: [{ valor: 60, dataVencimento: "2026-11-20" }, { valor: 40, dataVencimento: "2026-12-20" }] }, autor);
+    for (const [args] of tx.lancamentoFinanceiro.create.mock.calls) expect(args.data).toMatchObject({ fornecedorId: null, contraparteNome: "Contraparte fictícia anterior" });
+  });
+
+  it("permite substituir forma incoerente com cartão quando não há pagamento nem vínculo", async () => {
+    titulos[0].cartaoCreditoId = "cartao-antigo";
+    const dto = await consultarFinanceiroEntrada(transacao, "compra", snapshot);
+    expect(dto.bloqueio).toBeUndefined();
+    expect(dto.aviso).toBeTruthy();
+    await alterarPagamentoEntrada(transacao, "compra", snapshot, { ...pagamento, formaPagamento: "PIX", revisao: dto.revisao }, autor);
+    expect(tx.lancamentoFinanceiro.create).toHaveBeenCalledWith({ data: expect.objectContaining({ cartaoCreditoId: null, formaPagamentoId: "forma-nova" }) });
+  });
+
+  it("permite informar cartão e data novos quando falta metadata antiga e valida cada vencimento no servidor", async () => {
+    titulos[0].formaPagamento.nome = "Cartão de crédito";
+    titulos[0].cartaoCreditoId = "cartao";
+    titulos[0].cartaoCredito = { diaFechamento: 10, diaVencimento: 20 };
+    const dto = await consultarFinanceiroEntrada(transacao, "compra", snapshot);
+    const entrada = { formaPagamento: "CARTAO" as const, cartaoCreditoId: "cartao", dataCompra: "2026-11-05", parcelaCartao: 1, revisao: dto.revisao,
+      parcelas: [{ valor: 50, dataVencimento: "2026-11-20" }, { valor: 50, dataVencimento: "2026-12-20" }] };
+    await expect(alterarPagamentoEntrada(transacao, "compra", snapshot, { ...entrada, parcelas: [{ valor: 50, dataVencimento: "2026-11-21" }, entrada.parcelas[1]] }, autor)).rejects.toThrow("não corresponde à fatura");
+    expect(tx.lancamentoFinanceiro.updateMany).not.toHaveBeenCalled();
+    expect((await alterarPagamentoEntrada(transacao, "compra", snapshot, entrada, autor)).mudou).toBe(true);
+    expect(tx.lancamentoFinanceiro.create).toHaveBeenCalledTimes(2);
+    expect(tx.lancamentoFinanceiro.create.mock.calls.map(([args]) => args.data.dataVencimento)).toEqual([new Date("2026-11-20T12:00:00Z"), new Date("2026-12-20T12:00:00Z")]);
+  });
+
+  it.each(["categoriaId", "dataCompetencia", "fornecedorId", "contraparteNome"] as const)("mantém bloqueio estrutural por %s diferente entre títulos", async campo => {
+    titulos[0].valor = new Prisma.Decimal(50);
+    const segundo = { ...titulo(), id: "segundo", valor: new Prisma.Decimal(50) };
+    Object.assign(segundo, { [campo]: campo === "dataCompetencia" ? new Date("2026-11-14T15:00:00Z") : "outro" });
+    titulos.push(segundo);
+    const dto = await consultarFinanceiroEntrada(transacao, "compra", snapshot);
+    expect(dto.bloqueio).toContain("incompatíveis");
+    await expect(alterarPagamentoEntrada(transacao, "compra", snapshot, { ...pagamento, formaPagamento: "PIX", revisao: dto.revisao }, autor)).rejects.toThrow("incompatíveis");
+    expect(tx.lancamentoFinanceiro.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("ausência de forma não contorna proteção de uma baixa existente", async () => {
+    Object.assign(titulos[0], { formaPagamento: null, formaPagamentoId: null, status: "BAIXADO" });
+    const dto = await consultarFinanceiroEntrada(transacao, "compra", snapshot);
+    expect(dto.aviso).toBeTruthy();
+    expect(dto.bloqueio).toContain("baixa");
+    await expect(alterarPagamentoEntrada(transacao, "compra", snapshot, { ...pagamento, revisao: dto.revisao }, autor)).rejects.toThrow("baixa");
+    expect(tx.lancamentoFinanceiro.updateMany).not.toHaveBeenCalled();
   });
 
   it("não cria o plano novo quando a baixa concorrente ganha o CAS", async () => {
