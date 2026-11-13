@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aplicarPeriodoPadrao, periodoMesAteHoje, completarPeriodo, mesesFechados, periodoUltimosDias, periodoDoAno, periodoDoMes } from "@/lib/financeiro/periodos";
+import { aplicarPeriodoPadrao, periodoMesAteHoje, periodoMesAnterior, completarPeriodo, mesesFechados, periodoUltimosDias, periodoDoAno, periodoDoMes } from "@/lib/financeiro/periodos";
 import { calcularDre } from "@/lib/financeiro/calcularDre";
 import { calcularPlanilhaFluxoCaixa } from "@/lib/financeiro/fluxoCaixa";
 
@@ -42,6 +42,14 @@ it("lista apenas meses já fechados do ano corrente em ordem decrescente", () =>
   expect(meses).toHaveLength(8);
   expect(meses[0]).toEqual({ valor: "2026-08", label: "Agosto de 2026" });
   expect(meses.at(-1)?.valor).toBe("2026-01");
+});
+it.each([
+  ["2026-09-11T15:00:00Z", "2026-08-01", "2026-08-31"],
+  ["2026-01-01T03:00:00Z", "2025-12-01", "2025-12-31"],
+  ["2026-01-01T01:00:00Z", "2025-11-01", "2025-11-30"],
+  ["2024-03-01T03:00:00Z", "2024-02-01", "2024-02-29"],
+])("mês anterior fecha o calendário brasileiro em %s", (instante, de, ate) => {
+  expect(periodoMesAnterior(new Date(instante))).toEqual({ de, ate });
 });
 it("limpar datas cobre todo o histórico e limites parciais continuam respeitados", () => {
   const datas = ["2025-12-31T12:00:00Z", "2026-10-01", null, "inválida"];

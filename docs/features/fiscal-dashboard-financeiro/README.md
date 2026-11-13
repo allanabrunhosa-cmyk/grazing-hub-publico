@@ -1,5 +1,38 @@
 # Fiscal — Visão geral em Financeiro
 
+## Arquivos, períodos e datas — 13/11/2026
+
+A lista oferece acesso aos arquivos pelo painel de detalhe existente. PDF/DANFE,
+XML e evento de cancelamento aparecem conforme a disponibilidade local e as
+permissões da fonte. XML recebido completo usa uma rota privada de leitura;
+resumos SEFAZ não são apresentados como XML completo. Abrir o painel não consulta
+o emissor nem manifesta notas.
+
+Uma autorização sem XML local não comprova a data de emissão ou o valor vNF.
+Ela pode tornar os indicadores incompletos. O painel conserva a contagem das
+notas comprovadas e apresenta as autorizações sem arquivo em aviso separado,
+com recuperação explícita pelo serviço manual existente. O mês da chave serve
+apenas à descoberta desse aviso. Não vira data nem competência fiscal.
+
+A emissão e a consulta manuais recuperam os arquivos após confirmar a autorização.
+Falha de PDF/HTML preserva o XML já validado. Falha de download mantém a nota
+autorizada, informa a pendência e permite repetir a obtenção de documentos,
+sem retransmitir a nota. O dashboard atualiza os valores após ler o XML oficial.
+
+Novas fotografias de NF-e55 recebem DataEmissao e DataEntradaSaida iguais
+antes do hash. A revalidação usa o instante fotografado. A NFC-e65 recebe emissão
+explícita; o modelo não admite dhSaiEnt, conforme o
+[contrato Brasil NFe](https://www.brasilnfe.com.br/api/nf-e-e-nfc-e).
+Documentos autorizados, tentativas incertas e fotografias anteriores permanecem
+intactos. Ausência de data de saída não substitui nem invalida a emissão fiscal.
+
+O filtro padrão oferece Mês completo, com referência editável, e Mês anterior,
+calculado no calendário de Brasília. Abrir PDF/DANFE usa a mesma variante verde
+de Baixar XML. Componentes, cartões e navegação existentes foram preservados.
+
+Validações e capturas desta correção serão registradas junto à PR de publicação.
+Mocks, capturas e testes de banco usam dados fictícios; não homologam a SEFAZ.
+
 Implementação original: `codex/fiscal-dashboard-financeiro`, commit `478b30b2`.
 A publicação autorizada de 11/10/2026 e seus testes permanecem no histórico.
 ## Ajuste de layout — 16/10/2026

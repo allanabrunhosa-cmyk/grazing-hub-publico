@@ -12,6 +12,7 @@ import { validarLayoutRtc, type SnapshotLayoutRtc } from "@/lib/tributacao/layou
 import { exigirTransmissaoBrasilNfeLiberada } from "./brasilnfe/bloqueio-transmissao";
 import { PADRAO_DESCRICAO_PRODUTO_NFE } from "./brasilnfe/texto-xml";
 import { codigoFiscalCorrespondeProduto, referenciasCodigosProdutosFiscaisValidas } from "./codigos-produtos";
+import { datasEmissaoBrasilNfeValidas } from "./brasilnfe/datas-emissao";
 
 const BASE = "https://api.brasilnfe.com.br/services/";
 const LIMITE_RESPOSTA = 20 * 1024 * 1024;
@@ -75,6 +76,8 @@ export function validarSnapshotBrasilNfe(payload: Prisma.JsonValue, c: Pick<Conf
   if (!referenciasCodigosProdutosFiscaisValidas(t)) throw new ErroValidacaoSnapshotBrasilNfe("Código comercial não corresponde à identidade do produto e à linha fiscal fotografada.");
   if (t.emitenteIE !== undefined) inscricaoEstadual(t.emitenteIE);
   if (![55, 65].includes(d.ModeloDocumento as number) || d.TipoAmbiente !== ambiente(c) || d.Finalidade !== 1 || ![0, 1, 2, 3, 4, 5, 9].includes(d.IndicadorPresenca as number) || typeof d.ConsumidorFinal !== "boolean") throw new ErroValidacaoSnapshotBrasilNfe("Modelo, ambiente ou operação fiscal inválida.");
+  if (!datasEmissaoBrasilNfeValidas(d as DocumentoBrasilNfe)) throw new ErroValidacaoSnapshotBrasilNfe("Confira as datas da nota: a saída da NF-e deve ser igual à emissão. NFC-e não recebe data de saída separada.");
+  if (d.DataEmissao !== undefined && t.previa !== undefined && String(d.DataEmissao).slice(0, 10) !== objeto(objeto(t.previa).contexto).data) throw new ErroValidacaoSnapshotBrasilNfe("A data de emissão diverge do cálculo fiscal. Reprepare a nota antes de emitir.");
   texto(d.NaturezaOperacao, 60, undefined, "Natureza da operação");
   const valores = objeto(p.valores);
   const total = dec(d.ValorTotal, 2);

@@ -113,8 +113,14 @@ export class AdaptadorBrasilNfeM1 implements AdaptadorFiscalSaida {
     const Base64Xml = await this.cliente.obterArquivoNotaFiscal({ ChaveNF: a.chave, FileType: 1, TipoDocumentoFiscal: 1 });
     // Valida a identidade do XML antes de buscar/aceitar a representação gráfica.
     const xml = await validarArquivosBrasilNfe({ Base64Xml }, { identidade: i, chave: a.chave, protocolo: a.protocolo });
-    const Base64File = await this.cliente.obterArquivoNotaFiscal({ ChaveNF: a.chave, FileType: 2, TipoDocumentoFiscal: 1 });
-    const impressao = await validarArquivosBrasilNfe({ Base64File }, { identidade: i, chave: a.chave, protocolo: a.protocolo, aceitarHtml: true });
+    let impressao: { pdf?: Uint8Array; html?: string } = {};
+    try {
+      const Base64File = await this.cliente.obterArquivoNotaFiscal({ ChaveNF: a.chave, FileType: 2, TipoDocumentoFiscal: 1 });
+      impressao = await validarArquivosBrasilNfe({ Base64File }, { identidade: i, chave: a.chave, protocolo: a.protocolo, aceitarHtml: true });
+    } catch {
+      // A representação gráfica é independente do XML já conferido. Conservar
+      // o documento fiscal permite baixar o XML e repetir somente a obtenção.
+    }
     let xmlCancelamento: string | undefined;
     if (a.protocoloCancelamento) {
       if (!this.cliente.obterArquivoEvento) throw new ErroAdaptadorBrasilNfe();

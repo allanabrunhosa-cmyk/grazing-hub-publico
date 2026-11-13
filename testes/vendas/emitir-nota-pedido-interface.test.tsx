@@ -14,6 +14,26 @@ const base = { pedidoId: "pedido-sintetico", numeroPedido: 101, versao: 2, confi
 beforeEach(() => { vi.resetAllMocks(); sim.emitir.mockResolvedValue({ ok: true, documento: autorizada, conferirAntesDeRepetir: true }); sim.consultar.mockResolvedValue({ ok: true, documento: autorizada }); sim.documentos.mockResolvedValue({ ok: true, documento: autorizada }); sim.consultarPedido.mockResolvedValue({ ok: true, documento: null, conferirAntesDeRepetir: false }); });
 afterEach(cleanup);
 const clicarEmitir = () => userEvent.click(screen.getByRole("button", { name: /^Emitir NFC?-e$/ }));
+it.each(["PDF", "HTML"] as const)("impressão %s conserva os links e a mesma cor do XML", formatoImpressao => {
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...autorizada, formatoImpressao }] }} />);
+  const xml = screen.getByRole("link", { name: "Baixar XML" });
+  const impressao = screen.getByRole("link", { name: formatoImpressao === "PDF" ? "Abrir PDF" : "Abrir DANFE" });
+  expect(impressao.className).toBe(xml.className);
+  expect(impressao.classList.contains("text-success")).toBe(true);
+  expect(impressao.getAttribute("href")).toBe(`/api/fiscal-saida/${autorizada.id}/arquivo?tipo=${formatoImpressao === "PDF" ? "pdf" : "html"}&visualizar=1`);
+  expect(impressao.getAttribute("target")).toBe("_blank");
+  expect(impressao.getAttribute("rel")).toBe("noopener noreferrer");
+  expect(sim.emitir).not.toHaveBeenCalled();
+});
+it("arquivo pendente mantém sucesso e nova obtenção, sem oferecer emissão duplicada", () => {
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...autorizada, formatoImpressao: null, xmlDisponivel: false, avisoArquivos: "A nota está autorizada. Os arquivos ainda não estão disponíveis; use Obter documentos." }] }} />);
+  expect(screen.getByText("Nota fiscal emitida com sucesso.")).toBeTruthy();
+  expect(screen.getByText(/Os arquivos ainda não estão disponíveis/)).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Obter documentos" })).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Baixar XML" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Emitir/ })).toBeNull();
+  expect(sim.emitir).not.toHaveBeenCalled();
+});
 it("emite NFC-e no único clique, sem abrir outra tela nem confirmação", async () => {
   render(<EmitirNotaPedido {...base} />);
   expect(screen.getByRole("combobox", { name: "Modelo da nota" }).textContent).toContain("NFC-e (65)");
@@ -85,7 +105,7 @@ it("mantém rejeição SEFAZ clara e nunca a apresenta como sucesso", async () =
 it("resposta perdida mantém Emitir habilitado para nova tentativa com consulta no servidor", async () => {
   sim.emitir.mockRejectedValue(new Error("rede")); render(<EmitirNotaPedido {...base} />); await clicarEmitir();
   expect((await screen.findByRole("alert")).textContent).toContain("conexão foi interrompida");
-  expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false);
+  await waitFor(() => expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false));
   expect(screen.getByRole("combobox", { name: "Modelo da nota" })).toBeTruthy();
   await userEvent.click(screen.getByRole("button", { name: "Consultar resultado fiscal" }));
   expect(sim.consultarPedido).toHaveBeenCalledExactlyOnceWith(base.pedidoId);

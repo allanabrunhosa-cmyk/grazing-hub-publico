@@ -3,9 +3,56 @@ import { describe, expect, it } from "vitest";
 import { AgregadorDashboardFiscal } from "@/lib/fiscal-dashboard/agregacao";
 import { centavosFiscais, diaFiscal, extrairEvidenciaFiscal, moedaFiscal, normalizarFiltrosDashboard } from "@/lib/fiscal-dashboard/dominio";
 import { resumirIntegracaoDashboard } from "@/lib/fiscal-dashboard/integracao";
-import { cancelamentoDashboard, cnpjEmitenteDashboard, saidaDashboard, xmlDashboard } from "./fixtures";
+import { cancelamentoDashboard, chaveDashboard, cnpjEmitenteDashboard, saidaDashboard, xmlDashboard } from "./fixtures";
 
 const agregador = () => new AgregadorDashboardFiscal({ mes: "2026-10", ambiente: "PRODUCAO" }, cnpjEmitenteDashboard);
+
+describe("Descoberta local de saídas autorizadas sem arquivos", () => {
+  const incompleta = () => saidaDashboard({ xml: null, modeloDocumento: 55 });
+  it("separa o resgate das métricas, datas, últimos documentos e contagens comprovadas", () => {
+    const a = agregador(); a.adicionarSaida(saidaDashboard({ id: "comprovada" })); a.adicionarSaida(incompleta());
+    const dados = a.concluir();
+    expect(dados.saidasSemArquivos).toEqual([{ id: "saida-sintetica", numero: "123", modelo: 55, pedidoId: "pedido-sintetico", pedidoNumero: "41" }]);
+    expect(dados.metricas.faturamento).toMatchObject({ valor: null, quantidade: null });
+    expect(dados.ultimosDocumentos.map(d => d.id)).toEqual(["comprovada"]);
+    expect(dados.documentosPorTipo?.NF_SAIDA).toBe(1);
+    expect(dados.movimentoDiario[0].saidas).toBeNull();
+    expect(dados.receitaPorDocumento.find(r => r.modelo === 55)).toMatchObject({ valor: null, quantidade: 1 });
+    expect(JSON.stringify(dados.saidasSemArquivos)).not.toContain(incompleta().chaveFiscal!);
+    expect(JSON.stringify(dados.saidasSemArquivos)).not.toContain(incompleta().protocolo!);
+  });
+  it("mês da chave descobre candidata em intervalo fechado, sem inventar dia de competência", () => {
+    const a = new AgregadorDashboardFiscal({ mes: "2026-10", ambiente: "PRODUCAO", de: "2026-10-15", ate: "2026-10-15" }, cnpjEmitenteDashboard);
+    a.adicionarSaida(incompleta());
+    const dados = a.concluir();
+    expect(dados.saidasSemArquivos).toHaveLength(1);
+    expect(dados.ultimosDocumentos).toEqual([]); expect(dados.documentosPorTipo?.NF_SAIDA).toBe(0);
+    expect(dados.metricas.faturamento.valor).toBeNull();
+    expect(dados.movimentoDiario).toEqual([{ dia: "2026-10-15", saidas: null, entradas: "0.00" }]);
+  });
+  it("não oferece resgate de outro mês ou ambiente", () => {
+    const a = agregador();
+    a.adicionarSaida({ ...incompleta(), chaveFiscal: chaveDashboard(55, cnpjEmitenteDashboard, "2609") });
+    a.adicionarSaida({ ...incompleta(), ambiente: "HOMOLOGACAO" });
+    expect(a.concluir().saidasSemArquivos).toEqual([]);
+    expect(a.concluir().metricas.faturamento.valor).toBe("0.00");
+  });
+  it.each([
+    { status: "CANCELADO" }, { status: "PENDENTE_CONFERENCIA" }, { status: "REJEITADO" },
+    { chaveFiscal: "invalida" }, { chaveFiscal: chaveDashboard(55, "11111111111111") },
+    { chaveFiscal: chaveDashboard(55, cnpjEmitenteDashboard, "2613") },
+    { protocolo: null }, { protocolo: "protocolo-sem-formato" }, { numero: "124" }, { numero: null },
+    { modeloDocumento: 65 }, { modeloDocumento: null }, { xml: "<invalido>" },
+  ])("não oferece resgate quando a identidade ou situação não é segura: %j", alteracao => {
+    const a = agregador(); a.adicionarSaida({ ...incompleta(), ...alteracao });
+    expect(a.concluir().saidasSemArquivos).toEqual([]);
+  });
+  it("permite descobrir NFC-e pela sua identidade local própria", () => {
+    const a = agregador(); a.adicionarSaida({ ...incompleta(), modeloDocumento: 65, chaveFiscal: chaveDashboard(65) });
+    expect(a.concluir().saidasSemArquivos?.[0]).toMatchObject({ modelo: 65 });
+    expect(a.concluir().documentosPorTipo?.NF_SAIDA).toBe(0);
+  });
+});
 describe("Métricas fiscais oficiais", () => {
   it("usa vNF autorizado e competência original com offset, sem estimar valores comerciais", () => {
     const a = agregador(); a.adicionarSaida(saidaDashboard());

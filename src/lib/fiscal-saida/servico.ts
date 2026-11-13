@@ -19,10 +19,15 @@ import { conferirCapacidadeEmissaoManualBrasilNfe, possuiCapacidadeEmissaoManual
 import { calcularPreviaPedido, calcularPreviaPedidoComRevisaoConsolidada, type OpcoesOperacaoFiscal } from "@/lib/tributacao/pedidos";
 import { conferirVigenciaSnapshotFiscal, hashFiscal } from "@/lib/tributacao/servico";
 import { exigirTransmissaoBrasilNfeLiberada, MENSAGEM_BLOQUEIO_TRANSMISSAO_BRASILNFE, transmissaoBrasilNfeLiberada } from "./brasilnfe/bloqueio-transmissao";
+import { escolherInstantePreparacaoBrasilNfe, fotografarDatasEmissaoBrasilNfe, instanteEmissaoRecenteBrasilNfe, MENSAGEM_PREVIA_NFCE_EXPIRADA } from "./brasilnfe/datas-emissao";
 export async function conferirCalculoAtualFiscalSaida(tx: Prisma.TransactionClient, d: DocumentoFiscalSaida, opcoes?: { enviar: true }) {
   if ((d.payload as { versao?: unknown })?.versao === 1) return; // Legado imutável; sua porta exige plano aprovado específico.
   const t = (d.payload as { tributacao: { previa: { contexto: { modelo: "55" | "65" } }; documento: { TipoAmbiente: 1 | 2; ConsumidorFinal: boolean; IndicadorPresenca: OpcoesOperacaoFiscal["indicadorPresenca"]; Cliente?: { IndicadorIe: OpcoesOperacaoFiscal["indicadorIe"] } }; pagamentoCartaoNaoIntegrado?: true; revisaoConsolidada?: { tipo: string; versao: number; ambiente: string; aprovacaoInterna: boolean; versoes: { id: string; hash: string }[] } } }).tributacao;
   const revisao = t.revisaoConsolidada;
+  const instanteFotografado = (t.documento as { DataEmissao?: string }).DataEmissao;
+  // Antes do claim, sem reescrever a data. Depois dele a capacidade limita o POST
+  // a120s; com a janela de60s, fica abaixo dos5min do modelo65 (B09-40).
+  if (opcoes?.enviar && d.modeloDocumento === 65 && !d.tentativas && !d.leaseToken && instanteFotografado !== undefined && !instanteEmissaoRecenteBrasilNfe(instanteFotografado)) throw new ErroPedidoVenda(MENSAGEM_PREVIA_NFCE_EXPIRADA);
   if (revisao) {
     // Propostas fotografadas servem exclusivamente ao teste55 autorizado. Isso
     // não ativa versões nem constitui aprovação tributária para produção.
@@ -39,7 +44,8 @@ export async function conferirCalculoAtualFiscalSaida(tx: Prisma.TransactionClie
   } else await conferirVigenciaSnapshotFiscal(tx, d.payload);
   const p = await tx.pedidoVenda.findUniqueOrThrow({ where: { id: d.pedidoId }, include: { itens: { where: { vigente: true }, orderBy: { ordem: "asc" } } } });
   const contexto: OpcoesOperacaoFiscal = { consumidorFinal: t.documento.ConsumidorFinal, indicadorPresenca: t.documento.IndicadorPresenca, indicadorIe: t.documento.Cliente?.IndicadorIe, ambiente: t.documento.TipoAmbiente === 1 ? "PRODUCAO" : "HOMOLOGACAO", ...(t.previa.contexto.modelo === "65" && t.pagamentoCartaoNaoIntegrado === true ? { pagamentoCartaoNaoIntegrado: true } : {}) };
-  const novo = revisao ? await calcularPreviaPedidoComRevisaoConsolidada(tx, p, t.previa.contexto.modelo, contexto, revisao.versoes.map(v => ({ id: v.id, hash: v.hash }))) : await calcularPreviaPedido(tx, p, t.previa.contexto.modelo, contexto);
+  const calculado = revisao ? await calcularPreviaPedidoComRevisaoConsolidada(tx, p, t.previa.contexto.modelo, contexto, revisao.versoes.map(v => ({ id: v.id, hash: v.hash }))) : await calcularPreviaPedido(tx, p, t.previa.contexto.modelo, contexto);
+  const novo = fotografarDatasEmissaoBrasilNfe(calculado, (t.documento as { DataEmissao?: string }).DataEmissao);
   if (hashFiscal(novo) !== hashFiscal((d.payload as { tributacao: unknown }).tributacao)) throw new ErroPedidoVenda("O cálculo fiscal vigente mudou. Reprepare uma nova fotografia antes de enviar.");
 }
 const json = (v: unknown) => JSON.parse(JSON.stringify(v)) as Prisma.InputJsonValue;
@@ -69,8 +75,8 @@ export async function consultarFiscalSaida(pedidoId: string, sessao: SessaoAtual
     await acessoConsulta(tx, sessao);
     const documentos = await tx.documentoFiscalSaida.findMany({ where: { pedidoId }, select: selectResumo, orderBy: { createdAt: "desc" } });
     // Apenas presença/formato no DTO: o conteúdo permanece na rota protegida de download.
-    const arquivos = await tx.$queryRaw<{ id: string; formatoImpressao: "PDF" | "HTML" | null; xmlCancelamentoDisponivel: boolean; cancelamentoSolicitado: boolean }[]>`SELECT d.id, CASE WHEN d.pdf IS NOT NULL THEN 'PDF' WHEN d.html IS NOT NULL THEN 'HTML' ELSE NULL END AS "formatoImpressao", d."xmlCancelamento" IS NOT NULL AS "xmlCancelamentoDisponivel", EXISTS(SELECT 1 FROM "EventoFiscalSaida" e WHERE e."documentoId"=d.id AND e.tipo='CANCELAMENTO_MANUAL_AUTORIZADO') AS "cancelamentoSolicitado" FROM "DocumentoFiscalSaida" d WHERE d."pedidoId"=${pedidoId}`;
-    return documentos.map(d => ({ ...d, formatoImpressao: arquivos.find(a => a.id === d.id)?.formatoImpressao ?? null, xmlCancelamentoDisponivel: arquivos.find(a => a.id === d.id)?.xmlCancelamentoDisponivel ?? false, cancelamentoSolicitado: arquivos.find(a => a.id === d.id)?.cancelamentoSolicitado ?? false }));
+    const arquivos = await tx.$queryRaw<{ id: string; formatoImpressao: "PDF" | "HTML" | null; xmlDisponivel: boolean; xmlCancelamentoDisponivel: boolean; cancelamentoSolicitado: boolean }[]>`SELECT d.id, CASE WHEN d.pdf IS NOT NULL THEN 'PDF' WHEN d.html IS NOT NULL THEN 'HTML' ELSE NULL END AS "formatoImpressao", NULLIF(btrim(d.xml), '') IS NOT NULL AS "xmlDisponivel", d."xmlCancelamento" IS NOT NULL AS "xmlCancelamentoDisponivel", EXISTS(SELECT 1 FROM "EventoFiscalSaida" e WHERE e."documentoId"=d.id AND e.tipo='CANCELAMENTO_MANUAL_AUTORIZADO') AS "cancelamentoSolicitado" FROM "DocumentoFiscalSaida" d WHERE d."pedidoId"=${pedidoId}`;
+    return documentos.map(d => ({ ...d, formatoImpressao: arquivos.find(a => a.id === d.id)?.formatoImpressao ?? null, xmlDisponivel: arquivos.find(a => a.id === d.id)?.xmlDisponivel ?? false, xmlCancelamentoDisponivel: arquivos.find(a => a.id === d.id)?.xmlCancelamentoDisponivel ?? false, cancelamentoSolicitado: arquivos.find(a => a.id === d.id)?.cancelamentoSolicitado ?? false }));
   });
 }
 type OpcoesPreparacaoFiscalSaida = OpcoesOperacaoFiscal & { revisaoConsolidada?: true; versoesRevisao?: { id: string; hash: string }[] };
@@ -88,7 +94,11 @@ export async function prepararFiscalSaida(pedidoId: string, versao: number, sess
     const p = await tx.pedidoVenda.findUniqueOrThrow({ where: { id: pedidoId }, include: { itens: { where: { vigente: true }, orderBy: { ordem: "asc" }, include: { produto: { include: { grupoFiscal: true } } } }, lancamentosFinanceiros: { where: { tipo: "RECEITA", status: { not: "CANCELADO" } }, select: { id: true, valor: true, dataVencimento: true, formaPagamentoId: true } } } });
     if (p.versao !== versao || p.status !== "CONFIRMADO") throw new ErroPedidoVenda("Reabra um pedido confirmado para preparar sua revisão atual.");
     const emitente = await tx.configuracaoLoja.findUnique({ where: { id: "singleton" }, select: { nome: true, cnpj: true, endereco: true } });
-    const tributacao = revisaoConsolidada ? await calcularPreviaPedidoComRevisaoConsolidada(tx, p, modelo, { ...operacao, ambiente }, versoesRevisao) : await calcularPreviaPedido(tx, p, modelo, { ...operacao, ambiente });
+    const calculado = revisaoConsolidada ? await calcularPreviaPedidoComRevisaoConsolidada(tx, p, modelo, { ...operacao, ambiente }, versoesRevisao) : await calcularPreviaPedido(tx, p, modelo, { ...operacao, ambiente });
+    // Rejeição/cancelamento certo pode originar outra identidade. A anterior
+    // conserva seu instante e todas as tentativas, mesmo quando já envelheceu.
+    const reutilizavel = anterior && !["REJEITADO", "CANCELADO"].includes(anterior.status) ? anterior : null;
+    const tributacao = fotografarDatasEmissaoBrasilNfe(calculado, escolherInstantePreparacaoBrasilNfe(reutilizavel));
     const payload = json({ schema: "grazing.fiscal-saida", versao: 2, tributacao, pedido: { id: p.id, numero: p.numero, revisao: p.versao, confirmadoEm: p.confirmadoEm, fuso: p.fusoHorario, canal: p.canalNomeSnapshot }, emitente, comprador: p.compradorSnapshot, cobranca: p.cobrancaSnapshot, destinatario: p.destinatarioSnapshot, endereco: p.enderecoSnapshot, entrega: p.entregaSnapshot, pagamento: p.pagamentoInformadoSnapshot, parcelas: p.lancamentosFinanceiros, valores: { subtotal: p.subtotal, desconto: p.desconto, frete: p.frete, outrosCustos: p.outrosCustos, total: p.total }, itens: p.itens.map(i => ({ id: i.id, produtoId: i.produtoId, revisaoComercial: i.versaoPedido, produto: i.produtoSnapshot, complementos: i.escolhasSnapshot, quantidade: i.quantidade, unidade: i.unidadeSnapshot, preco: i.precoAplicado, acrescimos: i.acrescimos, desconto: i.desconto, total: i.totalLinha, fiscal: { produto: i.produto?.fiscal ?? null, grupo: i.produto?.grupoFiscal?.fiscal ?? null, grupoId: i.produto?.grupoFiscalId ?? null, versaoCadastro: i.produto?.versao ?? null, versaoGrupo: i.produto?.grupoFiscal?.versao ?? null } })), observacoes: p.observacoes });
     if (anterior?.hashPayload === hash(payload) && !["REJEITADO", "CANCELADO"].includes(anterior.status)) return anterior;
     const d = await tx.documentoFiscalSaida.create({ data: { pedidoId, versaoPedido: versao, revisaoFiscal: (ultimaRevisao?.revisaoFiscal ?? 0) + 1, versaoPayload: 2, modeloDocumento: Number(modelo), ambiente, payload, hashPayload: hash(payload), criadoPorId: autor.userId, criadoPorNome: autor.nome, status: obterAdaptadorFiscalSaida() ? "PREPARADO" : "SEM_EMISSOR" } });

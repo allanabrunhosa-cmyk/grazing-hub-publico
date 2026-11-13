@@ -28,7 +28,7 @@ const opcoesPresenca: { valor: IndicadorPresenca; rotulo: string }[] = [
   { valor: 5, rotulo: "Presencial fora do estabelecimento" },
   { valor: 9, rotulo: "Não presencial, outros" },
 ];
-type DocumentoPedido = ResumoFiscalSaida & { modeloDocumento?: number | null; xmlDisponivel?: boolean; cancelamentoPendente?: boolean; cancelamentoSolicitado?: boolean };
+type DocumentoPedido = ResumoFiscalSaida & { modeloDocumento?: number | null; xmlDisponivel?: boolean; cancelamentoPendente?: boolean; cancelamentoSolicitado?: boolean; avisoArquivos?: string };
 export type FiscalDoDetalhePedido = { editar: boolean; documentos: DocumentoPedido[]; origemHub?: string | null };
 const nomesStatus: Record<string, string> = {
   SEM_EMISSOR: "Preparação pendente", PREPARADO: "Preparada", PROCESSANDO: "Em processamento",
@@ -49,6 +49,7 @@ function DadosDocumento({ documento: d, editar, ocupado, consultar, arquivos, ca
     {mostrarIdentificacao && <IdentificacaoDocumento documento={d} />}
     {d.status === "AUTORIZADO" && <p role="status" className="flex items-center gap-2 text-sm font-medium text-success"><CircleCheck aria-hidden className="size-4 shrink-0" />Nota fiscal emitida com sucesso{d.ambiente === "HOMOLOGACAO" ? " em homologação, sem valor fiscal." : "."}</p>}
     {d.status === "CANCELADO" && <p role="status" className="text-sm">Cancelamento da nota fiscal confirmado.</p>}
+    {d.status === "AUTORIZADO" && (d.avisoArquivos || !d.formatoImpressao || d.xmlDisponivel === false) && <p role="status" className="text-sm text-muted-foreground">{d.avisoArquivos ?? (d.xmlDisponivel === false ? "O XML da nota autorizada ainda não está disponível no HUB. Use Obter documentos para baixar os arquivos; não emita outra nota." : "A impressão da nota autorizada ainda não está disponível. Use Obter documentos para tentar novamente.")}</p>}
     {d.numero && <p className="text-sm break-words">Número {d.numero} · Série {d.serie ?? "Não informada"}</p>}
     {d.protocolo && <p className="text-xs break-all">Protocolo: {d.protocolo}</p>}
     {d.chaveFiscal && <p className="text-xs break-all">Chave: {d.chaveFiscal}</p>}
@@ -59,7 +60,7 @@ function DadosDocumento({ documento: d, editar, ocupado, consultar, arquivos, ca
       {editar && (d.tentativas > 0 || d.referenciaProvedor || d.chaveFiscal || d.protocolo || incerto(d)) && <Button type="button" variant="outline" disabled={ocupado} onClick={() => consultar(d.id)}><RefreshCw aria-hidden="true" />Consultar resultado</Button>}
       {autorizado && <>
         {d.xmlDisponivel !== false && <Button variant="entrada-outline" nativeButton={false} role="link" render={<a href={`/api/fiscal-saida/${d.id}/arquivo?tipo=xml`} />}><FileCode2 aria-hidden="true" />Baixar XML</Button>}
-        {d.formatoImpressao && <Button variant="atencao" nativeButton={false} role="link" render={<a href={`/api/fiscal-saida/${d.id}/arquivo?tipo=${d.formatoImpressao === "HTML" ? "html" : "pdf"}&visualizar=1`} target="_blank" rel="noopener noreferrer" />}><FileText aria-hidden="true" />{d.formatoImpressao === "PDF" ? "Abrir PDF" : "Abrir DANFE"}</Button>}
+        {d.formatoImpressao && <Button variant="entrada-outline" nativeButton={false} role="link" render={<a href={`/api/fiscal-saida/${d.id}/arquivo?tipo=${d.formatoImpressao === "HTML" ? "html" : "pdf"}&visualizar=1`} target="_blank" rel="noopener noreferrer" />}><FileText aria-hidden="true" />{d.formatoImpressao === "PDF" ? "Abrir PDF" : "Abrir DANFE"}</Button>}
         {editar && (!d.formatoImpressao || d.xmlDisponivel === false) && <Button type="button" variant="outline" disabled={ocupado} onClick={() => arquivos(d.id)}><FileDown aria-hidden="true" />Obter documentos</Button>}
         {editar && d.status === "AUTORIZADO" && d.provedor === "BRASIL_NFE" && !d.cancelamentoSolicitado && !d.cancelamentoPendente && cancelar && <Button type="button" variant="saida-outline" title="Solicitar cancelamento da nota fiscal" disabled={ocupado || !d.chaveFiscal || !d.protocolo} onClick={() => cancelar(d)}><CircleX aria-hidden="true" />Cancelar NF</Button>}
       </>}

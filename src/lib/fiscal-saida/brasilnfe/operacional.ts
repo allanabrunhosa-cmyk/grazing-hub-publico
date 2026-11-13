@@ -1,5 +1,6 @@
 import "server-only";
 import { codigoFiscalCorrespondeProduto } from "../codigos-produtos";
+import { instanteEmissaoRecenteBrasilNfe, MENSAGEM_PREVIA_NFCE_EXPIRADA } from "./datas-emissao";
 import { presencaAutomaticaPedido } from "@/lib/tributacao/pedidos";
 import { rejeicaoFiscalCorrigivel } from "../rejeicao";
 import { createHash } from "node:crypto";
@@ -15,6 +16,7 @@ import { conferirCalculoAtualFiscalSaida, consultarFiscalSaida, executarFiscalSa
 import { obterAdaptadorFiscalSaida } from "../provedor";
 import { AdaptadorBrasilNfeM1 } from "./adaptador";
 import { conferirFciXmlBrasilNfe } from "./arquivos";
+import { completarArquivosAposAutorizacao } from "./arquivos-autorizados";
 import { conferirTotaisDocumentoXmlBrasilNfe } from "./conferencia-totais-xml";
 import { criarPortaTecnicaBrasilNfe } from "./porta-tecnica";
 import { conferirIdentidadeBrasilNfe, ErroConsultaBrasilNfe } from "./consulta";
@@ -470,6 +472,8 @@ export async function emitirNotaPedidoBrasilNfe(entrada: unknown, sessao: Sessao
   const t = objeto(objeto(original.payload).tributacao), revisao = objeto(t.revisaoConsolidada);
   if (original.hashPayload !== e.hashSnapshot || original.ambiente !== e.ambiente || original.modeloDocumento !== e.modelo || original.tentativas || original.acao || original.leaseToken || !["SEM_EMISSOR", "PREPARADO"].includes(original.status)
     || e.indicadorPresenca !== undefined && objeto(t.documento).IndicadorPresenca !== e.indicadorPresenca) return falhar("Documento, presença, modelo, ambiente ou revisão divergem do resumo confirmado. Atualize; nenhuma aprovação ou transmissão foi realizada.");
+  const instanteOriginal = objeto(t.documento).DataEmissao;
+  if (e.modelo === 65 && instanteOriginal !== undefined && !instanteEmissaoRecenteBrasilNfe(instanteOriginal)) return falhar(MENSAGEM_PREVIA_NFCE_EXPIRADA);
   if (revisao.tipo === "PROPOSTAS_PARA_REVISAO") {
     const confirmacao = e.revisaoConsolidada, selecionadas = (Array.isArray(revisao.versoes) ? revisao.versoes : []).map(v => ({ id: String(objeto(v).id), hash: String(objeto(v).hash) }));
     if (!confirmacao || hashRevisaoConsolidadaGrazing1(selecionadas) !== confirmacao.hash || hashRevisaoConsolidadaGrazing1(confirmacao.versoes) !== confirmacao.hash || original.hashPayload !== e.hashSnapshot) return falhar("Revise e confirme os parâmetros consolidados e as versões desta fotografia.");
@@ -505,6 +509,8 @@ export async function emitirNotaPedidoBrasilNfe(entrada: unknown, sessao: Sessao
     if (d.acao || d.tentativas || d.leaseToken || d.chaveFiscal || !["SEM_EMISSOR", "PREPARADO"].includes(d.status) || d.hashPayload !== e.hashSnapshot || d.pedido.origem !== "INTERNO" || d.pedido.referenciaOrigem
       || await acompanhamentoDoPedido(tx, d.pedidoId) || await tx.eventoFiscalSaida.count({ where: { documentoId: d.id, tipo: { notIn: ["PREPARADO", "EMISSAO_MANUAL_REVISAO_HOMOLOGACAO"] } } })
       || await tx.documentoFiscalSaida.count({ where: { pedidoId: d.pedidoId, id: { not: d.id }, AND: [whereAmbienteConflitanteFiscalSaida(e.ambiente, e.modelo), { OR: [{ status: { in: ["AUTORIZADO", "DENEGADO", "PROCESSANDO", "INCERTO", "PENDENTE_CONFERENCIA"] } }, { referenciaProvedor: { not: null }, status: { notIn: ["REJEITADO", "CANCELADO"] } }, { acao: { not: null } }] }] } })) return falhar("Já existe resultado, tentativa ou documento externo desta venda neste ambiente. Conferir o histórico; emissão duplicada bloqueada.");
+    const instanteConfirmado = objeto(objeto(objeto(d.payload).tributacao).documento).DataEmissao;
+    if (e.modelo === 65 && instanteConfirmado !== undefined && !instanteEmissaoRecenteBrasilNfe(instanteConfirmado)) return falhar(MENSAGEM_PREVIA_NFCE_EXPIRADA);
     await tx.documentoFiscalSaida.update({ where: { id: d.id }, data: { ambiente: e.ambiente, provedor: "BRASIL_NFE" } });
     const autorizacao = await tx.eventoFiscalSaida.create({ data: { documentoId: d.id, chave: `emissao-manual-autorizada:${d.id}`, tipo: "EMISSAO_MANUAL_AUTORIZADA", dados: json({ ...e, usuarioId: sessao.userId, habilitacaoId: h!.id, versaoConfiguracao: contexto.versao, emitenteHash: contexto.emitenteHash, planoId: plano.planoId, parametrosHash: plano.evidencia.parametrosHash, sequenciaConferida, emissorPerfil: texto(objeto(objeto(d.payload).tributacao).perfilEmissor, 30), trocaGlobalEmissor: false }) } });
     return autorizacao.id;
@@ -539,7 +545,7 @@ export async function emitirNotaPedidoBrasilNfe(entrada: unknown, sessao: Sessao
       // único POST começa dentro delas, depois de conferir novamente a revisão.
       return acaoHTTP();
     }, { timeout: 20_000, maxWait: 5_000 }));
-  return resultadoPedido(e.documentoId, sessao);
+  return completarArquivosAposAutorizacao(a, await resultadoPedido(e.documentoId, sessao), sessao);
 }
 async function resultadoPedido(id: string, sessao: SessaoAtual) {
   const d = await prisma.$transaction(async tx => { await conferirAcesso(tx, sessao, ["consultar"]); return tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id }, select: { pedidoId: true } }); });
@@ -547,9 +553,12 @@ async function resultadoPedido(id: string, sessao: SessaoAtual) {
 }
 export async function consultarEmissaoPedidoBrasilNfe(id: string, sessao: SessaoAtual) {
   const a = await obterAdaptadorFiscalSaida({ sessao, documentoId: identidadeRegraBrasilNfe(id) }); if (!a) return falhar("Emissor ou configuração original não habilitados. Resultado preservado para conferência.");
-  await executarFiscalSaidaManual(a, id, "CONSULTAR", "Consulta exclusiva do documento desta venda, sem reenvio.", sessao); return resultadoPedido(id, sessao);
+  await executarFiscalSaidaManual(a, id, "CONSULTAR", "Consulta exclusiva do documento desta venda, sem reenvio.", sessao);
+  return completarArquivosAposAutorizacao(a, await resultadoPedido(id, sessao), sessao);
 }
 export async function obterDocumentosEmissaoPedidoBrasilNfe(id: string, sessao: SessaoAtual) {
   const a = await obterAdaptadorFiscalSaida({ sessao, documentoId: identidadeRegraBrasilNfe(id) }); if (!a) return falhar("Emissor ou configuração original não habilitados.");
+  const documento = await resultadoPedido(id, sessao);
+  if (documento.status === "AUTORIZADO") return completarArquivosAposAutorizacao(a, documento, sessao);
   await obterArquivosFiscalSaidaManual(a, id, sessao); return resultadoPedido(id, sessao);
 }

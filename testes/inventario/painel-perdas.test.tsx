@@ -36,7 +36,7 @@ it("oferece os atalhos de período do Manifesto e não expõe exclusões a usuá
   expect(screen.getByRole("img", { name: /sem valores positivos/ })).toBeTruthy();
   await userEvent.click(screen.getByRole("combobox", { name: "Filtro" }));
   expect(await screen.findByRole("option", { name: "Últimos 30 dias" })).toBeTruthy();
-  expect(screen.getByRole("option", { name: "Mês fechado" })).toBeTruthy();
+  expect(screen.getByRole("option", { name: "Mês anterior" })).toBeTruthy();
   expect(screen.getByRole("option", { name: "Ano completo" })).toBeTruthy();
 });
 

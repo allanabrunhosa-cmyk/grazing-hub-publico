@@ -31,7 +31,7 @@ async function lerSaidas(agregador: AgregadorDashboardFiscal) {
     // Competência na fonte, ampliada somente para lacunas e pendências.
     // O parser confirma a data original do XML com seu offset e a identidade fiscal.
     const pagina = await prisma.$queryRaw<SaidaParaDashboard[]>(Prisma.sql`
-      SELECT d.id, d.ambiente, d.status, d."chaveFiscal", d.protocolo, d.numero, d.xml,
+      SELECT d.id, d.ambiente, d.status, d."chaveFiscal", d.protocolo, d.numero, d.xml, d."modeloDocumento",
         d."pedidoId", p.numero AS "pedidoNumero"
       FROM "DocumentoFiscalSaida" d
       JOIN "PedidoVenda" p ON p.id = d."pedidoId"
@@ -158,12 +158,12 @@ export async function obterDashboardFiscal(parametros: Record<string, string | s
   const sessao = await exigirPermissao("financeiro.fiscal.painel");
   const filtros: FiltrosDashboardFiscal = normalizarFiltrosDashboard(parametros, agora);
   const recursoIntegracaoDisponivel = SECOES.some(secao => secao.id === "configuracoes.brasilnfe" && secao.rota === "/configuracoes/integracoes/brasilnfe");
-  const [loja, leituraConfiguracao, certificado, acessoFiscal, acessoNotas, acessoConfiguracao, acessoPedidos] = await Promise.all([
+  const [loja, leituraConfiguracao, certificado, acessoFiscal, acessoNotas, acessoConfiguracao, acessoPedidos, acessoEdicaoFiscal] = await Promise.all([
     prisma.configuracaoLoja.findUnique({ where: { id: "singleton" }, select: { id: true, nome: true, cnpj: true, enderecoEstruturado: true } }),
     lerConfiguracaoOpcionalDashboard(),
     // Somente validade extraída do certificado; sem arquivo ou senha.
     prisma.certificadoDigital.findUnique({ where: { id: "singleton" }, select: { validoAte: true } }).catch(() => null),
-    podeAcessar("vendas.fiscal"), podeAcessar("notas"), recursoIntegracaoDisponivel ? podeAcessar("configuracoes.brasilnfe") : false, podeAcessar("vendas.pedidos"),
+    podeAcessar("vendas.fiscal"), podeAcessar("notas"), recursoIntegracaoDisponivel ? podeAcessar("configuracoes.brasilnfe") : false, podeAcessar("vendas.pedidos"), podeAcessar("vendas.fiscal", "editar"),
   ]);
   const configuracao = leituraConfiguracao.configuracao;
   const cnpj = loja?.cnpj?.replace(/\D/g, "") ?? null;
@@ -174,6 +174,7 @@ export async function obterDashboardFiscal(parametros: Record<string, string | s
   if (leituras[1].status === "rejected") agregador.indisponibilizarEntradas("Não foi possível ler as notas recebidas e o diário SEFAZ.");
   if (leituras[2].status === "rejected") agregador.indisponibilizarEntradas("Não foi possível ler as notas fiscais de serviço recebidas.");
   const agregados = agregador.concluir();
+  if (!acessoFiscal || !acessoPedidos) agregados.saidasSemArquivos = [];
   const acessoServicos = await podeAcessar("financeiro.nfse");
   for (const documento of agregados.ultimosDocumentos) {
     const recurso = recursoDocumentoDashboard(tipoDocumentoDashboard(documento));
@@ -194,7 +195,7 @@ export async function obterDashboardFiscal(parametros: Record<string, string | s
   if (!integracao.emissaoManual?.nfce) agregados.pendencias.push({ codigo: "NFCE_MANUAL_BLOQUEADA", titulo: "NFC-e manual não habilitada", descricao: "O modelo 65 exige sua própria homologação e habilitação neste ambiente. A liberação da NF-e não libera NFC-e.", quantidade: null, href: links.configuracao });
   for (const pendencia of agregados.pendencias) if (pendencia.codigo.startsWith("ENTRADAS_")) pendencia.href = links.notasRecebidas;
   const regimeFiscal = await obterRegimeFiscalEmpresaBrasilNfe(undefined, sessao);
-  return { filtros, regimeFiscal, emitente: { nome: loja?.nome ?? null, cnpj: loja?.cnpj ?? null }, ...agregados, integracao, links,
+  return { filtros, regimeFiscal, emitente: { nome: loja?.nome ?? null, cnpj: loja?.cnpj ?? null }, ...agregados, recuperacaoArquivosSaidaPermitida: acessoFiscal && acessoPedidos && acessoEdicaoFiscal, integracao, links,
     avisos: ["Saídas: documentos locais do HUB com XML autorizado, total vNF e data de emissão fiscal. Canceladas ficam fora do faturamento.",
       "Despesas: NF-e/NFC-e recebidas, deduplicadas por chave, e NFS-e do tomador nas fontes existentes. Usa a data de emissão e o valor fiscal do serviço; canceladas ficam fora da soma. Não representa pagamento financeiro.",
       "NFS-e sem comprovação de ambiente, XML ou valor tornam as despesas indisponíveis. A distribuição nacional automática existente comprova produção. Arquivos manuais exigem ambiente explícito.",
