@@ -122,3 +122,45 @@ Branch codex/estoque-historico-filtros-20261012, base ddfc9d2d.
 - [ ] Build, PR/merge/deploy e smoke somente leitura; evidências finais na PR.
 
 Ajuste de consulta e interface. Sem migration ou alteração das regras de escrita/saldo.
+
+## Pagamento e parcelamento — 13/11/2026
+
+- [x] Compartilhar o editor de pagamento entre inclusão e correção.
+- [x] Permitir de 1 a 36 parcelas em Boleto, Pix e Cartão de crédito.
+- [x] Consultar títulos atuais e conferir revisão e permissão ao alterar o plano.
+- [x] Preservar títulos anteriores, histórico, total da compra e ledger físico.
+- [x] Validar o índice de origem financeira no PostgreSQL sintético.
+- [x] Publicar a PR #19 e conferir serviço, banco e telas em produção.
+
+O componente `src/components/inventario/pagamento-entrada-avulsa.tsx` usa os
+controles existentes. `entrada-avulsa-financeiro.ts` lê os títulos atuais e
+cancela os pendentes substituídos antes de criar o plano novo. A auditoria
+usa o pagamento efetivo mesmo quando o cliente omite os campos legados.
+
+Prisma validate/generate, lint, design e tipos passaram. A integração sintética
+aprovou 34 testes, incluindo concorrência com baixa, autorização e rollback.
+A regressão aprovou 1.222 testes e ignorou 257. Um arquivo falhou na carga
+antes de receber o mock do módulo servidor. A repetição dos quatro arquivos
+focados aprovou 32 testes. Após a correção da auditoria, os 24 testes de serviço
+e ação e os 34 de integração passaram novamente.
+
+Os consumidores foram conferidos em 17 testes, com repetição isolada de um
+timeout. A prévia aprovou 48 cenários e quatro recapturas finais. As 120
+auditorias terminaram sem apontamentos. Referências permanecem Em revisão.
+O build Node 22 e as três verificações passaram.
+[CI da revisão final](https://github.com/allanabrunhosa-cmyk/grazing-hub-publico/actions/runs/43470031928)
+
+O backup privado atualizado passou na leitura integral. O plano confirmou só
+`20261113120000_entrada_avulsa_parcelas`. O executor aplicou a migration antes
+do deploy. A releitura e o Prisma confirmaram zero pendências.
+
+Produção recebeu `fe2ef8acbe8441ee6ec5961ce74420148063d62d`. A nova tarefa
+ficou estável por 128 segundos, sem reinícios, com a configuração fiscal
+preservada. HTTPS e bloqueio sem sessão foram conferidos na inclusão, no
+histórico e no Fluxo de Caixa. A interface autenticada mostrou o parcelamento
+na inclusão e os campos habilitados na edição. As telas foram fechadas sem
+salvar uma entrada real. [PR #19](https://github.com/allanabrunhosa-cmyk/grazing-hub-publico/pull/19)
+
+O banco sintético e a prévia foram encerrados. Cópia de trabalho, caches,
+backups e evidências foram preservados. A cópia pública está fora da lista
+permitida de manutenção automática; essa lista não foi ampliada.
