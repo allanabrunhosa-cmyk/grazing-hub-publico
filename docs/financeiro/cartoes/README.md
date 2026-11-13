@@ -15,9 +15,14 @@
    Outros PDFs precisam ser pesquisáveis; campos ausentes exigem preenchimento. Sem OCR.
 3. Confira a prévia e as linhas não reconhecidas. Confirmar só importa os itens: não paga
    nem cria despesas. Arquivo repetido abre a mesma fatura; reprocessar preserva vínculos.
-4. Primeiro selecione a saída do extrato na conta do cartão. A escolha persiste na fatura,
+4. Antes de finalizar, selecione a saída do extrato na conta do cartão. Os itens podem
+   ser classificados ou vinculados antes dessa escolha. A escolha persiste na fatura,
    com versão e auditoria, sem reservar a transação, criar lançamento ou dar baixa.
-5. Classifique os itens ou vincule lançamentos existentes. Ao abrir a revisão, as sugestões
+5. Classifique os itens ou vincule lançamentos existentes. Se a despesa ainda não existe,
+   use **Criar despesa** no item, confira descrição e datas e escolha a categoria.
+   **Criar e conciliar** cria o lançamento e o vincula ao item, sem registrar outro
+   pagamento bancário. Correspondências fortes continuam exigindo justificativa.
+   Ao abrir a revisão, as sugestões
    são consultadas automaticamente; nome, valor e vencimento da fatura orientam a correspondência.
    Responsável e centro de custo não são opções do formulário: valores históricos permanecem
    e a categoria continua fornecendo o centro padrão. Após revisar todos os itens, use

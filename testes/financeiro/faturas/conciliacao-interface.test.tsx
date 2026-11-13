@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {cleanup,fireEvent,render,screen,waitFor,within} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import {afterEach,expect,it,vi} from "vitest";
 import {FaturaView} from "@/app/(protegido)/financeiro/cartoes/fatura-view";
 import type {DadosFatura} from "@/lib/financeiro/faturas/consultas";
@@ -12,6 +13,81 @@ vi.mock("@/app/(protegido)/financeiro/cartoes/actions",()=>({concluirDespesasFat
 vi.mock("@/app/(protegido)/financeiro/cartoes/importar",()=>({ImportarFatura:()=>null}));
 vi.mock("@/app/(protegido)/fornecedores/fornecedor-dialog",()=>({FornecedorDialog:({aoSalvar,trigger}:{aoSalvar:(f:{id:string;nome:string})=>void;trigger:React.ReactNode})=><div onClick={()=>aoSalvar({id:"novo",nome:"Fornecedor criado"})}>{trigger}</div>}));
 afterEach(()=>{cleanup();vi.clearAllMocks();});
+function montarCriacao(dados:DadosFatura={...faturaVisual,selecionada:null},acesso:Parameters<typeof ProvedorAcesso>[0]["acesso"]={admin:true,permissoes:{},excecoes:{}}){
+ render(<ProvedorAcesso acesso={acesso}><FaturaView dados={dados} cadastros={cadastros} filtros={{}}/></ProvedorAcesso>);
+}
+async function preencherNovaDespesa(){
+ fireEvent.click(screen.getByRole("button",{name:"Criar despesa"}));
+ const dialog=screen.getByRole("dialog");
+ const usuario=userEvent.setup();
+ await usuario.click(within(dialog).getByRole("combobox",{name:"Categoria financeira"}));
+ await usuario.click(await screen.findByRole("option",{name:"Software e sistemas"}));
+ return dialog;
+}
+it("cria e categoriza uma despesa sem selecionar pagamento ou possuir lancamento anterior",async()=>{
+ a.correspondencias.mockResolvedValueOnce({candidatos:[],estornos:[],sugestao:null} as never);
+ montarCriacao();
+ const dialog=await preencherNovaDespesa();
+ expect(within(dialog).getByRole("heading",{name:"Criar e conciliar lançamento"})).toBeTruthy();
+ expect(within(dialog).getByText(/Nova despesa/).textContent).toMatch(/100,00/);
+ expect(within(dialog).getByRole("textbox",{name:"Descrição"})).toHaveProperty("value","GOOGLE*GSUITE");
+ expect(within(dialog).queryByRole("textbox",{name:/Nome do lançamento/})).toBeNull();
+ expect(within(dialog).getByLabelText("Competência")).toHaveProperty("value","2026-09-01");
+ expect(within(dialog).getByLabelText("Vencimento")).toHaveProperty("value","2026-09-20");
+ fireEvent.change(within(dialog).getByRole("textbox",{name:"Descrição"}),{target:{value:"Assinatura de software"}});
+ fireEvent.change(within(dialog).getByLabelText("Competência"),{target:{value:"2026-08-31"}});
+ fireEvent.change(within(dialog).getByLabelText("Vencimento"),{target:{value:"2026-09-25"}});
+ fireEvent.change(within(dialog).getByRole("textbox",{name:"Observações"}),{target:{value:"Compra identificada na fatura"}});
+ fireEvent.click(within(dialog).getByRole("button",{name:"Criar e conciliar"}));
+ await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{
+  criar:true,novo:{categoriaId:"cat",fornecedorId:null,centroCustoId:null,responsavelId:null,observacoes:"Compra identificada na fatura",descricao:"Assinatura de software",dataCompetencia:"2026-08-31",dataVencimento:"2026-09-25"},motivoDuplicidade:"",
+ }));
+ await waitFor(()=>expect(screen.queryByRole("dialog")).toBeNull());
+ expect(a.pagar).not.toHaveBeenCalled();expect(navegacao.refresh).toHaveBeenCalledOnce();
+});
+it("cancelar criacao preserva o item e nao cria despesa ou pagamento",async()=>{
+ montarCriacao();await preencherNovaDespesa();
+ fireEvent.click(within(screen.getByRole("dialog")).getByRole("button",{name:"Cancelar"}));
+ await waitFor(()=>expect(screen.queryByRole("dialog")).toBeNull());
+ expect(a.vincular).not.toHaveBeenCalled();expect(a.pagar).not.toHaveBeenCalled();expect(navegacao.refresh).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole("button",{name:"Classificar despesa"}));
+ expect(screen.getByRole("heading",{name:"Classificar 1 item(ns)"})).toBeTruthy();
+ expect(screen.queryByRole("button",{name:"Criar e conciliar"})).toBeNull();
+});
+it("mantem formulario e dados quando servidor rejeita a criacao por duplicidade",async()=>{
+ a.vincular.mockResolvedValueOnce({erro:"Existe uma despesa correspondente. Confira e justifique."} as never);
+ montarCriacao();const dialog=await preencherNovaDespesa();
+ fireEvent.change(within(dialog).getByRole("textbox",{name:"Descrição"}),{target:{value:"Compra distinta"}});
+ fireEvent.click(within(dialog).getByRole("button",{name:"Criar e conciliar"}));
+ await waitFor(()=>expect(within(dialog).getByRole("alert").textContent).toContain("Existe uma despesa correspondente"));
+ expect(screen.getByRole("dialog")).toBe(dialog);
+ expect(within(dialog).getByRole("textbox",{name:"Descrição"})).toHaveProperty("value","Compra distinta");
+ expect(a.pagar).not.toHaveBeenCalled();expect(navegacao.refresh).not.toHaveBeenCalled();
+ fireEvent.change(within(dialog).getByRole("textbox",{name:"Justificativa se houver correspondência existente"}),{target:{value:"Compra distinta comprovada"}});
+ fireEvent.click(within(dialog).getByRole("button",{name:"Criar e conciliar"}));
+ await waitFor(()=>expect(a.vincular).toHaveBeenLastCalledWith("ficticia",1,"i0",expect.objectContaining({motivoDuplicidade:"Compra distinta comprovada"})));
+});
+it.each(["editar-fatura","visualizar-movimentacoes","adicionar-movimentacoes"])("criacao respeita ausencia de permissao %s",(ausente)=>{
+ montarCriacao(undefined,{admin:false,permissoes:{"financeiro.faturas":ausente==="editar-fatura"?["visualizar"]:["visualizar","editar"],"financeiro.movimentacoes":ausente==="visualizar-movimentacoes"?["adicionar"]:ausente==="adicionar-movimentacoes"?["visualizar"]:["visualizar","adicionar"]},excecoes:{}});
+ const criar=screen.queryByRole("button",{name:"Criar despesa"});
+ if(criar){expect(criar).toHaveProperty("disabled",true);fireEvent.click(criar);}
+ expect(screen.queryByRole("dialog")).toBeNull();expect(a.vincular).not.toHaveBeenCalled();
+});
+it.each(["vinculado","ignorado","compensado","cancelado"])("nao cria despesa para item %s",(estado)=>{
+ const dados={...faturaVisual,selecionada:null,cancelada:estado==="cancelado",itens:[{...faturaVisual.itens[0],ignorado:estado==="ignorado",compensadoComId:estado==="compensado"?"outro":null,lancamentos:estado==="vinculado"?[{id:"existente",descricao:"Despesa existente",valor:10000}]:[]}]} as DadosFatura;
+ montarCriacao(dados);const criar=screen.queryByRole("button",{name:"Criar despesa"});
+ if(criar){expect(criar).toHaveProperty("disabled",true);fireEvent.click(criar);}
+ expect(screen.queryByRole("dialog")).toBeNull();expect(a.vincular).not.toHaveBeenCalled();
+});
+it("criacao de credito preserva sinal e nome revisado do item",()=>{
+ montarCriacao({...faturaVisual,selecionada:null,itens:[{...faturaVisual.itens[0],valor:-10000,descricaoLancamento:"Reembolso revisado",tipo:"CREDITO"}]} as DadosFatura);
+ fireEvent.click(screen.getByRole("button",{name:"Criar receita ou estorno"}));
+ const dialog=screen.getByRole("dialog");
+ expect(within(dialog).getByRole("textbox",{name:"Descrição"})).toHaveProperty("value","Reembolso revisado");
+ expect(within(dialog).getByText(/Crédito \/ reembolso/).textContent).toMatch(/-.*100,00/);
+ expect(within(dialog).getByRole("button",{name:"Criar e conciliar"})).toHaveProperty("disabled",true);
+ expect(a.pagar).not.toHaveBeenCalled();
+});
 function montar(admin=true){render(<ProvedorAcesso acesso={{admin,permissoes:{"financeiro.faturas":["visualizar","editar"],"financeiro.movimentacoes":["visualizar","adicionar"]},excecoes:{}}}><FaturaView dados={faturaVisual} cadastros={cadastros} filtros={{}}/></ProvedorAcesso>);}
 it("vincula despesa do HUB e envia versão, sem pagar no extrato",async()=>{montar();await screen.findByText("Despesa já lançada");fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa já lançada"}));fireEvent.click(screen.getByRole("button",{name:"Vincular lançamentos selecionados"}));await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{lancamentos:[{id:"l",versao:"v"}]}));});
 it("mostra todas as movimentações no painel principal em ordem cronológica",()=>{montar();const fatura=screen.getByRole("region",{name:"Movimentações da fatura"});expect(within(fatura).getAllByRole("button",{name:/Conferir /}).map(b=>b.getAttribute("aria-label"))).toEqual(["Conferir GOOGLE*GSUITE","Conferir COMPRA DE EMBALAGENS"]);expect(fatura.textContent).toContain("01/09/2026");expect(fatura.textContent).toContain("02/09/2026");expect(screen.queryByRole("button",{name:"Próxima"})).toBeNull();expect(screen.getByRole("region",{name:"Lançamentos do HUB"})).toBeTruthy();});
@@ -29,7 +105,7 @@ it("busca itens sem mover a página para o início",()=>{montar();fireEvent.chan
 it("classificação oferece fornecedor e não exibe responsável ou centro",()=>{montar();fireEvent.click(screen.getByRole("button",{name:"Classificar despesa"}));expect(screen.queryByRole("combobox",{name:"Responsável"})).toBeNull();expect(screen.queryByRole("combobox",{name:"Centro de custo"})).toBeNull();expect(screen.getByRole("textbox",{name:/Nome do lançamento/})).toHaveProperty("value","GOOGLE*GSUITE");fireEvent.click(screen.getByRole("button",{name:"Cadastrar fornecedor ou beneficiário"}));expect(screen.getByRole("combobox",{name:"Fornecedor ou beneficiário"})).toHaveProperty("value","Fornecedor criado");});
 it("não oferece cadastro de fornecedor sem permissão",()=>{montar(false);fireEvent.click(screen.getByRole("button",{name:"Classificar despesa"}));expect(screen.queryByRole("button",{name:"Cadastrar fornecedor ou beneficiário"})).toBeNull();});
 
-it("primeiro passo salva a saída sem finalizar e bloqueia classificação antes da escolha",async()=>{render(<ProvedorAcesso acesso={{admin:true,permissoes:{},excecoes:{}}}><FaturaView dados={{...faturaVisual,selecionada:null}} cadastros={cadastros} filtros={{}}/></ProvedorAcesso>);expect(screen.getByRole("button",{name:"Classificar despesa"})).toHaveProperty("disabled",true);expect(screen.getByRole("button",{name:"Criar despesas e finalizar"})).toHaveProperty("disabled",true);fireEvent.click(screen.getByRole("button",{name:"Selecionar saída"}));fireEvent.click(screen.getByRole("button",{name:"Confirmar"}));await waitFor(()=>expect(a.pagar).toHaveBeenCalledWith("ficticia",1,"b","SELECIONAR"));});
+it("primeiro passo salva a saída sem finalizar e permite classificar antes da escolha",async()=>{render(<ProvedorAcesso acesso={{admin:true,permissoes:{},excecoes:{}}}><FaturaView dados={{...faturaVisual,selecionada:null}} cadastros={cadastros} filtros={{}}/></ProvedorAcesso>);expect(screen.getByRole("button",{name:"Classificar despesa"})).toHaveProperty("disabled",false);expect(screen.getByRole("button",{name:"Criar despesas e finalizar"})).toHaveProperty("disabled",true);fireEvent.click(screen.getByRole("button",{name:"Selecionar saída"}));fireEvent.click(screen.getByRole("button",{name:"Confirmar"}));await waitFor(()=>expect(a.pagar).toHaveBeenCalledWith("ficticia",1,"b","SELECIONAR"));});
 it("finalização só é liberada com todos os itens classificados",async()=>{render(<ProvedorAcesso acesso={{admin:true,permissoes:{},excecoes:{}}}><FaturaView dados={{...faturaVisual,porClassificar:0}} cadastros={cadastros} filtros={{}}/></ProvedorAcesso>);fireEvent.click(screen.getByRole("button",{name:"Criar despesas e finalizar"}));fireEvent.click(screen.getByRole("button",{name:"Confirmar"}));await waitFor(()=>expect(a.pagar).toHaveBeenCalledWith("ficticia",1,"b","FINALIZAR"));});
 it("aponta a linha com categoria excluída, bloqueia a baixa e abre sua reclassificação",()=>{
  const dados={...faturaVisual,porClassificar:0,pendenciasCadastro:[{id:"i0",linha:2,descricao:"GOOGLE*GSUITE",motivos:["Categoria financeira excluída ou inativa"]}],itens:faturaVisual.itens.map((i,indice)=>indice===0?{...i,categoriaId:"excluida",categoria:"Categoria excluída",estado:"CLASSIFICADO"}:i)} as typeof faturaVisual;
