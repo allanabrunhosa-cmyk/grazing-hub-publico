@@ -135,10 +135,33 @@ Branch `codex/entrada-avulsa-corrigir-pagamento-legado-20261113`, base `fe2ef8ac
   os vencimentos antes de cancelar os títulos antigos.
 - [x] Consumidor: 9 testes. Serviço financeiro: 27 testes, incluindo o filtro real
   da auditoria. Lint focado aprovado.
-- [ ] Integração PostgreSQL, regressão do domínio, imagens, typecheck/design e compilação.
+- [x] PostgreSQL isolado: 38 cenários aprovados. Após ajustar o tipo da fixture,
+  os quatro casos novos foram repetidos e aprovados. Nenhuma operação real de teste.
+- [x] Regressão do domínio e consumidores: 177 aprovados e 82 opt-ins ignorados.
+  A suíte de integração acima foi ativada separadamente. Uma simulação de clique
+  do cartão no portal jsdom foi corrigida; a execução final passou integralmente.
+- [x] Matriz visual focada: 24 cenários em 12 contextos, 60 capturas/auditorias,
+  sem problemas, erros de página ou acesso externo. Capturas inspecionadas;
+  referências consultivas continuam Em revisão humana.
+- [x] Lint focado, lint:design e typecheck aprovados. Os três jobs do CI
+  [43478258678](https://github.com/allanabrunhosa-cmyk/grazing-hub-publico/actions/runs/43478258678)
+  passaram, incluindo a compilação pública Node 22. Schema, migrations, executor
+  de banco e Dockerfile não receberam alteração nesta correção.
 - [x] Backup privado verificado por catálogo, leitura integral e SHA-256. Imagem
   anterior preservada. Conferência somente leitura: nenhuma migration pendente.
-- [ ] PR, integração, publicação e smoke autenticado sem gravar operações reais.
+- [x] [PR #20](https://github.com/allanabrunhosa-cmyk/grazing-hub-publico/pull/20)
+  integrada em `ba8f6bfc082c981a460f854f0b09dac558d777a7`.
+  Sua árvore contém exatamente a candidata `70ae3080a960a0d1d496387d0ef071ea0d6668ca`.
+- [x] Publicação estável: contêiner `533ece403fa9`, 125 segundos sem reinícios.
+  Configuração privada e fiscal preservadas. Plano somente leitura e Prisma
+  confirmaram zero migrations pendentes. HTTPS válido; sem sessão, as rotas de
+  entrada/histórico/cartão redirecionam ao login.
+- [x] Smoke autenticado na entrada afetada: forma e quantidade habilitadas,
+  rascunho de uma para duas parcelas e cartão/data com dois vencimentos automáticos.
+  Rascunho descartado; entrada original confirmada após recarregar. Nenhuma
+  operação financeira ou de estoque real foi gravada para validar.
+- [x] PostgreSQL sintético e prévia Vite desta tarefa encerrados. Cópia, caches,
+  evidências ignoradas e backups preservados; sem ampliar a lista de limpeza.
 
-Sem migration nova. Evidência de produção será registrada após a publicação,
-sem disparar outro deploy apenas documental.
+Sem migration nova. Evidência pós-publicação preservada na descrição da PR e
+na branch de trabalho, sem disparar outro deploy apenas documental.
