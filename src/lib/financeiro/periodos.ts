@@ -47,6 +47,14 @@ export function periodoMesAteHoje(hoje = new Date()): { de: string; ate: string 
   return { de: mes + "-01", ate: mes + "-" + valor("day") };
 }
 
+// Último mês civil completo em Brasília, inclusive na virada do ano.
+export function periodoMesAnterior(hoje = new Date()): { de: string; ate: string } | null {
+  const [ano, mes] = periodoMesAteHoje(hoje).de.slice(0, 7).split("-").map(Number);
+  const anoAnterior = mes === 1 ? ano - 1 : ano;
+  const mesAnterior = mes === 1 ? 12 : mes - 1;
+  return periodoDoMes(`${String(anoAnterior).padStart(4, "0")}-${String(mesAnterior).padStart(2, "0")}`);
+}
+
 // Ausência aplica o padrão; datas vazias ou parciais são escolhas explícitas.
 export function aplicarPeriodoPadrao<T extends { de?: string; ate?: string }>(filtros: T, hoje = new Date()): T {
   return filtros.de === undefined && filtros.ate === undefined

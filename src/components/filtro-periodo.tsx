@@ -5,11 +5,11 @@ import { GrupoAcoes } from "@/components/padroes-operacionais";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { periodoDoAno, periodoDoMes, periodoUltimosDias, mesesFechados } from "@/lib/financeiro/periodos";
+import { periodoDoAno, periodoDoMes, periodoUltimosDias, periodoMesAnterior, periodoMesAteHoje } from "@/lib/financeiro/periodos";
 
 const OPCOES = [
   ["7", "Últimos 7 dias"], ["30", "Últimos 30 dias"], ["90", "Últimos 90 dias"],
-  ["MES_FECHADO", "Mês fechado"], ["MES", "Mês completo"], ["ANO", "Ano completo"],
+  ["MES", "Mês completo"], ["MES_ANTERIOR", "Mês anterior"], ["ANO", "Ano completo"],
 ] as const;
 type OpcaoPeriodo = "" | typeof OPCOES[number][0];
 type CampoData = "de" | "ate";
@@ -32,18 +32,22 @@ export function FiltroPeriodo({ de, ate, aoAlterar, acoes, acoesDireita }: {
   }
   const edicaoDe = rascunhos.de?.original === de ? rascunhos.de : undefined;
   const edicaoAte = rascunhos.ate?.original === ate ? rascunhos.ate : undefined;
-  const fechados = mesesFechados(new Date());
 
   function selecionar(valor: string | null) {
     if (!valor) return;
     definirRascunhos({});
     definirOpcao(valor as OpcaoPeriodo);
     if (valor === "7" || valor === "30" || valor === "90") aoAlterar(periodoUltimosDias(Number(valor), new Date()));
-    if (valor === "MES_FECHADO") definirMes("");
+    if (valor === "MES_ANTERIOR") {
+      definirMes("");
+      const periodo = periodoMesAnterior();
+      if (periodo) aoAlterar(periodo);
+    }
     const referencia = de || periodoUltimosDias(1, new Date()).de;
     if (valor === "MES") {
-      definirMes(referencia.slice(0, 7));
-      const periodo = periodoDoMes(referencia.slice(0, 7));
+      const mesAtual = periodoMesAteHoje().de.slice(0, 7);
+      definirMes(mesAtual);
+      const periodo = periodoDoMes(mesAtual);
       if (periodo) aoAlterar(periodo);
     }
     if (valor === "ANO") {
@@ -93,17 +97,6 @@ export function FiltroPeriodo({ de, ate, aoAlterar, acoes, acoesDireita }: {
       </SelectTrigger>
       <SelectContent>{OPCOES.map(([valor, titulo]) => <SelectItem key={valor} value={valor}>{titulo}</SelectItem>)}</SelectContent>
     </Select>
-    {opcao === "MES_FECHADO" && (fechados.length ? <Select value={mes} onValueChange={valor => {
-      if (!valor) return;
-      definirMes(valor);
-      const periodo = periodoDoMes(valor);
-      if (periodo) aoAlterar(periodo);
-    }}>
-      <SelectTrigger aria-label="Mês fechado" className="h-9!">
-        <SelectValue placeholder="Selecione o mês">{() => fechados.find(m => m.valor === mes)?.label ?? "Selecione o mês"}</SelectValue>
-      </SelectTrigger>
-      <SelectContent>{fechados.map(m => <SelectItem key={m.valor} value={m.valor}>{m.label}</SelectItem>)}</SelectContent>
-    </Select> : <span className="text-sm text-muted-foreground">Nenhum mês fechado neste ano ainda.</span>)}
     {opcao === "MES" && <Input aria-label="Mês de referência" type="month" value={mes} className="h-9! w-48 py-1.5" onChange={evento => {
       definirMes(evento.target.value);
       const periodo = periodoDoMes(evento.target.value);

@@ -8,6 +8,8 @@ import { CategoriaFinanceiraCombobox } from "@/components/categoria-financeira-c
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 it("permite escolher mês, ano e voltar às datas personalizadas", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-09-11T15:00:00Z"));
   const alterar = vi.fn();
   const usuario = userEvent.setup();
   render(<FiltroPeriodo de="2026-09-01" ate="2026-09-10" aoAlterar={alterar} />);
@@ -57,7 +59,7 @@ it("busca categorias por palavra sem perder os grupos e permite selecionar o res
 });
 
 
-it("oferece os filtros rápidos, mês fechado e limpa as datas no componente controlado", async () => {
+it("alterna entre mês anterior e mês completo, sem segunda seleção, e limpa as datas", async () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(2026, 8, 11, 12));
   function Exemplo() {
@@ -74,16 +76,27 @@ it("oferece os filtros rápidos, mês fechado e limpa as datas no componente con
   expect((screen.getByLabelText("até") as HTMLInputElement).value).toBe("2026-09-11");
   screen.getByRole("combobox", { name: "Filtro" }).focus();
   await usuario.keyboard("{ArrowDown}");
-  await usuario.click(screen.getByRole("option", { name: "Mês fechado" }));
-  screen.getByRole("combobox", { name: "Mês fechado" }).focus();
+  expect(screen.queryByRole("option", { name: "Mês fechado" })).toBeNull();
+  await usuario.click(screen.getByRole("option", { name: "Mês anterior" }));
+  expect((screen.getByLabelText("De") as HTMLInputElement).value).toBe("2026-08-01");
+  expect((screen.getByLabelText("até") as HTMLInputElement).value).toBe("2026-08-31");
+  expect(screen.queryByLabelText("Mês de referência")).toBeNull();
+  screen.getByRole("combobox", { name: "Filtro" }).focus();
   await usuario.keyboard("{ArrowDown}");
-  await usuario.click(screen.getByRole("option", { name: "Agosto de 2026" }));
+  await usuario.click(screen.getByRole("option", { name: "Mês completo" }));
+  expect((screen.getByLabelText("De") as HTMLInputElement).value).toBe("2026-09-01");
+  expect((screen.getByLabelText("até") as HTMLInputElement).value).toBe("2026-09-30");
+  fireEvent.change(screen.getByLabelText("Mês de referência"), { target: { value: "2024-02" } });
+  expect((screen.getByLabelText("até") as HTMLInputElement).value).toBe("2024-02-29");
+  screen.getByRole("combobox", { name: "Filtro" }).focus();
+  await usuario.keyboard("{ArrowDown}");
+  await usuario.click(screen.getByRole("option", { name: "Mês anterior" }));
   expect((screen.getByLabelText("De") as HTMLInputElement).value).toBe("2026-08-01");
   expect((screen.getByLabelText("até") as HTMLInputElement).value).toBe("2026-08-31");
   await usuario.click(screen.getByRole("button", { name: "Limpar datas" }));
   expect((screen.getByLabelText("De") as HTMLInputElement).value).toBe("");
   expect((screen.getByLabelText("até") as HTMLInputElement).value).toBe("");
-  expect(screen.queryByRole("combobox", { name: "Mês fechado" })).toBeNull();
+  expect(screen.queryByLabelText("Mês de referência")).toBeNull();
 });
 
 

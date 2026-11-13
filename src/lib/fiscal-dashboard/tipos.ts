@@ -19,6 +19,10 @@ export type DocumentoDashboardFiscal = {
 export type PendenciaDashboardFiscal = {
   codigo: string; titulo: string; descricao: string; quantidade: number | null; href: string | null;
 };
+/** Identidade local para resgatar arquivos; não comprova data, total ou competência. */
+export type SaidaSemArquivosDashboardFiscal = {
+  id: string; numero: string; modelo: 55 | 65; pedidoId: string; pedidoNumero: string;
+};
 export type EstadoServicoDashboardFiscal = "ATIVO" | "INATIVO" | "NAO_CONFIRMADO";
 export type CertificadoDashboardFiscal = {
   situacao: "NAO_VERIFICADO" | "VIGENTE" | "A_VENCER" | "VENCIDO";
@@ -51,6 +55,8 @@ export type DashboardFiscalDto = {
   movimentoDiario: { dia: string; saidas: string | null; entradas: string | null }[];
   receitaPorDocumento: { modelo: 55 | 65; valor: string | null; quantidade: number }[];
   ultimosDocumentos: DocumentoDashboardFiscal[];
+  saidasSemArquivos?: SaidaSemArquivosDashboardFiscal[];
+  recuperacaoArquivosSaidaPermitida?: boolean;
   documentosPorTipo?: Record<TipoDocumentoDashboardFiscal, number>;
   pendencias: PendenciaDashboardFiscal[];
   integracao: IntegracaoDashboardFiscal;

@@ -1,5 +1,16 @@
 # Inventário de padrões reais
 
+## Fiscal: arquivos e período — 13/11/2026 — Em revisão visual
+
+O dashboard conserva seus cartões e o painel-direito de Dialog. A lista
+reutiliza Button outline icon-sm para abrir arquivos; as opções ficam no painel
+existente, em GrupoAcoes, sem novo fluxo de navegação. PDF/DANFE e XML usam
+entrada-outline, como o consumidor de Pedidos. Ausência de XML tem aviso
+compacto dentro de Últimos documentos, com erro persistente e retentativa.
+FiltroPeriodo conserva os campos e os atalhos padrão; Mês anterior substitui
+o seletor redundante de meses fechados. Não há variante ou token novo.
+Prévia: testes/visual/fiscal-documentos.*, com arquivos e ações fictícios.
+
 ## Manifesto e Movimentações — 11/11/2026 — Em revisão visual
 
 O manifesto conserva `ResumoCustosNota` e seus Buttons. Nota com desconto não

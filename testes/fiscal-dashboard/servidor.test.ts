@@ -34,6 +34,21 @@ const nota = (opcoes: Partial<Parameters<typeof normalizarNotaRecebidaDashboard>
   valorTotal: "999.99", dataEmissao: new Date("2026-10-03T15:00:00Z"), documentosSefaz: [resumoDashboard()], ...opcoes,
 });
 describe("Leitura autorizada e páginas fiscais", () => {
+  it.each([
+    { fiscal: false, pedidos: true, editar: true, quantidade: 0, recuperar: false },
+    { fiscal: true, pedidos: false, editar: true, quantidade: 0, recuperar: false },
+    { fiscal: true, pedidos: true, editar: false, quantidade: 1, recuperar: false },
+    { fiscal: true, pedidos: true, editar: true, quantidade: 1, recuperar: true },
+  ])("resgate exige acesso à fonte e distingue edição: %j", async acesso => {
+    sim.pode.mockImplementation(async (recurso, acao = "visualizar") => recurso === "vendas.fiscal" ? acao === "editar" ? acesso.editar : acesso.fiscal : recurso === "vendas.pedidos" && acesso.pedidos);
+    sim.query.mockImplementation(async consulta => configuracaoOpcionalMock(consulta) ?? (sqlDaConsulta(consulta).includes('"DocumentoFiscalSaida"') ? [saidaDashboard({ xml: null, modeloDocumento: 55 })] : []));
+    const dados = await obterDashboardFiscal({ mes: "2026-10" });
+    expect(dados.saidasSemArquivos).toHaveLength(acesso.quantidade);
+    expect(dados.recuperacaoArquivosSaidaPermitida).toBe(acesso.recuperar);
+    expect(dados.ultimosDocumentos).toEqual([]); expect(dados.documentosPorTipo?.NF_SAIDA).toBe(0);
+    expect(dados.metricas.faturamento.valor).toBeNull();
+    expect(JSON.stringify(dados.saidasSemArquivos)).not.toContain(chaveDashboard());
+  });
   it("inclui NFS-e apenas do tomador, ambiente comprovado e data de emissão", async () => {
     const base = { id: "nfs-sintetica", numero: "1", status: "ACEITA", origem: "NACIONAL", importadaManualmente: false, dataEmissao: new Date("2026-10-03T15:00:00Z"), valorServico: { toFixed: () => "32.17" }, xml: `<NFSe><infNFSe><dhEmi>2026-10-03T12:00:00-03:00</dhEmi><tpAmb>1</tpAmb><tomador><CNPJ>${cnpjEmitenteDashboard}</CNPJ></tomador></infNFSe></NFSe>` };
     sim.servicos.mockResolvedValue([base, { ...base, id: "homologacao", xml: base.xml.replace("<tpAmb>1", "<tpAmb>2") }, { ...base, id: "outro-mes", xml: base.xml.replace("2026-10-03", "2026-09-30") }, { ...base, id: "cancelada", status: "CANCELADA" }]);

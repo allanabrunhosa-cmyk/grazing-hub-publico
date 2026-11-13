@@ -1,11 +1,11 @@
 import { extrairEvidenciaFiscal, modeloPelaChave, moedaFiscal, type EvidenciaDocumentoFiscal } from "./dominio";
 import { limitesPeriodoDashboard, pertenceAoPeriodoDashboard, mesCandidatoDashboard, tipoDocumentoDashboard } from "./periodo";
 import { centavosFiscais } from "./dominio";
-import type { DashboardFiscalDto, DocumentoDashboardFiscal, FiltrosDashboardFiscal, MetricaDashboardFiscal, PendenciaDashboardFiscal } from "./tipos";
+import type { DashboardFiscalDto, DocumentoDashboardFiscal, FiltrosDashboardFiscal, MetricaDashboardFiscal, PendenciaDashboardFiscal, SaidaSemArquivosDashboardFiscal } from "./tipos";
 
 export type SaidaParaDashboard = {
   id: string; ambiente: string; status: string; chaveFiscal: string | null; protocolo: string | null;
-  numero: string | null; xml: string | null; pedidoId: string; pedidoNumero: number | string;
+  numero: string | null; xml: string | null; pedidoId: string; pedidoNumero: number | string; modeloDocumento?: number | null;
 };
 export type EntradaParaDashboard = {
   id: string; chave: string; evidencia: EvidenciaDocumentoFiscal; ambienteComprovado: boolean; foraDoEmitente?: boolean; cancelamentoPendente?: boolean;
@@ -29,6 +29,7 @@ export class AgregadorDashboardFiscal {
   private modelos = new Map<55 | 65, Soma>([[55, novaSoma()], [65, novaSoma()]]);
   private dias: Map<string, { saidas: Soma; entradas: Soma }>;
   private documentos: DocumentoDashboardFiscal[] = [];
+  private saidasSemArquivos: SaidaSemArquivosDashboardFiscal[] = [];
   private contadores = new Map<string, number>();
   private motivoSaidas: string | null = null;
   private motivoEntradas: string | null = null;
@@ -89,6 +90,17 @@ export class AgregadorDashboardFiscal {
       // A chave identifica o mês de emissão, mas não substitui a data fiscal oficial do gráfico.
       const mesChave = documento.chaveFiscal && /^\d{44}$/.test(documento.chaveFiscal) ? `20${documento.chaveFiscal.slice(2, 4)}-${documento.chaveFiscal.slice(4, 6)}` : null;
       if (mesChave && !mesCandidatoDashboard(mesChave, this.filtros)) return;
+      const modelo = modeloPelaChave(documento.chaveFiscal);
+      // A chave só descobre candidatas. Não fornece dia de emissão nem vNF.
+      if (!documento.xml?.trim() && documento.chaveFiscal && /^\d{44}$/.test(documento.chaveFiscal)
+        && !!mesChave && /^(?:20\d{2})-(?:0[1-9]|1[0-2])$/.test(mesChave)
+        && !!this.emitenteCnpj && documento.chaveFiscal.slice(6, 20) === this.emitenteCnpj
+        && modelo !== null && documento.modeloDocumento === modelo
+        && !!documento.protocolo && /^\d{1,30}$/.test(documento.protocolo)
+        && !!documento.numero && /^\d{1,9}$/.test(documento.numero) && Number(documento.numero) > 0
+        && Number(documento.numero) === Number(documento.chaveFiscal.slice(25, 34))) {
+        this.saidasSemArquivos.push({ id: documento.id, numero: documento.numero, modelo, pedidoId: documento.pedidoId, pedidoNumero: String(documento.pedidoNumero) });
+      }
       this.saidas.datasAusentes++; this.contar("SAIDAS_SEM_DATA"); return;
     }
     const comprovado = evidencia.autorizado && evidencia.ambiente === this.filtros.ambiente
@@ -140,7 +152,7 @@ export class AgregadorDashboardFiscal {
     this.recente({ id: nota.id, origem: "ENTRADA", tipo: "NFS_ENTRADA", modelo: null, numero: nota.numero,
       status: cancelada ? "CANCELADO" : "RECEBIDA", dataFiscal: nota.dataFiscal, valor: valor === null ? null : moedaFiscal(valor), pedidoId: null, pedidoNumero: null });
   }
-  concluir(): Pick<DashboardFiscalDto, "metricas" | "movimentoDiario" | "receitaPorDocumento" | "ultimosDocumentos" | "documentosPorTipo" | "pendencias"> {
+  concluir(): Pick<DashboardFiscalDto, "metricas" | "movimentoDiario" | "receitaPorDocumento" | "ultimosDocumentos" | "documentosPorTipo" | "pendencias" | "saidasSemArquivos"> {
     const limites = limitesPeriodoDashboard(this.filtros), observados = [...this.dias.keys()].sort();
     const de = limites.de || observados[0], ate = limites.ate || observados.at(-1);
     if (de && ate) {
@@ -178,7 +190,7 @@ export class AgregadorDashboardFiscal {
         entradas: this.motivoEntradas || this.entradas.datasAusentes || this.entradas.identidadesAusentes || this.contadores.has("ENTRADAS_INCOMPLETAS") ? null : metrica(movimento.entradas).valor })),
       receitaPorDocumento: [...this.modelos].map(([modelo, soma]) => ({ modelo,
         valor: faturamento.valor === null ? null : metrica(soma).valor, quantidade: soma.quantidade })),
-      ultimosDocumentos: this.documentos, documentosPorTipo: { ...this.tipos }, pendencias,
+      ultimosDocumentos: this.documentos, saidasSemArquivos: this.saidasSemArquivos, documentosPorTipo: { ...this.tipos }, pendencias,
     };
   }
 }

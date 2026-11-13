@@ -1,5 +1,12 @@
 # Fiscal
 
+Arquivos e indicadores de saída: o painel lê data e vNF do XML autorizado.
+Autorizações sem XML têm aviso e recuperação separados das métricas. A emissão
+e a consulta manuais completam os arquivos pelo serviço existente; falha de
+impressão não descarta o XML válido nem desfaz a autorização. Novas NF-e55
+fotografam emissão e saída no mesmo instante. NFC-e65 não envia dhSaiEnt.
+[Contrato, preservação e rotas](../features/fiscal-dashboard-financeiro/README.md#arquivos-períodos-e-datas--13112026).
+
 No manifesto de notas recebidas, uma nota com desconto e sem decisão persistida
 abre sem distribuição selecionada. O operador deve escolher Conforme a nota,
 Proporcional ou Personalizado antes do aceite. Escolhas não aplicadas são

@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import { randomUUID } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { Client } from "pg";
@@ -26,7 +26,7 @@ describe.skipIf(process.env.FISCAL_DASHBOARD_BANCO_TESTE !== "1")("Dashboard em 
     await banco.query(`CREATE SCHEMA "${esquema}"`); criado = true;
     await banco.query(`SET search_path TO "${esquema}"`);
     for (const pasta of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name))) {
-      await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+      await banco.query(await prepararMigrationHubIsolada(banco, esquema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     }
     sim.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${esquema}` }, { schema: esquema }) });
     const perfil = await sim.prisma.perfilAcesso.findUniqueOrThrow({ where: { sistema: "ADMINISTRADOR" } });
@@ -50,15 +50,27 @@ describe.skipIf(process.env.FISCAL_DASHBOARD_BANCO_TESTE !== "1")("Dashboard em 
   afterAll(async () => {
     await sim.prisma?.$disconnect();
     if (!banco) return;
-    if (criado && /^teste_fiscal_dashboard_[a-f0-9]{32}$/.test(esquema)) await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);
+    if (criado && /^teste_fiscal_dashboard_[a-f0-9]{32}$/.test(esquema)) {
+      await limparIntegracaoHubIsolada(banco, esquema);
+      await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);
+    }
     await banco.end();
   }, 30000);
-  async function documento(versaoPedido: number, opcoes: { ambiente?: string; status?: string; xml?: string; numero?: number; mesChave?: string } = {}) {
+  async function documento(versaoPedido: number, opcoes: { ambiente?: string; status?: string; xml?: string | null; numero?: number; mesChave?: string } = {}) {
     const numero = opcoes.numero ?? versaoPedido;
     return sim.prisma.documentoFiscalSaida.create({ data: { pedidoId, versaoPedido, payload: {}, hashPayload: "sintetico", criadoPorId: usuarioId, criadoPorNome: "Autor sintético",
       ambiente: opcoes.ambiente ?? "PRODUCAO", status: opcoes.status ?? "AUTORIZADO", chaveFiscal: chaveDashboard(55, cnpjEmitenteDashboard, opcoes.mesChave ?? "2610", numero),
-      protocolo: protocoloDashboard, numero: String(numero), xml: opcoes.xml ?? xmlDashboard({ numero }) } });
+      protocolo: protocoloDashboard, numero: String(numero), modeloDocumento: 55, xml: opcoes.xml === undefined ? xmlDashboard({ numero }) : opcoes.xml } });
   }
+  it("autorização local sem XML oferece resgate separado, sem fabricar data ou valor no período", async () => {
+    await documento(1); const incompleto = await documento(2, { xml: null });
+    const dados = await obterDashboardFiscal({ de: "2026-10-15", ate: "2026-10-15" });
+    expect(dados.saidasSemArquivos).toEqual([{ id: incompleto.id, numero: "2", modelo: 55, pedidoId, pedidoNumero: expect.any(String) }]);
+    expect(dados.recuperacaoArquivosSaidaPermitida).toBe(true);
+    expect(dados.metricas.faturamento).toMatchObject({ valor: null, quantidade: null });
+    expect(dados.documentosPorTipo?.NF_SAIDA).toBe(0); expect(dados.ultimosDocumentos).toEqual([]);
+    expect(dados.movimentoDiario).toEqual([{ dia: "2026-10-15", saidas: null, entradas: "0.00" }]);
+  });
   it("intervalo entre meses e limites vazios usam datas oficiais nas consultas SQL", async () => {
     await documento(1, { mesChave: "2609", xml: xmlDashboard({ numero: 1, mesChave: "2609", data: "2026-09-30T23:59:59-03:00" }) });
     await documento(2, { xml: xmlDashboard({ numero: 2, data: "2026-10-01T00:00:00-03:00" }) });

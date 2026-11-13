@@ -246,6 +246,23 @@ describe("Operações técnicas Brasil NFe, exclusivamente simuladas", () => {
     const r = await m.adaptador.obterDocumentos(m.identidade);
     expect(r.html).toContain(chaveFicticia(65)); expect(r).not.toHaveProperty("pdf");
   });
+  it.each([55, 65] as const)("conserva XML autorizado do modelo%s quando a impressão é inválida", async modelo => {
+    const m = montar([b64(xmlNota(modelo)), b64("arquivo de impressão exclusivamente sintético e inválido")], porta(modelo, true), modelo);
+    const r = await m.adaptador.obterDocumentos(m.identidade);
+    expect(r).toEqual({ xml: xmlNota(modelo) });
+    expect(m.transporte.mock.calls.map(c => JSON.parse(String(c[1]?.body)).FileType)).toEqual([1, 2]);
+  });
+  it("conserva XML autorizado se a requisição da impressão falhar", async () => {
+    const m = montar([b64(xmlNota())], porta(55, true));
+    m.transporte.mockRejectedValueOnce(new Error("Falha de rede exclusivamente sintética"));
+    expect(await m.adaptador.obterDocumentos(m.identidade)).toEqual({ xml: xmlNota() });
+    expect(m.transporte).toHaveBeenCalledTimes(2);
+  });
+  it("XML divergente continua bloqueado antes de buscar a impressão", async () => {
+    const m = montar([b64(xmlNota().replace(PROTOCOLO, "123456789")), pdf()], porta(55, true));
+    await expect(m.adaptador.obterDocumentos(m.identidade)).rejects.toThrow("divergente");
+    expect(m.transporte).toHaveBeenCalledTimes(1);
+  });
   it.each([`<script>alert(1)</script>`, `<a href="https://example.test">link</a>`, `<div onclick="alert(1)">x</div>`, `<iframe></iframe>`, `<img src="https://example.test/x" />`, `<div style="background:url(https://example.test)">x</div>`])("rejeita conteúdo ativo HTML %s", parte => {
     const html = `<html><body><p>${chaveFicticia(65)}</p>${parte}</body></html>`;
     expect(() => sanitizarHtmlNfceBrasilNfe(Buffer.from(html), chaveFicticia(65))).toThrow("inválido");

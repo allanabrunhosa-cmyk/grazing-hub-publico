@@ -14,7 +14,7 @@ vi.mock("@/lib/fiscal-saida/brasilnfe/bloqueio-transmissao", () => ({ exigirTran
 vi.mock("@/lib/prisma", () => ({ get prisma() { return sim.prisma; } }));
 vi.mock("@/lib/fiscal-saida/provedor", () => ({ obterAdaptadorFiscalSaida: () => sim.adapter }));
 vi.mock("@/lib/tributacao/validacao", async importar => ({ ...await importar<typeof import("@/lib/tributacao/validacao")>(), hojeFiscal: () => sim.dataFiscal }));
-import { prepararFiscalSaida as prepararFiscalSaidaReal, solicitarAcaoFiscalSaida, processarFiscalSaida, aplicarRetornoFiscalSaida, obterArquivosFiscalSaida, baixarArquivoFiscalSaida } from "@/lib/fiscal-saida/servico";
+import { prepararFiscalSaida as prepararFiscalSaidaReal, solicitarAcaoFiscalSaida, processarFiscalSaida, aplicarRetornoFiscalSaida, obterArquivosFiscalSaida, baixarArquivoFiscalSaida, consultarFiscalSaida } from "@/lib/fiscal-saida/servico";
 import { POST } from "@/app/api/fiscal-saida/retorno/route";
 import { prepararDocumentoBrasilNfeLocal } from "@/lib/fiscal-saida/brasilnfe/preparacao-local";
 import { prepararPayloadLocalBrasilNfe, serializarPayloadLocalBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/payload-local";
@@ -29,6 +29,8 @@ import { validarSnapshotBrasilNfe } from "@/lib/fiscal-saida/brasil-nfe";
 import { registrarCapacidadeEmissaoManualBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/capacidade-operacional";
 const esquema = `teste_fiscal_saida_${randomUUID().replaceAll("-", "")}`;
 let banco: Client | undefined; let criado = false; let sessao: SessaoAtual; let produtoId: string;
+let sequenciaCodigoSintetico = 0;
+const codigoSintetico = () => `T${String(++sequenciaCodigoSintetico).padStart(7, "0")}`;
 // Fato declarado apenas nesta massa sintética. Retirada não presume presença no HUB.
 function prepararFiscalSaida(pedidoId: string, versao: number, autor: SessaoAtual, modelo: "55" | "65" = "65", opcoes: NonNullable<Parameters<typeof prepararFiscalSaidaReal>[4]> = {}) {
   return prepararFiscalSaidaReal(pedidoId, versao, autor, modelo, { indicadorPresenca: 1, ...opcoes });
@@ -56,7 +58,7 @@ function emissorManualFicticio(documentoId: string, ambiente: "HOMOLOGACAO" | "P
 async function pedidoComPayloadLocal() {
   const m = massaPayloadLocal(), item = m.documento.payload.itens[0];
   await sim.prisma.configuracaoLoja.upsert({ where: { id: "singleton" }, create: { id: "singleton", ...m.cadastro }, update: m.cadastro });
-  const produto = await sim.prisma.produtoVenda.create({ data: { nome: item.produto.nome, fiscal: item.fiscal.produto, fiscalRevisado: true } });
+  const produto = await sim.prisma.produtoVenda.create({ data: { nome: item.produto.nome, codigo: codigoSintetico(), fiscal: item.fiscal.produto, fiscalRevisado: true } });
   const p = await sim.prisma.pedidoVenda.create({ data: { chaveCriacao: randomUUID(), hashCriacao: "sintetico-m2", criadoPorId: sessao.userId, status: "CONFIRMADO", modoFinanceiro: "HUB", versaoFinanceiro: 1, confirmadoEm: new Date("2026-10-01T12:00:00Z"), ...m.documento.payload.valores, compradorSnapshot: m.documento.payload.comprador, pagamentoInformadoSnapshot: m.documento.payload.pagamento } });
   const linha = await sim.prisma.itemPedidoVenda.create({ data: { pedidoId: p.id, produtoId: produto.id, versaoPedido: 1, ordem: 0, quantidade: item.quantidade, unidadeSnapshot: item.unidade, produtoSnapshot: item.produto, escolhasSnapshot: [], estadoComposicao: "CONHECIDA", precoOriginal: item.preco, precoAplicado: item.preco, acrescimos: item.acrescimos, desconto: item.desconto, totalLinha: item.total } });
   const fotografia = { ...m.documento.payload, pedido: { id: p.id, revisao: 1 }, itens: [{ ...item, id: linha.id, produtoId: produto.id, fiscal: { ...item.fiscal, versaoCadastro: 1 } }] };
@@ -70,7 +72,7 @@ async function efeitosAlheios() {
   return { financeiro: await sim.prisma.lancamentoFinanceiro.count(), estoque: await sim.prisma.movimentacaoEstoque.count(), recebidas: await sim.prisma.notaFiscalRecebida.count() };
 }
 async function produtoClassificadoFicticio() {
-  const p = await sim.prisma.produtoVenda.create({ data: { nome: "Mercadoria específica fictícia", unidade: "UN" } });
+  const p = await sim.prisma.produtoVenda.create({ data: { nome: "Mercadoria específica fictícia", codigo: codigoSintetico(), unidade: "UN" } });
   const original = await sim.prisma.versaoEstruturaFiscal.findFirstOrThrow({ where: { tipo: "CLASSIFICACAO", chave: produtoId } });
   const dados = validarDadosFiscais("CLASSIFICACAO", { ...original.dados as ClassificacaoFiscal, produtoId: p.id });
   await sim.prisma.versaoEstruturaFiscal.create({ data: { tipo: "CLASSIFICACAO", chave: p.id, versao: 1, vigenciaInicio: original.vigenciaInicio, dados: JSON.parse(JSON.stringify(dados)) as Prisma.InputJsonValue, status: "ATIVO", hash: "classificacao-especifica-ficticia", justificativa: "Fixture individual exclusivamente fictícia", fontes: original.fontes as Prisma.InputJsonValue, criadoPorId: sessao.userId, criadoPorNome: sessao.nome, chaveOperacao: randomUUID(), hashOperacao: "classificacao-especifica-ficticia" } });
@@ -90,7 +92,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Saída fiscal durável
     const perfil = await sim.prisma.perfilAcesso.findUniqueOrThrow({ where: { sistema: "ADMINISTRADOR" } });
     const u = await sim.prisma.usuario.create({ data: { nome: "Autor fictício fiscal", email: "fiscal-saida@example.invalid", senhaHash: "inutil", perfilAcessoId: perfil.id } });
     sessao = { userId: u.id, nome: u.nome, versao: 0, admin: true, email: u.email, permissoes: {}, excecoes: {}, perfilNome: "Administrador" };
-    const produto = await sim.prisma.produtoVenda.create({ data: { nome: "Produto fiscal sintético", codigo: "FISCAL-SINTETICO", fiscal: {}, unidade: "UN" } }); produtoId = produto.id;
+    const produto = await sim.prisma.produtoVenda.create({ data: { nome: "Produto fiscal sintético", codigo: "FISCAL01", fiscal: {}, unidade: "UN" } }); produtoId = produto.id;
     const perfilFiscal: PerfilFiscal = { estabelecimento: "singleton", cnpj: "12345678000195", uf: "SP", codigoMunicipio: "3550308", inscricaoEstadual: "123456789012", regime: "SIMPLES_NACIONAL", crt: 1, confirmado: true, evidenciaEnquadramento: "Comprovação exclusivamente sintética", modelos: ["55", "65"], emissor: "TAKEAT", reforma: "DISPENSADO_SIMPLES_2026", beneficioOpcional: null };
     const classificacao: ClassificacaoFiscal = { produtoId, grupo: "GF01", natureza: "PREPARADO", tratamento: "NORMAL", ncm: "19059090", origem: "0", cest: null, unidade: "UN", gtin: "SEM GTIN", estado: "CONFIRMADO", evidencias: ["Formulação sintética de teste; declaração fictícia explícita de produto sem GTIN"], pendencias: [] };
     const semDestaque = { cst: "40", aliquota: null, reducaoBase: "0", modalidade: "SEM_DESTAQUE" as const, justificativa: "Cálculo sintético sem destaque" };
@@ -121,6 +123,12 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Saída fiscal durável
     expect(p65).toMatchObject({ ambiente: "PRODUCAO", modeloDocumento: 65, pedidoId: d.pedidoId });
     expect(h55.payload).toMatchObject({ tributacao: { documento: { ModeloDocumento: 55, TipoAmbiente: 2 } } });
     expect(p65.payload).toMatchObject({ tributacao: { documento: { ModeloDocumento: 65, TipoAmbiente: 1 } } });
+    const nota55 = (h55.payload as { tributacao: { documento: { DataEmissao: string; DataEntradaSaida: string } } }).tributacao.documento;
+    const nota65 = (p65.payload as { tributacao: { documento: { DataEmissao: string; DataEntradaSaida?: string } } }).tributacao.documento;
+    expect(nota55.DataEmissao).toMatch(new RegExp(`^${sim.dataFiscal}T\\d{2}:\\d{2}:\\d{2}-03:00$`));
+    expect(nota55.DataEntradaSaida).toBe(nota55.DataEmissao);
+    expect(nota65.DataEmissao).toMatch(new RegExp(`^${sim.dataFiscal}T`));
+    expect(nota65).not.toHaveProperty("DataEntradaSaida");
     expect((await prepararFiscalSaida(d.pedidoId, 1, sessao, "55", { ambiente: "HOMOLOGACAO" })).id).toBe(h55.id);
     expect((await prepararFiscalSaida(d.pedidoId, 1, sessao, "65", { ambiente: "PRODUCAO" })).id).toBe(p65.id);
     expect((await prepararFiscalSaida(d.pedidoId, 1, sessao)).id).toBe(d.id);
@@ -266,8 +274,10 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Saída fiscal durável
   it("cancelamento fiscal preserva autorização, arquivos protegidos e pedido comercial", async () => {
     const d = await pedido(); const a = sim.adapter = adaptador(); vi.mocked(a.enviar).mockResolvedValue(retorno(d.id));
     await solicitarAcaoFiscalSaida(d.id, "ENVIAR", "", sessao); await processarFiscalSaida();
+    expect((await consultarFiscalSaida(d.pedidoId, sessao)).find(n => n.id === d.id)).toMatchObject({ xmlDisponivel: false });
     vi.mocked(a.obterDocumentos).mockResolvedValue({ xml: "<documento>FICTICIO</documento>", pdf: Buffer.from("%PDF-1.4 FICTICIO") });
     await obterArquivosFiscalSaida(d.id, sessao); expect(await baixarArquivoFiscalSaida(d.id, "xml", sessao)).toContain("FICTICIO");
+    expect((await consultarFiscalSaida(d.pedidoId, sessao)).find(n => n.id === d.id)).toMatchObject({ xmlDisponivel: true });
     await expect(baixarArquivoFiscalSaida(d.id, "xml", { ...sessao, versao: 99 })).rejects.toThrow("sessão");
     vi.mocked(a.cancelar).mockResolvedValue(retorno(d.id, "CANCELADO", 2)); await solicitarAcaoFiscalSaida(d.id, "CANCELAR", "Cancelamento fiscal fictício justificado", sessao); await processarFiscalSaida();
     await aplicarRetornoFiscalSaida(a, retorno(d.id, "AUTORIZADO", 3));
@@ -529,7 +539,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Saída fiscal durável
     expect(await sim.prisma.lancamentoFinanceiro.count()).toBe(0); expect(await sim.prisma.movimentacaoEstoque.count()).toBe(0);
   });
   it("ausência de classificação bloqueia apenas saída fiscal, mantendo pedido/financeiro sem efeitos novos", async () => {
-    const semClassificacao = await sim.prisma.produtoVenda.create({ data: { nome: "Produto sintético sem classificação", unidade: "UN" } });
+    const semClassificacao = await sim.prisma.produtoVenda.create({ data: { nome: "Produto sintético sem classificação", codigo: codigoSintetico(), unidade: "UN" } });
     const d = await pedido(semClassificacao.id); const novo = await prepararFiscalSaida(d.pedidoId, 1, sessao); sim.adapter = adaptador();
     await expect(solicitarAcaoFiscalSaida(novo.id, "ENVIAR", "", sessao)).rejects.toThrow("Prévia fiscal pendente");
     expect((await sim.prisma.pedidoVenda.findUniqueOrThrow({ where: { id: d.pedidoId } })).status).toBe("CONFIRMADO");

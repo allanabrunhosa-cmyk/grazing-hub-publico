@@ -51,4 +51,31 @@ describe("Revisão fotografada para o único teste55 de homologação", () => {
     await conferirCalculoAtualFiscalSaida(tx, d, { enviar: true });
     expect(s.vigente).toHaveBeenCalledWith(tx, d.payload); expect(s.normal).toHaveBeenCalledOnce(); expect(s.propostas).not.toHaveBeenCalled(); expect(s.evento).not.toHaveBeenCalled();
   });
+  it("revalida o mesmo instante fotografado sem trocar emissão pelo relógio atual", async () => {
+    const d = documento(), t = tributacao(), instante = "2026-11-13T10:00:00-03:00";
+    const calculado = { previa: t.previa, documento: t.documento };
+    d.payload = { versao: 2, tributacao: { ...calculado, documento: { ...calculado.documento, DataEmissao: instante, DataEntradaSaida: instante } } };
+    const antes = structuredClone(d.payload); s.normal.mockResolvedValue(calculado);
+    await conferirCalculoAtualFiscalSaida(tx, d, { enviar: true });
+    expect(d.payload).toEqual(antes); expect(s.normal).toHaveBeenCalledOnce();
+  });
+  it("data de saída adulterada continua invalidando o hash na revalidação", async () => {
+    const d = documento(), t = tributacao(), instante = "2026-11-13T10:00:00-03:00";
+    const calculado = { previa: t.previa, documento: t.documento };
+    d.payload = { versao: 2, tributacao: { ...calculado, documento: { ...calculado.documento, DataEmissao: instante, DataEntradaSaida: "2026-11-13T09:00:00-03:00" } } };
+    s.normal.mockResolvedValue(calculado);
+    await expect(conferirCalculoAtualFiscalSaida(tx, d, { enviar: true })).rejects.toThrow("cálculo fiscal vigente mudou");
+  });
+  it("prévia65 envelhecida bloqueia a solicitação e o claim antes de recalcular ou transmitir", async () => {
+    const d = documento(), t = tributacao(), instante = "2026-11-13T10:00:00-03:00";
+    d.modeloDocumento = 65; d.tentativas = 0; d.leaseToken = null;
+    d.payload = { versao: 2, tributacao: { previa: { contexto: { modelo: "65" } }, documento: { ...t.documento, ModeloDocumento: 65, DataEmissao: instante } } };
+    const antes = structuredClone(d);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-13T13:01:01Z"));
+      await expect(conferirCalculoAtualFiscalSaida(tx, d, { enviar: true })).rejects.toThrow("A prévia da NFC-e expirou");
+      expect(s.normal).not.toHaveBeenCalled(); expect(s.pedido).not.toHaveBeenCalled(); expect(s.evento).not.toHaveBeenCalled(); expect(d).toEqual(antes);
+    } finally { vi.useRealTimers(); }
+  });
 });

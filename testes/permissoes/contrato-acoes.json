@@ -7,6 +7,7 @@
   {"arquivo": "src/app/(protegido)/financeiro/fiscal/manutencao-actions.ts", "funcao": "salvarManutencaoFiscalAction", "recurso": "vendas.fiscal", "acao": "editar", "argumentos": [[]]},
   {"arquivo": "src/app/(protegido)/financeiro/fiscal/manutencao-actions.ts", "funcao": "consultarFichaFiscalAction", "recurso": "vendas.fiscal", "acao": "visualizar", "argumentos": ["produto-ficticio"]},
   { "arquivo": "src/app/(protegido)/financeiro/fiscal/documento-actions.ts", "funcao": "consultarDocumentoDashboardAction", "recurso": "financeiro.fiscal.painel", "acao": "visualizar", "argumentos": ["NF_ENTRADA", "nota-ficticia"] },
+  { "arquivo": "src/app/(protegido)/financeiro/fiscal/documento-actions.ts", "funcao": "recuperarArquivosDocumentoDashboardAction", "recurso": "financeiro.fiscal.painel", "acao": "visualizar", "argumentos": ["documento-ficticio"] },
   { "arquivo": "src/app/(protegido)/inventario/entradas/actions.ts", "funcao": "consultarEntradaAvulsaAction", "recurso": "inventario", "acao": "visualizar", "argumentos": ["entrada-ficticia"] },
   { "arquivo": "src/app/(protegido)/inventario/entradas/actions.ts", "funcao": "excluirEntradaAvulsaAction", "recurso": "inventario", "acao": "excluir", "argumentos": [{}] },
   { "arquivo": "src/app/(protegido)/inventario/entradas/actions.ts", "funcao": "corrigirEntradaAvulsaAction", "recurso": "inventario", "acao": "editar", "argumentos": [{}] },

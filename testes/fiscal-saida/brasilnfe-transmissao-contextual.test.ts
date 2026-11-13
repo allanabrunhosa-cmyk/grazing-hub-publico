@@ -63,8 +63,8 @@ describe("Transmissão manual limitada ao escopo autenticado da ação", () => {
     await executarComAutorizacaoManualBrasilNfe(c, async () => { const espera = new Promise<void>(r => { liberar = r; }); tardia = espera.then(() => transmissaoBrasilNfeLiberada(restricao(c))); });
     liberar(); expect(await tardia).toBe(false);
   });
-  it("escopo expira sem prolongar a autorização original", async () => {
-    const c = contexto(), instante = Date.now(); const relogio = vi.spyOn(Date, "now").mockReturnValue(instante);
+  it.each([55, 65] as const)("escopo modelo%s expira em120s sem prolongar a autorização original", async modelo => {
+    const c = contexto({ modelo }), instante = Date.now(); const relogio = vi.spyOn(Date, "now").mockReturnValue(instante);
     await executarComAutorizacaoManualBrasilNfe(c, async () => {
       relogio.mockReturnValue(instante + 119999); expect(transmissaoBrasilNfeLiberada(restricao(c))).toBe(true);
       relogio.mockReturnValue(instante + 120000); expect(transmissaoBrasilNfeLiberada(restricao(c))).toBe(false);
@@ -155,11 +155,11 @@ describe("Transmissão manual limitada ao escopo autenticado da ação", () => {
     }, async <T>(acao: () => Promise<T>) => { avisar(); await espera; return acao(); });
     expect(http).toHaveBeenCalledTimes(1);
   });
-  it("expiração enquanto aguarda a trava impede o HTTP depois da liberação", async () => {
+  it.each([55, 65] as const)("expiração do modelo%s enquanto aguarda a trava impede o primeiro HTTP depois da liberação", async modelo => {
     const instante = Date.now(), relogio = vi.spyOn(Date, "now").mockReturnValue(instante), http = vi.fn(async () => "resposta-sintetica");
     let liberar!: () => void, avisar!: () => void;
     const espera = new Promise<void>(r => { liberar = r; }), entrou = new Promise<void>(r => { avisar = r; });
-    await executarComAutorizacaoManualBrasilNfe(contexto(), async () => {
+    await executarComAutorizacaoManualBrasilNfe(contexto({ modelo }), async () => {
       const resultado = executarTransporteManualBrasilNfe(http);
       const recusada = expect(resultado).rejects.toThrow("Emissão ainda não liberada");
       await entrou;

@@ -36,6 +36,10 @@ export type ProdutoBrasilNfe = {
 export type DocumentoBrasilNfe = {
   ModeloDocumento: 55 | 65;
   TipoAmbiente: 1 | 2;
+  /** Instante fotografado antes do hash; nunca derivado de timestamps internos. */
+  DataEmissao?: string;
+  /** Somente modelo 55; igual à emissão nesta operação de venda. */
+  DataEntradaSaida?: string;
   NaturezaOperacao: string;
   Finalidade: 1;
   IndicadorPresenca: 0 | 1 | 2 | 3 | 4 | 5 | 9;
