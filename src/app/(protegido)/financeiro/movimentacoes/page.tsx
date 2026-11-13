@@ -10,6 +10,7 @@ import { AvisoFaturas } from "../cartoes/aviso";
 import { LancamentoDialog } from "@/app/(protegido)/financeiro/lancamentos/lancamento-dialog";
 import type { LancamentoRow } from "@/app/(protegido)/financeiro/types";
 import { entidadeInicial } from "@/lib/atividades/entidade-inicial";
+import { descricaoTituloEntradaAvulsa, incluirTituloEntradaAvulsa } from "@/lib/financeiro/titulo-entrada-avulsa";
 
 export default async function MovimentacoesPage({ searchParams }: { searchParams: Promise<{ entidade?: string | string[] }> }) {
   const sessao = await exigirPermissao("financeiro.movimentacoes");
@@ -21,6 +22,7 @@ export default async function MovimentacoesPage({ searchParams }: { searchParams
       where: { status: { not: "CANCELADO" } },
       orderBy: { dataVencimento: "desc" },
       include: {
+        ...incluirTituloEntradaAvulsa,
         vinculoExtrato: { select: { transacaoId: true } },
         categoria: { select: SELECAO_CATEGORIA_COM_CAMINHO },
         fornecedor: { select: { nome: true } },
@@ -46,7 +48,7 @@ export default async function MovimentacoesPage({ searchParams }: { searchParams
     versao: l.updatedAt.toISOString(),
     transacaoExtratoId: l.vinculoExtrato?.transacaoId ?? null,
     tipo: l.tipo,
-    descricao: l.descricao,
+    descricao: descricaoTituloEntradaAvulsa(l),
     valor: Number(l.valor),
     categoriaId: l.categoriaId,
     categoriaNome: caminhoCategoria(l.categoria),

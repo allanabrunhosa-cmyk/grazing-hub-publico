@@ -23,7 +23,7 @@ vi.mock("@/lib/estoque/entrada-avulsa-servidor", () => ({
 import { registrarEntradaAvulsaAction, type EntradaAvulsaInput } from "@/app/(protegido)/inventario/entrada-avulsa/actions";
 
 const tx = {
-  insumo: { findMany: vi.fn(async () => [{ id: "queijo" }, { id: "presunto" }]) },
+  insumo: { findMany: vi.fn(async () => [{ id: "queijo", nome: "Queijo" }, { id: "presunto", nome: "Presunto" }]) },
   localEstoque: { findMany: vi.fn(async () => [{ id: "cozinha" }]) },
   fornecedor: { findFirst: vi.fn(async () => ({ id: "fornecedor", nome: "FORNECEDOR TESTE" })) },
   categoriaFinanceira: { findFirst: vi.fn(async () => ({ id: "cmv" })) },
@@ -79,6 +79,7 @@ describe("registro da compra sem nota", () => {
     expect(titulos.map(t => t.valor)).toEqual([148.34, 148.33, 148.33]);
     expect(titulos.map(t => t.dataCompetencia.toISOString())).toEqual(Array(3).fill("2026-09-11T15:00:00.000Z"));
     expect(titulos.map(t => t.origemEntradaAvulsaCompraId)).toEqual(["compra", "compra", "compra"]);
+    expect(titulos.map(t => t.descricao)).toEqual(Array(3).fill("FORNECEDOR TESTE — QUEIJO, PRESUNTO"));
     expect(titulos.map(t => t.origemMovimentacaoEstoqueId)).toEqual(["movimento-1", null, null]);
     expect(new Set(titulos.map(t => t.recorrenciaGrupoId)).size).toBe(1);
     expect(titulos[0].recorrenciaGrupoId).toBeTruthy();
@@ -118,7 +119,7 @@ describe("registro da compra sem nota", () => {
     expect(simulados.movimento.mock.calls.map(chamada => chamada[0].valorTotal)).toEqual([111.25, 333.75]);
     expect(simulados.lancamentoCriar).toHaveBeenCalledTimes(1);
     expect(simulados.lancamentoCriar).toHaveBeenCalledWith({ data: expect.objectContaining({
-      descricao: "COMPRA SEM NOTA — FORNECEDOR TESTE",
+      descricao: "FORNECEDOR TESTE — QUEIJO, PRESUNTO",
       valor: 445,
       fornecedorId: "fornecedor",
       origemEntradaAvulsaCompraId: "compra",

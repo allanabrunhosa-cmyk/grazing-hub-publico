@@ -1,0 +1,7 @@
+{
+  "src/lib/inventario/entrada-avulsa-titulo.ts": "7b90b708d2b5d2ebbf54a1bee113694180d59cfeca99adbba399086c994344fe",
+  "src/lib/financeiro/titulo-entrada-avulsa.ts": "28337a1911a9cbfbc17e2a49919b43f8d2a2367799f415dff3abacd123cd8ebd",
+  "src/app/(protegido)/financeiro/cartoes/fatura-view.tsx": "551744582f87356f28f12ebdcc9b848dfc670bf17a740be1ca15a327606df6da",
+  "testes/visual/faturas-acoes.ts": "e1a20352f8aa14a092957e1a8765376e1838ade51ac058ed3daafd07f8e39810",
+  "testes/visual/entrada-avulsa-titulo.spec.ts": "281d9a0eb88d61e0b6427b0a336e9ab81c5deb9adbae195d684e11c1af50e293"
+}
