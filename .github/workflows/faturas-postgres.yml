@@ -1,0 +1,58 @@
+name: Conciliação de faturas
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/financeiro/faturas/**'
+      - 'src/app/(protegido)/financeiro/cartoes/**'
+      - 'testes/financeiro/faturas/**'
+      - 'prisma/**'
+      - '.github/workflows/faturas-postgres.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'src/lib/financeiro/faturas/**'
+      - 'src/app/(protegido)/financeiro/cartoes/**'
+      - 'testes/financeiro/faturas/**'
+      - 'prisma/**'
+      - '.github/workflows/faturas-postgres.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  faturas-postgres:
+    name: Faturas em PostgreSQL fictício
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ficticio
+          POSTGRES_PASSWORD: exemplo
+          POSTGRES_DB: faturas_teste
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ficticio -d faturas_teste"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ficticio:exemplo@127.0.0.1:5432/faturas_teste?schema=public
+      AUTH_SECRET: chave-ficticia-exclusiva-dos-testes-de-fatura
+      FATURAS_BANCO_TESTE: '1'
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Conciliação, integralidade, pagamentos e concorrência
+        run: npm test -- testes/financeiro/faturas/integracao.test.ts --maxWorkers=1

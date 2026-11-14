@@ -89,6 +89,29 @@ it("criacao de credito preserva sinal e nome revisado do item",()=>{
  expect(a.pagar).not.toHaveBeenCalled();
 });
 function montar(admin=true){render(<ProvedorAcesso acesso={{admin,permissoes:{"financeiro.faturas":["visualizar","editar"],"financeiro.movimentacoes":["visualizar","adicionar"]},excecoes:{}}}><FaturaView dados={faturaVisual} cadastros={cadastros} filtros={{}}/></ProvedorAcesso>);}
+function parcelaInteiraVisual(){return {id:"produto-a",descricao:"NF-e fictícia — Parcela 001",valor:10000,data:"2026-09-01",vencimento:"2026-09-20",cartaoId:null,cartaoNome:null,podeCorrigirCartao:false,fornecedorId:null,versao:"v-a",notaGrupo:"duplicata",componentes:2,lancamentos:[{id:"produto-a",versao:"v-a"},{id:"produto-b",versao:"v-b"}],correspondencia:null};}
+it("oferece uma despesa inteira da nota e vincula todos os componentes pela mesma seleção",async()=>{
+ a.correspondencias.mockResolvedValueOnce({candidatos:[parcelaInteiraVisual()],estornos:[],sugestao:null} as never);
+ montar();await screen.findByText("NF-e fictícia — Parcela 001");
+ const painel=screen.getByRole("region",{name:"Lançamentos do HUB"});
+ expect(within(painel).getAllByRole("checkbox",{name:/^Vincular /})).toHaveLength(1);
+ expect(within(painel).queryByText(/Componente de nota/)).toBeNull();
+ expect(within(painel).getByText(/Parcela completa da NF-e/)).toBeTruthy();
+ fireEvent.click(within(painel).getByRole("checkbox",{name:"Vincular NF-e fictícia — Parcela 001"}));
+ fireEvent.click(within(painel).getByRole("button",{name:"Vincular lançamentos selecionados"}));
+ await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{lancamentos:[{id:"produto-a",versao:"v-a"},{id:"produto-b",versao:"v-b"}]}));
+ expect(a.pagar).not.toHaveBeenCalled();
+});
+it("a busca mantém valor e seleção integrais da parcela",async()=>{
+ a.correspondencias.mockResolvedValueOnce({candidatos:[parcelaInteiraVisual()],estornos:[],sugestao:null} as never);
+ montar();await screen.findByText("NF-e fictícia — Parcela 001");
+ fireEvent.change(screen.getByRole("searchbox",{name:"Buscar lançamento do HUB"}),{target:{value:"Parcela 001"}});
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular NF-e fictícia — Parcela 001"}));
+ const painel=screen.getByRole("region",{name:"Lançamentos do HUB"});
+ expect(painel.textContent).toContain("100,00");
+ fireEvent.click(within(painel).getByRole("button",{name:"Vincular lançamentos selecionados"}));
+ await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{lancamentos:[{id:"produto-a",versao:"v-a"},{id:"produto-b",versao:"v-b"}]}));
+});
 it("vincula despesa do HUB e envia versão, sem pagar no extrato",async()=>{montar();await screen.findByText("Despesa já lançada");fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa já lançada"}));fireEvent.click(screen.getByRole("button",{name:"Vincular lançamentos selecionados"}));await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{lancamentos:[{id:"l",versao:"v"}]}));});
 it("mostra todas as movimentações no painel principal em ordem cronológica",()=>{montar();const fatura=screen.getByRole("region",{name:"Movimentações da fatura"});expect(within(fatura).getAllByRole("button",{name:/Conferir /}).map(b=>b.getAttribute("aria-label"))).toEqual(["Conferir GOOGLE*GSUITE","Conferir COMPRA DE EMBALAGENS"]);expect(fatura.textContent).toContain("01/09/2026");expect(fatura.textContent).toContain("02/09/2026");expect(screen.queryByRole("button",{name:"Próxima"})).toBeNull();expect(screen.getByRole("region",{name:"Lançamentos do HUB"})).toBeTruthy();});
 it("mantém os lançamentos à vista ao trocar de item e permite somar duas despesas",async()=>{
