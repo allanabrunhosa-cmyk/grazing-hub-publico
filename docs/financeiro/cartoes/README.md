@@ -91,6 +91,19 @@ Prévia sintética: `node node_modules/vite/bin/vite.js --config testes/visual/f
 
 ## Conciliação dos itens — 26/09/2026
 
+Na lista de candidatos, cada opção representa uma despesa inteira. NF-e discriminada
+aparece uma vez por duplicata/parcela, pelo valor total e sem linhas por produto.
+NFS-e e entrada avulsa conservam seus títulos inteiros por parcela; títulos de parcelas
+diferentes nunca se unem por fornecedor, descrição, compra ou grupo de recorrência.
+A busca e as sugestões trabalham sobre esses totais, depois do agrupamento.
+
+Selecionar uma parcela de NF-e envia todos os IDs e versões dos seus componentes.
+O servidor trava a nota antes dos lançamentos, relê a composição ativa e recusa
+seleções parciais, componentes indisponíveis ou totais divergentes. Nenhuma parcela
+é oferecida como subtotal se parte dela já está paga ou vinculada. O limite da lista
+conta despesas/parcelas, e não produtos. Regressões: `lancamentos-inteiros.test.ts`,
+`lancamentos-inteiros-servico.test.ts` e `conciliacao-interface.test.tsx`.
+
 - `servico.ts::candidatos` consulta lançamentos do HUB pendentes, sem baixa/vínculo anterior,
   com cartão correspondente ou ainda sem cartão, excluindo títulos protegidos de Pedidos.
   A competência não limita a seleção; a data só pontua sugestões. Limite explícito: 1.000
