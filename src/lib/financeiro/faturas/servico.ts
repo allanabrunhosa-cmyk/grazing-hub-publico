@@ -10,6 +10,7 @@ import { auditarFatura, autorFatura } from "./acesso";
 import { chaveParcelamento, dataBanco, dataFinanceira, decimal, dinheiro, ErroFatura, identificarLinhas, normalizarEstabelecimento, normalizarTexto, pontuarCorrespondencia, sugerirVinculosFatura, ratearLiquidacao, resumoFatura, resumoHash, selecionarRegra } from "./dominio";
 
 import { itensCompensados, parCompensavel } from "./compensacao";
+import { agruparLancamentosInteirosFatura, validarSelecaoIntegralDeNotasFatura, type CandidatoFaturaBase } from "./lancamentos-inteiros";
 import { descricaoTituloEntradaAvulsa, incluirTituloEntradaAvulsa } from "../titulo-entrada-avulsa";
 
 const opcoes = { timeout: 60000, maxWait: 15000 };
@@ -180,13 +181,26 @@ export async function classificarItens(faturaId:string,versao:number,d:Classific
 }
 
 async function buscarLancamentosCandidatos(tx:Prisma.TransactionClient,f:FaturaCompleta,sinais:Prisma.LancamentoFinanceiroWhereInput,outrosCartoes=false) {
-  const encontrados=await tx.lancamentoFinanceiro.findMany({where:{status:"PENDENTE",itemFaturaId:null,movimentacaoBancaria:null,vinculoExtrato:null,pedidoVendaId:null,AND:[...(outrosCartoes?[]:[{OR:[{cartaoCreditoId:f.cartaoId},{cartaoCreditoId:null}]}]),sinais]},include:{...incluirTituloEntradaAvulsa,cartaoCredito:{select:{nome:true}},notaFiscalItemLancamento:{select:{notaFiscalDuplicataId:true}},fornecedor:{select:{nome:true}}},orderBy:[{dataVencimento:"asc"},{id:"asc"}],take:1001});
-  if(encontrados.length>1000) throw new ErroFatura("Há muitos lançamentos candidatos. Revise os lançamentos pendentes antes de continuar.");
-  return encontrados;
+  const elegivel:Prisma.LancamentoFinanceiroWhereInput={status:"PENDENTE",itemFaturaId:null,dataPagamento:null,movimentacaoBancaria:null,vinculoExtrato:null,liquidacoesCartao:{none:{pagamento:{revertidoEm:null}}},pedidoVendaId:null,AND:[...(outrosCartoes?[]:[{OR:[{cartaoCreditoId:f.cartaoId},{cartaoCreditoId:null}]}]),sinais]};
+  const incluir={...incluirTituloEntradaAvulsa,cartaoCredito:{select:{nome:true}},fornecedor:{select:{nome:true}}} as const;
+  // O limite conta despesas/parcelas, nunca produtos de uma nota. Uma parcela só
+  // entra se TODOS os seus componentes ativos estão disponíveis para o vínculo.
+  const [individuais,parcelas]=await Promise.all([
+    tx.lancamentoFinanceiro.findMany({where:{AND:[elegivel,{notaFiscalItemLancamento:null}]},include:incluir,orderBy:[{dataVencimento:"asc"},{id:"asc"}],take:1001}),
+    tx.notaFiscalDuplicata.findMany({where:{lancamentos:{some:{lancamentoFinanceiro:elegivel},every:{OR:[{lancamentoFinanceiro:{status:"CANCELADO"}},{lancamentoFinanceiro:elegivel}]}}},include:{notaFiscal:{select:{chaveAcesso:true,fornecedorNome:true}},lancamentos:{where:{lancamentoFinanceiro:{status:{not:"CANCELADO"}}},include:{lancamentoFinanceiro:{include:incluir}}}},orderBy:[{dataVencimento:"asc"},{id:"asc"}],take:1001}),
+  ]);
+  if(individuais.length+parcelas.length>1000) throw new ErroFatura("Há muitas despesas ou parcelas candidatas. Revise os lançamentos pendentes antes de continuar.");
+  type Lancamento=typeof individuais[number];
+  const converter=(l:Lancamento,parcelaNota?:CandidatoFaturaBase["parcelaNota"]):CandidatoFaturaBase=>({id:l.id,descricao:descricaoTituloEntradaAvulsa(l),valor:valorNaFatura(l),data:l.dataCompetencia.toISOString().slice(0,10),vencimento:l.dataVencimento.toISOString().slice(0,10),cartaoId:l.cartaoCreditoId,cartaoNome:l.cartaoCredito?.nome??null,podeCorrigirCartao:!parcelaNota,fornecedorId:l.fornecedorId,versao:l.updatedAt.toISOString(),notaGrupo:parcelaNota?.id??null,parcelaNota});
+  const componentes=parcelas.flatMap(p=>{
+    if(p.lancamentos.reduce((s,c)=>s+centavos(c.valor),0)!==centavos(p.valor))return [];
+    const parcelaNota={id:p.id,valor:centavos(p.valor),numero:p.numero,chaveAcesso:p.notaFiscal.chaveAcesso,fornecedorNome:p.notaFiscal.fornecedorNome};
+    return p.lancamentos.map(c=>converter(c.lancamentoFinanceiro,parcelaNota));
+  });
+  return agruparLancamentosInteirosFatura([...individuais.map(l=>converter(l)),...componentes]);
 }
 function avaliarCandidatos(f:FaturaCompleta,item:FaturaCompleta["itens"][number],encontrados:Awaited<ReturnType<typeof buscarLancamentosCandidatos>>) {
-  return encontrados.map(l=>({id:l.id,descricao:descricaoTituloEntradaAvulsa(l),valor:valorNaFatura(l),data:l.dataCompetencia.toISOString().slice(0,10),vencimento:l.dataVencimento.toISOString().slice(0,10),cartaoId:l.cartaoCreditoId,cartaoNome:l.cartaoCredito?.nome??null,podeCorrigirCartao:!l.notaFiscalItemLancamento,fornecedorId:l.fornecedorId,versao:l.updatedAt.toISOString(),notaGrupo:l.notaFiscalItemLancamento?.notaFiscalDuplicataId??null,
-    correspondencia:pontuarCorrespondencia({valor:centavos(item.valor),data:item.dataCompra.toISOString().slice(0,10),vencimento:f.vencimento.toISOString().slice(0,10),descricao:item.descricaoOriginal,cartaoId:f.cartaoId,fornecedorId:item.fornecedorId},{id:l.id,valor:valorNaFatura(l),data:l.dataCompetencia.toISOString().slice(0,10),vencimento:l.dataVencimento.toISOString().slice(0,10),descricao:l.descricao,cartaoId:l.cartaoCreditoId,fornecedorId:l.fornecedorId},f.cartao.toleranciaDias)}));
+  return encontrados.map(l=>({...l,correspondencia:pontuarCorrespondencia({valor:centavos(item.valor),data:item.dataCompra.toISOString().slice(0,10),vencimento:f.vencimento.toISOString().slice(0,10),descricao:item.descricaoOriginal,cartaoId:f.cartaoId,fornecedorId:item.fornecedorId},{id:l.id,valor:l.valor,data:l.data,vencimento:l.vencimento,descricao:l.descricao,cartaoId:l.cartaoId,fornecedorId:l.fornecedorId},f.cartao.toleranciaDias)}));
 }
 async function candidatos(tx:Prisma.TransactionClient,f:FaturaCompleta,item:FaturaCompleta["itens"][number],todosSinais=false,outrosCartoes=false) {
   const sinais:Prisma.LancamentoFinanceiroWhereInput=todosSinais?{OR:[{tipo:"DESPESA",valor:{not:0}},{tipo:"RECEITA",valor:{gt:0}}]}:item.valor.isNegative()?{OR:[{tipo:"RECEITA",valor:{gt:0}},{tipo:"DESPESA",valor:{lt:0}}]}:{tipo:"DESPESA",valor:{gt:0}};
@@ -316,12 +330,22 @@ export async function vincularItem(faturaId:string,versao:number,itemId:string,e
       await criarDespesaItem(tx,f,item,autor.id,entrada.novo,entrada.motivoDuplicidade);
     } else {
       const escolhidos=entrada.lancamentos!;
-      if(escolhidos.length>200||new Set(escolhidos.map(l=>l.id)).size!==escolhidos.length)throw new ErroFatura("Seleção de despesas inválida.");
-      const idsTravados=[...new Set([...escolhidos.map(l=>l.id),...anteriores.map(l=>l.id)])].sort();
+      if(escolhidos.length>20000||escolhidos.some(l=>typeof l?.id!=="string"||!l.id||l.id.length>100||typeof l.versao!=="string"||l.versao.length>40)||new Set(escolhidos.map(l=>l.id)).size!==escolhidos.length)throw new ErroFatura("Seleção de despesas inválida.");
+      const vinculosNota=await tx.notaFiscalItemLancamento.findMany({where:{lancamentoFinanceiroId:{in:escolhidos.map(l=>l.id)}},select:{notaFiscalDuplicataId:true,notaFiscalDuplicata:{select:{notaFiscalId:true}}}});
+      const notasTravadas=[...new Set(vinculosNota.map(v=>v.notaFiscalDuplicata.notaFiscalId))].sort();
+      const parcelasNota=[...new Set(vinculosNota.map(v=>v.notaFiscalDuplicataId))];
+      // A origem trava a nota antes de seus lançamentos. Mantemos a mesma ordem e
+      // travamos a parcela completa, inclusive componentes omitidos pelo cliente.
+      if(notasTravadas.length)await tx.$queryRaw(Prisma.sql`SELECT id FROM "NotaFiscalRecebida" WHERE id IN (${Prisma.join(notasTravadas)}) ORDER BY id FOR UPDATE`);
+      const componentesParaTravar=parcelasNota.length?await tx.notaFiscalItemLancamento.findMany({where:{notaFiscalDuplicataId:{in:parcelasNota},lancamentoFinanceiro:{status:{not:"CANCELADO"}}},select:{lancamentoFinanceiroId:true}}):[];
+      const idsTravados=[...new Set([...escolhidos.map(l=>l.id),...anteriores.map(l=>l.id),...componentesParaTravar.map(c=>c.lancamentoFinanceiroId)])].sort();
       await tx.$queryRaw(Prisma.sql`SELECT id FROM "LancamentoFinanceiro" WHERE id IN (${Prisma.join(idsTravados)}) ORDER BY id FOR UPDATE`);
-      const despesas=await tx.lancamentoFinanceiro.findMany({where:{id:{in:escolhidos.map(l=>l.id)}},include:{movimentacaoBancaria:true,vinculoExtrato:true}});
+      const despesas=await tx.lancamentoFinanceiro.findMany({where:{id:{in:escolhidos.map(l=>l.id)}},include:{movimentacaoBancaria:true,vinculoExtrato:true,notaFiscalItemLancamento:{include:{notaFiscalDuplicata:{select:{id:true,valor:true,notaFiscalId:true}}}}}});
       const valorItem=item.valor;
       if(despesas.length!==escolhidos.length||despesas.some(l=>l.status!=="PENDENTE"||(valorItem.isNegative()?valorNaFatura(l)>=0:l.tipo!=="DESPESA"||!l.valor.isPositive())||l.pedidoVendaId||l.itemFaturaId||l.movimentacaoBancaria||l.vinculoExtrato||(l.cartaoCreditoId&&l.cartaoCreditoId!==f.cartaoId)||escolhidos.find(e=>e.id===l.id)?.versao!==l.updatedAt.toISOString()))throw new ErroFatura("Despesa alterada, já paga ou vinculada. Atualize e confira.");
+      if(despesas.some(l=>l.notaFiscalItemLancamento&&!notasTravadas.includes(l.notaFiscalItemLancamento.notaFiscalDuplicata.notaFiscalId)))throw new ErroFatura("A origem da despesa mudou. Atualize e confira a parcela inteira.");
+      const componentesAtivos=parcelasNota.length?await tx.notaFiscalItemLancamento.findMany({where:{notaFiscalDuplicataId:{in:parcelasNota},lancamentoFinanceiro:{status:{not:"CANCELADO"}}},select:{notaFiscalDuplicataId:true,lancamentoFinanceiroId:true,valor:true}}):[];
+      validarSelecaoIntegralDeNotasFatura(despesas.map(l=>({id:l.id,notaGrupo:l.notaFiscalItemLancamento?.notaFiscalDuplicata.id??null,valor:centavos(l.valor),valorParcela:l.notaFiscalItemLancamento?centavos(l.notaFiscalItemLancamento.notaFiscalDuplicata.valor):undefined})),componentesAtivos.map(c=>({id:c.lancamentoFinanceiroId,notaGrupo:c.notaFiscalDuplicataId,valor:centavos(c.valor)})));
       if(despesas.reduce((s,l)=>s+valorNaFatura(l),0)!==centavos(item.valor))throw new ErroFatura("A soma das despesas deve ser igual ao valor do item.");
       if(entrada.substituir){
         const idItem=item.id;
