@@ -13,6 +13,11 @@ Liquidações revertidas e componentes cancelados não bloqueiam vínculos novos
 pagamentos/vínculos ativos e alterações concorrentes continuam protegidos.
 Contrato: [correção de pagamentos e notas aceitas](../features/correcao-notas-aceitas/SPEC.md).
 
+`correspondenciasFaturaAction` é consulta e não invalida o layout financeiro.
+Invalidar a página nessa leitura entrega novos dados RSC, reinicia a consulta e
+mantém a seleção desabilitada. Escritas confirmadas continuam revalidando o layout.
+Regressão: `testes/financeiro/faturas/consulta-action.test.ts`.
+
 Em Movimentações, `CampoBusca` filtra os grupos já calculados por texto ou valor em
 centavos, com formatos brasileiros ou decimais. Um item encontrado mantém o grupo
 e o valor líquido da parcela completos. A busca não recalcula cartões, saldos ou
