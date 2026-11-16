@@ -3,11 +3,12 @@
 import { useState, useTransition, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck, ShieldX, X } from "lucide-react";
+import { Loader2, Pencil, ShieldCheck, ShieldX, X } from "lucide-react";
 import { BadgeNota as Badge } from "./badge-nota";
 import { Button } from "@/components/ui/button";
 import { CategoriaFinanceiraCombobox } from "@/components/categoria-financeira-combobox";
 import { aceitarNotaAction } from "./aceitar-nota";
+import { editarNotaAceitaAction } from "./editar-nota";
 import { importarXmlPelaApi } from "@/lib/notas-fiscais/api-cliente";
 import { ParcelasNota, type DuplicataLinha } from "./parcelas-nota";
 import type { CartaoOption } from "@/lib/financeiro/cartoes";
@@ -143,6 +144,10 @@ export function NotaFiscalDialog({
   const [descontos, setDescontos] = useState<Record<number, string>>({});
   const [localId, setLocalId] = useState(locais[0]?.id ?? "");
   const [dataEntradaEstoque, setDataEntradaEstoque] = useState("");
+  const [editando, setEditando] = useState(false);
+  const [versaoCorrecao, setVersaoCorrecao] = useState("");
+  const [podeEditarCorrecao, setPodeEditarCorrecao] = useState(false);
+  const [motivoCorrecao, setMotivoCorrecao] = useState("");
   const [linhas, setLinhas] = useState<Record<string, LinhaConciliacao>>({});
   const [insumosExtras, setInsumosExtras] = useState<InsumoOption[]>([]);
   const [carregando, startCarregamento] = useTransition();
@@ -234,6 +239,8 @@ export function NotaFiscalDialog({
     setOpen(aberto);
     if (!aberto) {
       resetarManifestacao();
+      setEditando(false);
+      setMotivoCorrecao("");
       setItens(null);
       return;
     }
@@ -255,6 +262,13 @@ export function NotaFiscalDialog({
         return;
       }
       setItens(resultado.itens);
+      setVersaoCorrecao(resultado.versaoCorrecao ?? "");
+      setPodeEditarCorrecao(resultado.podeEditarCorrecao ?? false);
+      const locaisOriginais = [...new Set(resultado.itens.filter(item => item.status === "CONCILIADO" && item.destino === "ESTOQUE").map(item => item.localId).filter(Boolean))];
+      if (locaisOriginais.length === 1) setLocalId(locaisOriginais[0]!);
+      else if (categoriaDaNota(nota.ultimaManifestacao, nota.tratamentoLocal) === "AUTORIZADA") setLocalId("");
+      const datasOriginais = [...new Set(resultado.itens.filter(item => item.status === "CONCILIADO").map(item => item.dataEntradaEstoque).filter(Boolean))];
+      if (datasOriginais.length === 1) setDataEntradaEstoque(datasOriginais[0]!);
       setCustos(resultado.custos ?? null);
       const modoSalvo = resultado.itens.find(item => item.status !== "PENDENTE" && item.composicaoCusto)?.composicaoCusto?.modoDesconto;
       const modoCarregado = modoSalvo ?? (resultado.custos && resultado.custos.desconto > 0 ? null : "NOTA");
@@ -272,10 +286,10 @@ export function NotaFiscalDialog({
         iniciais[item.id] = {
           destino: item.destino,
           insumoId: item.insumoId,
-          quantidade: String(Math.round(item.quantidadeComercial * (item.fatorConversao ?? 1) * 1000) / 1000),
+          quantidade: String(item.quantidadeConciliada ?? Math.round(item.quantidadeComercial * (item.fatorConversao ?? 1) * 1000) / 1000),
           taxaConversao: String(item.fatorConversao ?? 1),
           categoriaFinanceiraId: item.categoriaFinanceiraId,
-          valorTotal: item.valorTotalItem.toFixed(2),
+          valorTotal: (item.valorTotalConciliado ?? item.valorTotalItem).toFixed(2),
         };
       }
       setLinhas(iniciais);
@@ -329,7 +343,7 @@ export function NotaFiscalDialog({
     }
     setModoDesconto(modo);
   }
-  const itensPendentes = (itens ?? []).filter((i) => i.status === "PENDENTE");
+  const itensPendentes = (itens ?? []).filter((i) => editando ? i.status !== "IGNORADO" : i.status === "PENDENTE");
   const haAlgoAConciliar = itensPendentes.length > 0;
   const haItemEstoque = itensPendentes.some((i) => linhas[i.id]?.destino === "ESTOQUE");
 
@@ -341,8 +355,10 @@ export function NotaFiscalDialog({
   });
 
   const podeConfirmar =
-    !nota.tratamentoLocal && !erroCustos && nota.temXmlCompleto && itens !== null && itens.length > 0 &&
-    (!haAlgoAConciliar || ((!haItemEstoque || !!localId) && "data" in validarDataEntradaEstoque(dataEntradaEstoque))) &&
+    !nota.tratamentoLocal && (!erroCustos || editando) && nota.temXmlCompleto && itens !== null && itens.length > 0 &&
+    (!haAlgoAConciliar || (editando
+      ? (!dataEntradaEstoque || "data" in validarDataEntradaEstoque(dataEntradaEstoque))
+      : ((!haItemEstoque || !!localId) && "data" in validarDataEntradaEstoque(dataEntradaEstoque)))) &&
     (!haAlgoAConciliar || (duplicatasValidas.length > 0 && duplicatasValidas.length === duplicatas.length)) &&
     itensPendentes.every((item) => {
       const linha = linhas[item.id];
@@ -358,7 +374,7 @@ export function NotaFiscalDialog({
     });
 
   function confirmarAceite() {
-    if (!podeConfirmar || salvandoFornecedor) {
+    if (!podeConfirmar || salvandoFornecedor || (editando && (motivoCorrecao.trim().length < 15 || !versaoCorrecao))) {
       setMostrarCamposInvalidos(true);
       return;
     }
@@ -393,25 +409,31 @@ export function NotaFiscalDialog({
           dataVencimento: d.dataVencimento,
           valor: paraNumero(d.valor),
         }));
-        const resultado = await aceitarNotaAction({
+        const entrada = {
           notaFiscalId: nota.id,
           localId,
           dataEntradaEstoque: haAlgoAConciliar ? dataEntradaEstoque : undefined,
-          itens: itensInput,
+          itens: editando ? [...itensInput, ...(itens ?? []).filter(item => item.status === "IGNORADO").map(item => ({ notaFiscalItemId: item.id, acao: "IGNORAR" as const }))] : itensInput,
           duplicatas: duplicatasInput,
           ...(custos && distribuicaoDesconto ? { distribuicaoDesconto } : {}),
-        });
+        };
+        const resultado = editando
+          ? await editarNotaAceitaAction({ ...entrada, versao: versaoCorrecao, motivo: motivoCorrecao.trim() })
+          : await aceitarNotaAction(entrada);
         if ("erro" in resultado) {
           toast.error(resultado.erro);
           return;
         }
-        toast.success("Nota aceita — conciliação concluída, estoque e financeiro atualizados.");
+        toast.success(editando ? "Informações da nota corrigidas." : "Nota aceita — conciliação concluída, estoque e financeiro atualizados.");
         resetarManifestacao();
+        setEditando(false);
+        setMotivoCorrecao("");
         setOpen(false);
         setItens(null); // força reler na próxima abertura, já refletindo os status atualizados
+        router.refresh();
       } catch (erro) {
         if (!mostrarErroPaginaDesatualizada(erro)) {
-          toast.error("Não foi possível concluir o aceite. Confira o status da nota antes de tentar novamente.");
+          toast.error(editando ? "Não foi possível confirmar a correção. Reabra a nota para conferir os dados antes de tentar novamente." : "Não foi possível concluir o aceite. Confira o status da nota antes de tentar novamente.");
         }
       }
     });
@@ -446,12 +468,15 @@ export function NotaFiscalDialog({
               <span className="text-xs text-muted-foreground">(Ciência já registrada)</span>
             )}
           </div>
-
+          {categoriaAtual === "AUTORIZADA" && podeEditarCorrecao && !editando && <Button type="button" variant="outline" size="sm" disabled={operacaoPendente || carregando || !itens || salvandoFornecedor} onClick={() => { setEditando(true); setOverrideSecaoManifestacao(false); }}>
+            <Pencil className="size-4" />Editar informações
+          </Button>}
         </div>
+        {editando && <p className="rounded-md bg-muted p-3 text-sm">Corrija os dados de pagamento, recebimento e vínculo dos itens. O aceite fiscal permanece registrado. As alterações serão salvas juntas após a confirmação.</p>}
 
         <div className="space-y-1.5">
           <Label htmlFor={`tratamento-${nota.id}`}>Tratamento da nota</Label>
-          <Select value={modoOperacao} disabled={operacaoPendente || importando || salvandoFornecedor || !!nota.tratamentoLocal}
+          <Select value={modoOperacao} disabled={operacaoPendente || importando || salvandoFornecedor || editando || !!nota.tratamentoLocal}
             onValueChange={valor => { if (valor === "COMPRA" || valor === "OUTRA") { setModoOperacao(valor); resetarManifestacao(); } }}>
             <SelectTrigger id={`tratamento-${nota.id}`}><SelectValue>{() => modoOperacao === "COMPRA" ? "Compra" : "Outras operações"}</SelectValue></SelectTrigger>
             <SelectContent><SelectItem value="COMPRA">Compra</SelectItem><SelectItem value="OUTRA">Outras operações</SelectItem></SelectContent>
@@ -539,9 +564,9 @@ export function NotaFiscalDialog({
               onConciliado={fornecedor => setDetalhes(atual => atual ? { ...atual, fornecedorCadastrado: fornecedor } : atual)} />
 
             {custos && <ResumoCustosNota custos={custos} modo={modoDesconto} aoMudarModo={mudarModoDesconto}
-              bloqueado={operacaoPendente || itens.some(item => item.status !== "PENDENTE" && item.composicaoCusto)}
-              descontoDistribuido={distribuicaoDesconto?.itens.reduce((soma, item) => soma + item.desconto, 0) ?? 0} erro={erroCustos} />}
-            <ParcelasNota parcelas={duplicatas} cartoes={cartoes} dataEmissao={nota.dataEmissao ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(nota.dataEmissao)) : ""} bloqueado={operacaoPendente || importando || salvandoFornecedor} mostrarErros={mostrarCamposInvalidos} onChange={setDuplicatas} />
+              bloqueado={operacaoPendente || editando || itens.some(item => item.status !== "PENDENTE" && item.composicaoCusto)}
+              descontoDistribuido={distribuicaoDesconto?.itens.reduce((soma, item) => soma + item.desconto, 0) ?? 0} erro={editando ? null : erroCustos} />}
+            <ParcelasNota parcelas={editando ? duplicatas.map(parcela => ({ ...parcela, bloqueada: false })) : duplicatas} cartoes={cartoes} dataEmissao={nota.dataEmissao ? new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(nota.dataEmissao)) : ""} bloqueado={operacaoPendente || importando || salvandoFornecedor || (categoriaAtual === "AUTORIZADA" && !editando)} mostrarErros={mostrarCamposInvalidos} onChange={setDuplicatas} />
             {duplicatas.length > 0 && nota.valorTotal != null && Math.abs(somaDuplicatas - nota.valorTotal) > 0.01 && <p className="text-xs text-amber-600">Soma das parcelas ({formatarMoeda(somaDuplicatas)}) diferente do valor da nota ({formatarMoeda(nota.valorTotal)}).</p>}
 
             {haAlgoAConciliar && <EntradaEstoqueNota mostrarLocal={haItemEstoque} locais={locais} localId={localId} onLocalChange={setLocalId}
@@ -549,7 +574,7 @@ export function NotaFiscalDialog({
             <div className="space-y-3">
               {itens.map((item) => {
                 const linha = linhas[item.id];
-                const processado = item.status !== "PENDENTE";
+                const processado = item.status !== "PENDENTE" && (!editando || item.status === "IGNORADO");
                 const composicao = composicaoParaItem(item);
                 const valorUnitarioNota = item.valorUnitarioComercial ?? (item.quantidadeComercial > 0 ? item.valorTotalItem / item.quantidadeComercial : null);
                 const observacaoUnitaria = valorUnitarioNota != null && Number.isFinite(valorUnitarioNota)
@@ -702,7 +727,7 @@ export function NotaFiscalDialog({
                                 aria-invalid={valorTotalInvalido}
                                 className="aria-invalid:bg-destructive/10"
                                 value={composicao ? composicao.total.toFixed(2) : linha?.valorTotal ?? ""}
-                                readOnly={!!composicao}
+                                readOnly={!!composicao || editando}
                                 onValueChange={(valorTotal) => atualizarLinha(item.id, { valorTotal })}
                                 inputMode="decimal"
                                 placeholder="0,00"
@@ -729,7 +754,7 @@ export function NotaFiscalDialog({
                                 aria-invalid={valorTotalInvalido}
                                 className="aria-invalid:bg-destructive/10"
                                 value={composicao ? composicao.total.toFixed(2) : linha?.valorTotal ?? ""}
-                                readOnly={!!composicao}
+                                readOnly={!!composicao || editando}
                                 onValueChange={(valorTotal) => atualizarLinha(item.id, { valorTotal })}
                                 inputMode="decimal"
                                 placeholder="0,00"
@@ -762,7 +787,18 @@ export function NotaFiscalDialog({
         )}
 
         </fieldset>
-        <div className="flex justify-end">
+        {editando && <DialogFooter className="block space-y-3">
+          <div className="space-y-1.5"><Label htmlFor={`motivo-correcao-${nota.id}`}>Motivo da correção (15 a 255 caracteres)</Label>
+            <Textarea id={`motivo-correcao-${nota.id}`} value={motivoCorrecao} onChange={evento => setMotivoCorrecao(evento.target.value)} maxLength={255} disabled={pendingManifestacao} />
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" disabled={pendingManifestacao || salvandoFornecedor} onClick={() => alternarAbertura(false)}>Cancelar</Button>
+            <Button type="button" variant="entrada" disabled={pendingManifestacao || salvandoFornecedor || !podeConfirmar || motivoCorrecao.trim().length < 15 || !versaoCorrecao} onClick={confirmarAceite}>
+              {pendingManifestacao && <Loader2 className="size-4 animate-spin" />}Salvar correções
+            </Button>
+          </div>
+        </DialogFooter>}
+        {!editando && <div className="flex justify-end">
           <Button
             type="button"
             variant="ghost"
@@ -772,8 +808,8 @@ export function NotaFiscalDialog({
           >
             {secaoAberta ? "Ocultar ações" : "Aceitar / Recusar nota"}
           </Button>
-        </div>
-        {secaoAberta && (
+        </div>}
+        {!editando && secaoAberta && (
           <DialogFooter className="block space-y-3">
             {etapaManifestacao.nome === "escolher" && (
               <div className="flex items-center justify-between gap-3">

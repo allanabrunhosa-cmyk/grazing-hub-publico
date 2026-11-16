@@ -21,6 +21,8 @@ export default defineConfig({
     { find: "@/app/(protegido)/fornecedores/actions", replacement: caminho("./acoes-simuladas.ts") },
     { find: "./conciliar-fornecedor-actions", replacement: caminho("./fornecedor-nota-acoes.ts") },
     { find: "./aceitar-nota", replacement: caminho("./acoes-simuladas.ts") },
+    { find: "./editar-nota", replacement: caminho("./acoes-simuladas.ts") },
+    { find: "./tratamento-local-actions", replacement: caminho("./acoes-simuladas.ts") },
     { find: "./importar-xml", replacement: caminho("./acoes-simuladas.ts") },
     { find: "@/app/(protegido)/financeiro/lancamentos/actions", replacement: caminho("./acoes-simuladas.ts") },
     { find: "@/app/(protegido)/financeiro/contas/actions", replacement: caminho("./acoes-simuladas.ts") },

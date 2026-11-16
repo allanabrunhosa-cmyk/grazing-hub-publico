@@ -35,6 +35,7 @@ export type ItemConciliacaoRow = {
   categoriaFinanceiraId: string | null;
   categoriaFinanceiraNome: string | null;
   quantidadeConciliada: number | null;
+  localId?: string | null;
   dataEntradaEstoque?: string | null;
   valorTotalConciliado: number | null;
   composicaoCusto?: ComposicaoCusto | null;

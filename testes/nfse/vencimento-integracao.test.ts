@@ -12,6 +12,8 @@ const estado = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
 vi.mock("@/lib/prisma", () => ({ get prisma() { return estado.prisma; } }));
 import { decidirNfse } from "@/lib/nfse/situacao";
 import { lancarNfse } from "@/lib/nfse/servico";
+import { corrigirNfse, obterCorrecaoNfse } from "@/lib/nfse/correcao";
+import type { SessaoAtual } from "@/lib/session";
 
 const esquema = "teste_nfse_vencimento_" + randomUUID().replaceAll("-", "");
 const notaLegadaId = "nfse-legada-sintetica";
@@ -19,6 +21,16 @@ const competencia = new Date("2026-09-01T12:00:00.000Z");
 const emissao = new Date("2026-09-15T12:00:00.000Z");
 let banco: Client | undefined;
 let criado = false;
+const sessaoCorrecao: SessaoAtual = {
+  userId: "autor-nfse-teste", nome: "Operador sintético", email: "nfse-vencimento@example.invalid",
+  admin: true, versao: 0, permissoes: {}, excecoes: {}, perfilNome: "Administrador sintético",
+};
+
+async function contextoCorrecao(nfseId: string) {
+  const resultado = await obterCorrecaoNfse(nfseId, sessaoCorrecao);
+  if ("erro" in resultado) throw new Error(resultado.erro);
+  return { nfseId, ...resultado, motivo: "Correção sintética autorizada da NFS-e" };
+}
 
 async function criarNota(dados: { dataCompetencia?: Date | null; dataEmissao?: Date | null } = {}) {
   return estado.prisma.notaFiscalServico.create({ data: {
@@ -62,8 +74,10 @@ describe.skipIf(process.env.NFSE_VENCIMENTO_BANCO_TESTE !== "1")("vencimento NFS
     expect(legadoPreparado).toBe(true);
     estado.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: endereco.toString(), options: `-c search_path=${esquema}` }, { schema: esquema }) });
     expect(await estado.prisma.$queryRaw`SELECT current_schema() AS esquema`).toEqual([{ esquema }]);
-    await estado.prisma.usuario.create({ data: { id: "autor-nfse-teste", nome: "Operador sintético", email: "nfse-vencimento@example.invalid", senhaHash: "sem-login" } });
+    const perfilCorrecao = await estado.prisma.perfilAcesso.upsert({ where: { sistema: "ADMINISTRADOR" }, create: { nome: "Administrador sintético NFS-e", sistema: "ADMINISTRADOR", permissoes: {} }, update: {} });
+    await estado.prisma.usuario.create({ data: { id: "autor-nfse-teste", nome: "Operador sintético", email: "nfse-vencimento@example.invalid", senhaHash: "sem-login", senhaDefinida: true, ativo: true, sessaoVersao: 0, perfilAcessoId: perfilCorrecao.id } });
     await estado.prisma.categoriaFinanceira.create({ data: { id: "despesa-nfse-teste", nome: "Serviços sintéticos", grupo: "DESPESAS_OPERACIONAIS" } });
+    await estado.prisma.categoriaFinanceira.create({ data: { id: "despesa-nfse-corrigida", nome: "Serviços sintéticos corrigidos", grupo: "DESPESAS_OPERACIONAIS" } });
     await banco.query(`CREATE FUNCTION "${esquema}"."falhar_evento_nfse_teste"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."criadoPorNome" = 'Falha sintética da auditoria' THEN RAISE EXCEPTION 'Falha sintética da auditoria'; END IF; RETURN NEW; END $$`);
     await banco.query(`CREATE TRIGGER "falhar_evento_nfse_teste" BEFORE INSERT ON "EventoNfse" FOR EACH ROW EXECUTE FUNCTION "${esquema}"."falhar_evento_nfse_teste"()`);
   }, 120_000);
@@ -213,5 +227,77 @@ describe.skipIf(process.env.NFSE_VENCIMENTO_BANCO_TESTE !== "1")("vencimento NFS
       expect(salva).toMatchObject({ status: "LANCADA", destinoFinanceiro: "FINANCEIRO" });
       expect(salva.lancamentos).toHaveLength(1);
     }
+  });
+
+  it("corrige pagamento e categoria com os mesmos títulos, preserva eventos fiscais e recusa versão antiga", async () => {
+    const autor = await estado.prisma.usuario.findUniqueOrThrow({ where: { id: sessaoCorrecao.userId }, include: { perfilAcesso: true } });
+    expect(autor).toMatchObject({ ativo: true, senhaDefinida: true, sessaoVersao: 0, perfilAcesso: { sistema: "ADMINISTRADOR" } });
+    const nota = await criarNota();
+    expect(await decidirNfse({ nfseId: nota.id, decisao: "ACEITAR", autorNome: sessaoCorrecao.nome, destinoFinanceiro: "FINANCEIRO", dataVencimento: "2026-11-20" })).toEqual({ ok: true });
+    expect(await lancarNfse(lancamentoTeste(nota.id))).toEqual({ ok: true });
+    const fiscaisAntes = await estado.prisma.eventoNfse.findMany({ where: { notaFiscalId: nota.id }, orderBy: { id: "asc" } });
+    const input = await contextoCorrecao(nota.id);
+    const tituloId = input.parcelas[0].id;
+    input.categoriaId = "despesa-nfse-corrigida";
+    input.parcelas[0].formaPagamento = "PIX";
+    input.parcelas[0].dataVencimento = "2026-12-07";
+    expect(await corrigirNfse(input, sessaoCorrecao)).toEqual({ ok: true });
+    const vinculos = await estado.prisma.notaFiscalServicoLancamento.findMany({ where: { notaFiscalServicoId: nota.id }, include: { lancamentoFinanceiro: { include: { formaPagamento: true } } } });
+    expect(vinculos).toHaveLength(1);
+    expect(vinculos[0].lancamentoFinanceiro).toMatchObject({ id: tituloId, categoriaId: "despesa-nfse-corrigida", status: "PENDENTE", cartaoCreditoId: null, formaPagamento: { nome: "Pix" }, dataCompetencia: competencia, dataVencimento: new Date("2026-12-07T12:00:00Z") });
+    expect(Number(vinculos[0].lancamentoFinanceiro.valor)).toBe(100);
+    expect(await estado.prisma.eventoNfse.findMany({ where: { notaFiscalId: nota.id }, orderBy: { id: "asc" } })).toEqual(fiscaisAntes);
+    expect(await estado.prisma.movimentacaoBancaria.count({ where: { lancamentoId: tituloId } })).toBe(0);
+    expect((await estado.prisma.notaFiscalServico.findUniqueOrThrow({ where: { id: nota.id } })).dataVencimento).toEqual(new Date("2026-12-07T00:00:00Z"));
+    expect(await corrigirNfse(input, sessaoCorrecao)).toMatchObject({ erro: expect.stringContaining("mudaram") });
+    expect(await estado.prisma.notaFiscalServicoLancamento.count({ where: { notaFiscalServicoId: nota.id } })).toBe(1);
+    const historicos = await estado.prisma.historicoAcesso.findMany({ where: { entidadeId: `NFSE:${nota.id}`, acao: "CORRECAO_NFSE" } });
+    expect(historicos).toHaveLength(1);
+    expect(historicos[0]).toMatchObject({ autorId: sessaoCorrecao.userId, depois: expect.objectContaining({ motivo: input.motivo }) });
+  });
+
+  it("mantém pagamento protegido ao corrigir só a descrição e rejeita alteração de pagamento sem efeitos parciais", async () => {
+    const nota = await criarNota();
+    expect(await decidirNfse({ nfseId: nota.id, decisao: "ACEITAR", autorNome: sessaoCorrecao.nome, destinoFinanceiro: "FINANCEIRO" })).toEqual({ ok: true });
+    expect(await lancarNfse(lancamentoTeste(nota.id))).toEqual({ ok: true });
+    const vinculo = await estado.prisma.notaFiscalServicoLancamento.findFirstOrThrow({ where: { notaFiscalServicoId: nota.id } });
+    const dataPagamento = new Date("2026-11-16T12:00:00Z");
+    await estado.prisma.lancamentoFinanceiro.update({ where: { id: vinculo.lancamentoFinanceiroId }, data: { status: "BAIXADO", dataPagamento } });
+    const input = await contextoCorrecao(nota.id);
+    input.descricao = "Descrição corrigida sem alterar o pagamento";
+    expect(await corrigirNfse(input, sessaoCorrecao)).toEqual({ ok: true });
+    const titulo = await estado.prisma.lancamentoFinanceiro.findUniqueOrThrow({ where: { id: vinculo.lancamentoFinanceiroId } });
+    expect(titulo).toMatchObject({ descricao: input.descricao, status: "BAIXADO", dataPagamento });
+    const bloqueada = await contextoCorrecao(nota.id);
+    bloqueada.descricao = "Esta descrição também deve permanecer sem alteração";
+    bloqueada.parcelas[0].formaPagamento = "PIX";
+    expect(await corrigirNfse(bloqueada, sessaoCorrecao)).toMatchObject({ erro: expect.stringContaining("vínculo financeiro") });
+    expect(await estado.prisma.lancamentoFinanceiro.findUniqueOrThrow({ where: { id: titulo.id } })).toEqual(titulo);
+    expect(await estado.prisma.historicoAcesso.count({ where: { entidadeId: `NFSE:${nota.id}`, acao: "CORRECAO_NFSE" } })).toBe(1);
+    expect(await estado.prisma.eventoNfse.count({ where: { notaFiscalId: nota.id } })).toBe(2);
+  });
+
+  it("reestrutura parcelas sem apagar títulos históricos e preserva o total da nota", async () => {
+    const nota = await criarNota();
+    expect(await decidirNfse({ nfseId: nota.id, decisao: "ACEITAR", autorNome: sessaoCorrecao.nome, destinoFinanceiro: "FINANCEIRO" })).toEqual({ ok: true });
+    expect(await lancarNfse(lancamentoTeste(nota.id))).toEqual({ ok: true });
+    const input = await contextoCorrecao(nota.id);
+    const tituloOriginal = input.parcelas[0].id;
+    const dividir = { ...input, parcelas: [{ ...input.parcelas[0], valor: 40 }, { ...input.parcelas[0], id: undefined, numero: "002", valor: 60, dataVencimento: "2027-01-02" }] };
+    expect(await corrigirNfse(dividir, sessaoCorrecao)).toEqual({ ok: true });
+    const aposDividir = await contextoCorrecao(nota.id);
+    expect(aposDividir.parcelas).toHaveLength(2);
+    expect(aposDividir.parcelas.map(p => p.id)).toContain(tituloOriginal);
+    expect(aposDividir.parcelas.reduce((total, p) => total + p.valor, 0)).toBe(100);
+    const reunir = { ...aposDividir, parcelas: [{ ...aposDividir.parcelas.find(p => p.id === tituloOriginal)!, valor: 100 }] };
+    expect(await corrigirNfse(reunir, sessaoCorrecao)).toEqual({ ok: true });
+    const vinculos = await estado.prisma.notaFiscalServicoLancamento.findMany({ where: { notaFiscalServicoId: nota.id }, include: { lancamentoFinanceiro: true } });
+    expect(vinculos).toHaveLength(2);
+    expect(vinculos.filter(v => v.lancamentoFinanceiro.status === "CANCELADO")).toHaveLength(1);
+    expect(vinculos.filter(v => v.lancamentoFinanceiro.status === "PENDENTE").map(v => ({ id: v.lancamentoFinanceiroId, valor: Number(v.lancamentoFinanceiro.valor) }))).toEqual([{ id: tituloOriginal, valor: 100 }]);
+    expect(await corrigirNfse(reunir, sessaoCorrecao)).toMatchObject({ erro: expect.stringContaining("mudaram") });
+    expect(await estado.prisma.notaFiscalServicoLancamento.count({ where: { notaFiscalServicoId: nota.id } })).toBe(2);
+    expect(await estado.prisma.historicoAcesso.count({ where: { entidadeId: `NFSE:${nota.id}`, acao: "CORRECAO_NFSE" } })).toBe(2);
+    expect(await estado.prisma.movimentacaoBancaria.count({ where: { lancamentoId: { in: vinculos.map(v => v.lancamentoFinanceiroId) } } })).toBe(0);
   });
 });

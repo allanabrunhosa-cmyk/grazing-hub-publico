@@ -17,11 +17,13 @@ vi.mock("@/components/cadastro-rapido-insumo-dialog", () => ({ CadastroRapidoIns
 vi.mock("@/app/(protegido)/fornecedores/fornecedor-dialog", () => ({ FornecedorDialog: () => null }));
 vi.mock("@/app/(protegido)/notas-fiscais/tratamento-local-actions", () => ({ tratarOutraOperacaoNotaAction: vi.fn() }));
 vi.mock("@/app/(protegido)/notas-fiscais/aceitar-nota", () => ({ aceitarNotaAction: vi.fn() }));
+vi.mock("@/app/(protegido)/notas-fiscais/editar-nota", () => ({ editarNotaAceitaAction: vi.fn() }));
 vi.mock("@/lib/notas-fiscais/api-cliente", () => ({ importarXmlPelaApi: vi.fn() }));
 vi.mock("@/app/(protegido)/notas-fiscais/conciliar-fornecedor-actions", () => ({ prepararConciliacaoFornecedorAction: vi.fn(), conciliarFornecedorNotaAction: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { aceitarNotaAction } from "@/app/(protegido)/notas-fiscais/aceitar-nota";
+import { editarNotaAceitaAction } from "@/app/(protegido)/notas-fiscais/editar-nota";
 import { importarXmlPelaApi } from "@/lib/notas-fiscais/api-cliente";
 import { toast } from "sonner";
 import { NotaFiscalDialog } from "@/app/(protegido)/notas-fiscais/nota-fiscal-dialog";
@@ -38,6 +40,7 @@ beforeEach(() => {
   vi.mocked(obterResumoCancelamentoNotaAction).mockResolvedValue({ resumo: null });
   vi.mocked(manifestarAction).mockResolvedValue({ sucesso: true, mensagem: "135 — Registrado", protocolo: "123" });
   vi.mocked(aceitarNotaAction).mockResolvedValue({ ok: true });
+  vi.mocked(editarNotaAceitaAction).mockResolvedValue({ ok: true });
   vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
   HTMLElement.prototype.scrollIntoView = vi.fn();
 });
@@ -56,6 +59,67 @@ async function preencherDataEntrada() {
 }
 
 describe("Ver nota", () => {
+  it("corrige nota aceita com dados salvos e confirmação explícita, sem novo aceite fiscal", async () => {
+    vi.mocked(obterItensNotaFiscalAction).mockResolvedValue({ ...detalhesTeste, versaoCorrecao: "versao-teste", podeEditarCorrecao: true,
+      itens: [{ ...detalhesTeste.itens[0], status: "CONCILIADO", quantidadeConciliada: 1.5, valorTotalConciliado: 100, localId: "local-teste", dataEntradaEstoque: "2026-09-10" }],
+      duplicatas: [{ ...detalhesTeste.duplicatas[0], bloqueada: true }],
+    } as never);
+    const usuario = await abrir({ ...notaTeste, ultimaManifestacao: "CONFIRMACAO_DA_OPERACAO" });
+    await waitFor(() => expect((screen.getByRole("button", { name: "Editar informações" }) as HTMLButtonElement).disabled).toBe(false));
+    await usuario.click(screen.getByRole("button", { name: "Editar informações" }));
+    expect((screen.getByRole("textbox", { name: "Quantidade de Queijo de teste em kg" }) as HTMLInputElement).value).toBe("1.5");
+    expect((screen.getByLabelText("Data de entrada no estoque") as HTMLInputElement).value).toBe("2026-09-10");
+    expect((screen.getByRole("textbox", { name: "Número da parcela 1" }) as HTMLInputElement).disabled).toBe(false);
+    const salvar = screen.getByRole("button", { name: "Salvar correções" }) as HTMLButtonElement;
+    expect(salvar.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Vencimento da parcela 1"), { target: { value: "2026-11-10" } });
+    fireEvent.blur(screen.getByLabelText("Vencimento da parcela 1"));
+    expect(editarNotaAceitaAction).not.toHaveBeenCalled();
+    await usuario.type(screen.getByLabelText(/Motivo da correção/), "Corrigir vencimento informado por engano.");
+    await usuario.click(salvar);
+    expect(editarNotaAceitaAction).toHaveBeenCalledWith(expect.objectContaining({ notaFiscalId: notaTeste.id, versao: "versao-teste", motivo: "Corrigir vencimento informado por engano.",
+      itens: [expect.objectContaining({ quantidade: 1.5 })], duplicatas: [expect.objectContaining({ id: "duplicata-teste", dataVencimento: "2026-11-10" })] }));
+    expect(aceitarNotaAction).not.toHaveBeenCalled();
+    expect(manifestarAction).not.toHaveBeenCalled();
+  });
+  it("mantém dados da correção após recusa do servidor", async () => {
+    vi.mocked(obterItensNotaFiscalAction).mockResolvedValue({ ...detalhesTeste, versaoCorrecao: "versao-teste", podeEditarCorrecao: true,
+      itens: [{ ...detalhesTeste.itens[0], status: "CONCILIADO", quantidadeConciliada: 2, valorTotalConciliado: 100, localId: "local-teste", dataEntradaEstoque: "2026-09-10" }],
+    } as never);
+    vi.mocked(editarNotaAceitaAction).mockResolvedValue({ erro: "O lançamento foi alterado. Reabra a nota." });
+    const usuario = await abrir({ ...notaTeste, ultimaManifestacao: "CONFIRMACAO_DA_OPERACAO" });
+    await waitFor(() => expect((screen.getByRole("button", { name: "Editar informações" }) as HTMLButtonElement).disabled).toBe(false));
+    await usuario.click(screen.getByRole("button", { name: "Editar informações" }));
+    await usuario.type(screen.getByLabelText(/Motivo da correção/), "Corrigir vínculo com o insumo correto.");
+    await usuario.click(screen.getByRole("button", { name: "Salvar correções" }));
+    expect(toast.error).toHaveBeenCalledWith("O lançamento foi alterado. Reabra a nota.");
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect((screen.getByLabelText(/Motivo da correção/) as HTMLTextAreaElement).value).toBe("Corrigir vínculo com o insumo correto.");
+  });
+  it("não oferece correção aceita sem a permissão retornada pelo servidor", async () => {
+    await abrir({ ...notaTeste, ultimaManifestacao: "CONFIRMACAO_DA_OPERACAO" });
+    await screen.findByText("Queijo de teste", { selector: "p" });
+    expect(screen.queryByRole("button", { name: "Editar informações" })).toBeNull();
+  });
+  it("corrige pagamento legado sem exigir nova distribuição de desconto ou alterar custos salvos", async () => {
+    const custos = extrairCustosNFe(xmlCustos);
+    const calculo = calcularCustosNota(custos, { modo: "PROPORCIONAL", itens: [] });
+    if ("erro" in calculo) throw new Error(calculo.erro);
+    vi.mocked(obterItensNotaFiscalAction).mockResolvedValue({ ...detalhesTeste, custos, versaoCorrecao: "legado-teste", podeEditarCorrecao: true,
+      itens: calculo.itens.map((custo, indice) => ({ ...detalhesTeste.itens[0], id: `item-${indice}`, numeroItem: custo.numeroItem,
+        descricaoProduto: `Produto ${indice + 1}`, status: "CONCILIADO", quantidadeConciliada: 2, valorTotalItem: custo.produtos,
+        valorTotalConciliado: custo.total, localId: "local-teste", dataEntradaEstoque: "2026-09-10", composicaoCusto: null })),
+      duplicatas: [{ ...detalhesTeste.duplicatas[0], valor: custos.totalNota, bloqueada: true }],
+    } as never);
+    const usuario = await abrir({ ...notaTeste, valorTotal: custos.totalNota, ultimaManifestacao: "CONFIRMACAO_DA_OPERACAO" });
+    await waitFor(() => expect((screen.getByRole("button", { name: "Editar informações" }) as HTMLButtonElement).disabled).toBe(false));
+    await usuario.click(screen.getByRole("button", { name: "Editar informações" }));
+    await usuario.type(screen.getByLabelText(/Motivo da correção/), "Ajustar vencimento sem mudar o custo histórico.");
+    expect((screen.getByRole("button", { name: "Salvar correções" }) as HTMLButtonElement).disabled).toBe(false);
+    await usuario.click(screen.getByRole("button", { name: "Salvar correções" }));
+    expect(editarNotaAceitaAction).toHaveBeenCalledWith(expect.objectContaining({ itens: calculo.itens.map(custo => expect.objectContaining({ valorTotal: custo.total })) }));
+    expect(aceitarNotaAction).not.toHaveBeenCalled();
+  });
   function detalhesComDesconto() {
     return { ...detalhesTeste, custos: extrairCustosNFe(xmlCustos),
       itens: [detalhesTeste.itens[0], { ...detalhesTeste.itens[0], id: "segundo", numeroItem: 2, descricaoProduto: "Outro queijo", valorTotalItem: 300 }],

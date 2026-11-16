@@ -1,5 +1,7 @@
 "use server";
 import { prepararPagamento, pagamentoIgual, type PagamentoNota } from "@/lib/notas-fiscais/pagamentos";
+import { consultarCorrecaoNota } from "@/lib/notas-fiscais/correcao-nota";
+import { permissaoEfetiva } from "@/lib/permissoes/catalogo";
 import type { CartaoOption } from "@/lib/financeiro/cartoes";
 import { exigirPermissao } from "@/lib/permissoes/servidor";
 import { paraCaixaAlta, paraCaixaAltaOpcional } from "@/lib/caixa-alta";
@@ -12,7 +14,7 @@ import { ratearValor, lerComposicaoCusto, type CustosNotaFiscal, type Distribuic
 import { validarCustosConciliacao } from "@/lib/notas-fiscais/validar-custos";
 import { resolverFornecedorNota } from "@/lib/notas-fiscais/fornecedor";
 import { resolverCategoriaCompraInsumo } from "@/lib/insumos/categoria-financeira";
-import { caminhoCategoria, SELECAO_CATEGORIA_COM_CAMINHO } from "@/lib/financeiro/caminho-categoria";
+import { caminhoCategoria } from "@/lib/financeiro/caminho-categoria";
 import { GRUPOS_RECEITA } from "@/lib/labels";
 import { prisma } from "@/lib/prisma";
 import { diaEntradaEstoque, validarDataEntradaEstoque } from "@/lib/notas-fiscais/data-entrada";
@@ -163,7 +165,7 @@ export async function exportarXmlPorDataAction(dataInicio: string, dataFim: stri
 // feature e ainda não ter duplicatas. `detalhes` nunca é persistido, sempre reparseado.
 export async function obterItensNotaFiscalAction(
   notaFiscalId: string
-): Promise<{ erro: string } | { itens: ItemConciliacaoRow[]; duplicatas: DuplicataRow[]; detalhes: DetalhesFiscaisRow; custos: CustosNotaFiscal; cartoes: CartaoOption[] }> {
+): Promise<{ erro: string } | { itens: ItemConciliacaoRow[]; duplicatas: DuplicataRow[]; detalhes: DetalhesFiscaisRow; custos: CustosNotaFiscal; cartoes: CartaoOption[]; versaoCorrecao: string; podeEditarCorrecao: boolean }> {
   await exigirPermissao("notas", "visualizar");
   const nota = await prisma.notaFiscalRecebida.findUnique({ where: { id: notaFiscalId } });
   if (!nota) return { erro: "Nota não encontrada." };
@@ -229,14 +231,11 @@ export async function obterItensNotaFiscalAction(
     }
   }
 
-  const [itens, duplicatas] = await Promise.all([
-    prisma.notaFiscalItem.findMany({
-      where: { notaFiscalId },
-      orderBy: { numeroItem: "asc" },
-      include: { insumo: { select: { nome: true, especificacao: true, unidade: true } }, categoriaFinanceira: { select: SELECAO_CATEGORIA_COM_CAMINHO }, movimentacaoEstoque: { select: { createdAt: true } } },
-    }),
-    prisma.notaFiscalDuplicata.findMany({ where: { notaFiscalId }, orderBy: { dataVencimento: "asc" }, include: { _count: { select: { lancamentos: true } } } }),
-  ]);
+  const estadoCorrecao = await consultarCorrecaoNota(prisma, notaFiscalId);
+  if (!estadoCorrecao.nota) return { erro: "Nota não encontrada." };
+  const itens = estadoCorrecao.nota.itens;
+  const duplicatas = estadoCorrecao.nota.duplicatas;
+  const sessaoCorrecao = await getSession();
 
   const memorias = nota.fornecedorCnpj ? await prisma.insumoCodigoFornecedor.findMany({ where: { fornecedorCnpj: nota.fornecedorCnpj } }) : [];
   const extraidoPorNumeroItem = new Map(itensExtraidos.map((item) => [item.numeroItem, item]));
@@ -266,6 +265,8 @@ export async function obterItensNotaFiscalAction(
   catch { return { erro: "Não foi possível ler os custos desta nota." }; }
   return {
     custos,
+    versaoCorrecao: estadoCorrecao.versao,
+    podeEditarCorrecao: !!sessaoCorrecao && (sessaoCorrecao.admin || permissaoEfetiva(sessaoCorrecao.permissoes, sessaoCorrecao.excecoes, "notas.manifestar", "editar")),
     itens: itens.map((item) => {
       const itemXml = extraidoPorNumeroItem.get(item.numeroItem);
       const quantidadeTributavel = itemXml?.quantidadeTributavel ?? null;
@@ -306,6 +307,7 @@ export async function obterItensNotaFiscalAction(
         categoriaFinanceiraId: item.categoriaFinanceiraId,
         categoriaFinanceiraNome: item.categoriaFinanceira ? caminhoCategoria(item.categoriaFinanceira) : null,
         quantidadeConciliada: item.quantidadeConciliada != null ? Number(item.quantidadeConciliada) : null,
+        localId: item.movimentacaoEstoque?.localId ?? null,
         dataEntradaEstoque: item.dataRecebimento ? item.dataRecebimento.toISOString().slice(0, 10) : item.movimentacaoEstoque ? diaEntradaEstoque(item.movimentacaoEstoque.createdAt) : null,
         valorTotalConciliado: item.valorTotalConciliado != null ? Number(item.valorTotalConciliado) : null,
       };
@@ -315,7 +317,7 @@ export async function obterItensNotaFiscalAction(
       numero: d.numero,
       dataVencimento: d.dataVencimento.toISOString().slice(0, 10),
       valor: Number(d.valor),
-      formaPagamento: d.formaPagamento as PagamentoNota["formaPagamento"], cartaoCreditoId: d.cartaoCreditoId, dataCompra: d.dataCompra?.toISOString().slice(0, 10) ?? null, parcelaCartao: d.parcelaCartao, bloqueada: d._count.lancamentos > 0,
+      formaPagamento: d.formaPagamento as PagamentoNota["formaPagamento"], cartaoCreditoId: d.cartaoCreditoId, dataCompra: d.dataCompra?.toISOString().slice(0, 10) ?? null, parcelaCartao: d.parcelaCartao, bloqueada: itens.some(i => i.lancamentos.some(l => l.notaFiscalDuplicataId === d.id)),
     })),
     detalhes,
     cartoes: cartoes.map(c => ({ id: c.id, nome: c.nome, contaBancariaId: c.contaBancariaId, contaBancariaNome: c.contaBancaria.nome, diaFechamento: c.diaFechamento, diaVencimento: c.diaVencimento, ativo: c.ativo && c.contaBancaria.ativo })),

@@ -2,6 +2,31 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { podeAcessar } from "@/lib/permissoes/servidor";
 import { lancarNfse } from "@/lib/nfse/servico";
+import { corrigirNfse, obterCorrecaoNfse, type CorrecaoNfseInput } from "@/lib/nfse/correcao";
+
+export async function GET(requisicao: Request) {
+  const sessao = await getSession();
+  if (!sessao) return Response.json({ erro: "Sua sessão expirou. Entre novamente." }, { status: 401 });
+  if (!await podeAcessar("financeiro.nfse", "editar") || !await podeAcessar("financeiro.movimentacoes", "visualizar")) return Response.json({ erro: "Seu perfil não permite consultar esta correção." }, { status: 403 });
+  const resultado = await obterCorrecaoNfse(new URL(requisicao.url).searchParams.get("nfseId") ?? "", sessao);
+  return Response.json(resultado, { status: "erro" in resultado ? 400 : 200, headers: { "Cache-Control": "private, no-store" } });
+}
+
+export async function PATCH(requisicao: Request) {
+  const sessao = await getSession();
+  if (!sessao) return Response.json({ erro: "Sua sessão expirou. Entre novamente." }, { status: 401 });
+  if (!await podeAcessar("financeiro.nfse", "editar") || !await podeAcessar("financeiro.movimentacoes", "editar")) return Response.json({ erro: "Seu perfil não permite corrigir esta NFS-e." }, { status: 403 });
+  try {
+    const corpo = await requisicao.json();
+    if (!corpo || typeof corpo !== "object" || Array.isArray(corpo)) return Response.json({ erro: "Dados da correção inválidos." }, { status: 400 });
+    const resultado = await corrigirNfse(corpo as CorrecaoNfseInput, sessao);
+    if ("erro" in resultado) return Response.json(resultado, { status: 400 });
+    for (const rota of ["/financeiro/manifesto-nfs", "/financeiro/movimentacoes", "/financeiro", "/financeiro/fluxo-de-caixa", "/financeiro/cartoes"]) revalidatePath(rota);
+    return Response.json(resultado);
+  } catch {
+    return Response.json({ erro: "Não foi possível corrigir a NFS-e. Confira os dados e tente novamente." }, { status: 400 });
+  }
+}
 
 export async function POST(requisicao: Request) {
   const sessao = await getSession();

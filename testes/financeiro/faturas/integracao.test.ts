@@ -192,7 +192,6 @@ describe.skipIf(process.env.FATURAS_BANCO_TESTE!=="1")("faturas: PostgreSQL isol
   const f=await atual(id),item=f.itens[0];
   expect((await consultarCorrespondencias(id,item.id)).candidatos.map(x=>x.id)).not.toContain(l.id);
   expect((await consultarCorrespondencias(id,item.id,true)).candidatos.find(x=>x.id===l.id)?.cartaoNome).toBe("Mastercard fictício");
-  await expect(vincularItem(id,f.versao,item.id,{substituir:true,motivo:"Correção fictícia",lancamentos:[{id:l.id,versao:l.updatedAt.toISOString()}]},sessao)).rejects.toThrow("Despesa alterada");
   await expect(corrigirCartaoDespesa(id,f.versao,l.id,l.updatedAt.toISOString(),"",sessao)).rejects.toThrow("motivo");
   await expect(corrigirCartaoDespesa(id,f.versao,l.id,"versao-antiga","Corrigir cartão",sessao)).rejects.toThrow("Despesa alterada");
   await corrigirCartaoDespesa(id,f.versao,l.id,l.updatedAt.toISOString(),"Corrigir cartão",sessao);
@@ -210,6 +209,90 @@ describe.skipIf(process.env.FATURAS_BANCO_TESTE!=="1")("faturas: PostgreSQL isol
   const {id}=await importar();await desdobrar(id);await pagar(id,300);const f=await atual(id),l=f.itens[0].lancamentos[0];
   await expect(corrigirCartaoDespesa(id,f.versao,l.id,l.updatedAt.toISOString(),"Corrigir cartão",sessao)).rejects.toThrow("despesa pendente");
   expect(await estado.prisma.historicoCartao.count({where:{acao:"CARTAO_CORRIGIDO"}})).toBe(0);
+ });
+ it.each([300,150])("vincula outro cartão na mesma transação preservando pagamento de %s",async(valor)=>{
+  const {id}=await importar();await desdobrar(id);await pagar(id,valor,valor===300?"INTEGRAL":"PARCIAL");
+  await estado.prisma.cartaoCredito.create({data:{id:"cartao-incorreto",nome:"Cartão incorreto fictício",contaBancariaId:"banco",diaFechamento:5,diaVencimento:15}});
+  const l=await estado.prisma.lancamentoFinanceiro.create({data:{tipo:"DESPESA",descricao:"Despesa de cartão incorreto",valor:100,categoriaId:"categoria",cartaoCreditoId:"cartao-incorreto",dataCompetencia:new Date("2026-09-01"),dataVencimento:new Date("2026-09-15")}});
+  const f=await atual(id),item=f.itens.find(i=>i.valor.toNumber()===100)!;
+  const entrada={substituir:true,motivo:"Corrigir cartão durante vínculo",lancamentos:[{id:l.id,versao:l.updatedAt.toISOString()}]};
+  await vincularItem(id,f.versao,item.id,entrada,sessao);
+  expect(await estado.prisma.lancamentoFinanceiro.findUniqueOrThrow({where:{id:l.id}})).toMatchObject({cartaoCreditoId:"cartao",contaBancariaId:"banco",itemFaturaId:item.id,dataCompetencia:l.dataCompetencia,dataVencimento:l.dataVencimento});
+  expect((await atual(id)).pagamentos.map(p=>p.id)).toEqual(f.pagamentos.map(p=>p.id));
+  expect(await estado.prisma.movimentacaoBancaria.count()).toBe(1);
+  expect(await estado.prisma.lancamentoFinanceiro.count()).toBe(3);
+  const auditoria=await estado.prisma.historicoCartao.findFirstOrThrow({where:{acao:"CARTAO_CORRIGIDO",alvoId:l.id}});
+  expect(auditoria.antes).toMatchObject({cartaoCreditoId:"cartao-incorreto"});expect(auditoria.depois).toMatchObject({cartaoCreditoId:"cartao"});
+ });
+ async function parcelaOutroCartao(f:Awaited<ReturnType<typeof atual>>) {
+  await estado.prisma.cartaoCredito.create({data:{id:"cartao-incorreto",nome:"Cartão incorreto fictício",contaBancariaId:"banco",diaFechamento:5,diaVencimento:15}});
+  const identidade=BigInt("0x"+randomUUID().replaceAll("-","")).toString();
+  const nota=await estado.prisma.notaFiscalRecebida.create({data:{chaveAcesso:identidade.padStart(44,"0"),nsu:identidade,tipo:"PROC_NFE"}});
+  const parcela=await estado.prisma.notaFiscalDuplicata.create({data:{notaFiscalId:nota.id,numero:"1",valor:100,dataVencimento:new Date("2026-09-15"),formaPagamento:"CARTAO",cartaoCreditoId:"cartao-incorreto",dataCompra:new Date("2026-09-01"),parcelaCartao:1}});
+  const titulos=[];
+  for(const [indice,valor] of [40,60].entries()){
+   const item=await estado.prisma.notaFiscalItem.create({data:{notaFiscalId:nota.id,numeroItem:indice+1,codigoProdutoFornecedor:`produto-${indice}`,descricaoProduto:`Produto fictício ${indice}`,unidadeComercial:"UN",quantidadeComercial:1,valorTotalItem:valor}});
+   const titulo=await estado.prisma.lancamentoFinanceiro.create({data:{tipo:"DESPESA",descricao:`Nota fictícia produto ${indice}`,valor,categoriaId:"categoria",cartaoCreditoId:indice?f.cartaoId:"cartao-incorreto",dataCompetencia:new Date("2026-09-01"),dataVencimento:parcela.dataVencimento}});
+   await estado.prisma.notaFiscalItemLancamento.create({data:{notaFiscalItemId:item.id,notaFiscalDuplicataId:parcela.id,lancamentoFinanceiroId:titulo.id,valor}});titulos.push(titulo);
+  }
+  return {nota,parcela,titulos};
+ }
+ it("corrige cartão de todos os componentes e da parcela NF-e ao vincular",async()=>{
+  const {id}=await importar(),f=await atual(id),item=f.itens.find(i=>i.valor.toNumber()===100)!;
+  const {parcela,titulos}=await parcelaOutroCartao(f);
+  const entrada={motivo:"Corrigir pagamento da parcela NF-e",lancamentos:titulos.map(l=>({id:l.id,versao:l.updatedAt.toISOString()}))};
+  const candidatas=(await consultarCorrespondencias(id,item.id,true)).candidatos.filter(l=>l.notaGrupo===parcela.id);
+  expect(candidatas).toHaveLength(1);expect(candidatas[0]).toMatchObject({requerCorrecaoPagamento:true,componentes:2});
+  await vincularItem(id,f.versao,item.id,entrada,sessao);
+  expect(await estado.prisma.notaFiscalDuplicata.findUniqueOrThrow({where:{id:parcela.id}})).toMatchObject({cartaoCreditoId:f.cartaoId,formaPagamento:"CARTAO",dataVencimento:parcela.dataVencimento,dataCompra:parcela.dataCompra});
+  const finais=await estado.prisma.lancamentoFinanceiro.findMany({where:{id:{in:titulos.map(l=>l.id)}}});
+  expect(finais).toHaveLength(2);expect(finais.every(l=>l.cartaoCreditoId===f.cartaoId&&l.itemFaturaId===item.id&&l.contaBancariaId==="banco")).toBe(true);
+  expect(await estado.prisma.lancamentoFinanceiro.count()).toBe(2);expect(await estado.prisma.movimentacaoBancaria.count()).toBe(0);
+  expect(await estado.prisma.historicoCartao.count({where:{acao:"PAGAMENTO_NOTA_CORRIGIDO",alvoId:parcela.id}})).toBe(1);
+ });
+ it("não corrige parcialmente NF-e com componente pago e mantém rollback integral",async()=>{
+  const {id}=await importar(),f=await atual(id),item=f.itens.find(i=>i.valor.toNumber()===100)!;
+  const {parcela,titulos}=await parcelaOutroCartao(f);
+  await estado.prisma.lancamentoFinanceiro.update({where:{id:titulos[1].id},data:{status:"BAIXADO",dataPagamento:new Date("2026-09-20")}});
+  await estado.prisma.itemFaturaCartao.update({where:{id:item.id},data:{valor:40}});
+  await expect(vincularItem(id,f.versao,item.id,{motivo:"Correção fictícia",lancamentos:[{id:titulos[0].id,versao:titulos[0].updatedAt.toISOString()}]},sessao)).rejects.toThrow("lançamento inteiro");
+  expect((await estado.prisma.notaFiscalDuplicata.findUniqueOrThrow({where:{id:parcela.id}})).cartaoCreditoId).toBe("cartao-incorreto");
+  expect((await estado.prisma.lancamentoFinanceiro.findUniqueOrThrow({where:{id:titulos[0].id}}))).toMatchObject({cartaoCreditoId:"cartao-incorreto",itemFaturaId:null});
+  expect(await estado.prisma.historicoCartao.count({where:{acao:"CARTAO_CORRIGIDO"}})).toBe(0);
+ });
+ it.each(["BOLETO","PIX"])("sincroniza parcela NF-e %s sem cartão ao vincular na fatura",async(formaOriginal)=>{
+  const {id}=await importar(),f=await atual(id),item=f.itens.find(i=>i.valor.toNumber()===100)!;
+  const {parcela,titulos}=await parcelaOutroCartao(f);
+  await estado.prisma.notaFiscalDuplicata.update({where:{id:parcela.id},data:{formaPagamento:formaOriginal,cartaoCreditoId:null,dataCompra:null}});
+  await estado.prisma.lancamentoFinanceiro.updateMany({where:{id:{in:titulos.map(l=>l.id)}},data:{cartaoCreditoId:null}});
+  const atuais=await estado.prisma.lancamentoFinanceiro.findMany({where:{id:{in:titulos.map(l=>l.id)}}});
+  const candidatas=(await consultarCorrespondencias(id,item.id)).candidatos.filter(l=>l.notaGrupo===parcela.id);
+  expect(candidatas).toHaveLength(1);expect(candidatas[0]).toMatchObject({requerCorrecaoPagamento:true,componentes:2,cartaoId:null});
+  const entrada={lancamentos:atuais.map(l=>({id:l.id,versao:l.updatedAt.toISOString()}))};
+  await expect(vincularItem(id,f.versao,item.id,entrada,sessao)).rejects.toThrow("motivo");
+  await vincularItem(id,f.versao,item.id,{...entrada,motivo:"Pagamento efetivo identificado na fatura"},sessao);
+  expect(await estado.prisma.notaFiscalDuplicata.findUniqueOrThrow({where:{id:parcela.id}})).toMatchObject({formaPagamento:"CARTAO",cartaoCreditoId:f.cartaoId,dataCompra:item.dataCompra,dataVencimento:parcela.dataVencimento});
+  const finais=await estado.prisma.lancamentoFinanceiro.findMany({where:{id:{in:titulos.map(l=>l.id)}},include:{formaPagamento:true}});
+  expect(finais.every(l=>l.cartaoCreditoId===f.cartaoId&&l.contaBancariaId==="banco"&&l.formaPagamento?.nome==="Cartão de crédito"&&l.itemFaturaId===item.id)).toBe(true);
+  expect(await estado.prisma.lancamentoFinanceiro.count()).toBe(2);expect(await estado.prisma.movimentacaoBancaria.count()).toBe(0);
+ });
+ it("recusa correção no vínculo sem motivo, sem edição ou com versão antiga",async()=>{
+  const {id}=await importar(),f=await atual(id),item=f.itens.find(i=>i.valor.toNumber()===100)!;
+  const {parcela,titulos}=await parcelaOutroCartao(f),entrada={lancamentos:titulos.map(l=>({id:l.id,versao:l.updatedAt.toISOString()}))};
+  await expect(vincularItem(id,f.versao,item.id,entrada,sessao)).rejects.toThrow("motivo");
+  await expect(vincularItem(id,f.versao,item.id,{...entrada,motivo:"Correção fictícia",lancamentos:entrada.lancamentos.map((l,n)=>n?l:{...l,versao:"anterior"})},sessao)).rejects.toThrow("Despesa alterada");
+  await estado.prisma.usuario.update({where:{id:"admin"},data:{perfilAcessoId:null,permissoesPersonalizadas:{"financeiro.faturas":{visualizar:true,editar:true},"financeiro.movimentacoes":{visualizar:true}}}});
+  await expect(vincularItem(id,f.versao,item.id,{...entrada,motivo:"Correção fictícia"},sessao)).rejects.toThrow("permissão");
+  expect((await estado.prisma.notaFiscalDuplicata.findUniqueOrThrow({where:{id:parcela.id}})).cartaoCreditoId).toBe("cartao-incorreto");
+ });
+ it("permite revincular após desfazer pagamento, preservando liquidações históricas",async()=>{
+  const {id}=await importar();await desdobrar(id);await pagar(id,300);let f=await atual(id);const item=f.itens[0],l=item.lancamentos[0];
+  await desconciliarFatura(id,f.versao,f.pagamentos[0].id,"Desfazer pagamento fictício",sessao);f=await atual(id);
+  await ajustarItem(id,f.versao,item.id,"DESVINCULAR","Corrigir vínculo fictício",null,sessao);f=await atual(id);
+  const titulo=await estado.prisma.lancamentoFinanceiro.findUniqueOrThrow({where:{id:l.id}});
+  expect(await estado.prisma.liquidacaoCartao.count({where:{lancamentoId:l.id}})).toBeGreaterThan(0);
+  await vincularItem(id,f.versao,item.id,{lancamentos:[{id:l.id,versao:titulo.updatedAt.toISOString()}]},sessao);
+  expect((await atual(id)).itens.find(i=>i.id===item.id)!.lancamentos.map(l=>l.id)).toEqual([l.id]);
  });
  it("troca inválida preserva vínculos e liquidações integralmente",async()=>{
   const {id}=await importar();await desdobrar(id);await pagar(id,300);const f=await atual(id),item=f.itens[0];
@@ -527,7 +610,7 @@ describe.skipIf(process.env.FATURAS_BANCO_TESTE!=="1")("faturas: PostgreSQL isol
   await estado.prisma.lancamentoFinanceiro.updateMany({where:{id:{in:lancamentos.map(l=>l.id)}},data:{dataCompetencia:i.dataCompra}});
   expect((await detalheFatura(id,{},true)).pendenciasVinculo).toMatchObject([{id:i.id,linha:i.linha,quantidade:1}]);
   const atuais=await estado.prisma.lancamentoFinanceiro.findMany({where:{id:{in:lancamentos.map(l=>l.id)}}});
-  await vincularItem(id,f.versao,i.id,{lancamentos:atuais.map(l=>({id:l.id,versao:l.updatedAt.toISOString()}))},sessao);
+  await vincularItem(id,f.versao,i.id,{motivo:"Conferência do pagamento da nota na fatura",lancamentos:atuais.map(l=>({id:l.id,versao:l.updatedAt.toISOString()}))},sessao);
   await pagar(id,300);
   expect((await atual(id)).pagamentos).toHaveLength(1);
  });

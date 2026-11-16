@@ -6,7 +6,11 @@ import { compraFicticia } from "./cancelamento-compra-dados";
 export async function obterResumoCancelamentoNotaAction() { return { resumo: new URLSearchParams(location.search).has("reversao") ? compraFicticia : null }; }
 
 // Exclusivo do servidor visual de testes. Este módulo nunca é importado pelo Next.
-export async function obterItensNotaFiscalAction() { return { ...detalhesTeste, ...(new URLSearchParams(location.search).has("custos") ? {
+export async function obterItensNotaFiscalAction(notaId?: string) { return { ...detalhesTeste, ...((new URLSearchParams(location.search).has("aceita") || notaId === "aceita") ? {
+  versaoCorrecao: "versao-ficticia", podeEditarCorrecao: true,
+  itens: [{ ...itemTeste, status: "CONCILIADO", quantidadeConciliada: 2, valorTotalConciliado: 100, localId: "local-teste", dataEntradaEstoque: "2026-09-10" }],
+  duplicatas: [{ ...detalhesTeste.duplicatas[0], bloqueada: true }],
+} : {}), ...(new URLSearchParams(location.search).has("custos") ? {
   custos: extrairCustosNFe(xmlCustos),
   itens: [{ ...itemTeste, valorTotalItem: 100 }, { ...itemTeste, id: "item-dois", numeroItem: 2, descricaoProduto: "Queijo curado artesanal", valorTotalItem: 300 }],
   duplicatas: [{ ...detalhesTeste.duplicatas[0], valor: 445 }],
@@ -28,6 +32,8 @@ export async function manifestarAction() {
 }
 
 export async function aceitarNotaAction() { return new URLSearchParams(location.search).has("erro") ? { erro: "Falha simulada na SEFAZ" } : { ok: true }; }
+export async function editarNotaAceitaAction() { return new URLSearchParams(location.search).has("erro") ? { erro: "Correção não confirmada na prévia fictícia." } : { ok: true }; }
+export async function tratarOutraOperacaoNotaAction() { return { ok: true }; }
 export async function criarLancamentoAction() { return { ok: true }; }
 export async function atualizarLancamentoAction() { return { ok: true }; }
 export async function excluirLancamentoAction() { return { ok: true, quantidade: 1 }; }
