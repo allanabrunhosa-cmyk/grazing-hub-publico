@@ -6,8 +6,8 @@ import { salvarRegra, type EntradaRegra } from "@/lib/financeiro/faturas/regras"
 import { ErroFatura } from "@/lib/financeiro/faturas/dominio";
 import { SenhaPdfNecessaria } from "@/lib/financeiro/faturas/arquivo";
 
-async function executar<T>(nome:string,funcao:()=>Promise<T>) {
-  try { const resultado=await funcao();revalidatePath("/financeiro","layout");return resultado; }
+async function executar<T>(nome:string,funcao:()=>Promise<T>,revalidar=true) {
+  try { const resultado=await funcao();if(revalidar)revalidatePath("/financeiro","layout");return resultado; }
   catch(erro){if(!(erro instanceof ErroFatura))console.error("Falha em faturas:",nome,erro instanceof Error?erro.name:"desconhecida");return {erro:erro instanceof ErroFatura?erro.message:"Não foi possível concluir. Atualize e confira o histórico antes de tentar novamente."};}
 }
 export async function identificarFaturaAction(form:FormData){
@@ -31,7 +31,8 @@ export async function classificarFaturaAction(id:string,versao:number,d:Classifi
 export async function correspondenciasFaturaAction(id:string,item:string,outrosCartoes=false){
   await exigirPermissao("financeiro.faturas","visualizar");
   await exigirPermissao("financeiro.movimentacoes","visualizar");
-  return executar("correspondencias",()=>consultarCorrespondencias(id,item,outrosCartoes));
+  // A leitura não pode renovar os dados RSC e reiniciar a própria consulta da tela.
+  return executar("correspondencias",()=>consultarCorrespondencias(id,item,outrosCartoes),false);
 }
 export async function vincularFaturaAction(id:string,versao:number,item:string,entrada:Parameters<typeof vincularItem>[3]){
   const sessao=await exigirPermissao("financeiro.faturas","editar");
