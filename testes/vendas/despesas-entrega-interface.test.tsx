@@ -9,10 +9,20 @@ vi.mock("@/app/(protegido)/vendas/pedidos/custos-entrega-actions", () => ({ busc
 import { DespesasEntrega } from "@/app/(protegido)/vendas/pedidos/despesas-entrega";
 const base = { pedidoId: "pedido", versao: 4, efetivo: "50", financeiroHref: "/financeiro/lancamentos", vinculos: [] };
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
+it("permite pesquisar valores completos, inclusive de um dígito, sem vincular despesas", async () => {
+  sim.buscar.mockResolvedValue({ despesas: [] }); render(<DespesasEntrega {...base} />); const u = userEvent.setup();
+  await u.click(screen.getByRole("button", { name: "Vincular despesa existente" }));
+  const busca = screen.getByLabelText("Buscar descrição, fornecedor ou valor"), botao = screen.getByRole("button", { name: "Buscar despesas" });
+  expect((botao as HTMLButtonElement).disabled).toBe(true);
+  await u.type(busca, "8"); expect((botao as HTMLButtonElement).disabled).toBe(false); await u.click(botao);
+  expect(sim.buscar).toHaveBeenLastCalledWith("8");
+  await u.clear(busca); await u.type(busca, "R$ 1.234,56"); await u.click(botao);
+  expect(sim.buscar).toHaveBeenLastCalledWith("R$ 1.234,56"); expect(sim.vincular).not.toHaveBeenCalled();
+});
 it("busca a despesa existente e confirma rateio explicitamente, preservando dados no conflito", async () => {
   sim.buscar.mockResolvedValue({ despesas: [{ id: "despesa", descricao: "Transporte fictício", categoria: "Categoria fictícia", valor: "100", disponivel: "50", revisao: "2026-10-02", status: "BAIXADO", competencia: "2026-09-30" }] });
   sim.vincular.mockResolvedValue({ erro: "Despesa alterada. Busque novamente." }); render(<DespesasEntrega {...base} />); const u = userEvent.setup();
-  await u.click(screen.getByRole("button", { name: "Vincular despesa existente" })); await u.type(screen.getByLabelText("Buscar descrição ou fornecedor"), "Transporte"); await u.click(screen.getByRole("button", { name: "Buscar despesas" }));
+  await u.click(screen.getByRole("button", { name: "Vincular despesa existente" })); await u.type(screen.getByLabelText("Buscar descrição, fornecedor ou valor"), "Transporte"); await u.click(screen.getByRole("button", { name: "Buscar despesas" }));
   await u.click(screen.getByRole("combobox", { name: "Despesa existente" })); await u.click(await screen.findByRole("option", { name: /Transporte fictício/ }));
   await u.type(screen.getByLabelText("Valor desta entrega"), "2000"); await u.type(screen.getByLabelText("Justificativa do vínculo"), "Rateio fictício entre entregas");
   expect(sim.vincular).not.toHaveBeenCalled(); await u.click(screen.getByRole("button", { name: "Confirmar vínculo" })); expect((await screen.findByRole("alert")).textContent).toContain("Despesa alterada");

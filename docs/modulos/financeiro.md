@@ -265,3 +265,19 @@ faturas/consultas.ts conta situações pela busca/cartão/competência/período 
 da paginação e sem a própria situação. Itens ignorados contam somente no geral e
 em Ignorados. Movimentações contam linhas agrupadas, não os itens de uma mesma nota.
 Contrato e cobertura: [Conciliação e contadores](../features/conciliacao-contadores/SPEC.md).
+
+## Busca por valor dos lançamentos
+
+`src/lib/busca-valor.ts` centraliza a interpretação de quantias para as buscas financeiras.
+Aceita reais inteiros, vírgula ou ponto decimal, milhares no formato brasileiro e `R$`.
+Compara centavos exatos: `308` encontra 308,00, sem corresponder a 1.308,00. Sem sinal,
+encontra entrada ou saída; `+` e `-` explícitos restringem o sinal. A busca textual permanece.
+
+Consumidores: Movimentações e Conciliação, itens e lançamentos candidatos da fatura,
+lista de faturas (total informado), manifestos NF-e/NFS-e (valor exibido) e despesas de
+entrega. Faturas convertem seu DTO em centavos para reais antes da comparação; filtros
+Prisma usam strings Decimal e são aplicados antes das contagens, paginação ou limite.
+Grupos de NF-e são pesquisados após agrupados, conservando o total e os IDs da parcela.
+
+Regressão: `testes/busca-valor.test.ts`, `testes/financeiro/faturas/busca.test.ts`, testes
+dos consumidores de Conciliação/Faturas/manifestos e `testes/vendas/despesas-entrega-busca.test.ts`.

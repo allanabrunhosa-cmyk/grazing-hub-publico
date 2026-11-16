@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { aplicarCaixaAltaNoCampo } from "@/lib/caixa-alta";
 import type { CategoriaOption, ContaBancariaOption, FormaPagamentoOption, FornecedorOption, LancamentoRow } from "../types";
 import { formatarMoeda } from "@/lib/financeiro/formatarMoeda";
+import { correspondeBuscaMovimentacao } from "@/lib/financeiro/busca-movimentacoes";
 import { GRUPOS_RECEITA } from "@/lib/labels";
 import { estilosNaturezaFinanceira, naturezaFinanceiraDoValor } from "@/lib/financeiro/natureza-financeira";
 import { dataValida } from "@/lib/financeiro/extrato";
@@ -79,7 +80,7 @@ export function ConciliacaoView({ linhas, transacoes, contasBancarias, acesso, p
     const conciliado = g.lancamentos.length > 0 && g.lancamentos.every(l => !!l.transacaoExtratoId);
     return filtroSituacao === "TODAS" || (filtroSituacao === "CONCILIADAS") === conciliado;
   }).filter(g => (!selecionada?.conciliadaEm || g.lancamentos.some(l => selecionada.lancamentoIds.includes(l.id))) &&
-    (!busca.trim() || `${g.titulo} ${g.subtitulo} ${g.categoria} ${g.lancamentos.map(l => `${l.descricao} ${l.fornecedorNome ?? l.contraparteNome ?? ""}`).join(" ")}`.toLocaleLowerCase("pt-BR").includes(busca.trim().toLocaleLowerCase("pt-BR"))))
+    correspondeBuscaMovimentacao(g, busca))
     .sort((a, b) => a.linhas[0].data.localeCompare(b.linhas[0].data) || a.id.localeCompare(b.id));
   const gruposSelecionados = empresa.filter(g => g.lancamentos.length > 0 && g.lancamentos.every(l => ids.includes(l.id)));
   const selecionados = gruposSelecionados.flatMap(g => g.lancamentos);
@@ -184,7 +185,7 @@ export function ConciliacaoView({ linhas, transacoes, contasBancarias, acesso, p
         <section aria-label="Movimentações da empresa" className="min-w-0 overflow-hidden rounded-2xl border bg-card">
           <div className="flex items-center justify-between gap-2 border-b bg-muted/20 p-4"><h2 className="flex items-center gap-2 font-semibold"><Building2 className="size-4 text-primary" />Movimentações da empresa</h2><Badge variant="muted">HUB</Badge></div>
           {novo && selecionada ? <NovoLancamento key={selecionada.id} transacao={selecionada} contaNome={contaNome} opcoes={opcoes} podeCadastrarBeneficiario={opcoes.podeCadastrarBeneficiario} pendente={pendente} erro={erro} aoVoltar={() => setNovo(false)} aoConfirmar={dados => concluir({ transacaoId: selecionada.id, novo: dados })} /> : <>
-            <div className="space-y-3 border-b p-4"><CampoBusca aria-label="Buscar movimentação da empresa" placeholder="Descrição, fornecedor ou categoria" value={busca} onChange={(valor) => { setBusca(valor); setIds([]); }} />
+            <div className="space-y-3 border-b p-4"><CampoBusca aria-label="Buscar movimentação da empresa" placeholder="Descrição, fornecedor, categoria ou valor" maxLength={120} value={busca} onChange={(valor) => { setBusca(valor); setIds([]); }} />
               {selecionada ? <p className="text-xs text-muted-foreground">{selecionada.conciliadaEm ? "Os lançamentos vinculados estão identificados abaixo." : `Selecione receitas e despesas para compor o valor líquido de ${formatarMoeda(selecionada.valor)}. Pendências serão realizadas em ${dataTexto(selecionada.data)}; a competência será mantida.`}</p> : <p className="text-xs text-muted-foreground">Selecione uma transação no extrato para escolher os lançamentos correspondentes.</p>}
               {sugestao && <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs"><p className="font-semibold text-primary">Pré-conciliação sugerida</p><p className="mt-1">{sugestao.motivo} Confira antes de confirmar. Você pode alterar a seleção.</p></div>}
             </div>

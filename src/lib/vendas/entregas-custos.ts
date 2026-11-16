@@ -8,6 +8,7 @@ import { conferirAcesso } from "./pedidos";
 import { ErroPedidoVenda, dinheiro } from "./pedidos-dominio";
 import type { SessaoAtual } from "@/lib/session";
 import { travarCustosEntrega } from "@/lib/financeiro/custos-entrega";
+import { valoresDecimaisDaBusca } from "@/lib/busca-valor";
 export async function salvarCustoEntrega(id: string, versao: number, estimado: string | null, efetivo: string | null, prestador: string | null, motivo: string, chave: string, sessao: SessaoAtual) {
   if (!id || id.length > 100 || !Number.isSafeInteger(versao) || versao < 1 || !motivo.trim() || motivo.length > 1000 || !/^[a-zA-Z0-9_-]{16,100}$/.test(chave) || (prestador && prestador.length > 100)) throw new ErroPedidoVenda("Informe dados válidos e justificativa dos custos.");
   const custo = (v: string | null) => v == null || v === "" ? null : new Prisma.Decimal(dinheiro(v, "Custo da entrega"));
@@ -35,11 +36,13 @@ export async function salvarCustoEntrega(id: string, versao: number, estimado: s
 }
 
 export async function buscarDespesasEntrega(busca: string, sessao: SessaoAtual) {
-  if (typeof busca !== "string" || busca.trim().length < 2 || busca.length > 120) return [];
+  if (typeof busca !== "string" || busca.length > 120) return [];
+  const termo = busca.trim(), valores = valoresDecimaisDaBusca(termo);
+  if (termo.length < 2 && !valores.length) return [];
   return prisma.$transaction(async tx => {
     await conferirAcesso(tx, sessao, ["consultar", "condicao"]);
     await autorEntregas(tx, sessao, "vendas.pedidos.logistica");
-    const titulos = await tx.lancamentoFinanceiro.findMany({ where: { tipo: "DESPESA", status: { not: "CANCELADO" }, pedidoVendaId: null, OR: [{ descricao: { contains: busca.trim(), mode: "insensitive" } }, { fornecedor: { nome: { contains: busca.trim(), mode: "insensitive" } } }] }, include: { categoria: { select: { nome: true } }, custosEntrega: { where: { desvinculadoEm: null }, select: { valor: true } } }, orderBy: { dataCompetencia: "desc" }, take: 50 });
+    const titulos = await tx.lancamentoFinanceiro.findMany({ where: { tipo: "DESPESA", status: { not: "CANCELADO" }, pedidoVendaId: null, OR: [{ descricao: { contains: termo, mode: "insensitive" } }, { fornecedor: { nome: { contains: termo, mode: "insensitive" } } }, ...(valores.length ? [{ valor: { in: valores } }] : [])] }, include: { categoria: { select: { nome: true } }, custosEntrega: { where: { desvinculadoEm: null }, select: { valor: true } } }, orderBy: { dataCompetencia: "desc" }, take: 50 });
     return titulos.map(t => ({ id: t.id, descricao: t.descricao, categoria: t.categoria.nome, status: t.status, valor: t.valor.toString(), disponivel: t.custosEntrega.reduce((s, c) => s.minus(c.valor), t.valor).toString(), revisao: t.updatedAt.toISOString(), competencia: t.dataCompetencia.toISOString() }));
   });
 }

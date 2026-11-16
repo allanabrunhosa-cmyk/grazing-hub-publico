@@ -142,6 +142,24 @@ it("mostra o valor final da parcela e discrimina os itens nos detalhes", async (
   fireEvent.click(within(detalhe).getByRole("button", { name: /Caviar de mostarda/ }));
   expect(screen.getByRole("dialog", { name: "Detalhes da movimentação" })).toBeDefined();
 });
+it("busca o valor final da parcela em formatos monetários sem desmembrar a nota", () => {
+  const nota = { id: "nota-busca", numero: "91234", serie: "1", fornecedorNome: "Fornecedor de frutas", parcela: { id: "parcela-busca", numero: "001", valor: 1234.56 } };
+  render(<ConciliacaoView {...props} linhas={[
+    { ...linha, id: "fruta-a", descricao: "Fruta A", valor: 1000, notaFiscal: nota },
+    { ...linha, id: "fruta-b", descricao: "Fruta B", valor: 300, notaFiscal: nota },
+  ]} />);
+  const empresa = screen.getByRole("region", { name: "Movimentações da empresa" });
+  const busca = screen.getByRole("textbox", { name: "Buscar movimentação da empresa" });
+  for (const valor of ["1.234,56", "R$ 1.234,56", "1234.56", "-1234,56"]) {
+    fireEvent.change(busca, { target: { value: valor } });
+    expect(within(empresa).getAllByText(/1\.234,56/).length).toBeGreaterThan(0);
+    expect(within(empresa).getAllByRole("checkbox")).toHaveLength(1);
+    expect(within(empresa).getByText("Ver composição da nota (2 itens)")).toBeTruthy();
+  }
+  fireEvent.change(busca, { target: { value: "1300,00" } });
+  expect(within(empresa).queryByRole("checkbox")).toBeNull();
+  expect(s.conciliar).not.toHaveBeenCalled();
+});
 it("permite recusar a pré-seleção sem gravar e exige escolha manual em ambiguidades", async () => {
   const u = userEvent.setup(); const { rerender } = render(<ConciliacaoView {...props} />);
   await u.click(screen.getByRole("button", { name: "Conferir PIX recebido do banco" }));
