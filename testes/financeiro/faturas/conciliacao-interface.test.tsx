@@ -102,10 +102,10 @@ it("oferece uma despesa inteira da nota e vincula todos os componentes pela mesm
  await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{lancamentos:[{id:"produto-a",versao:"v-a"},{id:"produto-b",versao:"v-b"}]}));
  expect(a.pagar).not.toHaveBeenCalled();
 });
-it("a busca mantém valor e seleção integrais da parcela",async()=>{
+it.each(["Parcela 001","100","100,00","R$ 100,00"])("a busca %s mantém valor e seleção integrais da parcela",async busca=>{
  a.correspondencias.mockResolvedValueOnce({candidatos:[parcelaInteiraVisual()],estornos:[],sugestao:null} as never);
  montar();await screen.findByText("NF-e fictícia — Parcela 001");
- fireEvent.change(screen.getByRole("searchbox",{name:"Buscar lançamento do HUB"}),{target:{value:"Parcela 001"}});
+ fireEvent.change(screen.getByRole("searchbox",{name:"Buscar lançamento do HUB"}),{target:{value:busca}});
  fireEvent.click(screen.getByRole("checkbox",{name:"Vincular NF-e fictícia — Parcela 001"}));
  const painel=screen.getByRole("region",{name:"Lançamentos do HUB"});
  expect(painel.textContent).toContain("100,00");
