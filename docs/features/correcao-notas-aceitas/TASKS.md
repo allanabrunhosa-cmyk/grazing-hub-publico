@@ -10,8 +10,8 @@ Branch: `codex/correcao-fatura-manifestacao-publica-20261116`.
 - [x] Backend de vínculo de fatura, autorização e auditoria.
 - [x] Backend de correção de notas aceitas, concorrência e efeitos integrados.
 - [x] Interface de correção com dados atuais e salvamento explícito.
-- [ ] Regressões de faturas, NF-e/NFS-e, estoque e cancelamento de compra.
-- [ ] Integração com PostgreSQL local e dados sintéticos.
+- [x] Regressões de faturas, NF-e/NFS-e, estoque e cancelamento de compra.
+- [x] Integração com PostgreSQL local e dados sintéticos.
 - [x] QA visual isolado e revisão independente.
 - [ ] Lint, tipos, build e documentação dos contratos finais.
 - [ ] Publicação autorizada, estabilidade e smoke de leitura.
@@ -40,5 +40,19 @@ Nenhum histórico privado será enviado ao repositório público.
 - Backup privado pré-publicação com arquivo verificado por `pg_restore --list`;
   configuração fiscal e imagem anterior preservadas. Nenhuma migration nova.
 
-Próximo passo: concluir a compilação/revalidação final e publicar a revisão validada.
+## Conferência da primeira publicação e ajuste da consulta
+
+PR #24 integrada em `bf7c2112`, após os quatro checks aprovados. Faturas no CI:
+**91/91**. Interface final: **119/119**. Build e lint finais aprovados.
+A nova instância entrou e o detalhe de nota aceita abriu **Editar informações**.
+Nenhuma correção de documento real foi salva para validar.
+
+A conferência autenticada da fatura revelou candidatos permanentemente bloqueados:
+`correspondenciasFaturaAction` usava o helper de escrita, invalidando o layout
+financeiro após cada consulta. Isso renovava os dados RSC e reiniciava a própria
+leitura. O ajuste remove somente a invalidação da consulta, mantendo permissões,
+normalização de erros, proteção contra respostas antigas e invalidação das escritas.
+
+Próximo passo: validar/publicar o ajuste de consulta e confirmar a seleção habilitada
+na fatura real, sem confirmar vínculos ou pagamentos.
 Nenhuma operação fiscal ou financeira real foi usada como teste.
