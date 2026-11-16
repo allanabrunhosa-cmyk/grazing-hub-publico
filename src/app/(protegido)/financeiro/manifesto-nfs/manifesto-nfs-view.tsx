@@ -411,7 +411,7 @@ export function ManifestoNfsView({ notas, categorias, cartoes, podeImportar, pod
       </div>
       <div className="space-y-3 border-b px-5 py-4">
         <div className="flex flex-wrap items-center gap-2">
-          <CampoBusca value={busca} onChange={setBusca} placeholder="Buscar por fornecedor, CNPJ ou chave de acesso..." aria-label="Buscar notas" containerClassName="w-full sm:w-96" />
+          <CampoBusca value={busca} onChange={setBusca} placeholder="Fornecedor, CNPJ, chave de acesso ou valor" maxLength={120} aria-label="Buscar notas" containerClassName="w-full sm:w-96" />
           <FiltroOpcoesContadas nome="Situação das notas" valor={situacao} onValueChange={setSituacao} opcoes={FILTROS.map(([valor, nome]) => ({ valor, nome, quantidade: porBuscaEPeriodo.filter(nota => valor === "TODAS" || situacaoNfse(nota) === valor).length }))} />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
