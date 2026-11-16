@@ -1,3 +1,4 @@
+import { filtroBuscaFatura, filtroBuscaItemFatura } from "./busca";
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
@@ -24,7 +25,7 @@ export async function cadastrosFaturas() {
 export async function listarFaturas(f:FiltrosFatura) {
   const pagina=numeroPagina(f.pagina);
   const base:Prisma.FaturaCartaoWhereInput={...(f.cartao?{cartaoId:f.cartao}:{}),...(f.competencia?{competencia:f.competencia}:{}),
-    ...(f.busca?{cartao:{OR:[{nome:{contains:f.busca,mode:"insensitive"}},{emissor:{contains:f.busca,mode:"insensitive"}}]}}:{}),
+    ...filtroBuscaFatura(f.busca),
     ...((f.de||f.ate)?{vencimento:{...(f.de?{gte:new Date(f.de)}:{}),...(f.ate?{lte:new Date(f.ate)}:{})}}:{})};
   const where:Prisma.FaturaCartaoWhereInput={...base,...(f.estado?{estado:f.estado}:{})};
   const consultaContagens=prisma.faturaCartao.groupBy({by:["estado"],where:base,_count:{_all:true}});
@@ -37,7 +38,7 @@ export async function listarFaturas(f:FiltrosFatura) {
 export async function detalheFatura(id:string,filtro:FiltrosFatura,podeVerPagamentos:boolean) {
   const f=await prisma.faturaCartao.findUnique({where:{id},include:{...incluirFatura,transacaoSelecionada:true}});
   if(!f)throw new ErroFatura("Fatura não encontrada.");
-  const baseItens:Prisma.ItemFaturaCartaoWhereInput={faturaId:id,...(filtro.busca?{OR:[{descricaoOriginal:{contains:filtro.busca,mode:"insensitive"}},{estabelecimentoNormalizado:{contains:filtro.busca,mode:"insensitive"}}]}:{})};
+  const baseItens:Prisma.ItemFaturaCartaoWhereInput={faturaId:id,...filtroBuscaItemFatura(filtro.busca)};
   const where:Prisma.ItemFaturaCartaoWhereInput={...baseItens,...(filtro.estado==="IGNORADO"?{ignoradoEm:{not:null}}:filtro.estado?{ignoradoEm:null}:{}),...(filtro.estado&&filtro.estado!=="IGNORADO"?{estado:filtro.estado}:{})};
   const pagina=1;
   const [itens,quantidade,arquivos,historico,bancarias,semItem,porEstadoItens]=await Promise.all([
