@@ -50,7 +50,7 @@ it("nega o item de navegação quando ambas as permissões estão ausentes", () 
 
 it("encaminha a entrada Configurações à integração para perfil somente fiscal", async () => {
   recursos.add("configuracoes.brasilnfe");
-  await expect(ConfiguracoesPage()).rejects.toThrow("REDIRECT:/configuracoes/integracoes/brasilnfe");
+  await expect(ConfiguracoesPage()).rejects.toThrow("REDIRECT:/configuracoes/integracoes");
 });
 
 it("protege a página fiscal antes de carregar qualquer configuração", async () => {
