@@ -7,7 +7,7 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/prisma", () => ({ prisma: { $transaction: fronteiras.transacao } }));
 vi.mock("@/lib/financeiro/faturas/acesso", () => ({ autorFatura: fronteiras.autor, auditarFatura: fronteiras.auditar }));
 
-import { consultarCorrespondencias, vincularItem } from "@/lib/financeiro/faturas/servico";
+import { consultarCorrespondencias, pendenciasVinculoFatura, vincularItem } from "@/lib/financeiro/faturas/servico";
 
 const data = new Date("2026-11-10T00:00:00.000Z");
 const vencimento = new Date("2026-11-20T00:00:00.000Z");
@@ -107,6 +107,34 @@ describe("fatura: fluxo do servidor com lançamentos inteiros", () => {
     cenario.parcela.valor = decimal(110);
     const resposta = await consultarCorrespondencias(cenario.fatura.id, cenario.item.id);
     expect(resposta.candidatos).toEqual([]);
+    esperarSemEscrita();
+  });
+
+  it("mantém a parcela disponível sem sugerir duplicidade quando só cartão, valor e vencimento coincidem", async () => {
+    for (const lancamento of cenario.lancamentos) lancamento.dataCompetencia = new Date("2026-07-10T00:00:00.000Z");
+    const resposta = await consultarCorrespondencias(cenario.fatura.id, cenario.item.id);
+    expect(resposta.candidatos).toHaveLength(1);
+    expect(resposta.candidatos[0]).toMatchObject({ valor: 10000, componentes: 2, correspondencia: null, lancamentos: selecionar() });
+    expect(resposta.sugestoesVinculo).toEqual([]);
+    expect(await pendenciasVinculoFatura(cenario.fatura as unknown as Parameters<typeof pendenciasVinculoFatura>[0])).toEqual([]);
+    esperarSemEscrita();
+  });
+
+  it("não presume compra no cartão para a parcela de NF-e sem cartão atribuído", async () => {
+    for (const lancamento of cenario.lancamentos) Object.assign(lancamento, { cartaoCreditoId: null, cartaoCredito: null });
+    const resposta = await consultarCorrespondencias(cenario.fatura.id, cenario.item.id);
+    expect(resposta.candidatos).toHaveLength(1);
+    expect(resposta.candidatos[0]).toMatchObject({ valor: 10000, correspondencia: null });
+    expect(resposta.sugestoesVinculo).toEqual([]);
+    expect(await pendenciasVinculoFatura(cenario.fatura as unknown as Parameters<typeof pendenciasVinculoFatura>[0])).toEqual([]);
+    esperarSemEscrita();
+  });
+
+  it("reconhece a parcela inteira como correspondência somente com cartão e data da compra compatíveis", async () => {
+    const resposta = await consultarCorrespondencias(cenario.fatura.id, cenario.item.id);
+    expect(resposta.candidatos[0].correspondencia).toMatchObject({ forte: true });
+    expect(resposta.sugestoesVinculo).toMatchObject([{ ids: ["l1"], valor: 10000 }]);
+    expect(await pendenciasVinculoFatura(cenario.fatura as unknown as Parameters<typeof pendenciasVinculoFatura>[0])).toMatchObject([{ id: cenario.item.id, quantidade: 1 }]);
     esperarSemEscrita();
   });
 
