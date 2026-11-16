@@ -1,3 +1,5 @@
+import { correspondeBuscaValor } from "@/lib/busca-valor";
+
 export function situacaoNfse(nota: { status: string; lancada: boolean }) {
   if (nota.status === "IGNORADA") return "RECUSADA";
   if (nota.lancada || nota.status === "LANCADA") return "ACEITA";
@@ -5,7 +7,7 @@ export function situacaoNfse(nota: { status: string; lancada: boolean }) {
 }
 
 export function correspondeFiltroNfse(
-  nota: { status: string; lancada: boolean; prestadorNome: string | null; prestadorCnpj: string | null; chaveAcesso: string | null; numero: string | null; dataEmissao: string | null },
+  nota: { status: string; lancada: boolean; prestadorNome: string | null; prestadorCnpj: string | null; chaveAcesso: string | null; numero: string | null; dataEmissao: string | null; valorLiquido?: number; valorServico?: number },
   filtro: { situacao: string; busca: string; de: string; ate: string },
 ) {
   if (filtro.situacao !== "TODAS" && situacaoNfse(nota) !== filtro.situacao) return false;
@@ -16,5 +18,6 @@ export function correspondeFiltroNfse(
   if (!consulta) return true;
   const texto = normalizar([nota.prestadorNome, nota.prestadorCnpj, nota.chaveAcesso, nota.numero].filter(Boolean).join(" "));
   const documento = consulta.replace(/\D/g, "");
-  return texto.includes(consulta) || (/^[\d./\s-]+$/.test(consulta) && Boolean(documento) && Boolean(nota.prestadorCnpj?.includes(documento)));
+  return texto.includes(consulta) || (/^[\d./\s-]+$/.test(consulta) && Boolean(documento) && Boolean(nota.prestadorCnpj?.includes(documento)))
+    || correspondeBuscaValor(filtro.busca, (nota.valorLiquido || nota.valorServico) ?? Number.NaN);
 }

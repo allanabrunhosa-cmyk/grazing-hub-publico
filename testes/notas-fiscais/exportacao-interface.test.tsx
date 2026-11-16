@@ -18,6 +18,23 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
+it("busca a NF-e pelo valor total nos formatos em reais e preserva o filtro por nome", () => {
+  render(<NotasFiscaisTable notas={[
+    { ...notaTeste, valorTotal: 1234.56 },
+    { ...notaTeste, id: "outra-nota", fornecedorNome: "Fornecedor distinto", valorTotal: 1234.57 },
+  ]} {...opcoesTeste} />);
+  const busca = screen.getByLabelText("Buscar notas fiscais");
+  for (const valor of ["1.234,56", "1234,56", "1234.56", "R$ 1.234,56"]) {
+    fireEvent.change(busca, { target: { value: valor } });
+    expect(screen.getByText("Fornecedor de teste")).toBeTruthy();
+    expect(screen.queryByText("Fornecedor distinto")).toBeNull();
+  }
+  fireEvent.change(busca, { target: { value: "distinto" } });
+  expect(screen.queryByText("Fornecedor de teste")).toBeNull();
+  expect(screen.getByText("Fornecedor distinto")).toBeTruthy();
+  expect(simulacao.exportar).not.toHaveBeenCalled();
+});
+
 it("abre o Manifesto sem datas e mostra todas as pendentes, inclusive antigas e sem emissão", async () => {
   const notaAceita = {
     ...notaTeste,

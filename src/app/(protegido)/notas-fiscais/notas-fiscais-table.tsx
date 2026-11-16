@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Receipt, Download, Loader2 } from "lucide-react";
 import { CampoBusca } from "@/components/campo-busca";
 import { formatarMoeda } from "@/lib/financeiro/formatarMoeda";
+import { correspondeBuscaValor } from "@/lib/busca-valor";
 import { BadgeNota as Badge } from "./badge-nota";
 import { Button } from "@/components/ui/button";
 import { FiltroPeriodo } from "@/components/filtro-periodo";
@@ -109,7 +110,8 @@ export function NotasFiscaisTable({
       if (!termo) return true;
       const alvoTexto = normalizar(nota.fornecedorNome ?? "");
       const alvoDigitos = apenasDigitos([nota.fornecedorCnpj ?? "", nota.chaveAcesso].join(""));
-      return alvoTexto.includes(termo) || (termoDigitos.length > 0 && alvoDigitos.includes(termoDigitos));
+      return alvoTexto.includes(termo) || (termoDigitos.length > 0 && alvoDigitos.includes(termoDigitos))
+        || correspondeBuscaValor(query, nota.valorTotal ?? Number.NaN);
     });
 
     return resultado;
@@ -171,7 +173,8 @@ export function NotasFiscaisTable({
           aria-label="Buscar notas fiscais"
           value={query}
           onChange={setQuery}
-          placeholder="Buscar por fornecedor, CNPJ ou chave de acesso..."
+          placeholder="Fornecedor, CNPJ, chave de acesso ou valor"
+          maxLength={120}
         />
         <FiltroOpcoesContadas nome="Situação das notas fiscais" valor={filtro} onValueChange={setFiltro}
           opcoes={FILTROS.map(opcao => ({ valor: opcao.valor, nome: opcao.label,
