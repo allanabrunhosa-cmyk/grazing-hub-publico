@@ -2,7 +2,7 @@ import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { SessaoAtual } from "@/lib/session";
-import { exigirDespesaSemCustoEntrega } from "@/lib/financeiro/custos-entrega";
+import { exigirDespesaSemCustoEntrega, travarCustosEntrega } from "@/lib/financeiro/custos-entrega";
 import { GRUPOS_RECEITA } from "@/lib/labels";
 import { extrairArquivo, type MapaFatura } from "./arquivo";
 import { identificarCartao } from "./cabecalho";
@@ -191,11 +191,11 @@ async function buscarLancamentosCandidatos(tx:Prisma.TransactionClient,f:FaturaC
   ]);
   if(individuais.length+parcelas.length>1000) throw new ErroFatura("Há muitas despesas ou parcelas candidatas. Revise os lançamentos pendentes antes de continuar.");
   type Lancamento=typeof individuais[number];
-  const converter=(l:Lancamento,parcelaNota?:CandidatoFaturaBase["parcelaNota"]):CandidatoFaturaBase=>({id:l.id,descricao:descricaoTituloEntradaAvulsa(l),valor:valorNaFatura(l),data:l.dataCompetencia.toISOString().slice(0,10),vencimento:l.dataVencimento.toISOString().slice(0,10),cartaoId:l.cartaoCreditoId,cartaoNome:l.cartaoCredito?.nome??null,podeCorrigirCartao:!parcelaNota,fornecedorId:l.fornecedorId,versao:l.updatedAt.toISOString(),notaGrupo:parcelaNota?.id??null,parcelaNota});
+  const converter=(l:Lancamento,parcelaNota?:CandidatoFaturaBase["parcelaNota"],corrigirPagamento=false):CandidatoFaturaBase=>({id:l.id,descricao:descricaoTituloEntradaAvulsa(l),valor:valorNaFatura(l),data:l.dataCompetencia.toISOString().slice(0,10),vencimento:l.dataVencimento.toISOString().slice(0,10),cartaoId:l.cartaoCreditoId,cartaoNome:l.cartaoCredito?.nome??null,podeCorrigirCartao:!parcelaNota,requerCorrecaoPagamento:corrigirPagamento||(parcelaNota?l.cartaoCreditoId!==f.cartaoId:!!(l.cartaoCreditoId&&l.cartaoCreditoId!==f.cartaoId)),fornecedorId:l.fornecedorId,versao:l.updatedAt.toISOString(),notaGrupo:parcelaNota?.id??null,parcelaNota});
   const componentes=parcelas.flatMap(p=>{
     if(p.lancamentos.reduce((s,c)=>s+centavos(c.valor),0)!==centavos(p.valor))return [];
     const parcelaNota={id:p.id,valor:centavos(p.valor),numero:p.numero,chaveAcesso:p.notaFiscal.chaveAcesso,fornecedorNome:p.notaFiscal.fornecedorNome};
-    return p.lancamentos.map(c=>converter(c.lancamentoFinanceiro,parcelaNota));
+    return p.lancamentos.map(c=>converter(c.lancamentoFinanceiro,parcelaNota,p.formaPagamento!=="CARTAO"||p.cartaoCreditoId!==f.cartaoId));
   });
   return agruparLancamentosInteirosFatura([...individuais.map(l=>converter(l)),...componentes]);
 }
@@ -251,7 +251,7 @@ export async function consultarCorrespondencias(faturaId:string,itemId:string,ou
   },opcoes);
 }
 
-// Correção explícita do cadastro; vincularItem continua recusando outro cartão.
+// Correção avulsa preservada; o vínculo também pode corrigir o pagamento atomicamente.
 export async function corrigirCartaoDespesa(faturaId:string,versaoFatura:number,lancamentoId:string,versaoLancamento:string,motivo:string,sessao:SessaoAtual) {
   const justificativa=justificar(motivo);
   if(typeof lancamentoId!=="string"||!lancamentoId||lancamentoId.length>100||typeof versaoLancamento!=="string")throw new ErroFatura("Referência da despesa inválida.");
@@ -263,7 +263,7 @@ export async function corrigirCartaoDespesa(faturaId:string,versaoFatura:number,
     if(!cartao?.ativo||!cartao.contaBancaria.ativo)throw new ErroFatura("Cartão ou conta bancária inativos.");
     await exigirDespesaSemCustoEntrega(tx,{id:lancamentoId});
     await tx.$queryRaw`SELECT id FROM "LancamentoFinanceiro" WHERE id = ${lancamentoId} FOR UPDATE`;
-    const l=await tx.lancamentoFinanceiro.findUnique({where:{id:lancamentoId},include:{movimentacaoBancaria:true,vinculoExtrato:true,notaFiscalItemLancamento:true,liquidacoesCartao:true}});
+    const l=await tx.lancamentoFinanceiro.findUnique({where:{id:lancamentoId},include:{movimentacaoBancaria:true,vinculoExtrato:true,notaFiscalItemLancamento:true,liquidacoesCartao:{where:{pagamento:{revertidoEm:null}}}}});
     if(!l||l.status!=="PENDENTE"||l.tipo!=="DESPESA"||!l.valor.isPositive()||l.itemFaturaId||l.pedidoVendaId||l.dataPagamento||l.movimentacaoBancaria||l.vinculoExtrato||l.liquidacoesCartao.length)throw new ErroFatura("Só é possível corrigir o cartão de uma despesa pendente, sem baixa ou vínculo.");
     if(l.notaFiscalItemLancamento)throw new ErroFatura("Corrija o cartão pela parcela da NF-e de origem.");
     if(l.cartaoCreditoId===f.cartaoId)return {ok:true as const};
@@ -308,6 +308,35 @@ async function criarDespesaItem(tx:Prisma.TransactionClient,f:FaturaCompleta,ite
     contraparteNome:item.estabelecimentoNormalizado,cartaoCreditoId:f.cartaoId,contaBancariaId:f.cartao.contaBancariaId,itemFaturaId:item.id,
     dataCompetencia:dataFinanceira(novo?.dataCompetencia??item.dataCompetencia.toISOString().slice(0,10)),dataVencimento:dataFinanceira(novo?.dataVencimento??f.vencimento.toISOString().slice(0,10)),criadoPorId:autorId,observacoes:item.observacoes??"Origem: fatura de cartão."}});
 }
+
+async function corrigirPagamentoNoVinculo(tx:Prisma.TransactionClient,f:FaturaCompleta,item:FaturaCompleta["itens"][number],idsSelecionados:string[],idsDuplicatas:string[],autor:Awaited<ReturnType<typeof autorFatura>>,motivo?:string) {
+  const incluir={movimentacaoBancaria:true,vinculoExtrato:true,liquidacoesCartao:{where:{pagamento:{revertidoEm:null}}}} as const;
+  const selecionados=await tx.lancamentoFinanceiro.findMany({where:{id:{in:idsSelecionados}},include:incluir});
+  const parcelas=idsDuplicatas.length?await tx.notaFiscalDuplicata.findMany({where:{id:{in:idsDuplicatas}},include:{lancamentos:{where:{lancamentoFinanceiro:{status:{not:"CANCELADO"}}},include:{lancamentoFinanceiro:{include:incluir}}}}}):[];
+  const parcelasCorrigidas=parcelas.filter(p=>p.formaPagamento!=="CARTAO"||p.cartaoCreditoId!==f.cartaoId||p.lancamentos.some(l=>l.lancamentoFinanceiro.cartaoCreditoId!==f.cartaoId));
+  const avulsos=selecionados.filter(l=>!!l.cartaoCreditoId&&l.cartaoCreditoId!==f.cartaoId);
+  if(!parcelasCorrigidas.length&&!avulsos.length)return;
+  if(!autor.pode("financeiro.movimentacoes","editar"))throw new ErroFatura("Sem permissão para corrigir o pagamento dos lançamentos.");
+  const justificativa=justificar(motivo??"");
+  const cartao=await tx.cartaoCredito.findUnique({where:{id:f.cartaoId},include:{contaBancaria:true}});
+  if(!cartao?.ativo||!cartao.contaBancaria.ativo)throw new ErroFatura("Cartão ou conta bancária inativos.");
+  const afetados=[...new Map([...avulsos,...parcelasCorrigidas.flatMap(p=>p.lancamentos.map(l=>l.lancamentoFinanceiro))].map(l=>[l.id,l])).values()];
+  await exigirDespesaSemCustoEntrega(tx,{id:{in:afetados.map(l=>l.id)}});
+  if(afetados.some(l=>l.status!=="PENDENTE"||l.itemFaturaId||l.pedidoVendaId||l.dataPagamento||l.movimentacaoBancaria||l.vinculoExtrato||l.liquidacoesCartao.length))throw new ErroFatura("Uma parcela da nota possui lançamento pago ou vinculado. Corrija o pagamento na origem antes de vincular.");
+  const forma=await tx.formaPagamento.upsert({where:{nome:"Cartão de crédito"},create:{nome:"Cartão de crédito"},update:{}});
+  for(const p of parcelasCorrigidas){
+    const antes={cartaoCreditoId:p.cartaoCreditoId,formaPagamento:p.formaPagamento,dataCompra:p.dataCompra};
+    const depois={cartaoCreditoId:f.cartaoId,formaPagamento:"CARTAO",dataCompra:p.dataCompra??item.dataCompra};
+    await tx.notaFiscalDuplicata.update({where:{id:p.id},data:depois});
+    await auditarFatura(tx,autor,"PAGAMENTO_NOTA_CORRIGIDO",p.id,f.id,antes,depois,justificativa);
+  }
+  for(const l of afetados){
+    const antes={cartaoCreditoId:l.cartaoCreditoId,contaBancariaId:l.contaBancariaId,formaPagamentoId:l.formaPagamentoId,versao:l.updatedAt.toISOString()};
+    const depois=await tx.lancamentoFinanceiro.update({where:{id:l.id},data:{cartaoCreditoId:f.cartaoId,contaBancariaId:cartao.contaBancariaId,formaPagamentoId:forma.id},select:{cartaoCreditoId:true,contaBancariaId:true,formaPagamentoId:true,updatedAt:true}});
+    await auditarFatura(tx,autor,"CARTAO_CORRIGIDO",l.id,f.id,antes,{...depois,versao:depois.updatedAt.toISOString()},justificativa);
+  }
+}
+
 export async function vincularItem(faturaId:string,versao:number,itemId:string,entrada:{lancamentos?:{id:string;versao:string}[];substituir?:boolean;motivo?:string;criar?:boolean;motivoDuplicidade?:string;novo?:Omit<ClassificacaoFatura,"ids"|"memorizar"> & {descricao:string;dataCompetencia:string;dataVencimento:string}},sessao:SessaoAtual) {
   return prisma.$transaction(async tx=>{
     const autor=await autorFatura(tx,sessao,"financeiro.faturas","editar"),f=await faturaAtual(tx,faturaId,versao);
@@ -342,17 +371,19 @@ export async function vincularItem(faturaId:string,versao:number,itemId:string,e
       const parcelasNota=[...new Set(vinculosNota.map(v=>v.notaFiscalDuplicataId))];
       // A origem trava a nota antes de seus lançamentos. Mantemos a mesma ordem e
       // travamos a parcela completa, inclusive componentes omitidos pelo cliente.
+      await travarCustosEntrega(tx);
       if(notasTravadas.length)await tx.$queryRaw(Prisma.sql`SELECT id FROM "NotaFiscalRecebida" WHERE id IN (${Prisma.join(notasTravadas)}) ORDER BY id FOR UPDATE`);
       const componentesParaTravar=parcelasNota.length?await tx.notaFiscalItemLancamento.findMany({where:{notaFiscalDuplicataId:{in:parcelasNota},lancamentoFinanceiro:{status:{not:"CANCELADO"}}},select:{lancamentoFinanceiroId:true}}):[];
       const idsTravados=[...new Set([...escolhidos.map(l=>l.id),...anteriores.map(l=>l.id),...componentesParaTravar.map(c=>c.lancamentoFinanceiroId)])].sort();
       await tx.$queryRaw(Prisma.sql`SELECT id FROM "LancamentoFinanceiro" WHERE id IN (${Prisma.join(idsTravados)}) ORDER BY id FOR UPDATE`);
-      const despesas=await tx.lancamentoFinanceiro.findMany({where:{id:{in:escolhidos.map(l=>l.id)}},include:{movimentacaoBancaria:true,vinculoExtrato:true,notaFiscalItemLancamento:{include:{notaFiscalDuplicata:{select:{id:true,valor:true,notaFiscalId:true}}}}}});
+      const despesas=await tx.lancamentoFinanceiro.findMany({where:{id:{in:escolhidos.map(l=>l.id)}},include:{movimentacaoBancaria:true,vinculoExtrato:true,liquidacoesCartao:{where:{pagamento:{revertidoEm:null}}},notaFiscalItemLancamento:{include:{notaFiscalDuplicata:{select:{id:true,valor:true,notaFiscalId:true}}}}}});
       const valorItem=item.valor;
-      if(despesas.length!==escolhidos.length||despesas.some(l=>l.status!=="PENDENTE"||(valorItem.isNegative()?valorNaFatura(l)>=0:l.tipo!=="DESPESA"||!l.valor.isPositive())||l.pedidoVendaId||l.itemFaturaId||l.movimentacaoBancaria||l.vinculoExtrato||(l.cartaoCreditoId&&l.cartaoCreditoId!==f.cartaoId)||escolhidos.find(e=>e.id===l.id)?.versao!==l.updatedAt.toISOString()))throw new ErroFatura("Despesa alterada, já paga ou vinculada. Atualize e confira.");
+      if(despesas.length!==escolhidos.length||despesas.some(l=>l.status!=="PENDENTE"||(valorItem.isNegative()?valorNaFatura(l)>=0:l.tipo!=="DESPESA"||!l.valor.isPositive())||l.pedidoVendaId||l.itemFaturaId||l.dataPagamento||l.movimentacaoBancaria||l.vinculoExtrato||l.liquidacoesCartao.length||escolhidos.find(e=>e.id===l.id)?.versao!==l.updatedAt.toISOString()))throw new ErroFatura("Despesa alterada, já paga ou vinculada. Atualize e confira.");
       if(despesas.some(l=>l.notaFiscalItemLancamento&&!notasTravadas.includes(l.notaFiscalItemLancamento.notaFiscalDuplicata.notaFiscalId)))throw new ErroFatura("A origem da despesa mudou. Atualize e confira a parcela inteira.");
       const componentesAtivos=parcelasNota.length?await tx.notaFiscalItemLancamento.findMany({where:{notaFiscalDuplicataId:{in:parcelasNota},lancamentoFinanceiro:{status:{not:"CANCELADO"}}},select:{notaFiscalDuplicataId:true,lancamentoFinanceiroId:true,valor:true}}):[];
       validarSelecaoIntegralDeNotasFatura(despesas.map(l=>({id:l.id,notaGrupo:l.notaFiscalItemLancamento?.notaFiscalDuplicata.id??null,valor:centavos(l.valor),valorParcela:l.notaFiscalItemLancamento?centavos(l.notaFiscalItemLancamento.notaFiscalDuplicata.valor):undefined})),componentesAtivos.map(c=>({id:c.lancamentoFinanceiroId,notaGrupo:c.notaFiscalDuplicataId,valor:centavos(c.valor)})));
       if(despesas.reduce((s,l)=>s+valorNaFatura(l),0)!==centavos(item.valor))throw new ErroFatura("A soma das despesas deve ser igual ao valor do item.");
+      await corrigirPagamentoNoVinculo(tx,f,item,despesas.map(l=>l.id),parcelasNota,autor,entrada.motivo);
       if(entrada.substituir){
         const idItem=item.id;
         const antigos=await tx.lancamentoFinanceiro.findMany({where:{id:{in:anteriores.map(l=>l.id)}},include:{movimentacaoBancaria:true,vinculoExtrato:true}});

@@ -1,5 +1,18 @@
 # Financeiro
 
+## Correção do pagamento ao vincular fatura — 16/11/2026
+
+A seleção manual permite despesas de outro cartão. O vínculo com correção exige
+edição de Movimentações e motivo, preserva valores/vencimentos e audita cartão,
+conta e forma de pagamento anteriores. Para NF-e, a seleção continua sendo a
+parcela inteira; o servidor trava a nota e todos os componentes ativos antes de
+conferir versões, corrigir a duplicata e atualizar seus títulos na mesma transação.
+Cartões divergentes entre componentes não ocultam o lançamento inteiro. Boleto
+ou Pix cadastrados incorretamente também são corrigidos com confirmação explícita.
+Liquidações revertidas e componentes cancelados não bloqueiam vínculos novos;
+pagamentos/vínculos ativos e alterações concorrentes continuam protegidos.
+Contrato: [correção de pagamentos e notas aceitas](../features/correcao-notas-aceitas/SPEC.md).
+
 Em Movimentações, `CampoBusca` filtra os grupos já calculados por texto ou valor em
 centavos, com formatos brasileiros ou decimais. Um item encontrado mantém o grupo
 e o valor líquido da parcela completos. A busca não recalcula cartões, saldos ou

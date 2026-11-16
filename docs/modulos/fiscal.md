@@ -1,5 +1,29 @@
 # Fiscal
 
+## Correção de notas aceitas — 16/11/2026
+
+O detalhe de NF-e aceita oferece **Editar informações**, com motivo e salvamento
+explícito. `notas-fiscais/editar-nota.ts` chama `lib/notas-fiscais/correcao-nota.ts`
+em transação, com permissões atuais, versão otimista e auditoria. Não transmite
+outro evento fiscal nem modifica o XML. Pagamento, recebimento, insumo, local,
+quantidade e categoria são corrigidos nos registros integrados existentes.
+Mudanças incompatíveis com baixa, extrato, fatura ou liquidação ativa exigem
+tratar o vínculo na origem; alterações independentes continuam disponíveis.
+
+Correções físicas compensam a entrada vigente e criam sua substituta no instante
+atual, preservando as entradas anteriores, consumos, reservas e custo residual.
+O item aponta a entrada vigente, também usada no cancelamento da compra. A data
+de recebimento é mantida no campo próprio. Custos/composição legados permanecem
+intactos quando seus valores não mudam. Reenvio idêntico da última correção não
+duplica os efeitos.
+
+NFS-e lançada reutiliza o detalhe com **Editar informações**. GET/PATCH em
+`api/nfse/lancar` usam `lib/nfse/correcao.ts`, preservando IDs dos títulos,
+cancelando logicamente parcelas removidas e autorizando parcelas novas à parte.
+Categoria e descrição podem ser corrigidas sem reabrir pagamentos inalterados;
+dados históricos ausentes, como data da compra de cartão, não são presumidos.
+Sem migrations. Contrato e evidências: [correção de notas aceitas](../features/correcao-notas-aceitas/SPEC.md).
+
 Arquivos e indicadores de saída: o painel lê data e vNF do XML autorizado.
 Autorizações sem XML têm aviso e recuperação separados das métricas. A emissão
 e a consulta manuais completam os arquivos pelo serviço existente; falha de

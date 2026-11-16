@@ -16,14 +16,14 @@ const sessao = { userId: "operador-ficticio", versao: 0 } as SessaoAtual;
 const decimal = (valor: number) => new Prisma.Decimal(valor);
 
 function criarCenario() {
-  const parcela = { id: "parcela-ficticia", notaFiscalId: "nota-ficticia", numero: "001", valor: decimal(100), notaFiscal: { chaveAcesso: "1".repeat(44), fornecedorNome: "Fornecedor fictício" } };
+  const parcela = { id: "parcela-ficticia", notaFiscalId: "nota-ficticia", numero: "001", valor: decimal(100), formaPagamento:"CARTAO", cartaoCreditoId:"cartao-ficticio", notaFiscal: { chaveAcesso: "1".repeat(44), fornecedorNome: "Fornecedor fictício" } };
   const lancamentos = [
     { id: "l1", descricao: "NF-e fictícia — produto A", valor: decimal(40) },
     { id: "l2", descricao: "NF-e fictícia — produto B", valor: decimal(60) },
   ].map(l => ({
     ...l, tipo: "DESPESA", status: "PENDENTE", itemFaturaId: null as string | null, cartaoCreditoId: "cartao-ficticio", pedidoVendaId: null,
     fornecedorId: "fornecedor-ficticio", fornecedor: { nome: "Fornecedor fictício" }, cartaoCredito: { nome: "Cartão fictício" },
-    dataCompetencia: data, dataVencimento: vencimento, dataPagamento: null, updatedAt: data, movimentacaoBancaria: null, vinculoExtrato: null,
+    dataCompetencia: data, dataVencimento: vencimento, dataPagamento: null, updatedAt: data, movimentacaoBancaria: null, vinculoExtrato: null, liquidacoesCartao: [],
     notaFiscalItemLancamento: { notaFiscalDuplicataId: parcela.id, notaFiscalDuplicata: parcela },
   }));
   const componentes = lancamentos.map(l => ({ notaFiscalDuplicataId: parcela.id, lancamentoFinanceiroId: l.id, valor: l.valor, notaFiscalDuplicata: parcela, lancamentoFinanceiro: l }));
@@ -40,6 +40,7 @@ function criarCenario() {
   };
   type Consulta = { where?: { id?: { in?: string[] }; lancamentoFinanceiroId?: { in?: string[] } } };
   const tx = {
+    $executeRaw: vi.fn(async () => 1),
     $queryRaw: vi.fn(async (sql: unknown) => { void sql; return []; }),
     faturaCartao: {
       findUnique: vi.fn(async () => fatura), findUniqueOrThrow: vi.fn(async () => fatura),

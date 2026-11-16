@@ -299,18 +299,25 @@ it("troca vínculo de fatura paga somente após seleção e motivo",async()=>{
  await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{substituir:true,motivo:"Corrigir vínculo",lancamentos:[{id:"l",versao:"v"}]}));expect(a.pagar).not.toHaveBeenCalled();
 });
 
-it("busca despesas de outro cartão e exige correção explícita antes de vincular",async()=>{
- const outro={id:"outro",descricao:"NFS-e fictícia",valor:10000,data:"2026-09-01",vencimento:"2026-09-15",versao:"vo",cartaoId:"master",cartaoNome:"Mastercard fictício",podeCorrigirCartao:true,notaGrupo:null,correspondencia:null};
+it("seleciona despesa de outro cartão e confirma a correção no próprio vínculo",async()=>{
+ const outro={id:"outro",descricao:"NF-e fictícia",valor:10000,data:"2026-09-01",vencimento:"2026-09-15",versao:"vo",cartaoId:"master",cartaoNome:"Mastercard fictício",podeCorrigirCartao:false,requerCorrecaoPagamento:true,notaGrupo:"parcela-nota",correspondencia:null};
  a.correspondencias.mockResolvedValueOnce({candidatos:[],estornos:[],sugestao:null} as never).mockResolvedValueOnce({candidatos:[outro],estornos:[],sugestao:null} as never);
  montar();await waitFor(()=>expect(a.correspondencias).toHaveBeenCalled());
- fireEvent.click(screen.getByRole("checkbox",{name:"Mostrar despesas de outros cartões"}));await screen.findByText("NFS-e fictícia");
+ fireEvent.click(screen.getByRole("checkbox",{name:"Mostrar despesas de outros cartões"}));await screen.findByText("NF-e fictícia");
  expect(a.correspondencias).toHaveBeenLastCalledWith("ficticia","i0",true);
- expect(screen.getByRole("checkbox",{name:"Vincular NFS-e fictícia"}).getAttribute("aria-disabled")).toBe("true");
- fireEvent.click(screen.getByRole("button",{name:"Usar cartão desta fatura"}));const dialog=screen.getByRole("dialog");
+ expect(screen.getByRole("checkbox",{name:"Vincular NF-e fictícia"}).getAttribute("aria-disabled")).not.toBe("true");
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular NF-e fictícia"}));fireEvent.click(screen.getByRole("button",{name:"Vincular lançamentos selecionados"}));const dialog=screen.getByRole("dialog");
  expect(dialog.textContent).toContain("Mastercard fictício");expect(dialog.textContent).toContain("1234");
  expect(within(dialog).getByRole("button",{name:"Confirmar"})).toHaveProperty("disabled",true);
  fireEvent.change(within(dialog).getByRole("textbox"),{target:{value:"Despesa pertence a este cartão"}});fireEvent.click(within(dialog).getByRole("button",{name:"Confirmar"}));
- await waitFor(()=>expect(a.corrigir).toHaveBeenCalledWith("ficticia",1,"outro","vo","Despesa pertence a este cartão"));expect(a.vincular).not.toHaveBeenCalled();expect(a.pagar).not.toHaveBeenCalled();
+ await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{motivo:"Despesa pertence a este cartão",lancamentos:[{id:"outro",versao:"vo"}]}));expect(a.corrigir).not.toHaveBeenCalled();expect(a.pagar).not.toHaveBeenCalled();
+});
+
+it("mantém correção de outro cartão bloqueada sem edição de movimentações",async()=>{
+ a.correspondencias.mockResolvedValueOnce({candidatos:[{id:"outro",descricao:"Cartão errado",valor:10000,data:"2026-09-01",vencimento:"2026-09-15",versao:"vo",cartaoId:"master",cartaoNome:"Outro cartão",requerCorrecaoPagamento:true}],estornos:[],sugestao:null} as never);
+ montar(false);await screen.findByText("Cartão errado");
+ expect(screen.getByRole("checkbox",{name:"Vincular Cartão errado"}).getAttribute("aria-disabled")).toBe("true");
+ expect(screen.getByText("É necessária permissão para editar movimentações e corrigir o pagamento.")).toBeTruthy();
 });
 
 it("conclui itens classificados de fatura paga sem pedir outra saída bancária",async()=>{

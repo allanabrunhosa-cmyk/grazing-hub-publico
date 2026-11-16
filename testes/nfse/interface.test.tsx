@@ -66,6 +66,55 @@ describe("filtros e ações da interface", () => {
     expect(screen.queryByRole("button", { name: "Ignorar nota" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Recusar" })).toBeNull();
   });
+  it("abre os pagamentos salvos de nota aceita e corrige sem gerar novo lançamento", async () => {
+    const fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ versao: "versao-teste", categoriaId: "categoria", descricao: "Serviço contratado", dataVencimento: "2026-10-20",
+      parcelas: [{ id: "parcela-existente", numero: "001", valor: 100, dataVencimento: "2026-10-20", formaPagamento: "PIX", cartaoCreditoId: null, dataCompra: null, parcelaCartao: 1 }],
+    }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
+    vi.stubGlobal("fetch", fetch);
+    render(<ManifestoNfsView notas={[notas[1]]} categorias={[{ id: "categoria", nome: "Serviços", grupo: "DESPESAS_OPERACIONAIS" }]} cartoes={[]} podeImportar podeLancar podeEditar />);
+    fireEvent.click(screen.getByRole("button", { name: "Aceitas (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    expect(screen.queryByRole("button", { name: "Lançar despesa" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    await screen.findByLabelText("Vencimento da parcela 1");
+    expect(fetch).toHaveBeenCalledWith("/api/nfse/lancar?nfseId=lancada");
+    expect((screen.getByLabelText("Vencimento da parcela 1") as HTMLInputElement).value).toBe("2026-10-20");
+    const salvar = screen.getByRole("button", { name: "Salvar correções" }) as HTMLButtonElement;
+    expect(salvar.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Vencimento da parcela 1"), { target: { value: "2026-10-25" } });
+    fireEvent.blur(screen.getByLabelText("Vencimento da parcela 1"));
+    expect(fetch).toHaveBeenCalledTimes(1);
+    fireEvent.change(screen.getByLabelText(/Motivo da correção/), { target: { value: "Corrigir vencimento informado errado." } });
+    fireEvent.click(salvar);
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/nfse/lancar", expect.objectContaining({ method: "PATCH" })));
+    const corpo = JSON.parse(fetch.mock.calls[1][1].body);
+    expect(corpo).toMatchObject({ nfseId: "lancada", versao: "versao-teste", motivo: "Corrigir vencimento informado errado.", parcelas: [{ id: "parcela-existente", valor: 100, dataVencimento: "2026-10-25", formaPagamento: "PIX" }] });
+    expect(fetch.mock.calls.some(chamada => chamada[1]?.method === "POST")).toBe(false);
+  });
+  it("não oferece correção financeira para perfil de consulta", () => {
+    render(<ManifestoNfsView notas={[notas[1]]} categorias={[]} cartoes={[]} podeImportar={false} podeLancar={false} podeEditar={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Aceitas (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    expect(screen.queryByRole("button", { name: "Editar informações" })).toBeNull();
+  });
+  it("corrige descrição no cartão legado sem exigir ou inventar data da compra", async () => {
+    const fetch = vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ versao: "versao-legada", categoriaId: "categoria", descricao: "Serviço antigo", dataVencimento: "2026-10-20",
+      parcelas: [{ id: "parcela-cartao", numero: "001", valor: 100, dataVencimento: "2026-10-20", formaPagamento: "CARTAO", cartaoCreditoId: "cartao", dataCompra: null, parcelaCartao: 1 }],
+    }) }).mockResolvedValueOnce({ ok: true, json: async () => ({ ok: true }) });
+    vi.stubGlobal("fetch", fetch);
+    render(<ManifestoNfsView notas={[notas[1]]} categorias={[{ id: "categoria", nome: "Serviços", grupo: "DESPESAS_OPERACIONAIS" }]} cartoes={[]} podeImportar podeLancar podeEditar />);
+    fireEvent.click(screen.getByRole("button", { name: "Aceitas (1)" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver nota" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editar informações" }));
+    await screen.findByLabelText("Data da compra da parcela 1");
+    fireEvent.change(screen.getByLabelText("Descrição"), { target: { value: "Descrição corrigida do serviço" } });
+    fireEvent.change(screen.getByLabelText(/Motivo da correção/), { target: { value: "Corrigir descrição do lançamento antigo." } });
+    const salvar = screen.getByRole("button", { name: "Salvar correções" }) as HTMLButtonElement;
+    expect(salvar.disabled).toBe(false);
+    fireEvent.click(salvar);
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(fetch.mock.calls[1][1].body)).toMatchObject({ descricao: "Descrição corrigida do serviço", parcelas: [{ id: "parcela-cartao", cartaoCreditoId: "cartao", dataCompra: null, dataVencimento: "2026-10-20" }] });
+  });
 });
 
 beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-09-18T15:00:00Z")); });

@@ -1,6 +1,7 @@
 "use client";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BotaoRemoverItem } from "@/components/remover-item";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CampoMonetario } from "./campo-monetario";
@@ -41,7 +42,7 @@ export function ParcelasNota({ parcelas, cartoes, dataEmissao, bloqueado, mostra
         <div className="min-w-40 flex-1 space-y-1"><Label className="text-xs">Pagamento</Label><Select disabled={bloqueado || p.bloqueada} value={p.formaPagamento ?? "BOLETO"} onValueChange={v => atualizar(i, { formaPagamento: v as PagamentoNota["formaPagamento"] })}><SelectTrigger aria-label={"Pagamento da parcela " + (i + 1)} className="w-full"><SelectValue>{() => formas[p.formaPagamento ?? "BOLETO"]}</SelectValue></SelectTrigger><SelectContent>{Object.entries(formas).map(([valor,nome]) => <SelectItem key={valor} value={valor}>{nome}</SelectItem>)}</SelectContent></Select></div>
         <label className="w-36 space-y-1 text-xs">Vencimento<Input aria-label={"Vencimento da parcela " + (i + 1)} aria-invalid={vencimentoInvalido} className="aria-invalid:bg-destructive/10" type="date" disabled={p.formaPagamento === "CARTAO"} value={p.dataVencimento} onChange={e => atualizar(i, {dataVencimento: e.target.value})} /></label>
         <div className="w-28 space-y-1"><Label className="text-xs">Valor</Label><CampoMonetario aria-label={"Valor da parcela " + p.numero + " em reais"} aria-invalid={valorInvalido} className="aria-invalid:bg-destructive/10" value={p.valor} onValueChange={valor => atualizar(i, {valor})} /></div>
-        <Button type="button" data-dialogo-altera variant="excluir" size="icon" aria-label={"Remover parcela " + (i + 1)} onClick={() => onChange(parcelas.filter((_,n) => n !== i))}><Trash2 className="size-4" /></Button>
+        <BotaoRemoverItem discreto data-dialogo-altera nome={"Remover parcela " + (i + 1)} onClick={() => onChange(parcelas.filter((_,n) => n !== i))} />
       </div>
       {p.formaPagamento === "CARTAO" && <div className="flex flex-wrap items-end gap-2 rounded-lg bg-muted/30 p-2">
         <div className="min-w-48 flex-1 space-y-1"><Label className="text-xs">Cartão / conta bancária</Label><Select disabled={bloqueado || p.bloqueada} value={p.cartaoCreditoId ?? ""} onValueChange={v => atualizar(i, {cartaoCreditoId: v})}><SelectTrigger aria-label={"Cartão da parcela " + (i + 1)} aria-invalid={cartaoInvalido} className="w-full aria-invalid:bg-destructive/10"><SelectValue placeholder="Selecione o cartão">{() => { const c = cartoes.find(c => c.id === p.cartaoCreditoId); return c ? c.nome + " · " + c.contaBancariaNome : "Selecione o cartão"; }}</SelectValue></SelectTrigger><SelectContent>{cartoes.filter(c => c.ativo).map(c => <SelectItem key={c.id} value={c.id}>{c.nome} · {c.contaBancariaNome}</SelectItem>)}</SelectContent></Select></div>

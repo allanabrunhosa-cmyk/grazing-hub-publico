@@ -9,6 +9,7 @@ export type CandidatoFaturaBase = {
   cartaoId: string | null;
   cartaoNome: string | null;
   podeCorrigirCartao: boolean;
+  requerCorrecaoPagamento?: boolean;
   fornecedorId: string | null;
   versao: string;
   notaGrupo: string | null;
@@ -47,7 +48,7 @@ function agruparParcela(grupo: CandidatoFaturaBase[]): CandidatoFaturaInteiro | 
     return !dados || dados.id !== primeiro.notaGrupo || dados.valor !== parcela.valor
       || dados.numero !== parcela.numero || dados.chaveAcesso !== parcela.chaveAcesso || dados.fornecedorNome !== parcela.fornecedorNome
       || Math.sign(l.valor) !== sinal || l.data !== primeiro.data || l.vencimento !== primeiro.vencimento
-      || l.cartaoId !== primeiro.cartaoId || l.cartaoNome !== primeiro.cartaoNome || l.fornecedorId !== primeiro.fornecedorId;
+      || l.fornecedorId !== primeiro.fornecedorId;
   })) return null;
   const valor = somarCentavos(ordenados.map(l => l.valor));
   if (valor === null || Math.abs(valor) !== parcela.valor) return null;
@@ -57,6 +58,9 @@ function agruparParcela(grupo: CandidatoFaturaBase[]): CandidatoFaturaInteiro | 
     descricao: `NF-e ${parcela.chaveAcesso} · Parcela ${parcela.numero}${fornecedor ? ` · ${fornecedor}` : ""}`,
     valor,
     podeCorrigirCartao: false,
+    cartaoId: ordenados.every(l=>l.cartaoId===primeiro.cartaoId)?primeiro.cartaoId:null,
+    cartaoNome: [...new Set(ordenados.map(l=>l.cartaoNome).filter(Boolean))].join(" / ")||null,
+    requerCorrecaoPagamento: ordenados.some(l=>l.requerCorrecaoPagamento),
     lancamentos: ordenados.map(l => ({ id: l.id, versao: l.versao })),
     componentes: ordenados.length,
   };

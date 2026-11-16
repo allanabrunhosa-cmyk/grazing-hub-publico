@@ -74,11 +74,17 @@ describe("lançamentos inteiros como candidatos da fatura", () => {
     ["sinal", { valor: -6000 }],
     ["vencimento", { vencimento: "2026-12-17" }],
     ["competência", { data: "2026-11-10" }],
-    ["cartão", { cartaoId: "outro-cartao" }],
     ["fornecedor", { fornecedorId: "outro-fornecedor" }],
     ["parcela", { parcelaNota: { id: "duplicata-1", numero: "002", valor: 10000, chaveAcesso: "1".repeat(44), fornecedorNome: "Fornecedor fictício" } }],
   ] satisfies [string, Partial<CandidatoFaturaBase>][])("omite parcela com %s incoerente entre componentes", (_, alteracao) => {
     expect(agruparLancamentosInteirosFatura([componente("a", 4000), componente("b", 6000, alteracao)])).toEqual([]);
+  });
+
+  it("mantém a parcela inteira quando um componente foi lançado em outro cartão", () => {
+    const resultado=agruparLancamentosInteirosFatura([componente("a",4000),componente("b",6000,{cartaoId:"outro-cartao",cartaoNome:"Outro cartão",requerCorrecaoPagamento:true})]);
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0]).toMatchObject({valor:10000,componentes:2,cartaoId:null,requerCorrecaoPagamento:true});
+    expect(resultado[0].cartaoNome).toContain("Outro cartão");
   });
 
   it("300 produtos de uma nota continuam sendo uma única opção inteira", () => {

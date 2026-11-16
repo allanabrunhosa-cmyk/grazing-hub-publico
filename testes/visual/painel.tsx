@@ -22,7 +22,7 @@ createRoot(document.getElementById("root")!).render(
   <main className="mx-auto max-w-5xl space-y-6 p-6">
     <h1 className="text-2xl font-semibold">Manifesto de Notas</h1>
     <p className="text-sm text-muted-foreground">Teste visual local com dados fictícios. Nenhum envio à SEFAZ ou gravação no banco.</p>
-    <NotaFiscalDialog nota={{ ...notaTeste, temXmlCompleto: !semXml }} {...opcoesTeste} categoriasFinanceiras={categorias.filter((categoria) => categoria.grupo !== "RECEITA_BRUTA" && categoria.grupo !== "RECEITAS_NAO_OPERACIONAIS")} trigger={<Button>Ver nota</Button>} />
+    <NotaFiscalDialog nota={{ ...notaTeste, temXmlCompleto: !semXml, ultimaManifestacao: new URLSearchParams(location.search).has("aceita") ? "CONFIRMACAO_DA_OPERACAO" : null }} {...opcoesTeste} categoriasFinanceiras={categorias.filter((categoria) => categoria.grupo !== "RECEITA_BRUTA" && categoria.grupo !== "RECEITAS_NAO_OPERACIONAIS")} trigger={<Button>Ver nota</Button>} />
     <ImportarXmlDialog />
     <LancamentoDialog {...opcoesFinanceiras} />
     <h2 className="text-xl">DRE</h2>

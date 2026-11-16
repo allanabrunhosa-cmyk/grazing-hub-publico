@@ -1,3 +1,4 @@
+import { prepararDependenciaAtendimento } from "../vendas/dependencia-atendimento";
 import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { readFile, readdir } from "node:fs/promises";
@@ -37,7 +38,7 @@ describe.skipIf(process.env.FORNECEDOR_NOTA_BANCO_TESTE !== "1")("Conciliação 
     await conexao.query(`SET search_path TO "${esquema}"`);
     // Esquema completo atual, sem copiar tabelas ou depender de enums de public.
     for (const pasta of (await readdir("prisma/migrations")).filter(p => /^\d/.test(p)).sort()) {
-      await conexao.query(prepararSqlMigrationFiscal(pasta, await readFile(`prisma/migrations/${pasta}/migration.sql`, "utf8")));
+      await conexao.query(prepararSqlMigrationFiscal(pasta, await prepararDependenciaAtendimento(conexao, pasta, await readFile(`prisma/migrations/${pasta}/migration.sql`, "utf8"))));
     }
     estado.banco = new PrismaClient({ adapter: new PrismaPg({
       connectionString: process.env.DATABASE_URL, options: `-c search_path=${esquema}`,
@@ -48,6 +49,7 @@ describe.skipIf(process.env.FORNECEDOR_NOTA_BANCO_TESTE !== "1")("Conciliação 
   afterAll(async () => {
     await estado.banco?.$disconnect();
     if (conexao) {
+      await conexao.query("ROLLBACK");
       // Apenas o schema criado acima; nenhuma tabela pública é alterada.
       if (/^teste_fornecedor_nota_[a-f0-9]{32}$/.test(esquema)) await conexao.query(`DROP SCHEMA IF EXISTS "${esquema}" CASCADE`);
       await conexao.end();

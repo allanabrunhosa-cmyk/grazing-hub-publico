@@ -1,14 +1,15 @@
+import { prepararDependenciaAtendimento } from "../vendas/dependencia-atendimento";
 import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { readFile, readdir } from "node:fs/promises";
 import { Client } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
-const estado=vi.hoisted(()=>({banco:null as unknown as PrismaClient}));
+const estado=vi.hoisted(()=>({banco:null as unknown as PrismaClient,sessao:{userId:"teste",nome:"Teste",email:"teste@example.invalid",admin:true,versao:0,perfilNome:"Administrador",permissoes:{},excecoes:{}}}));
 vi.mock("server-only",()=>({}));
 vi.mock("@/lib/prisma",()=>({get prisma(){return estado.banco;}}));
-vi.mock("@/lib/session",()=>({getSession:async()=>({userId:"teste"})}));
-vi.mock("@/lib/permissoes/servidor",()=>({exigirPermissao:vi.fn(async()=>({userId:"teste",nome:"Teste"}))}));
+vi.mock("@/lib/session",()=>({getSession:async()=>estado.sessao}));
+vi.mock("@/lib/permissoes/servidor",()=>({exigirPermissao:vi.fn(async()=>estado.sessao)}));
 vi.mock("next/cache",()=>({revalidatePath:vi.fn()}));
 import { confirmarConciliacaoNotaAction as conciliar, obterItensNotaFiscalAction as obter } from "@/app/(protegido)/notas-fiscais/actions";
 import { salvarCartaoAction } from "@/app/(protegido)/financeiro/bancario/cartoes-actions";
@@ -26,9 +27,10 @@ describe.skipIf(process.env.NOTAS_PAGAMENTOS_BANCO_TESTE!=="1")("pagamentos e me
   if(!["localhost","127.0.0.1"].includes(new URL(process.env.DATABASE_URL!).hostname))throw new Error("Somente PostgreSQL local.");
   conexao=new Client({connectionString:process.env.DATABASE_URL});await conexao.connect();
   await conexao.query('CREATE SCHEMA "'+esquema+'"');await conexao.query('SET search_path TO "'+esquema+'"');
-  for(const pasta of (await readdir("prisma/migrations")).sort()) if(/^\d/.test(pasta)) await conexao.query(prepararSqlMigrationFiscal(pasta, await readFile("prisma/migrations/"+pasta+"/migration.sql","utf8")));
+  for(const pasta of (await readdir("prisma/migrations")).sort()) if(/^\d/.test(pasta)) await conexao.query(prepararSqlMigrationFiscal(pasta, await prepararDependenciaAtendimento(conexao, pasta, await readFile("prisma/migrations/"+pasta+"/migration.sql","utf8"))));
   estado.banco=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL,options:"-c search_path="+esquema},{schema:esquema})});
-  await estado.banco.usuario.create({data:{id:"teste",nome:"Teste",email:"teste@example.invalid",senhaHash:"nao-utilizada"}});
+  const perfil=await estado.banco.perfilAcesso.findUniqueOrThrow({where:{sistema:"ADMINISTRADOR"}});
+  await estado.banco.usuario.create({data:{id:"teste",nome:"Teste",email:"teste@example.invalid",senhaHash:"nao-utilizada",perfilAcessoId:perfil.id}});
   insumoId=(await estado.banco.insumo.create({data:{nome:"Teste",unidade:"KG"}})).id;
   localId=(await estado.banco.localEstoque.create({data:{nome:"Teste"}})).id;
   await estado.banco.categoriaFinanceira.create({data:{nome:"CMV",grupo:"CMV"}});
@@ -37,7 +39,7 @@ describe.skipIf(process.env.NOTAS_PAGAMENTOS_BANCO_TESTE!=="1")("pagamentos e me
   expect(await salvarCartaoAction(null,form)).toEqual({ok:true});
   cartaoId=(await estado.banco.cartaoCredito.findFirstOrThrow()).id;
  },60000);
- afterAll(async()=>{await estado.banco?.$disconnect();if(conexao){await conexao.query('DROP SCHEMA IF EXISTS "'+esquema+'" CASCADE');await conexao.end();}});
+ afterAll(async()=>{await estado.banco?.$disconnect();if(conexao){await conexao.query("ROLLBACK");await conexao.query('DROP SCHEMA IF EXISTS "'+esquema+'" CASCADE');await conexao.end();}});
  it("grava fatura, conta, forma, memória e mantém despesa pendente sem baixa",async()=>{
   const entrada=await nota();expect(await conciliar(entrada)).toEqual({ok:true,movimentacoesCriadas:1});
   const l=await estado.banco.lancamentoFinanceiro.findFirstOrThrow({include:{formaPagamento:true}});

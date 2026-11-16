@@ -1,3 +1,4 @@
+import { prepararDependenciaAtendimento } from "../../vendas/dependencia-atendimento";
 import { prepararSqlMigrationFiscal } from "../../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { config } from "dotenv";
@@ -44,7 +45,7 @@ describe.skipIf(process.env.CONCILIACAO_BANCO_TESTE !== "1")("conciliação em P
     const pastas = (await readdir("prisma/migrations", { withFileTypes: true }))
       .filter(pasta => pasta.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
     for (const pasta of pastas) {
-      await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+      await banco.query(prepararSqlMigrationFiscal(pasta.name, await prepararDependenciaAtendimento(banco, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8"))));
     }
     simulacao.prisma = new PrismaClient({ adapter: new PrismaPg({
       connectionString: endereco.toString(), options: `-c search_path=${esquema}`,
@@ -73,7 +74,7 @@ describe.skipIf(process.env.CONCILIACAO_BANCO_TESTE !== "1")("conciliação em P
   await simulacao.prisma.usuario.create({ data: { id: "admin", nome: "Administrador atual", email: "admin@example.invalid", senhaHash: "sem-login", perfilAcessoId: "perfil-administrador" } });
   await simulacao.prisma.contaBancaria.create({ data: { id: "banco", nome: "Conta de teste", saldoInicial: 1000 } });
   for (const [id, grupo] of [["despesa", "DESPESAS_OPERACIONAIS"], ["receita", "RECEITA_BRUTA"]] as const) await simulacao.prisma.categoriaFinanceira.upsert({ where: { id }, create: { id, nome: "Categoria teste " + id, grupo }, update: { ativo: true } });
-  simulacao.sessao.mockResolvedValue({ userId: "admin", admin: true, versao: 0 });
+  simulacao.sessao.mockResolvedValue({ userId: "admin", nome: "Administrador atual", email: "admin@example.invalid", admin: true, versao: 0, perfilNome: "Administrador", permissoes: {}, excecoes: {} });
  });
  it("prévia/importação não criam lançamentos, movimentos ou alteram saldo inicial", async () => {
    await importar();
