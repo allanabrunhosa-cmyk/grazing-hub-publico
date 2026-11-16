@@ -104,6 +104,17 @@ seleções parciais, componentes indisponíveis ou totais divergentes. Nenhuma p
 conta despesas/parcelas, e não produtos. Regressões: `lancamentos-inteiros.test.ts`,
 `lancamentos-inteiros-servico.test.ts` e `conciliacao-interface.test.tsx`.
 
+Marcar um item da fatura também abre a conferência desse item, preservando os demais
+itens marcados para classificação em lote. O detalhe e o valor usado no vínculo
+sempre pertencem ao item aberto. Ao trocar item, fatura ou versão, descartar a
+seleção de lançamentos anterior e as respostas de correspondência desse contexto.
+Uma resposta atrasada nunca deve repor candidatos de outra despesa.
+
+Uma NF-e de outro período ou sem cartão atribuído continua disponível para seleção
+manual inteira; coincidência de valor e vencimento não gera sugestão forte nem
+bloqueio de duplicidade. A regressão PostgreSQL roda com dados fictícios em
+`.github/workflows/faturas-postgres.yml`.
+
 - `servico.ts::candidatos` consulta lançamentos do HUB pendentes, sem baixa/vínculo anterior,
   com cartão correspondente ou ainda sem cartão, excluindo títulos protegidos de Pedidos.
   A competência não limita a seleção; a data só pontua sugestões. Limite explícito: 1.000
