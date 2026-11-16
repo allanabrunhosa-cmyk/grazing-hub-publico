@@ -134,10 +134,10 @@ export function sugerirVinculosFatura(item:{descricao:string;valor:number;vencim
     }
   }
   for(const [chave,linhas] of grupos){
-    if(linhas.length<2||linhas.length>200||linhas.reduce((s,c)=>s+c.valor,0)!==item.valor)continue;
+    if(!linhas.length||(linhas.length<2&&!chave.startsWith("nota:"))||linhas.length>200||linhas.reduce((s,c)=>s+c.valor,0)!==item.valor)continue;
     const ids=linhas.map(l=>l.id);
     if(sugestoes.some(s=>s.ids.length===ids.length&&s.ids.every(id=>ids.includes(id))))continue;
-    sugestoes.push({ids,valor:item.valor,motivo:chave.startsWith("nota:")?"Soma de despesas da mesma nota e vencimento":"Soma de despesas com mesmo nome e vencimento"});
+    sugestoes.push({ids,valor:item.valor,motivo:chave.startsWith("nota:")?"Parcela inteira da nota e vencimento compatíveis":"Soma de despesas com mesmo nome e vencimento"});
   }
   return sugestoes;
 }

@@ -31,6 +31,13 @@ it("sugere mesmo nome, valor e vencimento mesmo com competência diferente",()=>
 
 it("sugere um lançamento apenas quando nome, valor e vencimento coincidem",()=>{const item={descricao:"Compra",valor:10000,vencimento:"2026-09-20"};const base={id:"a",descricao:"COMPRA",valor:10000,vencimento:"2026-09-20",notaGrupo:null};expect(sugerirVinculosFatura(item,[base])).toMatchObject([{ids:["a"]}]);expect(sugerirVinculosFatura(item,[{...base,descricao:"Outro"}])).toEqual([]);expect(sugerirVinculosFatura(item,[{...base,vencimento:"2026-09-21"}])).toEqual([]);});
 it("sugere soma de duas despesas com mesmo nome e vencimento",()=>{expect(sugerirVinculosFatura({descricao:"Compra",valor:10000,vencimento:"2026-09-20"},[{id:"a",descricao:"COMPRA",valor:4000,vencimento:"2026-09-20",notaGrupo:null},{id:"b",descricao:"Compra",valor:6000,vencimento:"2026-09-20",notaGrupo:null}])).toMatchObject([{ids:["a","b"],valor:10000}]);});
+it("sugere a parcela inteira da NF-e já agrupada sem exigir nome de produto",()=>{
+ const item={descricao:"Compra no fornecedor",valor:10000,vencimento:"2026-09-20",cartaoId:"cartao",data:"2026-09-01",toleranciaDias:5};
+ const parcela={id:"componente-a",descricao:"NF-e fictícia — Parcela 001",valor:10000,vencimento:item.vencimento,notaGrupo:"duplicata",cartaoId:"cartao",data:item.data};
+ expect(sugerirVinculosFatura(item,[parcela])).toMatchObject([{ids:["componente-a"],valor:10000}]);
+ expect(sugerirVinculosFatura(item,[{...parcela,valor:4000}])).toEqual([]);
+ expect(sugerirVinculosFatura(item,[{...parcela,cartaoId:"outro"}])).toEqual([]);
+});
 it("sugere soma de nota apenas com mesmo cartão e data de compra próxima",()=>{
  const item={descricao:"Compra no cartão",valor:10000,vencimento:"2026-09-20",cartaoId:"cartao",data:"2026-07-06",toleranciaDias:5};
  const base=[{id:"a",descricao:"Produto A",valor:4000,vencimento:item.vencimento,notaGrupo:"nota",cartaoId:"cartao",data:item.data},{id:"b",descricao:"Produto B",valor:6000,vencimento:item.vencimento,notaGrupo:"nota",cartaoId:"cartao",data:item.data}];

@@ -89,6 +89,29 @@ it("criacao de credito preserva sinal e nome revisado do item",()=>{
  expect(a.pagar).not.toHaveBeenCalled();
 });
 function montar(admin=true){render(<ProvedorAcesso acesso={{admin,permissoes:{"financeiro.faturas":["visualizar","editar"],"financeiro.movimentacoes":["visualizar","adicionar"]},excecoes:{}}}><FaturaView dados={faturaVisual} cadastros={cadastros} filtros={{}}/></ProvedorAcesso>);}
+function parcelaInteiraVisual(){return {id:"produto-a",descricao:"NF-e fictícia — Parcela 001",valor:10000,data:"2026-09-01",vencimento:"2026-09-20",cartaoId:null,cartaoNome:null,podeCorrigirCartao:false,fornecedorId:null,versao:"v-a",notaGrupo:"duplicata",componentes:2,lancamentos:[{id:"produto-a",versao:"v-a"},{id:"produto-b",versao:"v-b"}],correspondencia:null};}
+it("oferece uma despesa inteira da nota e vincula todos os componentes pela mesma seleção",async()=>{
+ a.correspondencias.mockResolvedValueOnce({candidatos:[parcelaInteiraVisual()],estornos:[],sugestao:null} as never);
+ montar();await screen.findByText("NF-e fictícia — Parcela 001");
+ const painel=screen.getByRole("region",{name:"Lançamentos do HUB"});
+ expect(within(painel).getAllByRole("checkbox",{name:/^Vincular /})).toHaveLength(1);
+ expect(within(painel).queryByText(/Componente de nota/)).toBeNull();
+ expect(within(painel).getByText(/Parcela completa da NF-e/)).toBeTruthy();
+ fireEvent.click(within(painel).getByRole("checkbox",{name:"Vincular NF-e fictícia — Parcela 001"}));
+ fireEvent.click(within(painel).getByRole("button",{name:"Vincular lançamentos selecionados"}));
+ await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{lancamentos:[{id:"produto-a",versao:"v-a"},{id:"produto-b",versao:"v-b"}]}));
+ expect(a.pagar).not.toHaveBeenCalled();
+});
+it("a busca mantém valor e seleção integrais da parcela",async()=>{
+ a.correspondencias.mockResolvedValueOnce({candidatos:[parcelaInteiraVisual()],estornos:[],sugestao:null} as never);
+ montar();await screen.findByText("NF-e fictícia — Parcela 001");
+ fireEvent.change(screen.getByRole("searchbox",{name:"Buscar lançamento do HUB"}),{target:{value:"Parcela 001"}});
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular NF-e fictícia — Parcela 001"}));
+ const painel=screen.getByRole("region",{name:"Lançamentos do HUB"});
+ expect(painel.textContent).toContain("100,00");
+ fireEvent.click(within(painel).getByRole("button",{name:"Vincular lançamentos selecionados"}));
+ await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{lancamentos:[{id:"produto-a",versao:"v-a"},{id:"produto-b",versao:"v-b"}]}));
+});
 it("vincula despesa do HUB e envia versão, sem pagar no extrato",async()=>{montar();await screen.findByText("Despesa já lançada");fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa já lançada"}));fireEvent.click(screen.getByRole("button",{name:"Vincular lançamentos selecionados"}));await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{lancamentos:[{id:"l",versao:"v"}]}));});
 it("mostra todas as movimentações no painel principal em ordem cronológica",()=>{montar();const fatura=screen.getByRole("region",{name:"Movimentações da fatura"});expect(within(fatura).getAllByRole("button",{name:/Conferir /}).map(b=>b.getAttribute("aria-label"))).toEqual(["Conferir GOOGLE*GSUITE","Conferir COMPRA DE EMBALAGENS"]);expect(fatura.textContent).toContain("01/09/2026");expect(fatura.textContent).toContain("02/09/2026");expect(screen.queryByRole("button",{name:"Próxima"})).toBeNull();expect(screen.getByRole("region",{name:"Lançamentos do HUB"})).toBeTruthy();});
 it("mantém os lançamentos à vista ao trocar de item e permite somar duas despesas",async()=>{
@@ -102,6 +125,128 @@ it("mantém os lançamentos à vista ao trocar de item e permite somar duas desp
  fireEvent.click(screen.getByRole("button",{name:"Vincular lançamentos selecionados"}));await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i1",{lancamentos:[{id:"a",versao:"va"},{id:"b",versao:"vb"}]}));
 });
 it("busca itens sem mover a página para o início",()=>{montar();fireEvent.change(screen.getByRole("textbox",{name:"Buscar item"}),{target:{value:"embalagens"}});fireEvent.click(screen.getByRole("button",{name:"Buscar"}));expect(navegacao.replace).toHaveBeenCalledWith("?busca=embalagens&pagina=1",{scroll:false});});
+function correspondenciaVisual(valor=10000,versao="v-atual",descricao="Despesa compatível") {return {candidatos:[{id:"compativel",descricao,valor,data:"2026-09-03",versao,notaGrupo:null,correspondencia:null}],estornos:[],sugestao:null};}
+function consultaPendenteVisual(){type Resposta=ReturnType<typeof correspondenciaVisual>|{erro:string};let resolver!:(resposta:Resposta)=>void;const promessa=new Promise<Resposta>(resolve=>{resolver=resolve;});return {promessa,resolver:(resposta:Resposta)=>resolver(resposta)};}
+function uiConciliacao(dados:DadosFatura){return <ProvedorAcesso acesso={{admin:true,permissoes:{},excecoes:{}}}><FaturaView dados={dados} cadastros={cadastros} filtros={{}}/></ProvedorAcesso>;}
+it("marcar item de 25,95 abre esse item e permite conciliá-lo sem usar o detalhe de 2.833,37",async()=>{
+ const dados={...faturaVisual,itens:[{...faturaVisual.itens[0],descricao:"Vindi fictícia",valor:283337,valorOriginal:283337},{...faturaVisual.itens[1],descricao:"Mercado fictício",valor:2595,valorOriginal:2595}]} as DadosFatura;
+ a.correspondencias.mockResolvedValueOnce(correspondenciaVisual(2595,"v-marcador","NF-e fictícia — Marcador") as never).mockResolvedValueOnce(correspondenciaVisual(2595,"v-marcador","NF-e fictícia — Marcador") as never);
+ render(uiConciliacao(dados));await screen.findByText("NF-e fictícia — Marcador");
+ fireEvent.change(screen.getByRole("searchbox",{name:"Buscar lançamento do HUB"}),{target:{value:"marcador"}});
+ fireEvent.click(screen.getByRole("checkbox",{name:"Selecionar Mercado fictício para classificação"}));
+ expect(screen.getByRole("button",{name:"Conferir Mercado fictício"}).getAttribute("aria-pressed")).toBe("true");
+ expect(screen.getByRole("button",{name:"Conferir Vindi fictícia"}).getAttribute("aria-pressed")).toBe("false");
+ expect(screen.getByText("Linha 3 · Mercado fictício")).toBeTruthy();
+ await waitFor(()=>expect(screen.getByRole("checkbox",{name:"Vincular NF-e fictícia — Marcador"}).hasAttribute("data-disabled")).toBe(false));
+ expect(screen.getByRole("searchbox",{name:"Buscar lançamento do HUB"})).toHaveProperty("value","marcador");
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular NF-e fictícia — Marcador"}));
+ expect(screen.getByText(/Diferença: R\$\s*0,00/)).toBeTruthy();
+ fireEvent.click(screen.getByRole("button",{name:"Vincular lançamentos selecionados"}));
+ await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i1",{lancamentos:[{id:"compativel",versao:"v-marcador"}]}));
+ expect(a.pagar).not.toHaveBeenCalled();
+});
+it("mantém a seleção em lote ao abrir o último item marcado e não muda o detalhe ao desmarcar outro",async()=>{
+ montar();await screen.findByText("Despesa já lançada");
+ fireEvent.click(screen.getByRole("checkbox",{name:"Selecionar GOOGLE*GSUITE para classificação"}));
+ fireEvent.click(screen.getByRole("checkbox",{name:"Selecionar COMPRA DE EMBALAGENS para classificação"}));
+ expect(screen.getByRole("button",{name:"Conferir COMPRA DE EMBALAGENS"}).getAttribute("aria-pressed")).toBe("true");
+ expect(screen.getByText("2 selecionados")).toBeTruthy();
+ fireEvent.click(screen.getByRole("button",{name:"Classificar selecionados"}));
+ expect(screen.getByRole("heading",{name:"Classificar 2 item(ns)"})).toBeTruthy();
+ fireEvent.click(within(screen.getByRole("dialog")).getByRole("button",{name:"Cancelar"}));
+ await waitFor(()=>expect(screen.queryByRole("dialog")).toBeNull());
+ fireEvent.click(screen.getByRole("checkbox",{name:"Selecionar GOOGLE*GSUITE para classificação"}));
+ expect(screen.getByRole("button",{name:"Conferir COMPRA DE EMBALAGENS"}).getAttribute("aria-pressed")).toBe("true");
+ expect(screen.getByText("1 selecionados")).toBeTruthy();
+});
+it("marcar pelo teclado abre o item sem perder o foco do checkbox",async()=>{
+ montar();await screen.findByText("Despesa já lançada");
+ const checkbox=screen.getByRole("checkbox",{name:"Selecionar COMPRA DE EMBALAGENS para classificação"});
+ checkbox.focus();expect(document.activeElement).toBe(checkbox);
+ await userEvent.setup().keyboard("[Space]");
+ expect(screen.getByRole("button",{name:"Conferir COMPRA DE EMBALAGENS"}).getAttribute("aria-pressed")).toBe("true");
+ await waitFor(()=>expect(screen.queryByText("Atualizando sugestões deste item.")).toBeNull());
+ expect(document.activeElement).toBe(checkbox);
+ expect(checkbox.getAttribute("aria-checked")).toBe("true");
+});
+it("descarta a seleção de candidatos quando um filtro retira o item e depois o traz de volta",async()=>{
+ a.correspondencias.mockResolvedValueOnce(correspondenciaVisual() as never).mockResolvedValueOnce(correspondenciaVisual(20000) as never).mockResolvedValueOnce(correspondenciaVisual() as never);
+ const {rerender}=render(uiConciliacao(faturaVisual));await screen.findByText("Despesa compatível");
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}));
+ expect(screen.getByRole("button",{name:"Vincular lançamentos selecionados"})).toHaveProperty("disabled",false);
+ rerender(uiConciliacao({...faturaVisual,itens:[faturaVisual.itens[1]]}));
+ await waitFor(()=>expect(a.correspondencias).toHaveBeenLastCalledWith("ficticia","i1"));
+ rerender(uiConciliacao(faturaVisual));
+ await waitFor(()=>expect(a.correspondencias).toHaveBeenLastCalledWith("ficticia","i0"));
+ await waitFor(()=>expect(screen.queryByText("Atualizando sugestões deste item.")).toBeNull());
+ expect(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}).getAttribute("aria-checked")).toBe("false");
+ expect(screen.getByRole("button",{name:"Vincular lançamentos selecionados"})).toHaveProperty("disabled",true);
+});
+it("uma nova versão exige selecionar de novo e usa só as versões novas dos candidatos",async()=>{
+ const pendente=consultaPendenteVisual();
+ a.correspondencias.mockResolvedValueOnce(correspondenciaVisual() as never).mockImplementationOnce(()=>pendente.promessa as never);
+ const {rerender}=render(uiConciliacao(faturaVisual));await screen.findByText("Despesa compatível");
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}));
+ rerender(uiConciliacao({...faturaVisual,versao:2}));
+ expect(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}).hasAttribute("data-disabled")).toBe(true);
+ expect(screen.getByRole("button",{name:"Vincular lançamentos selecionados"})).toHaveProperty("disabled",true);
+ pendente.resolver(correspondenciaVisual(10000,"v-nova"));
+ await waitFor(()=>expect(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}).hasAttribute("data-disabled")).toBe(false));
+ expect(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}).getAttribute("aria-checked")).toBe("false");
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}));
+ fireEvent.click(screen.getByRole("button",{name:"Vincular lançamentos selecionados"}));
+ await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",2,"i0",{lancamentos:[{id:"compativel",versao:"v-nova"}]}));
+});
+it("voltar ao item antes da resposta intermediária mantém cache bloqueado mesmo se a nova consulta falhar",async()=>{
+ const intermediaria=consultaPendenteVisual(),retorno=consultaPendenteVisual();
+ a.correspondencias.mockResolvedValueOnce(correspondenciaVisual() as never).mockImplementationOnce(()=>intermediaria.promessa as never).mockImplementationOnce(()=>retorno.promessa as never);
+ montar();await screen.findByText("Despesa compatível");
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}));
+ fireEvent.click(screen.getByRole("button",{name:"Conferir COMPRA DE EMBALAGENS"}));
+ fireEvent.click(screen.getByRole("button",{name:"Conferir GOOGLE*GSUITE"}));
+ expect(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}).hasAttribute("data-disabled")).toBe(true);
+ expect(screen.getByRole("button",{name:"Vincular lançamentos selecionados"})).toHaveProperty("disabled",true);
+ retorno.resolver({erro:"Consulta atual indisponível"});await screen.findByText("Consulta atual indisponível");
+ intermediaria.resolver(correspondenciaVisual(20000,"v-intermediaria","Resposta intermediária"));
+ await waitFor(()=>expect(screen.queryByText("Resposta intermediária")).toBeNull());
+ expect(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}).hasAttribute("data-disabled")).toBe(true);
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}));
+ fireEvent.click(screen.getByRole("button",{name:"Vincular lançamentos selecionados"}));
+ expect(a.vincular).not.toHaveBeenCalled();expect(a.pagar).not.toHaveBeenCalled();
+});
+it("ignora resposta atrasada de outro item e mantém a conciliação vinculada ao item aberto",async()=>{
+ const anterior=consultaPendenteVisual(),atual=consultaPendenteVisual();
+ a.correspondencias.mockImplementationOnce(()=>anterior.promessa as never).mockImplementationOnce(()=>atual.promessa as never);
+ montar();fireEvent.click(screen.getByRole("button",{name:"Conferir COMPRA DE EMBALAGENS"}));
+ atual.resolver(correspondenciaVisual(20000,"v-nova","Despesa do item aberto"));await screen.findByText("Despesa do item aberto");
+ anterior.resolver(correspondenciaVisual(10000,"v-antiga","Resposta do item anterior"));
+ await waitFor(()=>expect(screen.queryByText("Resposta do item anterior")).toBeNull());
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa do item aberto"}));
+ fireEvent.click(screen.getByRole("button",{name:"Vincular lançamentos selecionados"}));
+ await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i1",{lancamentos:[{id:"compativel",versao:"v-nova"}]}));
+});
+it("atualizar candidatos sem mudar a versão da fatura exige conferir as versões novas",async()=>{
+ const pendente=consultaPendenteVisual();
+ a.correspondencias.mockResolvedValueOnce(correspondenciaVisual() as never).mockImplementationOnce(()=>pendente.promessa as never);
+ const {rerender}=render(uiConciliacao(faturaVisual));await screen.findByText("Despesa compatível");
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}));
+ rerender(uiConciliacao({...faturaVisual}));
+ expect(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}).hasAttribute("data-disabled")).toBe(true);
+ expect(screen.getByRole("button",{name:"Vincular lançamentos selecionados"})).toHaveProperty("disabled",true);
+ pendente.resolver(correspondenciaVisual(10000,"v-despesa-editada"));
+ await waitFor(()=>expect(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}).hasAttribute("data-disabled")).toBe(false));
+ expect(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}).getAttribute("aria-checked")).toBe("false");
+ expect(screen.getByRole("button",{name:"Vincular lançamentos selecionados"})).toHaveProperty("disabled",true);
+ fireEvent.click(screen.getByRole("checkbox",{name:"Vincular Despesa compatível"}));
+ fireEvent.click(screen.getByRole("button",{name:"Vincular lançamentos selecionados"}));
+ await waitFor(()=>expect(a.vincular).toHaveBeenCalledWith("ficticia",1,"i0",{lancamentos:[{id:"compativel",versao:"v-despesa-editada"}]}));
+});
+it("um erro da versão anterior não permanece após a nova consulta bem-sucedida",async()=>{
+ a.correspondencias.mockResolvedValueOnce({erro:"Consulta anterior falhou"} as never).mockResolvedValueOnce(correspondenciaVisual() as never);
+ const {rerender}=render(uiConciliacao(faturaVisual));await screen.findByText("Consulta anterior falhou");
+ rerender(uiConciliacao({...faturaVisual,versao:2}));await screen.findByText("Despesa compatível");
+ expect(screen.queryByText("Consulta anterior falhou")).toBeNull();
+});
 it("classificação oferece fornecedor e não exibe responsável ou centro",()=>{montar();fireEvent.click(screen.getByRole("button",{name:"Classificar despesa"}));expect(screen.queryByRole("combobox",{name:"Responsável"})).toBeNull();expect(screen.queryByRole("combobox",{name:"Centro de custo"})).toBeNull();expect(screen.getByRole("textbox",{name:/Nome do lançamento/})).toHaveProperty("value","GOOGLE*GSUITE");fireEvent.click(screen.getByRole("button",{name:"Cadastrar fornecedor ou beneficiário"}));expect(screen.getByRole("combobox",{name:"Fornecedor ou beneficiário"})).toHaveProperty("value","Fornecedor criado");});
 it("não oferece cadastro de fornecedor sem permissão",()=>{montar(false);fireEvent.click(screen.getByRole("button",{name:"Classificar despesa"}));expect(screen.queryByRole("button",{name:"Cadastrar fornecedor ou beneficiário"})).toBeNull();});
 

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect,useState } from "react";
+import { useEffect,useMemo,useState } from "react";
 import { Link2,Plus,Undo2 } from "lucide-react";
 import type { DadosFatura,CadastrosFatura,FiltrosFatura } from "@/lib/financeiro/faturas/consultas";
 import { BarraAcoes,GrupoAcoes } from "@/components/padroes-operacionais";
@@ -26,6 +26,7 @@ type Item=DadosFatura["itens"][number];
 import { parCompensavel } from "@/lib/financeiro/faturas/compensacao";
 
 type Correspondencias=Exclude<Awaited<ReturnType<typeof correspondenciasFaturaAction>>,{erro:string}>;
+type ConsultaCorrespondencias={consulta:object;dados:Correspondencias};
 type Sugestao = {categoriaId?:string|null;fornecedorId?:string|null;centroCustoId?:string|null;origem?:string;motivo?:string};
 export function FaturaView({dados:d,cadastros:c,filtros}:{dados:DadosFatura;cadastros:CadastrosFatura;filtros:FiltrosFatura}) {
   const acesso=useAcesso(),router=useRouter(),editar=acesso.pode("financeiro.faturas","editar")&&!d.cancelada,op=useOperacaoFatura();
@@ -92,20 +93,47 @@ function ClassificarItens({dados:d,cadastros:c,ids,fechar,sugestao:s,criar=false
     </form></DialogContent></Dialog>;
 }
 function PainelConciliacao({dados,cadastros,item,escolher,selecionados,selecionar,podeEditar,classificar,criar}:{dados:DadosFatura;cadastros:CadastrosFatura;item:Item|null;escolher:(id:string)=>void;selecionados:string[];selecionar:(ids:string[]|((atual:string[])=>string[]))=>void;podeEditar:boolean;classificar:(s?:Sugestao)=>void;criar:()=>void}) {
-  if(!item)return <div className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground">Nenhum item neste filtro. Limpe a busca ou escolha outra situação para conferir a fatura.</div>;
-  return <PainelConciliacaoSelecionado dados={dados} cadastros={cadastros} item={item} escolher={escolher} selecionados={selecionados} selecionar={selecionar} podeEditar={podeEditar} classificar={classificar} criar={criar}/>;
-}
-function PainelConciliacaoSelecionado({dados:d,cadastros:c,item:i,escolher,selecionados,selecionar,podeEditar,classificar,criar}:{dados:DadosFatura;cadastros:CadastrosFatura;item:Item;escolher:(id:string)=>void;selecionados:string[];selecionar:(ids:string[]|((atual:string[])=>string[]))=>void;podeEditar:boolean;classificar:(s?:Sugestao)=>void;criar:()=>void}) {
-  const op=useOperacaoFatura(),acesso=useAcesso();
-  const [correspondencias,setCorrespondencias]=useState<{itemId:string;versao:number;dados:Correspondencias}|null>(null);
-  const [erroConsulta,setErroConsulta]=useState<{itemId:string;mensagem:string}|null>(null);
-  const [selecao,setSelecao]=useState<{itemId:string;ids:string[]}>({itemId:i.id,ids:[]});
-  const [ajuste,setAjuste]=useState({itemId:i.id,motivo:"",valor:String(Math.abs(i.valor)/100),negativo:i.valor<0,estorno:""});
+  const acesso=useAcesso();
+  const [correspondencias,setCorrespondencias]=useState<ConsultaCorrespondencias|null>(null);
+  const [erroConsulta,setErroConsulta]=useState<{consulta:object;mensagem:string}|null>(null);
   const [busca,setBusca]=useState("");
   const [outrosCartoes,setOutrosCartoes]=useState(false);
+  const contexto=JSON.stringify([dados.id,dados.versao,item?.id??null,outrosCartoes]);
+  // Voltar de B para A também cria outra consulta, sem reaproveitar a resposta antiga de A.
+  const consulta=useMemo(()=>({fatura:dados,contexto}),[dados,contexto]);
+  useEffect(()=>{
+    if(!item||!acesso.pode("financeiro.movimentacoes","visualizar"))return;
+    let ativo=true;
+    void (outrosCartoes?correspondenciasFaturaAction(dados.id,item.id,true):correspondenciasFaturaAction(dados.id,item.id)).then(r=>{
+      if(!ativo)return;
+      if("erro" in r)setErroConsulta({consulta,mensagem:r.erro});
+      else {setErroConsulta(null);setCorrespondencias({consulta,dados:r});}
+    }).catch(()=>{if(ativo)setErroConsulta({consulta,mensagem:"Não foi possível consultar lançamentos existentes. Tente novamente."});});
+    return ()=>{ativo=false;};
+    // Dados novos do servidor exigem outra conferência, mesmo sem mudar a versão da fatura.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[consulta]);
+  if(!item)return <div className="rounded-2xl border bg-card p-6 text-sm text-muted-foreground">Nenhum item neste filtro. Limpe a busca ou escolha outra situação para conferir a fatura.</div>;
+  const atuais=correspondencias?.consulta===consulta?correspondencias.dados:null;
+  const erroAtual=erroConsulta?.consulta===consulta?erroConsulta.mensagem:null;
+  return <PainelConciliacaoSelecionado dados={dados} cadastros={cadastros} item={item} escolher={escolher} selecionados={selecionados} selecionar={selecionar} podeEditar={podeEditar} classificar={classificar} criar={criar} contexto={contexto} correspondencias={correspondencias} atuais={atuais} erroAtual={erroAtual} busca={busca} buscar={setBusca} outrosCartoes={outrosCartoes} alterarOutrosCartoes={v=>{setOutrosCartoes(v);setCorrespondencias(null);setErroConsulta(null);}}/>;
+}
+function PainelConciliacaoSelecionado({dados:d,cadastros:c,item:i,escolher,selecionados,selecionar,podeEditar,classificar,criar,contexto,correspondencias,atuais,erroAtual,busca,buscar,outrosCartoes,alterarOutrosCartoes}:{dados:DadosFatura;cadastros:CadastrosFatura;item:Item;escolher:(id:string)=>void;selecionados:string[];selecionar:(ids:string[]|((atual:string[])=>string[]))=>void;podeEditar:boolean;classificar:(s?:Sugestao)=>void;criar:()=>void;contexto:string;correspondencias:ConsultaCorrespondencias|null;atuais:Correspondencias|null;erroAtual:string|null;busca:string;buscar:(valor:string)=>void;outrosCartoes:boolean;alterarOutrosCartoes:(valor:boolean)=>void}) {
+  const op=useOperacaoFatura(),acesso=useAcesso();
+  const [selecao,setSelecao]=useState<{itemId:string;ids:string[]}>({itemId:i.id,ids:[]});
+  const [ajuste,setAjuste]=useState({itemId:i.id,motivo:"",valor:String(Math.abs(i.valor)/100),negativo:i.valor<0,estorno:""});
   const [corrigirCartao,setCorrigirCartao]=useState<Correspondencias["candidatos"][number]|null>(null);
   const [troca,setTroca]=useState<{itemId:string;versao:number}|null>(null);
   const [confirmarTroca,setConfirmarTroca]=useState(false);
+  const [baseInteracao,setBaseInteracao]=useState({contexto,fatura:d,itemId:i.id,consulta:correspondencias});
+  // Reinicia o rascunho antes da pintura, preservando o foco e a rolagem das listas.
+  if(baseInteracao.contexto!==contexto||baseInteracao.fatura!==d||baseInteracao.consulta!==correspondencias){
+    setBaseInteracao({contexto,fatura:d,itemId:i.id,consulta:correspondencias});
+    setSelecao({itemId:i.id,ids:[]});setCorrigirCartao(null);setConfirmarTroca(false);
+    if(baseInteracao.itemId!==i.id||baseInteracao.fatura.id!==d.id||baseInteracao.fatura.versao!==d.versao){
+      setTroca(null);setAjuste({itemId:i.id,motivo:"",valor:String(Math.abs(i.valor)/100),negativo:i.valor<0,estorno:""});
+    }
+  }
   const substituindo=troca?.itemId===i.id&&troca.versao===d.versao;
   const podeTrocar=podeEditar&&!d.cancelada&&acesso.pode("financeiro.movimentacoes","editar")&&(!d.pagamentos.length||acesso.pode("financeiro.baixas","editar"));
   const escolhidos=selecao.itemId===i.id?selecao.ids:[];
@@ -113,24 +141,15 @@ function PainelConciliacaoSelecionado({dados:d,cadastros:c,item:i,escolher,selec
   const ajusteAtual=ajuste.itemId===i.id?ajuste:{itemId:i.id,motivo:"",valor:String(Math.abs(i.valor)/100),negativo:i.valor<0,estorno:""};
   const alterarAjuste=(campos:Partial<Omit<typeof ajuste,"itemId">>)=>setAjuste(atual=>({...(atual.itemId===i.id?atual:ajusteAtual),...campos}));
   const {motivo,valor,negativo,estorno}=ajusteAtual;
-  useEffect(()=>{
-    if(!acesso.pode("financeiro.movimentacoes","visualizar"))return;
-    let ativo=true;
-    void (outrosCartoes?correspondenciasFaturaAction(d.id,i.id,true):correspondenciasFaturaAction(d.id,i.id)).then(r=>{if(!ativo)return;if("erro" in r)setErroConsulta({itemId:i.id,mensagem:r.erro});else setCorrespondencias({itemId:i.id,versao:d.versao,dados:r});}).catch(()=>{if(ativo)setErroConsulta({itemId:i.id,mensagem:"Não foi possível consultar lançamentos existentes. Tente novamente."});});
-    return ()=>{ativo=false;};
-    // A consulta acompanha o item; a ação de vínculo relê autorização e versões no servidor.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[d.id,d.versao,i.id,outrosCartoes]);
-  const atuais=correspondencias?.itemId===i.id&&correspondencias.versao===d.versao?correspondencias.dados:null;
-  const erroAtual=erroConsulta?.itemId===i.id?erroConsulta.mensagem:null;
   const candidatos=correspondencias?.dados.candidatos??[];
   const soma=candidatos.filter(l=>escolhidos.includes(l.id)).reduce((total,l)=>total+l.valor,0);
+  const lancamentosEscolhidos=candidatos.filter(l=>escolhidos.includes(l.id)).flatMap(l=>l.lancamentos??[{id:l.id,versao:l.versao}]);
   const podeCorrigir=podeEditar&&acesso.pode("financeiro.movimentacoes","editar");
   const podeVincular=podeEditar&&!!atuais&&!i.ignorado&&!i.compensadoComId&&(!i.lancamentos.length||substituindo)&&!d.cancelada&&!op.ocupado&&escolhidos.length>0&&soma===i.valor;
   return <div className="grid items-start gap-4 xl:grid-cols-2">
       <section aria-label="Movimentações da fatura" className="min-w-0 overflow-hidden rounded-2xl border bg-card">
         <div className="border-b bg-primary/5 p-4"><h3 className="font-semibold">Movimentações da fatura ({d.itens.length})</h3><p className="text-xs text-muted-foreground">Data da compra em ordem crescente. Escolha uma linha para comparar.</p></div>
-        <div className="max-h-[55vh] divide-y overflow-y-auto">{d.itens.map(item=>{const pendencia=d.pendenciasCadastro.find(p=>p.id===item.id),vinculo=d.pendenciasVinculo.find(p=>p.id===item.id);return <div key={item.id} id={`item-fatura-${item.id}`} className={`flex items-start gap-3 border-l-[3px] p-3 ${pendencia||vinculo?"border-l-warning bg-warning-bg/50":i.id===item.id?"border-l-primary bg-primary/5":"border-l-transparent"}`}><Checkbox aria-label={`Selecionar ${item.descricao} para classificação`} checked={selecionados.includes(item.id)} disabled={item.ignorado||!!item.compensadoComId||!!item.lancamentos.length} onCheckedChange={v=>selecionar(atual=>v?[...atual,item.id]:atual.filter(id=>id!==item.id))}/><button type="button" aria-pressed={i.id===item.id} aria-label={`Conferir ${item.descricao}`} onClick={()=>escolher(item.id)} className="flex min-w-0 flex-1 items-start gap-3 rounded text-left focus-visible:outline-2 focus-visible:outline-primary"><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{item.descricao}</span><span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{dataFatura(item.data)} · {item.totalParcelas>1?`Parcela ${item.parcela}/${item.totalParcelas} · `:""}{item.categoria??"Sem categoria"}</span>{pendencia&&<span className="mt-1 block text-xs font-semibold text-warning-foreground">Classificação pendente: {pendencia.motivos.join("; ")}</span>}{vinculo&&<span className="mt-1 block text-xs font-semibold text-warning-foreground">Vínculo pendente: confira {vinculo.quantidade} lançamento(s) existente(s)</span>}<span className="mt-1 block text-xs text-muted-foreground">{item.lancamentos.length?`${item.lancamentos.length} lançamento(s) vinculado(s)`:item.ignorado?"Ignorado":item.compensadoComId?"Compensado na fatura":"Sem vínculo"}</span></span><span className="flex shrink-0 flex-col items-end gap-1"><strong className="text-sm tabular-nums">{moedaFatura(item.valor)}</strong>{pendencia||vinculo?<Badge variant="warning">Pendente</Badge>:item.ignorado?<Badge variant="muted">Ignorado</Badge>:<SituacaoFatura estado={item.estado}/>}</span></button></div>})}</div>
+        <div className="max-h-[55vh] divide-y overflow-y-auto">{d.itens.map(item=>{const pendencia=d.pendenciasCadastro.find(p=>p.id===item.id),vinculo=d.pendenciasVinculo.find(p=>p.id===item.id);return <div key={item.id} id={`item-fatura-${item.id}`} className={`flex items-start gap-3 border-l-[3px] p-3 ${pendencia||vinculo?"border-l-warning bg-warning-bg/50":i.id===item.id?"border-l-primary bg-primary/5":"border-l-transparent"}`}><Checkbox aria-label={`Selecionar ${item.descricao} para classificação`} checked={selecionados.includes(item.id)} disabled={item.ignorado||!!item.compensadoComId||!!item.lancamentos.length} onCheckedChange={v=>{selecionar(atual=>v?atual.includes(item.id)?atual:[...atual,item.id]:atual.filter(id=>id!==item.id));if(v)escolher(item.id);}}/><button type="button" aria-pressed={i.id===item.id} aria-label={`Conferir ${item.descricao}`} onClick={()=>escolher(item.id)} className="flex min-w-0 flex-1 items-start gap-3 rounded text-left focus-visible:outline-2 focus-visible:outline-primary"><span className="min-w-0 flex-1"><span className="block break-words text-sm font-medium">{item.descricao}</span><span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{dataFatura(item.data)} · {item.totalParcelas>1?`Parcela ${item.parcela}/${item.totalParcelas} · `:""}{item.categoria??"Sem categoria"}</span>{pendencia&&<span className="mt-1 block text-xs font-semibold text-warning-foreground">Classificação pendente: {pendencia.motivos.join("; ")}</span>}{vinculo&&<span className="mt-1 block text-xs font-semibold text-warning-foreground">Vínculo pendente: confira {vinculo.quantidade} lançamento(s) existente(s)</span>}<span className="mt-1 block text-xs text-muted-foreground">{item.lancamentos.length?`${item.lancamentos.length} lançamento(s) vinculado(s)`:item.ignorado?"Ignorado":item.compensadoComId?"Compensado na fatura":"Sem vínculo"}</span></span><span className="flex shrink-0 flex-col items-end gap-1"><strong className="text-sm tabular-nums">{moedaFatura(item.valor)}</strong>{pendencia||vinculo?<Badge variant="warning">Pendente</Badge>:item.ignorado?<Badge variant="muted">Ignorado</Badge>:<SituacaoFatura estado={item.estado}/>}</span></button></div>})}</div>
         <div className="space-y-4 border-t p-4 text-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">Linha {i.linha} · {i.descricao}</p><p className="text-xs text-muted-foreground">{dataFatura(i.data)} · Vencimento {dataFatura(d.vencimento)}</p></div><strong className="tabular-nums">{moedaFatura(i.valor)}</strong></div>
           <div className="flex flex-wrap gap-2"><SituacaoFatura estado={i.estado}/>{i.totalParcelas>1&&<Badge variant="muted">Parcela {i.parcela}/{i.totalParcelas}</Badge>}{i.tipo!=="COMPRA"&&<Badge variant="muted">{i.tipo}</Badge>}</div>
           {i.descricaoLancamento&&i.descricaoLancamento!==i.descricao&&<p className="rounded-lg border p-3">Nome do lançamento: {i.descricaoLancamento}</p>}
@@ -150,11 +169,11 @@ function PainelConciliacaoSelecionado({dados:d,cadastros:c,item:i,escolher,selec
             {!i.ignorado&&!i.compensadoComId&&!i.lancamentos.length&&(atuais?.sugestoesVinculo??[]).map((s,indice)=><div key={indice} role="status" className="rounded-xl border border-warning bg-warning-bg p-3 text-sm"><div className="flex flex-wrap items-center gap-2"><Badge variant="warning">Sugestão de conciliação</Badge><strong>{moedaFatura(s.valor)}</strong></div><p className="mt-2">{s.motivo}. {s.ids.length>1?`${s.ids.length} lançamentos compõem este item.`:"Um lançamento corresponde ao item."} Confira antes de confirmar.</p><Button type="button" size="sm" variant="outline" className="mt-3" disabled={!podeEditar} onClick={()=>escolherLancamentos(s.ids)}>Selecionar sugestão</Button></div>)}
             {!i.ignorado&&!i.compensadoComId&&!i.lancamentos.length&&atuais?.sugestao&&<SugestaoItem sugestao={atuais.sugestao as Sugestao} cadastros={c} podeEditar={podeEditar} classificar={classificar}/>}
             {!i.ignorado&&!i.compensadoComId&&!i.lancamentos.length&&<div className="space-y-2 border-t pt-3"><p className="text-sm text-muted-foreground">Não encontrou o lançamento? Crie e categorize este item com o valor da fatura.</p><Button type="button" variant="outline" className="w-full" disabled={!podeEditar||op.ocupado||!acesso.pode("financeiro.movimentacoes","adicionar")||!acesso.pode("financeiro.movimentacoes","visualizar")} onClick={criar}><Plus className="size-4"/>Criar {i.valor<0?"receita ou estorno":"despesa"}</Button></div>}
-            <Input type="search" aria-label="Buscar lançamento do HUB" placeholder="Buscar por nome do lançamento" value={busca} onChange={e=>setBusca(e.target.value)}/>
-            <label className="flex items-center gap-2 text-sm"><Checkbox checked={outrosCartoes} disabled={op.ocupado} onCheckedChange={v=>{setOutrosCartoes(!!v);escolherLancamentos([]);setCorrespondencias(null);setErroConsulta(null);}}/>Mostrar despesas de outros cartões</label>{outrosCartoes&&<p className="text-xs text-muted-foreground">Confira o cartão cadastrado. Corrija-o com um motivo antes de selecionar a despesa para esta fatura.</p>}
-            <div className="max-h-[55vh] divide-y overflow-y-auto rounded-xl border">{candidatos.filter(l=>l.descricao.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR"))).map(l=><div key={l.id} className="flex items-start gap-3 p-3 text-sm hover:bg-muted/30"><Checkbox aria-label={`Vincular ${l.descricao}`} checked={escolhidos.includes(l.id)} disabled={(!!l.cartaoId&&l.cartaoId!==d.cartaoId)||!podeEditar||!atuais||i.ignorado||(!!i.lancamentos.length&&!substituindo)||Math.sign(l.valor)!==Math.sign(i.valor)} onCheckedChange={v=>escolherLancamentos(atual=>v?[...atual,l.id]:atual.filter(id=>id!==l.id))}/><span className="min-w-0 flex-1"><span className="block break-words font-medium">{l.descricao}</span><span className="block text-xs text-muted-foreground">Vencimento {dataFatura(l.vencimento)} · Competência {dataFatura(l.data)}{atuais&&l.correspondencia?` · ${l.correspondencia.motivos.join(", ")}`:l.notaGrupo?" · Componente de nota":""}</span>{l.cartaoNome&&<span className="block text-xs text-muted-foreground">Cartão: {l.cartaoNome}</span>}{l.cartaoId&&l.cartaoId!==d.cartaoId&&<Button type="button" size="sm" variant="outline" className="mt-2" disabled={!podeCorrigir||!atuais||op.ocupado||!l.podeCorrigirCartao||Math.sign(l.valor)!==1} onClick={()=>setCorrigirCartao(l)}>Usar cartão desta fatura</Button>}</span><strong className="shrink-0 tabular-nums">{moedaFatura(l.valor)}</strong></div>)}{atuais&&!candidatos.length&&<p className="p-4 text-sm text-muted-foreground">Nenhum lançamento pendente elegível para esta fatura.</p>}</div>
+            <Input type="search" aria-label="Buscar lançamento do HUB" placeholder="Buscar por nome do lançamento" value={busca} onChange={e=>buscar(e.target.value)}/>
+            <label className="flex items-center gap-2 text-sm"><Checkbox checked={outrosCartoes} disabled={op.ocupado} onCheckedChange={v=>alterarOutrosCartoes(!!v)}/>Mostrar despesas de outros cartões</label>{outrosCartoes&&<p className="text-xs text-muted-foreground">Confira o cartão cadastrado. Corrija-o com um motivo antes de selecionar a despesa para esta fatura.</p>}
+            <div className="max-h-[55vh] divide-y overflow-y-auto rounded-xl border">{candidatos.filter(l=>l.descricao.toLocaleLowerCase("pt-BR").includes(busca.toLocaleLowerCase("pt-BR"))).map(l=><div key={l.id} className="flex items-start gap-3 p-3 text-sm hover:bg-muted/30"><Checkbox aria-label={`Vincular ${l.descricao}`} checked={escolhidos.includes(l.id)} disabled={(!!l.cartaoId&&l.cartaoId!==d.cartaoId)||!podeEditar||!atuais||i.ignorado||(!!i.lancamentos.length&&!substituindo)||Math.sign(l.valor)!==Math.sign(i.valor)} onCheckedChange={v=>escolherLancamentos(atual=>v?[...atual,l.id]:atual.filter(id=>id!==l.id))}/><span className="min-w-0 flex-1"><span className="block break-words font-medium">{l.descricao}</span><span className="block text-xs text-muted-foreground">Vencimento {dataFatura(l.vencimento)} · Competência {dataFatura(l.data)}{atuais&&l.correspondencia?` · ${l.correspondencia.motivos.join(", ")}`:l.notaGrupo?" · Parcela completa da NF-e":""}</span>{l.cartaoNome&&<span className="block text-xs text-muted-foreground">Cartão: {l.cartaoNome}</span>}{l.cartaoId&&l.cartaoId!==d.cartaoId&&<Button type="button" size="sm" variant="outline" className="mt-2" disabled={!podeCorrigir||!atuais||op.ocupado||!l.podeCorrigirCartao||Math.sign(l.valor)!==1} onClick={()=>setCorrigirCartao(l)}>Usar cartão desta fatura</Button>}</span><strong className="shrink-0 tabular-nums">{moedaFatura(l.valor)}</strong></div>)}{atuais&&!candidatos.length&&<p className="p-4 text-sm text-muted-foreground">Nenhum lançamento pendente elegível para esta fatura.</p>}</div>
             <div aria-live="polite" className="flex flex-wrap justify-between gap-2 rounded-xl border bg-muted/20 p-3 text-sm"><span>Selecionado: <strong>{moedaFatura(soma)}</strong></span><span className={soma===i.valor?"font-medium text-emerald-700":"text-muted-foreground"}>Diferença: {moedaFatura(i.valor-soma)}</span></div>
-            <Button type="button" className="w-full" disabled={!podeVincular} onClick={()=>{if(substituindo)setConfirmarTroca(true);else void op.executar(()=>vincularFaturaAction(d.id,d.versao,i.id,{lancamentos:candidatos.filter(l=>escolhidos.includes(l.id)).map(l=>({id:l.id,versao:l.versao}))}));}}><Link2 className="size-4"/>{substituindo?"Confirmar troca de vínculo":"Vincular lançamentos selecionados"}</Button>
+            <Button type="button" className="w-full" disabled={!podeVincular} onClick={()=>{if(substituindo)setConfirmarTroca(true);else void op.executar(()=>vincularFaturaAction(d.id,d.versao,i.id,{lancamentos:lancamentosEscolhidos}));}}><Link2 className="size-4"/>{substituindo?"Confirmar troca de vínculo":"Vincular lançamentos selecionados"}</Button>
             {!i.ignorado&&!i.compensadoComId&&!i.lancamentos.length&&!!atuais?.estornos.length&&<div className="space-y-2 border-t pt-3"><SeletorFatura nome="Compra original do estorno" opcoes={atuais.estornos.map(e=>({id:e.id,nome:`${dataFatura(e.dataCompra)} · ${e.descricaoOriginal} · ${moedaFatura(e.valor)}`}))} valor={estorno} alterar={v=>alterarAjuste({estorno:v})}/><label className="block text-sm">Motivo<Input value={motivo} onChange={e=>alterarAjuste({motivo:e.target.value})} maxLength={1000}/></label><Button variant="outline" disabled={!podeEditar||op.ocupado||!estorno||motivo.trim().length<3} onClick={()=>void op.executar(()=>ajustarItemFaturaAction(d.id,d.versao,i.id,"ESTORNO",motivo,estorno))}>Vincular crédito à compra</Button></div>}
             {!i.ignorado&&!i.compensadoComId&&!i.lancamentos.length&&<Button type="button" variant="outline" className="w-full" disabled={!podeEditar||op.ocupado||!acesso.pode("financeiro.movimentacoes","adicionar")} onClick={()=>classificar()}>Classificar {i.valor<0?"receita ou estorno":"despesa"}</Button>}
           {i.lancamentos.length>0&&<p className="text-sm text-muted-foreground">O vínculo já foi confirmado. Use “Alterar vínculo” na coluna da fatura para selecionar os lançamentos corretos.</p>}
@@ -162,8 +181,8 @@ function PainelConciliacaoSelecionado({dados:d,cadastros:c,item:i,escolher,selec
             </>}
         </div>
       </section>
-    {corrigirCartao&&<ConfirmacaoFatura titulo="Corrigir cartão da despesa" descricao={`Alterar o cartão de ${corrigirCartao.descricao} (${moedaFatura(corrigirCartao.valor)}) de ${corrigirCartao.cartaoNome} para ${d.cartao}${d.final?` final ${d.final}`:""}? A despesa continuará pendente. Depois, selecione-a para alterar o vínculo da fatura.`} confirmar={motivo=>corrigirCartaoDespesaAction(d.id,d.versao,corrigirCartao.id,corrigirCartao.versao,motivo)} fechar={()=>setCorrigirCartao(null)}/>}
-    {confirmarTroca&&substituindo&&<ConfirmacaoFatura titulo="Alterar vínculo da movimentação" descricao={`Substituir ${i.lancamentos.map(l=>l.descricao).join(", ")} por ${candidatos.filter(l=>escolhidos.includes(l.id)).map(l=>l.descricao).join(", ")}? Os lançamentos anteriores voltarão a ficar em aberto. O pagamento bancário será preservado e sua distribuição será recalculada.`} confirmar={motivo=>vincularFaturaAction(d.id,d.versao,i.id,{substituir:true,motivo,lancamentos:candidatos.filter(l=>escolhidos.includes(l.id)).map(l=>({id:l.id,versao:l.versao}))})} fechar={()=>setConfirmarTroca(false)}/>}
+    {corrigirCartao&&!!atuais&&<ConfirmacaoFatura titulo="Corrigir cartão da despesa" descricao={`Alterar o cartão de ${corrigirCartao.descricao} (${moedaFatura(corrigirCartao.valor)}) de ${corrigirCartao.cartaoNome} para ${d.cartao}${d.final?` final ${d.final}`:""}? A despesa continuará pendente. Depois, selecione-a para alterar o vínculo da fatura.`} confirmar={motivo=>corrigirCartaoDespesaAction(d.id,d.versao,corrigirCartao.id,corrigirCartao.versao,motivo)} fechar={()=>setCorrigirCartao(null)}/>}
+    {confirmarTroca&&substituindo&&!!atuais&&<ConfirmacaoFatura titulo="Alterar vínculo da movimentação" descricao={`Substituir ${i.lancamentos.map(l=>l.descricao).join(", ")} por ${candidatos.filter(l=>escolhidos.includes(l.id)).map(l=>l.descricao).join(", ")}? Os lançamentos anteriores voltarão a ficar em aberto. O pagamento bancário será preservado e sua distribuição será recalculada.`} confirmar={motivo=>vincularFaturaAction(d.id,d.versao,i.id,{substituir:true,motivo,lancamentos:lancamentosEscolhidos})} fechar={()=>setConfirmarTroca(false)}/>}
     {op.erro&&<p role="alert" className="text-sm text-destructive xl:col-span-2">{op.erro}</p>}
   </div>;
 }

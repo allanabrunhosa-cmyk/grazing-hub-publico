@@ -518,15 +518,47 @@ describe.skipIf(process.env.FATURAS_BANCO_TESTE!=="1")("faturas: PostgreSQL isol
     await estado.prisma.notaFiscalItemLancamento.create({data:{notaFiscalItemId:itemNota.id,notaFiscalDuplicataId:duplicata.id,lancamentoFinanceiroId:lancamento.id,valor}});
     lancamentos.push(lancamento);
   }
+  const candidatosNota=(await consultarCorrespondencias(id,i.id)).candidatos.filter(c=>c.notaGrupo===duplicata.id);
+  expect(candidatosNota).toHaveLength(1);
+  expect(candidatosNota[0]).toMatchObject({valor:20000,componentes:2,lancamentos:expect.arrayContaining(lancamentos.map(l=>({id:l.id,versao:l.updatedAt.toISOString()})))});
   expect((await detalheFatura(id,{},true)).pendenciasVinculo).toEqual([]);
   await estado.prisma.lancamentoFinanceiro.updateMany({where:{id:{in:lancamentos.map(l=>l.id)}},data:{cartaoCreditoId:f.cartaoId}});
   expect((await detalheFatura(id,{},true)).pendenciasVinculo).toEqual([]);
   await estado.prisma.lancamentoFinanceiro.updateMany({where:{id:{in:lancamentos.map(l=>l.id)}},data:{dataCompetencia:i.dataCompra}});
-  expect((await detalheFatura(id,{},true)).pendenciasVinculo).toMatchObject([{id:i.id,linha:i.linha,quantidade:2}]);
+  expect((await detalheFatura(id,{},true)).pendenciasVinculo).toMatchObject([{id:i.id,linha:i.linha,quantidade:1}]);
   const atuais=await estado.prisma.lancamentoFinanceiro.findMany({where:{id:{in:lancamentos.map(l=>l.id)}}});
   await vincularItem(id,f.versao,i.id,{lancamentos:atuais.map(l=>({id:l.id,versao:l.updatedAt.toISOString()}))},sessao);
   await pagar(id,300);
   expect((await atual(id)).pagamentos).toHaveLength(1);
+ });
+ async function parcelaNfInteiraFicticia(f:Awaited<ReturnType<typeof atual>>,chaveAcesso="2".repeat(44)) {
+  const nota=await estado.prisma.notaFiscalRecebida.create({data:{chaveAcesso,nsu:"parcela-inteira-ficticia",tipo:"PROC_NFE"}});
+  const duplicata=await estado.prisma.notaFiscalDuplicata.create({data:{notaFiscalId:nota.id,numero:"001",valor:200,dataVencimento:f.vencimento}});
+  const lancamentos=[];
+  for(const [indice,valor] of [80,120].entries()){
+   const itemNota=await estado.prisma.notaFiscalItem.create({data:{notaFiscalId:nota.id,numeroItem:indice+1,codigoProdutoFornecedor:`inteiro-${indice}`,descricaoProduto:`Produto fictício ${indice}`,unidadeComercial:"UN",quantidadeComercial:1,valorTotalItem:valor}});
+   const lancamento=await estado.prisma.lancamentoFinanceiro.create({data:{tipo:"DESPESA",descricao:`NF-e fictícia - componente ${indice}`,valor,categoriaId:"categoria",cartaoCreditoId:f.cartaoId,dataCompetencia:f.itens[0].dataCompra,dataVencimento:f.vencimento}});
+   await estado.prisma.notaFiscalItemLancamento.create({data:{notaFiscalItemId:itemNota.id,notaFiscalDuplicataId:duplicata.id,lancamentoFinanceiroId:lancamento.id,valor}});
+   lancamentos.push(lancamento);
+  }
+  return {duplicata,lancamentos};
+ }
+ it("rejeita componente isolado da NF-e mesmo quando o subtotal coincide com o item da fatura",async()=>{
+  const {id}=await importar(formulario("Data;Descrição;Valor\n01/09/2026;COMPRA FICTÍCIA;80,00","80.00"));await classificar(id);
+  const f=await atual(id),i=f.itens[0],{duplicata,lancamentos}=await parcelaNfInteiraFicticia(f);
+  const candidatos=(await consultarCorrespondencias(id,i.id)).candidatos;
+  expect(candidatos).toHaveLength(1);expect(candidatos[0]).toMatchObject({notaGrupo:duplicata.id,valor:20000,componentes:2});
+  await expect(vincularItem(id,f.versao,i.id,{lancamentos:[{id:lancamentos[0].id,versao:lancamentos[0].updatedAt.toISOString()}]},sessao)).rejects.toThrow("lançamento inteiro");
+  expect((await atual(id)).versao).toBe(f.versao);expect((await atual(id)).itens[0].lancamentos).toHaveLength(0);
+  expect(await estado.prisma.lancamentoFinanceiro.count()).toBe(2);expect(await estado.prisma.movimentacaoBancaria.count()).toBe(0);
+  expect(await estado.prisma.liquidacaoCartao.count()).toBe(0);expect(await estado.prisma.historicoCartao.count({where:{acao:"VINCULACAO"}})).toBe(0);
+ });
+ it("omite a parcela inteira quando um dos componentes já está vinculado",async()=>{
+  const {id}=await importar(formulario("Data;Descrição;Valor\n01/09/2026;COMPRA FICTÍCIA;80,00","80.00"));await classificar(id);
+  const f=await atual(id),i=f.itens[0],{lancamentos}=await parcelaNfInteiraFicticia(f,"3".repeat(44));
+  await estado.prisma.lancamentoFinanceiro.update({where:{id:lancamentos[1].id},data:{itemFaturaId:i.id}});
+  expect((await consultarCorrespondencias(id,i.id)).candidatos).toEqual([]);
+  expect(await estado.prisma.lancamentoFinanceiro.count()).toBe(2);expect(await estado.prisma.movimentacaoBancaria.count()).toBe(0);
  });
  it("divergência bloqueia conciliação sem ajustar valor",async()=>{const {id}=await importar(formulario(undefined,"301.00"));await desdobrar(id);await expect(pagar(id,300)).rejects.toThrow("diferença");expect(await estado.prisma.movimentacaoBancaria.count()).toBe(0);});
  it("juros e tarifa ficam discriminados",async()=>{const {id}=await importar(formulario("Data;Descrição;Valor\n01/09/2026;JUROS;5,00\n02/09/2026;TARIFA;3,00","8.00"));expect((await atual(id)).itens.map(i=>i.tipo).sort()).toEqual(["JUROS","TARIFA"]);});
