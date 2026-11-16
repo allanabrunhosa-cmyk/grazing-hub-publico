@@ -26,6 +26,17 @@ describe("filtros do manifesto de NFS", () => {
     expect(correspondeFiltroNfse(nota, { ...filtro, busca: "outro prestador" })).toBe(false);
     expect(correspondeFiltroNfse({ ...nota, dataEmissao: null }, { ...filtro, de: "2026-09-10" })).toBe(false);
   });
+  it("busca o valor mostrado na lista e mantém período e situação", () => {
+    const servico = { ...nota, valorLiquido: 1234.56, valorServico: 1300 };
+    for (const busca of ["1.234,56", "1234.56", "R$ 1.234,56"]) {
+      expect(correspondeFiltroNfse(servico, { ...filtro, busca })).toBe(true);
+    }
+    expect(correspondeFiltroNfse(servico, { ...filtro, busca: "1300,00" })).toBe(false);
+    expect(correspondeFiltroNfse(servico, { ...filtro, busca: "1234,56", situacao: "ACEITA" })).toBe(false);
+    expect(correspondeFiltroNfse(servico, { ...filtro, busca: "1234,56", de: "2026-09-16" })).toBe(false);
+    expect(correspondeFiltroNfse({ ...servico, valorLiquido: 0 }, { ...filtro, busca: "1300" })).toBe(true);
+    expect(correspondeFiltroNfse(nota, { ...filtro, busca: "0,00" })).toBe(false);
+  });
 });
 
 describe("exportação dos XMLs originais", () => {

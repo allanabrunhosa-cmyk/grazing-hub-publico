@@ -14,6 +14,21 @@ const notas = [
   { ...base, id: "ignorada", prestadorNome: "Prestador Ignorado", status: "IGNORADA" },
 ];
 function tela(podeEditar = true) { render(<ManifestoNfsView notas={notas} categorias={[]} cartoes={[]} podeImportar podeLancar={podeEditar} podeEditar={podeEditar} />); }
+it("encontra a NFS-e pelo valor exibido na lista", () => {
+  render(<ManifestoNfsView notas={[
+    { ...notas[0], valorLiquido: 1234.56, valorServico: 1300 },
+    { ...notas[0], id: "outro-servico", prestadorNome: "Prestador distinto", valorLiquido: 1234.57 },
+  ]} categorias={[]} cartoes={[]} podeImportar={false} podeLancar={false} podeEditar={false} />);
+  fireEvent.click(screen.getByRole("button", { name: "Limpar datas" }));
+  const busca = screen.getByLabelText("Buscar notas");
+  for (const valor of ["1.234,56", "1234.56", "R$ 1.234,56"]) {
+    fireEvent.change(busca, { target: { value: valor } });
+    expect(screen.getByText("Prestador Pendente")).toBeTruthy();
+    expect(screen.queryByText("Prestador distinto")).toBeNull();
+  }
+  fireEvent.change(busca, { target: { value: "1300" } });
+  expect(screen.queryByText("Prestador Pendente")).toBeNull();
+});
 async function selecionarDestino(rotulo: "Gerar despesa" | "Somente registro fiscal") {
   const usuario = userEvent.setup();
   screen.getByRole("combobox", { name: "Destino financeiro" }).focus();
