@@ -12,7 +12,10 @@ export function useAcesso() {
   const entradaModulo = (slug: string) => {
     const entrada = CATALOGO.find(m => m.id === slug)?.secoes.find(s => s.rota && pode(s.id))?.rota;
     if (!entrada && slug === "financeiro" && podeRota("/financeiro/fiscal/configuracoes")) return "/financeiro/fiscal/configuracoes";
+    // A entrada do módulo decide o destino autorizado sem herdar atalhos fiscais.
+    if (entrada && slug === "configuracoes") return "/configuracoes";
     return entrada && slug === "vendas" ? "/vendas" : entrada;
   };
   return { admin: acesso.admin, pode, podeRota, entradaModulo };
 }
+
