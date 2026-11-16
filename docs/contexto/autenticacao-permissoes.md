@@ -20,6 +20,12 @@ registrados em [Atendimento](atendimento.md). Não duplicar cadastros ou autenti
 
 ## Invariantes
 
+- O seletor de módulos usa `/configuracoes` para entrar em Configurações. A página
+  escolhe o destino autorizado no servidor, priorizando Usuários & Permissões.
+  Perfis limitados às integrações entram em `/configuracoes/integracoes`; não usar
+  a primeira seção do catálogo como destino, pois o atalho legado Brasil NFe leva
+  a Financeiro > Fiscal. Regressão: `testes/layout/entrada-configuracoes.test.tsx`.
+
 - Middleware verifica token; não substitui a releitura do usuário no servidor.
   Não importar auth/bcrypt no middleware: usar session-token.
 - Cookie host-only, HttpOnly, SameSite=Lax, Secure em produção. Mesma conta nos
