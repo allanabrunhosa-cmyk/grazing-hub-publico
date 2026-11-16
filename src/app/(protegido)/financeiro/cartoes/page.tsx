@@ -21,7 +21,7 @@ export default async function CartoesPage({searchParams}:{searchParams:Promise<F
     <Button variant="outline" nativeButton={false} render={<Link href="/financeiro/cartoes/regras"/>} role="link">Regras</Button><ImportarFatura cartoes={cadastros.cartoes}/>
   </BarraAcoes><CartoesView cartoes={cadastros.cartoes} contas={cadastros.contas}/>
     <Card><CardContent className="space-y-4 pt-6"><h2 className="text-title">Faturas</h2><form className="flex flex-wrap items-end gap-3">
-      <label className="text-sm">Cartão/emissor<Input name="busca" defaultValue={filtros.busca} placeholder="Buscar cartão ou instituição"/></label>
+      <label className="text-sm">Cartão, emissor ou valor<Input name="busca" defaultValue={filtros.busca} placeholder="Cartão, instituição ou valor"/></label>
       <label className="text-sm">Competência<Input type="month" name="competencia" defaultValue={filtros.competencia}/></label>
       <label className="text-sm">Vencimento de<Input name="de" type="date" defaultValue={filtros.de}/></label><label className="text-sm">Até<Input name="ate" type="date" defaultValue={filtros.ate}/></label>
       <Button type="submit" variant="outline">Filtrar</Button><Button variant="ghost" nativeButton={false} role="link" render={<Link href="/financeiro/cartoes"/>}>Limpar</Button>
