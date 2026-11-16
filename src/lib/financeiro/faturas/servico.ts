@@ -199,8 +199,14 @@ async function buscarLancamentosCandidatos(tx:Prisma.TransactionClient,f:FaturaC
   });
   return agruparLancamentosInteirosFatura([...individuais.map(l=>converter(l)),...componentes]);
 }
+function notaCompativelComCompra(l:Pick<CandidatoFaturaBase,"cartaoId"|"data">,cartaoId:string,dataCompra:string,toleranciaDias:number) {
+  return l.cartaoId===cartaoId&&Math.abs(Date.parse(l.data)-Date.parse(dataCompra))<=toleranciaDias*86400000;
+}
 function avaliarCandidatos(f:FaturaCompleta,item:FaturaCompleta["itens"][number],encontrados:Awaited<ReturnType<typeof buscarLancamentosCandidatos>>) {
-  return encontrados.map(l=>({...l,correspondencia:pontuarCorrespondencia({valor:centavos(item.valor),data:item.dataCompra.toISOString().slice(0,10),vencimento:f.vencimento.toISOString().slice(0,10),descricao:item.descricaoOriginal,cartaoId:f.cartaoId,fornecedorId:item.fornecedorId},{id:l.id,valor:l.valor,data:l.data,vencimento:l.vencimento,descricao:l.descricao,cartaoId:l.cartaoId,fornecedorId:l.fornecedorId},f.cartao.toleranciaDias)}));
+  const dataCompra=item.dataCompra.toISOString().slice(0,10);
+  // Uma NF-e inteira conserva o critério das sugestões por nota: cartão atribuído
+  // e data real próxima da compra. Vencimento igual sozinho não prova duplicidade.
+  return encontrados.map(l=>({...l,correspondencia:l.notaGrupo&&!notaCompativelComCompra(l,f.cartaoId,dataCompra,f.cartao.toleranciaDias)?null:pontuarCorrespondencia({valor:centavos(item.valor),data:dataCompra,vencimento:f.vencimento.toISOString().slice(0,10),descricao:item.descricaoOriginal,cartaoId:f.cartaoId,fornecedorId:item.fornecedorId},{id:l.id,valor:l.valor,data:l.data,vencimento:l.vencimento,descricao:l.descricao,cartaoId:l.cartaoId,fornecedorId:l.fornecedorId},f.cartao.toleranciaDias)}));
 }
 async function candidatos(tx:Prisma.TransactionClient,f:FaturaCompleta,item:FaturaCompleta["itens"][number],todosSinais=false,outrosCartoes=false) {
   const sinais:Prisma.LancamentoFinanceiroWhereInput=todosSinais?{OR:[{tipo:"DESPESA",valor:{not:0}},{tipo:"RECEITA",valor:{gt:0}}]}:item.valor.isNegative()?{OR:[{tipo:"RECEITA",valor:{gt:0}},{tipo:"DESPESA",valor:{lt:0}}]}:{tipo:"DESPESA",valor:{gt:0}};
@@ -210,7 +216,7 @@ function lancamentosCorrespondentes(lista:Awaited<ReturnType<typeof candidatos>>
   const grupos=new Map<string,{soma:number;ids:string[];descricoes:string[]}>();
   // Soma de nota só é indício de duplicidade quando a parcela foi atribuída ao
   // mesmo cartão e a compra ocorreu perto da emissão. Valor igual isolado é comum.
-  for(const l of lista)if(l.notaGrupo&&l.cartaoId===cartaoId&&Math.sign(l.valor)===Math.sign(valor)&&Math.abs(Date.parse(l.data)-Date.parse(dataCompra))<=toleranciaDias*86400000){
+  for(const l of lista)if(l.notaGrupo&&notaCompativelComCompra(l,cartaoId,dataCompra,toleranciaDias)&&Math.sign(l.valor)===Math.sign(valor)){
     const grupo=grupos.get(l.notaGrupo)??{soma:0,ids:[],descricoes:[]};
     grupo.soma+=l.valor;grupo.ids.push(l.id);grupo.descricoes.push(l.descricao);grupos.set(l.notaGrupo,grupo);
   }
