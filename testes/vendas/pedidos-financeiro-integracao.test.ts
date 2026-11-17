@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { prepararMigrationHubIsolada, limparIntegracaoHubIsolada } from "../login/migrations-hub-isoladas";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { config } from "dotenv";
 import { Client } from "pg";
@@ -77,7 +77,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M2 financeiro 
     await banco.query(`CREATE SCHEMA "${esquema}"`); criado = true;
     await banco.query(`SET search_path TO "${esquema}"`);
     const pastas = (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a, b) => a.name.localeCompare(b.name));
-    for (const pasta of pastas) await banco.query(prepararSqlMigrationFiscal(pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
+    for (const pasta of pastas) await banco.query(await prepararMigrationHubIsolada(banco, esquema, pasta.name, await readFile(`prisma/migrations/${pasta.name}/migration.sql`, "utf8")));
     sim.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${esquema}` }, { schema: esquema }) });
     expect(await sim.prisma.$queryRaw`SELECT current_schema() AS esquema`).toEqual([{ esquema }]);
     const perfil = await sim.prisma.perfilAcesso.findUniqueOrThrow({ where: { sistema: "ADMINISTRADOR" } });
@@ -108,6 +108,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M2 financeiro 
   }, 120000);
   afterAll(async () => {
     await sim.prisma?.$disconnect(); if (!banco) return;
+    await limparIntegracaoHubIsolada(banco, esquema);
     if (criado && /^teste_pedidos_m2_[a-f0-9]{32}$/.test(esquema)) await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);
     await banco.end();
   });
@@ -305,6 +306,54 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M2 financeiro 
     await expect(corrigirRecebimentoPedido(...args, chave(), admin)).rejects.toThrow("alterado");
     expect(await sim.prisma.historicoFinanceiroPedido.count({ where: { pedidoId: p.id, tipo: "RECEBIMENTO" } })).toBe(2);
     expect(await sim.prisma.movimentacaoBancaria.count({ where: { lancamento: { pedidoVendaId: p.id } } })).toBe(1);
+    expect(await sim.prisma.lancamentoFinanceiro.count({ where: { pedidoVendaId: p.id, tipo: "DESPESA" } })).toBe(0);
+  });
+
+  it("Pix com taxa confirma, lança a taxa como despesa no recebimento e a desfaz na correção", async () => {
+    const pixTaxa = await sim.prisma.formaPagamentoVenda.create({ data: { nome: "Pix sintético com taxa", tipo: "PIX", taxaPercentual: "1.00", taxaFixa: "0.75" } });
+    const p = await criarRascunhoBase({ ...entrada(produto300), pagamentoInformado: { formaId: pixTaxa.id, parcelas: 1, vencimentos: [] } }, chave(), admin, "HUB", 1);
+    await confirmarPedido(p.id, 1, chave(), admin, { categoriaId, dataCompetencia: "", parcelas: [] });
+    const t = await sim.prisma.lancamentoFinanceiro.findFirstOrThrow({ where: { pedidoVendaId: p.id, tipo: "RECEITA" } });
+    expect(t.pedidoFormaSnapshot).toMatchObject({ tipo: "PIX", taxaPercentual: "1", taxaFixa: "0.75" });
+    const taxas = () => sim.prisma.lancamentoFinanceiro.findMany({ where: { pedidoVendaId: p.id, tipo: "DESPESA" }, include: { movimentacaoBancaria: true }, orderBy: { createdAt: "asc" } });
+
+    // Sem categoria válida nada é baixado: título, conta e despesas ficam como estavam.
+    await expect(registrarRecebimentoPedido(p.id, t.id, "100", contaId, "2026-10-02", chave(), admin)).rejects.toThrow("categoria da taxa");
+    await expect(registrarRecebimentoPedido(p.id, t.id, "100", contaId, "2026-10-02", chave(), admin, categoriaId)).rejects.toThrow("despesas financeiras");
+    await expect(registrarRecebimentoPedido(p.id, t.id, "0.75", contaId, "2026-10-02", chave(), admin, categoriaTaxaId)).rejects.toThrow("taxa do Pix");
+    expect(await sim.prisma.movimentacaoBancaria.count({ where: { lancamento: { pedidoVendaId: p.id } } })).toBe(0);
+    expect(await taxas()).toHaveLength(0);
+
+    const op = chave();
+    await registrarRecebimentoPedido(p.id, t.id, "100", contaId, "2026-10-02", op, admin, categoriaTaxaId);
+    await registrarRecebimentoPedido(p.id, t.id, "100", contaId, "2026-10-02", op, admin, categoriaTaxaId);
+    await expect(registrarRecebimentoPedido(p.id, t.id, "100", contaId, "2026-10-02", op, admin, categoriaDevolucaoId)).rejects.toThrow("outros dados");
+    const [taxa, ...repetidas] = await taxas();
+    expect(repetidas).toHaveLength(0);
+    // 1% de R$ 100,00 + R$ 0,75 fixos; a receita permanece bruta.
+    expect(taxa).toMatchObject({ status: "BAIXADO", categoriaId: categoriaTaxaId, contaBancariaId: contaId, pedidoEfeitoChave: `taxa-recebimento:${t.id}:${op}` });
+    expect(taxa.valor.toFixed(2)).toBe("1.75");
+    expect(taxa.movimentacaoBancaria?.valor.toFixed(2)).toBe("1.75");
+    expect(taxa.dataCompetencia.toISOString().slice(0, 10)).toBe("2026-10-02");
+    expect((await obterPedido(p.id)).financeiro).toMatchObject({ recebido: "100.00", saldoCliente: "200.00" });
+    const recebimento = await sim.prisma.historicoFinanceiroPedido.findUniqueOrThrow({ where: { chaveOperacao: op } });
+    expect(recebimento.detalhes).toMatchObject({ recebido: "100", taxa: "1.75", taxaLancamentoId: taxa.id, categoriaTaxaId });
+
+    const pago = await sim.prisma.lancamentoFinanceiro.findUniqueOrThrow({ where: { id: t.id } });
+    const correcao = chave();
+    await corrigirRecebimentoPedido(p.id, t.id, pago.updatedAt.toISOString(), "Recebimento lançado por engano", correcao, admin);
+    expect(await sim.prisma.movimentacaoBancaria.count({ where: { lancamento: { pedidoVendaId: p.id } } })).toBe(0);
+    expect((await taxas())[0]).toMatchObject({ id: taxa.id, status: "CANCELADO", dataPagamento: null, contaBancariaId: null, movimentacaoBancaria: null });
+    const corrigido = await sim.prisma.historicoFinanceiroPedido.findUniqueOrThrow({ where: { chaveOperacao: correcao } });
+    expect(corrigido.detalhes).toMatchObject({ taxasAnteriores: [{ id: taxa.id, valor: "1.75" }] });
+    expect((await obterPedido(p.id)).financeiro).toMatchObject({ recebido: "0.00", saldoCliente: "300.00" });
+
+    // Novo recebimento do mesmo título gera outra despesa, sem reativar a cancelada.
+    const reaberto = await sim.prisma.lancamentoFinanceiro.findUniqueOrThrow({ where: { id: t.id } });
+    await registrarRecebimentoPedido(p.id, t.id, reaberto.valor.toFixed(2), contaId, "2026-11-01", chave(), admin, categoriaTaxaId);
+    const finais = await taxas();
+    expect(finais.map(l => l.status)).toEqual(["CANCELADO", "BAIXADO"]);
+    expect(finais[1].valor.toFixed(2)).toBe(reaberto.valor.mul("0.01").plus("0.75").toFixed(2));
   });
 
   it("correção não apaga recebimento alocado em devolução", async () => {

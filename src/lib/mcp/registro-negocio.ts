@@ -29,7 +29,7 @@ export const FUNCOES_NEGOCIO_MCP = [
   funcao("pedidos_revisar", "Pedidos", "Revisar pedido confirmado com snapshots preservados", "vendas.pedidos.revisar", "editar", alvo.extend({ pedido: PedidoMcp }), true),
   funcao("pedidos_cancelar", "Pedidos", "Cancelar pedido sem inventar devolução financeira", "vendas.pedidos.cancelar", "editar", alvo.extend({ motivo }), true),
   funcao("pedidos_registrar_entrega", "Pedidos", "Registrar entrega sem registrar pagamento", "vendas.pedidos.revisar", "editar", alvo),
-  funcao("pedidos_registrar_recebimento", "Pedidos", "Registrar recebimento interno de título de pedido", "financeiro.baixas", "editar", z.object({ pedidoId: IdMcp, tituloId: IdMcp, valor: DinheiroMcp, contaId: IdMcp, data: DataMcp }).strict(), true),
+  funcao("pedidos_registrar_recebimento", "Pedidos", "Registrar recebimento interno de título de pedido", "financeiro.baixas", "editar", z.object({ pedidoId: IdMcp, tituloId: IdMcp, valor: DinheiroMcp, contaId: IdMcp, data: DataMcp, categoriaTaxaId: IdMcp.optional() }).strict(), true),
   funcao("pedidos_ajustar_vencimento", "Pedidos", "Ajustar vencimento de título do pedido", "financeiro.movimentacoes", "editar", z.object({ pedidoId: IdMcp, tituloId: IdMcp, vencimento: DataMcp }).strict()),
   funcao("financeiro_criar_lancamento", "Financeiro", "Cadastrar lançamento financeiro manual e parcelas recorrentes pendentes", "financeiro.movimentacoes", "adicionar", LancamentoCriacaoMcp),
   funcao("financeiro_atualizar_lancamento", "Financeiro", "Editar lançamento manual pendente", "financeiro.movimentacoes", "editar", camposAtualizacaoMcp(LancamentoMcp).extend({ id: IdMcp, revisao: z.iso.datetime() }).refine(d=>Object.keys(d).some(k=>!["id","revisao"].includes(k)), "Informe um campo para atualizar.")),
