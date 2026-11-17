@@ -1,0 +1,64 @@
+name: Parcelamento de notas no cartão
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/notas-fiscais/**'
+      - 'src/app/(protegido)/notas-fiscais/**'
+      - 'testes/notas-fiscais/**'
+      - 'testes/visual/parcelamento-cartao*'
+      - '.github/workflows/parcelamento-notas.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  parcelamento:
+    name: Parcelas e revisão no PostgreSQL fictício
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ficticio
+          POSTGRES_PASSWORD: exemplo
+          POSTGRES_DB: notas_teste
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ficticio -d notas_teste"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ficticio:exemplo@127.0.0.1:5432/notas_teste?schema=public
+      AUTH_SECRET: chave-ficticia-exclusiva-dos-testes-de-notas
+      CUSTOS_NOTA_BANCO_TESTE: '1'
+      NOTAS_PAGAMENTOS_BANCO_TESTE: '1'
+      FATURAS_BANCO_TESTE: '1'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Lint e tokens
+        run: |
+          npm run lint -- 'src/lib/notas-fiscais/custos.ts' 'src/lib/notas-fiscais/correcao-nota.ts' 'src/lib/notas-fiscais/parcelamento-cartao.ts' 'src/app/(protegido)/notas-fiscais/actions.ts' 'src/app/(protegido)/notas-fiscais/parcelas-nota.tsx' testes/notas-fiscais/acoes.test.ts testes/notas-fiscais/custos-integracao.test.ts testes/notas-fiscais/parcelamento-cartao.test.ts testes/notas-fiscais/parcelas-interface.test.tsx testes/notas-fiscais/rateio-parcelas.test.ts testes/visual/parcelamento-cartao*
+          npm run lint:design
+      - name: Tipos completos
+        run: |
+          npx next typegen
+          npx tsc --noEmit
+      - name: Domínio, revisão e faturas com banco isolado
+        run: npm test -- testes/notas-fiscais testes/financeiro/faturas --maxWorkers=1
+      - name: Navegador de teste
+        run: npx playwright install --with-deps chromium
+      - name: Parcelamento em celular, tablet e desktop
+        run: npx playwright test --config testes/visual/parcelamento-cartao.playwright.config.ts
