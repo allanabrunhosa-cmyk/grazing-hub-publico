@@ -1,0 +1,16 @@
+[Unit]
+Description=Manutencao restrita de cache Docker BuildKit
+After=docker.service
+
+[Service]
+Type=oneshot
+UMask=0077
+Nice=19
+IOSchedulingClass=idle
+TimeoutStartSec=90min
+ExecStart=/usr/local/lib/grazing-storage-maintenance/grazing-storage-maintenance.py cache --apply --hours 24 --limited
+ExecStart=/usr/local/lib/grazing-storage-maintenance/grazing-storage-maintenance.py cache --apply --hours 12 --limited
+ExecStart=/usr/local/lib/grazing-storage-maintenance/grazing-storage-maintenance.py cache --apply --hours 6 --limited
+ExecStart=/usr/local/lib/grazing-storage-maintenance/grazing-storage-maintenance.py cache --apply --hours 2 --limited
+StandardOutput=journal
+StandardError=journal

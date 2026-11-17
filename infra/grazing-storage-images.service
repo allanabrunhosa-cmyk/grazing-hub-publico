@@ -1,0 +1,11 @@
+[Unit]
+Description=Revisao conservadora das imagens e protecoes
+After=docker.service
+
+[Service]
+Type=oneshot
+UMask=0077
+Nice=19
+ExecStart=/usr/local/lib/grazing-storage-maintenance/grazing-storage-maintenance.py images
+StandardOutput=journal
+StandardError=journal

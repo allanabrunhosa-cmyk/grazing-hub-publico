@@ -1,0 +1,10 @@
+[Unit]
+Description=Revisao diaria de imagens sem exclusao automatica
+
+[Timer]
+OnCalendar=*-*-* 07:30:00 UTC
+Persistent=false
+Unit=grazing-storage-images.service
+
+[Install]
+WantedBy=timers.target

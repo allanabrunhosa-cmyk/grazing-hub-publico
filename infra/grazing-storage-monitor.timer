@@ -1,0 +1,10 @@
+[Unit]
+Description=Verificacao de armazenamento a cada quinze minutos
+
+[Timer]
+OnCalendar=*-*-* *:00,15,30,45:00 UTC
+Persistent=false
+Unit=grazing-storage-monitor.service
+
+[Install]
+WantedBy=timers.target

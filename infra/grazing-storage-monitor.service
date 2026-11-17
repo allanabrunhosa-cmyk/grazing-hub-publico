@@ -1,0 +1,11 @@
+[Unit]
+Description=Monitor leve de disco inodes e imagens protegidas
+After=docker.service
+
+[Service]
+Type=oneshot
+UMask=0077
+Nice=19
+ExecStart=/usr/local/lib/grazing-storage-maintenance/grazing-storage-maintenance.py monitor
+StandardOutput=journal
+StandardError=journal

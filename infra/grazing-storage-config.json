@@ -1,0 +1,8 @@
+{
+  "hostname": "CONFIGURAR_HOST_APROVADO",
+  "builder": "default",
+  "cache_target_bytes": 50000000000,
+  "free_target_bytes": 60000000000,
+  "quiet_seconds": 15,
+  "max_batches": 40
+}
