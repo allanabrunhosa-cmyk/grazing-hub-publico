@@ -6,7 +6,7 @@ import { NOTAS_NFSE_VISIVEIS } from "@/lib/nfse/visibilidade";
 
 export async function GET(requisicao: Request) {
   if (!(await getSession())) return Response.json({ erro: "Sua sessão expirou." }, { status: 401 });
-  if (!(await podeAcessar("financeiro.nfse", "visualizar"))) return Response.json({ erro: "Seu perfil não permite exportar estas notas." }, { status: 403 });
+  if (!(await podeAcessar("financeiro.nfse", "visualizar"))) return Response.json({ erro: "Seu perfil não permite exportar estas notas. Peça ao administrador para liberar Visualizar em Financeiro › Manifesto de NFS-e › Notas de serviço (NFS-e)." }, { status: 403 });
   const consulta = new URL(requisicao.url).searchParams;
   const id = consulta.get("id");
   try {

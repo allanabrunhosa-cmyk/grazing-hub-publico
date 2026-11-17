@@ -12,6 +12,7 @@ registrados em [Atendimento](atendimento.md). Não duplicar cadastros ou autenti
 | `src/lib/session.ts` | getSession relê identidade, atividade, versão, perfil e exceções |
 | `src/lib/password.ts`, `src/lib/auth.ts` | Senha / entrada de conveniência no servidor completo |
 | `src/lib/permissoes/catalogo.ts` | Recursos, ações e permissão efetiva |
+| `src/lib/permissoes/organizacao.ts` | Matriz da tela: módulo → seção → tema, descrições e busca (só apresentação) |
 | `src/lib/permissoes/servidor.ts` | exigirPermissao/podeAcessar |
 | `src/app/(protegido)/configuracoes/usuarios` | Gestão de usuários/perfis |
 | `src/app/login`, `src/lib/recuperacao-senha` | Login e recuperação |
@@ -38,6 +39,10 @@ registrados em [Atendimento](atendimento.md). Não duplicar cadastros ou autenti
   Operações críticas releem autorização dentro da transação; conservar guardas compostas.
 - Gestão de acessos protege último administrador, impede elevação indireta e audita
   antes/depois sem senhas. Não executar seed administrativo no deploy.
+- Recurso novo do catálogo deve ganhar módulo, seção e tema em `organizacao.ts`, com
+  descrição que diga o que a ação libera e de quais outros temas ela depende; sem isso ele
+  cai em “Outras permissões” e `testes/permissoes/organizacao.test.tsx` falha. A organização
+  não muda chaves nem concede acesso: bloqueio com 403 deve nomear o caminho do tema na matriz.
 - Atualizar contrato de ações e testes ao adicionar fronteiras; script
   `scripts/aplicar-guardas-acesso.mjs` é auxiliar, não licença para reescrever tudo.
 - Recuperação: token de uso único, hash no banco, segredo no fragmento da URL, limitação

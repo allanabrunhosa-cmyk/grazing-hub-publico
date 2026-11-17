@@ -7,7 +7,7 @@ import { xmlRecebidoCompleto } from "@/lib/fiscal-dashboard/arquivo-recebido";
 export async function GET(_requisicao: Request, contexto: { params: Promise<{ id: string }> }) {
   if (!await getSession()) return Response.json({ erro: "Sua sessão expirou." }, { status: 401 });
   if (!await podeAcessar("financeiro.fiscal.painel", "visualizar") || !await podeAcessar("notas", "visualizar")) {
-    return Response.json({ erro: "Seu acesso não permite baixar esta nota." }, { status: 403 });
+    return Response.json({ erro: "Seu acesso não permite baixar esta nota. Peça ao administrador para liberar Visualizar em Suprimentos › Notas fiscais de compra › Manifesto de notas e em Financeiro › Fiscal › Visão geral das notas." }, { status: 403 });
   }
   const { id } = await contexto.params;
   if (typeof id !== "string" || !/^[a-zA-Z0-9_-]{1,100}$/.test(id)) return Response.json({ erro: "Documento inválido." }, { status: 400 });

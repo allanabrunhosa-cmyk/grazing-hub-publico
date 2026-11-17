@@ -53,6 +53,7 @@ it("mantém a matriz de perfil protegido sem edição individual ou em lote", ()
   const mudar = vi.fn(); render(<MatrizPermissoes base={{}} bloqueada aoMudar={mudar} />);
   const coluna = screen.getByRole("checkbox", { name: "Suprimentos: Excluir em todas as seções" });
   expect(coluna).toHaveProperty("disabled", true); fireEvent.click(coluna);
-  expect(screen.getByLabelText("Pedidos de compra: Excluir")).toHaveProperty("disabled", true);
+  fireEvent.click(screen.getByLabelText("Seção Compras").querySelector("summary")!);
+  expect(screen.getByLabelText("Pedidos de compra: Excluir").hasAttribute("data-disabled")).toBe(true);
   expect(screen.queryByRole("button", { name: "Tudo em Suprimentos" })).toBeNull(); expect(mudar).not.toHaveBeenCalled();
 });
