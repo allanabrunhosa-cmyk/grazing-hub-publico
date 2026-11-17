@@ -471,3 +471,27 @@ Pedidos novos fotografam a identidade do titular na cobrança selecionada, inclu
 ## Manutenção simples — 22/10/2026
 
 O fluxo operacional mantém as telas anteriores e um botão Salvar. `tributacao/edicao-simples.ts` aplica versões e audita na transação; `campos-simples.ts` projeta os valores efetivos. Grupos não possuem NCM. Origem herdada exige escolha explícita, e a ausência do campo novo preserva a origem individual. Renomear/inativar grupo sem alterar impostos não aplica regra nova. Produtos/complementos integrados e kits conservam a representação existente. Os quatro blocos de Configurações compõem os serviços anteriores, com suas permissões. Ver [contrato atual](../features/fiscal-unificado/README.md); descrições anteriores do editor técnico não representam o fluxo normal.
+
+## Parcelamento de uma compra no cartão
+
+`parcelaCartao` é o ordinal da duplicata na compra, não a quantidade de vezes. A ação
+explícita Dividir em parcelas em `notas-fiscais/parcelas-nota.tsx` usa
+`src/lib/notas-fiscais/parcelamento-cartao.ts` para dividir o valor em centavos e
+calcular vencimentos mensais pela data da compra e configuração do cartão. A primeira
+duplicata conserva sua identidade; as seguintes são novas. O rascunho só é persistido
+no aceite ou ao salvar a correção da nota aceita. Não reinterpretar ordinais históricos
+em lote como quantidade de parcelas.
+
+Aceite e revisão usam `ratearItensPorDuplicatas` em `custos.ts`: o total de cada item
+e a soma de cada duplicata fecham em centavos para a conciliação da fatura. Aceites
+parciais e inclusão de itens novos preservam os títulos anteriores e distribuem o
+saldo. Corrigir apenas pagamento, recebimento ou insumo conserva rateios históricos.
+Alterações explícitas de valores ou estrutura de parcelas recalculam o rateio;
+títulos pagos ou vinculados continuam protegidos. Permissões, trava, versão, auditoria
+e replay permanecem no fluxo de `correcao-nota.ts`. Itens repetidos no aceite são
+rejeitados antes da transação para impedir efeitos duplicados.
+
+Regressões em `testes/notas-fiscais/parcelamento-cartao.test.ts`,
+`parcelas-interface.test.tsx`, `rateio-parcelas.test.ts`, `acoes.test.ts` e
+`custos-integracao.test.ts`. A prévia `testes/visual/parcelamento-cartao.html` usa
+dados sintéticos; as capturas permanecem Em revisão.
