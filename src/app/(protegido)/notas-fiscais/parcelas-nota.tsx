@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BotaoRemoverItem } from "@/components/remover-item";
@@ -8,8 +9,24 @@ import { CampoMonetario } from "./campo-monetario";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { dataCalendarioValida, vencimentoCartao, type CartaoOption } from "@/lib/financeiro/cartoes";
 import type { PagamentoNota } from "@/lib/notas-fiscais/pagamentos";
+import { dividirParcelaCartao } from "@/lib/notas-fiscais/parcelamento-cartao";
 export type DuplicataLinha = PagamentoNota & { id?: string; numero: string; dataVencimento: string; valor: string; bloqueada?: boolean };
 const formas = { BOLETO: "Boleto", PIX: "Pix", CARTAO: "Cartão de crédito" };
+function DividirValor({ indice, parcelas, cartoes, onChange }: { indice: number; parcelas: DuplicataLinha[]; cartoes: CartaoOption[]; onChange: (parcelas: DuplicataLinha[]) => void }) {
+  const [quantidade, setQuantidade] = useState("2");
+  const [erro, setErro] = useState("");
+  return <div className="basis-full space-y-2 border-t pt-2">
+    <div className="flex flex-wrap items-end gap-2">
+      <label className="w-40 space-y-1 text-xs">Quantidade de parcelas<Input aria-label={"Quantidade de parcelas para dividir " + (indice + 1)} type="number" min={2} max={120} maxLength={3} step={1} value={quantidade} onChange={e => { setQuantidade(e.target.value); setErro(""); }} /></label>
+      <Button type="button" data-dialogo-altera variant="outline" aria-label={"Dividir em parcelas o valor da parcela " + (indice + 1)} onClick={() => {
+        try { onChange(dividirParcelaCartao(parcelas, indice, Number(quantidade), cartoes)); setQuantidade("2"); setErro(""); }
+        catch (e) { setErro(e instanceof Error ? e.message : "Confira os dados do parcelamento."); }
+      }}>Dividir em parcelas</Button>
+    </div>
+    <p className="text-xs text-muted-foreground">Divide o valor acima em faturas mensais, a partir da primeira parcela. Confira os valores antes de salvar.</p>
+    {erro && <p role="alert" className="text-xs text-destructive">{erro}</p>}
+  </div>;
+}
 export function ParcelasNota({ parcelas, cartoes, dataEmissao, bloqueado, mostrarErros, onChange }: { parcelas: DuplicataLinha[]; cartoes: CartaoOption[]; dataEmissao: string; bloqueado: boolean; mostrarErros?: boolean; onChange: (parcelas: DuplicataLinha[]) => void }) {
   function atualizar(indice: number, alteracao: Partial<DuplicataLinha>) {
     onChange(parcelas.map((atual, i) => {
@@ -35,7 +52,7 @@ export function ParcelasNota({ parcelas, cartoes, dataEmissao, bloqueado, mostra
       const valorInvalido = !!mostrarErros && (!Number.isFinite(valorNumero) || valorNumero <= 0);
       const cartaoInvalido = !!mostrarErros && p.formaPagamento === "CARTAO" && !p.cartaoCreditoId;
       const dataCompraInvalida = !!mostrarErros && p.formaPagamento === "CARTAO" && !dataCalendarioValida(p.dataCompra ?? "");
-      const parcelaCartaoInvalida = !!mostrarErros && p.formaPagamento === "CARTAO" && (!Number.isInteger(p.parcelaCartao) || (p.parcelaCartao ?? 0) < 1);
+      const parcelaCartaoInvalida = !!mostrarErros && p.formaPagamento === "CARTAO" && (!Number.isInteger(p.parcelaCartao) || (p.parcelaCartao ?? 0) < 1 || (p.parcelaCartao ?? 0) > 120);
       return <fieldset key={p.id ?? i} disabled={bloqueado || p.bloqueada} className="space-y-2 border-t pt-3">
       <div className="flex flex-wrap items-end gap-2">
         <label className="w-20 space-y-1 text-xs">Número<Input aria-label={"Número da parcela " + (i + 1)} aria-invalid={numeroInvalido} className="aria-invalid:bg-destructive/10" value={p.numero} onChange={e => atualizar(i, {numero: e.target.value})} /></label>
@@ -47,8 +64,10 @@ export function ParcelasNota({ parcelas, cartoes, dataEmissao, bloqueado, mostra
       {p.formaPagamento === "CARTAO" && <div className="flex flex-wrap items-end gap-2 rounded-lg bg-muted/30 p-2">
         <div className="min-w-48 flex-1 space-y-1"><Label className="text-xs">Cartão / conta bancária</Label><Select disabled={bloqueado || p.bloqueada} value={p.cartaoCreditoId ?? ""} onValueChange={v => atualizar(i, {cartaoCreditoId: v})}><SelectTrigger aria-label={"Cartão da parcela " + (i + 1)} aria-invalid={cartaoInvalido} className="w-full aria-invalid:bg-destructive/10"><SelectValue placeholder="Selecione o cartão">{() => { const c = cartoes.find(c => c.id === p.cartaoCreditoId); return c ? c.nome + " · " + c.contaBancariaNome : "Selecione o cartão"; }}</SelectValue></SelectTrigger><SelectContent>{cartoes.filter(c => c.ativo).map(c => <SelectItem key={c.id} value={c.id}>{c.nome} · {c.contaBancariaNome}</SelectItem>)}</SelectContent></Select></div>
         <label className="w-36 space-y-1 text-xs">Data da compra<Input aria-label={"Data da compra da parcela " + (i + 1)} aria-invalid={dataCompraInvalida} className="aria-invalid:bg-destructive/10" type="date" value={p.dataCompra ?? ""} onChange={e => atualizar(i, {dataCompra: e.target.value})} /></label>
-        <label className="w-24 space-y-1 text-xs">Parcela do cartão<Input aria-label={"Parcela do cartão " + (i + 1)} aria-invalid={parcelaCartaoInvalida} className="aria-invalid:bg-destructive/10" type="number" min={1} max={120} value={p.parcelaCartao === 0 ? "" : p.parcelaCartao ?? 1} onChange={e => atualizar(i, {parcelaCartao: Number(e.target.value)})} /></label>
+        <label className="w-40 space-y-1 text-xs">Nº da parcela no cartão<Input aria-label={"Número da parcela no cartão " + (i + 1)} aria-invalid={parcelaCartaoInvalida} className="aria-invalid:bg-destructive/10" type="number" min={1} max={120} maxLength={3} step={1} value={p.parcelaCartao === 0 ? "" : p.parcelaCartao ?? 1} onChange={e => atualizar(i, {parcelaCartao: Number(e.target.value)})} /></label>
+        <p className="basis-full text-xs text-muted-foreground">O número indica a posição da parcela na compra. Para dividir o valor total, use Dividir em parcelas.</p>
         <p className="basis-full text-xs text-muted-foreground">{cartoes.length ? "Vencimento calculado pela fatura. No dia do fechamento, a compra entra na próxima fatura. A despesa será provisionada como pendente." : "Cadastre um cartão ativo em Conta Bancária e Cartões para continuar."}</p>
+        <DividirValor indice={i} parcelas={parcelas} cartoes={cartoes} onChange={onChange} />
       </div>}
       {p.bloqueada && <p className="text-xs text-muted-foreground">Parcela já lançada no financeiro; dados preservados.</p>}
     </fieldset>})}

@@ -24,6 +24,7 @@ import { consultarCancelamentoCompra, cancelarCompra, chaveCompra } from "@/lib/
 import { registrarMovimentacao } from "@/lib/estoque/registrarMovimentacao";
 import { editarNotaAceitaAction } from "@/app/(protegido)/notas-fiscais/editar-nota";
 import { consultarCorrecaoNota } from "@/lib/notas-fiscais/correcao-nota";
+import { vencimentoCartao } from "@/lib/financeiro/cartoes";
 
 const esquema = "teste_custos_" + randomUUID().replaceAll("-", "");
 let banco: Client | undefined;
@@ -42,6 +43,28 @@ async function preparar() {
       { notaFiscalItemId: itens[1].id, acao: "CONCILIAR" as const, destino: "USO_E_CONSUMO" as const, categoriaFinanceiraId: "consumo", valorTotal: 347 },
     ], duplicatas: parcelas.map(p => ({ id: p.id, numero: p.numero, dataVencimento: p.dataVencimento.toISOString().slice(0, 10), valor: Number(p.valor) })) };
   return { nota, itens, insumo, entrada };
+}
+
+async function prepararParcial(status: "PENDENTE" | "IGNORADO") {
+  const id = randomUUID();
+  const xml = '<nfeProc><NFe><infNFe><det nItem="1"><prod><vProd>1.01</vProd></prod></det><det nItem="2"><prod><vProd>1.01</vProd></prod></det><total><ICMSTot><vProd>2.02</vProd><vNF>2.02</vNF></ICMSTot></total></infNFe></NFe></nfeProc>';
+  const nota = await estado.banco.notaFiscalRecebida.create({ data: { id, chaveAcesso: id.replaceAll("-", "").padEnd(44, "0"), tipo: "PROC_NFE", nsu: id, xml, valorTotal: 2.02, dataEmissao: new Date("2026-09-11T12:00:00Z"), ultimaManifestacao: "CONFIRMACAO_DA_OPERACAO" } });
+  const itens = await Promise.all([1, 2].map(numeroItem => estado.banco.notaFiscalItem.create({ data: { notaFiscalId: nota.id, numeroItem, codigoProdutoFornecedor: String(numeroItem), descricaoProduto: "Item parcial fictício " + numeroItem, unidadeComercial: "UN", quantidadeComercial: 1, valorTotalItem: 1.01,
+    status: numeroItem === 1 ? "PENDENTE" : status, ...(numeroItem === 2 && status === "IGNORADO" ? { valorTotalConciliado: 1.01 } : {}),
+  } })));
+  const parcelas = await Promise.all([1, 2].map(numero => estado.banco.notaFiscalDuplicata.create({ data: { notaFiscalId: nota.id, numero: String(numero), valor: 1.01, dataVencimento: new Date(`2026-${numero + 9}-11T12:00:00Z`) } })));
+  const entrada = { notaFiscalId: nota.id, localId: "", dataEntradaEstoque: "2026-09-11", itens: itens.map(item => ({ notaFiscalItemId: item.id, acao: "CONCILIAR" as const, destino: "USO_E_CONSUMO" as const, categoriaFinanceiraId: "consumo", valorTotal: 1.01 })),
+    duplicatas: parcelas.map(parcela => ({ id: parcela.id, numero: parcela.numero, valor: Number(parcela.valor), dataVencimento: parcela.dataVencimento.toISOString().slice(0, 10) })),
+  };
+  expect(await confirmarConciliacaoNotaAction({ ...entrada, itens: [entrada.itens[0]] })).toEqual({ ok: true, movimentacoesCriadas: 0 });
+  const elos = await estado.banco.notaFiscalItemLancamento.findMany({ where: { notaFiscalItemId: itens[0].id } });
+  // Simula o rateio histórico inverso ao desempate atual, com os mesmos totais.
+  for (const elo of elos) {
+    const valor = elo.notaFiscalDuplicataId === parcelas[0].id ? 0.50 : 0.51;
+    await estado.banco.notaFiscalItemLancamento.update({ where: { id: elo.id }, data: { valor } });
+    await estado.banco.lancamentoFinanceiro.update({ where: { id: elo.lancamentoFinanceiroId }, data: { valor, status: "BAIXADO" } });
+  }
+  return { nota, itens, entrada, elos };
 }
 describe.skipIf(process.env.CUSTOS_NOTA_BANCO_TESTE !== "1")("custos da nota no PostgreSQL isolado", () => {
   beforeAll(async () => {
@@ -70,6 +93,69 @@ describe.skipIf(process.env.CUSTOS_NOTA_BANCO_TESTE !== "1")("custos da nota no 
       if (criado && /^teste_custos_[a-f0-9]{32}$/.test(esquema)) await banco.query(`DROP SCHEMA "${esquema}" CASCADE`);
       await banco.end();
     }
+  });
+  it.each(["PENDENTE", "IGNORADO"] as const)("integra item %s usando só o saldo das parcelas e preservando rateio legado pago", async status => {
+    const { nota, itens, entrada, elos } = await prepararParcial(status);
+    const filtroAntigos = { id: { in: elos.map(elo => elo.lancamentoFinanceiroId) } };
+    const antigos = await estado.banco.lancamentoFinanceiro.findMany({ where: filtroAntigos, orderBy: { id: "asc" }, select: { id: true, valor: true, status: true } });
+    const versao = (await consultarCorrecaoNota(estado.banco, nota.id)).versao;
+    const correcao = { ...entrada, versao, motivo: "Integrar item fictício sem alterar parcelas históricas pagas" };
+    expect(await editarNotaAceitaAction(correcao)).toEqual({ ok: true });
+    expect(await editarNotaAceitaAction(correcao)).toEqual({ ok: true });
+    expect(await estado.banco.lancamentoFinanceiro.findMany({ where: filtroAntigos, orderBy: { id: "asc" }, select: { id: true, valor: true, status: true } })).toEqual(antigos);
+    const parcelas = await estado.banco.notaFiscalDuplicata.findMany({ where: { notaFiscalId: nota.id }, orderBy: { dataVencimento: "asc" }, include: { lancamentos: { include: { lancamentoFinanceiro: true } } } });
+    expect(parcelas.map(parcela => parcela.lancamentos.reduce((soma, elo) => soma + Math.round(Number(elo.lancamentoFinanceiro.valor) * 100), 0))).toEqual([101, 101]);
+    expect(parcelas.map(parcela => Number(parcela.lancamentos.find(elo => elo.notaFiscalItemId === itens[1].id)!.lancamentoFinanceiro.valor))).toEqual([0.51, 0.50]);
+    expect((await estado.banco.notaFiscalItem.findUniqueOrThrow({ where: { id: itens[1].id } })).status).toBe("CONCILIADO");
+    expect(await estado.banco.historicoAcesso.count({ where: { entidadeId: nota.id, acao: "CORRECAO_LOCAL" } })).toBe(1);
+  });
+  it("valida o total ao integrar item ignorado mesmo com valor conciliado histórico preenchido", async () => {
+    const { nota, itens, entrada } = await prepararParcial("IGNORADO");
+    const duplicatas = entrada.duplicatas.map((parcela, indice) => ({ ...parcela, valor: indice === 0 ? 0.51 : 0.50 }));
+    for (const parcela of duplicatas) await estado.banco.notaFiscalDuplicata.update({ where: { id: parcela.id }, data: { valor: parcela.valor } });
+    const versao = (await consultarCorrecaoNota(estado.banco, nota.id)).versao;
+    expect(await editarNotaAceitaAction({ ...entrada, duplicatas, versao, motivo: "Integrar item ignorado fictício com parcelas insuficientes" })).toMatchObject({ erro: expect.stringContaining("total das parcelas") });
+    expect((await estado.banco.notaFiscalItem.findUniqueOrThrow({ where: { id: itens[1].id } })).status).toBe("IGNORADO");
+    expect(await estado.banco.notaFiscalItemLancamento.count({ where: { notaFiscalItemId: itens[1].id } })).toBe(0);
+  });
+  it("divide a compra de 149,52 em quatro faturas exatas com vários itens, preservando títulos e replay", async () => {
+    const id = randomUUID();
+    const valores = [49.85, 49.85, 49.82];
+    const xml = `<nfeProc><NFe><infNFe>${valores.map((valor, i) => `<det nItem="${i + 1}"><prod><vProd>${valor.toFixed(2)}</vProd></prod></det>`).join("")}<total><ICMSTot><vProd>149.52</vProd><vNF>149.52</vNF></ICMSTot></total></infNFe></NFe></nfeProc>`;
+    const nota = await estado.banco.notaFiscalRecebida.create({ data: { id, chaveAcesso: id.replaceAll("-", "").padEnd(44, "0"), tipo: "PROC_NFE", nsu: id, xml, valorTotal: 149.52, dataEmissao: new Date("2026-09-28T12:00:00Z"), ultimaManifestacao: "CONFIRMACAO_DA_OPERACAO" } });
+    const conta = await estado.banco.contaBancaria.create({ data: { nome: "Conta fictícia " + id } });
+    const cartao = await estado.banco.cartaoCredito.create({ data: { nome: "Cartão fictício " + id, contaBancariaId: conta.id, diaFechamento: 10, diaVencimento: 15 } });
+    const itens = await Promise.all(valores.map((valor, i) => estado.banco.notaFiscalItem.create({ data: { notaFiscalId: nota.id, numeroItem: i + 1, codigoProdutoFornecedor: String(i + 1), descricaoProduto: "Item fictício " + i, unidadeComercial: "UN", quantidadeComercial: 1, valorTotalItem: valor } })));
+    const duplicata = await estado.banco.notaFiscalDuplicata.create({ data: { notaFiscalId: nota.id, numero: "001", valor: 149.52, dataVencimento: new Date("2027-01-15T12:00:00Z") } });
+    const entrada = { notaFiscalId: nota.id, localId: "", dataEntradaEstoque: "2026-09-30", itens: itens.map((item, i) => ({ notaFiscalItemId: item.id, acao: "CONCILIAR" as const, destino: "USO_E_CONSUMO" as const, categoriaFinanceiraId: "consumo", valorTotal: valores[i] })),
+      duplicatas: [{ id: duplicata.id, numero: "001", valor: 149.52, dataVencimento: "2027-01-15", formaPagamento: "CARTAO" as const, cartaoCreditoId: cartao.id, dataCompra: "2026-09-25", parcelaCartao: 4 }] };
+    expect(await confirmarConciliacaoNotaAction(entrada)).toEqual({ ok: true, movimentacoesCriadas: 0 });
+    const originais = await estado.banco.lancamentoFinanceiro.findMany({ where: { notaFiscalItemLancamento: { notaFiscalItem: { notaFiscalId: nota.id } } } });
+    const versao = (await consultarCorrecaoNota(estado.banco, nota.id)).versao;
+    const correcao = { ...entrada, versao, motivo: "Corrigir compra fictícia parcelada em quatro vezes", duplicatas: [1, 2, 3, 4].map(parcelaCartao => ({ ...entrada.duplicatas[0], id: parcelaCartao === 1 ? duplicata.id : undefined, numero: String(parcelaCartao).padStart(3, "0"), parcelaCartao, valor: 37.38, dataVencimento: vencimentoCartao("2026-09-25", 10, 15, parcelaCartao) })) };
+    expect(await editarNotaAceitaAction(correcao)).toEqual({ ok: true });
+    expect(await editarNotaAceitaAction(correcao)).toEqual({ ok: true });
+    const parcelas = await estado.banco.notaFiscalDuplicata.findMany({ where: { notaFiscalId: nota.id }, orderBy: { dataVencimento: "asc" }, include: { lancamentos: { include: { lancamentoFinanceiro: true } } } });
+    expect(parcelas.map(p => p.dataVencimento.toISOString().slice(0, 10))).toEqual(["2026-10-15", "2026-11-15", "2026-12-15", "2027-01-15"]);
+    expect(parcelas.map(p => p.lancamentos.reduce((soma, elo) => soma + Math.round(Number(elo.lancamentoFinanceiro.valor) * 100), 0))).toEqual([3738, 3738, 3738, 3738]);
+    expect(parcelas.flatMap(p => p.lancamentos).every(elo => elo.lancamentoFinanceiro.status === "PENDENTE" && elo.lancamentoFinanceiro.cartaoCreditoId === cartao.id)).toBe(true);
+    expect(await estado.banco.lancamentoFinanceiro.count({ where: { id: { in: originais.map(l => l.id) } } })).toBe(3);
+    expect(await estado.banco.movimentacaoBancaria.count({ where: { lancamentoId: { in: parcelas.flatMap(p => p.lancamentos.map(l => l.lancamentoFinanceiroId)) } } })).toBe(0);
+    expect(await estado.banco.historicoAcesso.count({ where: { entidadeId: nota.id, acao: "CORRECAO_LOCAL" } })).toBe(1);
+  });
+  it("preserva centavos de rateios históricos pagos ao corrigir somente o recebimento", async () => {
+    const { nota, entrada } = await preparar();
+    expect(await confirmarConciliacaoNotaAction(entrada)).toMatchObject({ ok: true });
+    const elos = await estado.banco.notaFiscalItemLancamento.findMany({ where: { notaFiscalItem: { notaFiscalId: nota.id } } });
+    for (const elo of elos) {
+      const valor = Number(elo.valor) + (elo.notaFiscalDuplicataId === entrada.duplicatas[0].id ? 0.01 : -0.01);
+      await estado.banco.notaFiscalItemLancamento.update({ where: { id: elo.id }, data: { valor } });
+      await estado.banco.lancamentoFinanceiro.update({ where: { id: elo.lancamentoFinanceiroId }, data: { valor, status: "BAIXADO" } });
+    }
+    const valoresAntes = await estado.banco.lancamentoFinanceiro.findMany({ where: { id: { in: elos.map(e => e.lancamentoFinanceiroId) } }, orderBy: { id: "asc" }, select: { id: true, valor: true } });
+    const versao = (await consultarCorrecaoNota(estado.banco, nota.id)).versao;
+    expect(await editarNotaAceitaAction({ ...entrada, versao, motivo: "Corrigir apenas recebimento sem alterar rateio histórico", dataEntradaEstoque: "2026-09-10" })).toEqual({ ok: true });
+    expect(await estado.banco.lancamentoFinanceiro.findMany({ where: { id: { in: elos.map(e => e.lancamentoFinanceiroId) } }, orderBy: { id: "asc" }, select: { id: true, valor: true } })).toEqual(valoresAntes);
   });
   it("corrige pagamento da nota aceita preservando títulos, estoque, aceite fiscal e replay idempotente", async () => {
     const { nota, entrada, insumo } = await preparar();
