@@ -22,26 +22,6 @@
       "regra": "controle-nativo",
       "quantidade": 1
     },
-    "734d235b8b590612f94eb5f3c940bad41c95815bcbb8c965049e3b8bc6029106": {
-      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
-      "regra": "controle-nativo",
-      "quantidade": 1
-    },
-    "bcd3bcc0cf9b20685be9e98f65bd78d6baddf71c5a76b8fdb999e3fee618891d": {
-      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
-      "regra": "controle-nativo",
-      "quantidade": 1
-    },
-    "4c37188136284c5b7d55f2ba94ebf1cc2efb661a36a9db4210414d5c69ff93a0": {
-      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
-      "regra": "controle-nativo",
-      "quantidade": 1
-    },
-    "fb39dfdb43fefa0e62799cc8fbee37cd5751be33b1d7540859fab85b57e9042f": {
-      "arquivo": "src/app/(protegido)/configuracoes/usuarios/matriz-permissoes.tsx",
-      "regra": "controle-nativo",
-      "quantidade": 1
-    },
     "26ca32ce05bfc7a67ed854035ec2a66becce6cc6c29c255684690be86fdcce1a": {
       "arquivo": "src/app/(protegido)/configuracoes/usuarios/usuarios-permissoes.tsx",
       "regra": "controle-nativo",

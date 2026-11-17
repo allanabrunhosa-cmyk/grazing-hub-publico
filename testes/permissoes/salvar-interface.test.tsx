@@ -8,6 +8,7 @@ const m = vi.hoisted(() => ({ salvar: vi.fn(), usuario: vi.fn(), carregar: vi.fn
 vi.mock("@/app/(protegido)/configuracoes/usuarios/actions", () => ({ salvarPerfilAcesso: m.salvar, salvarUsuarioAcesso: m.usuario, carregarAcessos: m.carregar, excluirPerfilAcesso: m.excluirPerfil, excluirUsuarioAcesso: m.excluirUsuario }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 const dados = { usuarios: [], perfis: [], historico: [] };
+vi.setConfig({ testTimeout: 15000 }); // Diálogo com a matriz completa: perto de 5 s em máquina lenta.
 afterEach(() => { cleanup(); vi.resetAllMocks(); });
 it("clicar Salvar perfil envia o formulário e mostra o perfil salvo", async () => {
   const usuario = userEvent.setup(); m.salvar.mockResolvedValue({ ok: true });
@@ -17,6 +18,7 @@ it("clicar Salvar perfil envia o formulário e mostra o perfil salvo", async () 
   await usuario.click(screen.getByRole("button", { name: "Novo perfil" }));
   await usuario.click(screen.getByLabelText("Nome do perfil"));
   await usuario.paste("Compras");
+  fireEvent.click(screen.getByLabelText("Seção Compras").querySelector("summary")!);
   await usuario.click(screen.getByLabelText("Pedidos de compra: Visualizar"));
   await usuario.click(screen.getByRole("button", { name: "Salvar perfil" }));
   await waitFor(() => expect(m.salvar).toHaveBeenCalledOnce());

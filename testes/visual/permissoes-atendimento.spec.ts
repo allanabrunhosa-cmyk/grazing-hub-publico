@@ -72,7 +72,7 @@ test("ações em lote respeitam a seção, conservam outros módulos e exibem op
   for (const id of SECOES_ATENDIMENTO.find(s => s.id === "chat")!.recursos) expect(atual.base[id]).toEqual(RECURSOS_ATENDIMENTO.find(r => r.id === id)!.acoes);
   expect(atual.base["crm.atendimento.agenda"]).toEqual(inicial.base["crm.atendimento.agenda"]);
   expect(atual.base["vendas.clientes"]).toEqual(inicial.base["vendas.clientes"]);
-  await chat.getByRole("checkbox", { name: "Chat: Adicionar em todos os recursos", exact: true }).click();
+  await chat.getByRole("checkbox", { name: "Chat: Adicionar em todos os temas", exact: true }).click();
   atual = await resultado(page);
   expect(atual.base["crm.atendimento.mensagens"]).toEqual(["visualizar"]);
   await expect(chat.getByRole("checkbox", { name: nome("crm.atendimento.mensagens") + ": Excluir", exact: true })).toHaveCount(0);

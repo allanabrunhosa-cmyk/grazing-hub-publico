@@ -21,7 +21,7 @@ const campo = (id: string, acao: keyof typeof ROTULOS) => {
 };
 const marcada = (id: string, acao: keyof typeof ROTULOS) => campo(id, acao).getAttribute("aria-checked") === "true";
 
-it("organiza somente Atendimento em módulo, seções e recursos sem duplicar permissões", () => {
+it("organiza Atendimento em módulo, seções e temas sem duplicar permissões", () => {
   render(<MatrizPermissoes base={{}} />);
   const atendimento = screen.getByText("Atendimento", { exact: true }).closest("details")!;
   const vendas = screen.getByText("Vendas", { exact: true }).closest("details")!;
@@ -49,8 +49,9 @@ it("organiza somente Atendimento em módulo, seções e recursos sem duplicar pe
     }
     if (secao.id !== "chat") fireEvent.click(grupo.querySelector("summary")!);
   }
+  fireEvent.click(within(vendas).getByLabelText("Seção Cadastro de clientes").querySelector("summary")!);
   expect(within(vendas).getByLabelText("Clientes: Adicionar")).toBeTruthy();
-});
+}, 15000);
 
 it("marcar adicionar inclui visualizar do recurso sem liberar outra ação ou módulo", () => {
   let atual: Permissoes = { crm: ["visualizar"] };
@@ -90,7 +91,7 @@ it("ações da seção alteram somente seus filhos e não enviam o formulário",
   expect(atual["crm.atendimento.agenda"]).toEqual(["visualizar"]);
   expect(atual["crm.atendimento.pipeline"]).toBeUndefined();
   expect(atual["vendas.clientes"]).toEqual(["visualizar"]);
-  fireEvent.click(screen.getByRole("checkbox", { name: "Chat: Editar em todos os recursos", hidden: true }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Chat: Editar em todos os temas", hidden: true }));
   expect(atual["crm.atendimento.mensagens"]).toEqual(["visualizar", "adicionar"]);
   expect(atual.crm).toEqual(["visualizar"]);
   expect(enviar).not.toHaveBeenCalled();
@@ -141,7 +142,7 @@ it("coluna da seção personaliza os filhos e conserva vetos fora da seção", (
   const base: Permissoes = { "crm.atendimento.conhecimento": ["visualizar", "editar", "excluir"] }; let atual: Excecoes = {};
   function Usuario() { const [excecoes, definir] = useState<Excecoes>({ "crm.atendimento.conhecimento": { excluir: false } }); atual = excecoes; return <MatrizPermissoes base={base} excecoes={excecoes} aoPersonalizar={definir} />; }
   render(<Usuario />);
-  fireEvent.click(screen.getByRole("checkbox", { name: "Chat: Adicionar em todos os recursos", hidden: true }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Chat: Adicionar em todos os temas", hidden: true }));
   for (const id of SECOES_ATENDIMENTO.find(s => s.id === "chat")!.recursos) {
     const r = RECURSOS_ATENDIMENTO.find(r => r.id === id)!;
     expect(atual[id]).toEqual(r.acoes.includes("adicionar") ? { adicionar: true, visualizar: true } : undefined);
@@ -160,7 +161,7 @@ it("descreve revogação e impede edição individual ou em lote sem capacidade"
   const descricoes = grupo.getAttribute("aria-describedby")!.split(" ").map(id => document.getElementById(id)?.textContent).join(" ");
   expect(descricoes).toContain("preserva o histórico");
   fireEvent.click(campo("crm", "editar"));
-  fireEvent.click(screen.getByRole("checkbox", { name: "Chat: Editar em todos os recursos", hidden: true }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Chat: Editar em todos os temas", hidden: true }));
   expect(mudar).not.toHaveBeenCalled();
   expect(screen.queryByRole("button", { name: "Tudo em Atendimento", hidden: true })).toBeNull();
 });
