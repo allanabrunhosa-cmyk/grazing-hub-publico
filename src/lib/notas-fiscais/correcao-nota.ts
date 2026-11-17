@@ -12,7 +12,7 @@ import { GRUPOS_RECEITA } from "@/lib/labels";
 import { registrarAtividade } from "@/lib/atividades/registro";
 import { diaEntradaEstoque, validarDataEntradaEstoque } from "./data-entrada";
 import { prepararPagamento, pagamentoIgual } from "./pagamentos";
-import { centavos, ratearValor, type ComposicaoCusto } from "./custos";
+import { centavos, ratearItensPorDuplicatas, type ComposicaoCusto } from "./custos";
 import { validarConciliacao, type EntradaConciliacao } from "./validar-conciliacao";
 import { validarCustosConciliacao } from "./validar-custos";
 import { resolverFornecedorNota } from "./fornecedor";
@@ -96,9 +96,9 @@ export async function corrigirNotaNaTransacao(tx: Prisma.TransactionClient, inpu
   if (input.itens.length !== nota.itens.length || input.itens.some(i => !nota.itens.some(a => a.id === i.notaFiscalItemId))) falhar("Os itens da nota mudaram. Reabra o detalhe.");
   if (input.duplicatas.some(d => d.id && !nota.duplicatas.some(a => a.id === d.id))) falhar("Há parcelas de outra nota. Reabra o detalhe.");
   if (input.itens.some(i => i.acao === "IGNORAR" && nota.itens.some(a => a.id === i.notaFiscalItemId && (a.status !== "IGNORADO" || a.movimentacaoEstoqueId || a.lancamentos.length)))) falhar("Um item já integrado não pode ser ignorado pela edição.");
-  const valoresMudaram = input.itens.some(acao => acao.acao === "CONCILIAR" && nota.itens.some(item => item.id === acao.notaFiscalItemId && (item.status === "PENDENTE" || item.valorTotalConciliado == null || !item.valorTotalConciliado.equals(acao.valorTotal))));
+  const valoresMudaram = input.itens.some(acao => acao.acao === "CONCILIAR" && nota.itens.some(item => item.id === acao.notaFiscalItemId && (item.status !== "CONCILIADO" || item.valorTotalConciliado == null || !item.valorTotalConciliado.equals(acao.valorTotal))));
   // Revisão de pagamento, recebimento ou insumo não recalcula custos históricos nem exige uma composição ausente no legado.
-  const custos = valoresMudaram ? validarCustosConciliacao(nota.xml, nota.itens.map(i => ({ ...i, status: i.status === "IGNORADO" ? "IGNORADO" : "PENDENTE" })), input.itens, input.distribuicaoDesconto) : { composicoes: new Map<string, ComposicaoCusto>() };
+  const custos = valoresMudaram ? validarCustosConciliacao(nota.xml, nota.itens.map(i => ({ ...i, status: input.itens.some(acao => acao.notaFiscalItemId === i.id && acao.acao === "CONCILIAR") ? "PENDENTE" : i.status })), input.itens, input.distribuicaoDesconto) : { composicoes: new Map<string, ComposicaoCusto>() };
   if ("erro" in custos) falhar(custos.erro);
   const total = input.itens.reduce((s, i) => s + (i.acao === "CONCILIAR" ? centavos(i.valorTotal) : 0), 0);
   const valoresParcelasMudaram = input.duplicatas.length !== nota.duplicatas.length || input.duplicatas.some(d => !nota.duplicatas.some(a => a.id === d.id && a.valor.equals(d.valor)));
@@ -116,6 +116,23 @@ export async function corrigirNotaNaTransacao(tx: Prisma.TransactionClient, inpu
     const forma = await tx.formaPagamento.upsert({ where: { nome }, create: { nome }, update: {} });
     preparadas.push({ entrada: { ...d }, atual, preparado, formaId: anterior && !pagamentoMudou ? anterior.formaPagamentoId ?? forma.id : forma.id, pagamentoMudou });
   }
+
+  const itensParaRateio = nota.itens.flatMap(item => {
+    const acao = input.itens.find(i => i.notaFiscalItemId === item.id)!;
+    return acao.acao === "CONCILIAR" && !financeiroCancelado.has(item.id) ? [{ item, acao }] : [];
+  });
+  const refazerExistentes = valoresParcelasMudaram || itensParaRateio.some(({ item, acao }) => item.lancamentos.length > 0 && (item.valorTotalConciliado == null || !item.valorTotalConciliado.equals(acao.valorTotal)));
+  // Incluir um item pendente ou antes ignorado não modifica os títulos dos itens
+  // já integrados. Seus centavos são fixos, inclusive se houver baixa ou vínculo.
+  const fixos = new Set(refazerExistentes ? [] : itensParaRateio.filter(({ item }) => item.status === "CONCILIADO" && item.lancamentos.length > 0).map(({ item }) => item.id));
+  const rateios = new Map<string, number[]>();
+  for (const { item } of itensParaRateio) if (fixos.has(item.id)) {
+    rateios.set(item.id, preparadas.map(p => item.lancamentos.reduce((soma, elo) => soma + (elo.notaFiscalDuplicataId === p.entrada.id ? centavos(Number(elo.lancamentoFinanceiro.valor)) : 0), 0) / 100));
+  }
+  const valoresAnteriores = preparadas.map((_, indice) => [...rateios.values()].reduce((soma, linha) => soma + centavos(linha[indice]), 0) / 100);
+  const itensNovos = itensParaRateio.filter(({ item }) => !fixos.has(item.id));
+  const matrizRateio = ratearItensPorDuplicatas(itensNovos.map(({ acao }) => acao.valorTotal), preparadas.map(p => p.entrada.valor), valoresAnteriores);
+  itensNovos.forEach(({ item }, indice) => rateios.set(item.id, matrizRateio[indice]));
 
   type Item = typeof nota.itens[number];
   type Titulo = Item["lancamentos"][number]["lancamentoFinanceiro"];
@@ -140,7 +157,7 @@ export async function corrigirNotaNaTransacao(tx: Prisma.TransactionClient, inpu
     if ((!categoria?.ativo || categoria.excluidoEm || GRUPOS_RECEITA.includes(categoria.grupo)) && categoriaId !== item.categoriaFinanceiraId) falhar("Selecione uma categoria de despesa ativa.");
     categorias.set(item.id, categoriaId!);
     if (financeiroCancelado.has(item.id)) continue;
-    const rateio = ratearValor(acao.valorTotal, preparadas.map(p => p.entrada.valor));
+    const rateio = rateios.get(item.id)!;
     for (const elo of item.lancamentos) {
       const indice = preparadas.findIndex(p => p.entrada.id === elo.notaFiscalDuplicataId);
       const parcela = preparadas[indice];
@@ -240,7 +257,7 @@ export async function corrigirNotaNaTransacao(tx: Prisma.TransactionClient, inpu
   for (const item of nota.itens) {
     const acao = input.itens.find(i => i.notaFiscalItemId === item.id)!;
     if (acao.acao === "IGNORAR") continue;
-    const partes = ratearValor(acao.valorTotal, preparadas.map(p => p.entrada.valor));
+    const partes = rateios.get(item.id) ?? preparadas.map(() => 0);
     const ajuste = ajustes.find(a => a.itemId === item.id);
     const movimentoId = ajuste ? ajuste.novaEntradaId ?? null : item.movimentacaoEstoqueId;
     // Desvincula somente a referência técnica da entrada antiga, preservando o título.

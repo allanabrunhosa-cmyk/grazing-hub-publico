@@ -41,6 +41,30 @@ export function ratearValor(total: number, valores: number[]): number[] {
   return partes.map(parte => parte.valor / 100);
 }
 
+// Fecha tanto o total de cada item quanto a soma de cada parcela. Os centavos
+// consumidos por um item deixam de estar disponíveis para os seguintes.
+// No aceite parcial, os títulos anteriores são fixos; somente os novos valores
+// ocupam o saldo proporcional das parcelas. Rateios legados nunca são regravados.
+export function ratearItensPorDuplicatas(valoresItens: number[], valoresDuplicatas: number[], valoresAnteriores: number[] = []): number[][] {
+  const valores = [...valoresItens, ...valoresDuplicatas, ...valoresAnteriores];
+  if (valores.some(valor => !Number.isFinite(valor) || valor < 0 || !Number.isSafeInteger(centavos(valor)))) throw new Error("Informe valores monetários válidos para o rateio.");
+  const totalNovos = valoresItens.reduce((soma, valor) => soma + centavos(valor), 0);
+  const anteriores = valoresDuplicatas.map((_, indice) => centavos(valoresAnteriores[indice] ?? 0));
+  const total = totalNovos + anteriores.reduce((soma, valor) => soma + valor, 0);
+  if (!Number.isSafeInteger(total)) throw new Error("O total ultrapassa o limite do rateio.");
+  const alvos = ratearValor(total / 100, valoresDuplicatas);
+  // Um rateio legado pode ter excedido um alvo em um centavo. Preservamos esse
+  // histórico e distribuímos o novo valor apenas entre os saldos não negativos.
+  const pesosRestantes = alvos.map((valor, indice) => Math.max(0, centavos(valor) - anteriores[indice]) / 100);
+  const saldos = ratearValor(totalNovos / 100, pesosRestantes).map(centavos);
+  if (totalNovos > 0 && saldos.reduce((soma, valor) => soma + valor, 0) !== totalNovos) throw new Error("Informe parcelas válidas para o rateio.");
+  return valoresItens.map(valor => {
+    const partes = ratearValor(valor, saldos.map(saldo => saldo / 100));
+    partes.forEach((parte, indice) => { saldos[indice] -= centavos(parte); });
+    return partes;
+  });
+}
+
 export function calcularCustosNota(custos: CustosNotaFiscal, distribuicao: DistribuicaoDesconto | null): { erro: string } | { itens: ComposicaoCusto[]; total: number } {
   if (!distribuicao || !["NOTA", "PROPORCIONAL", "PERSONALIZADO"].includes(distribuicao.modo) || !Array.isArray(distribuicao.itens)) return { erro: "Escolha a distribuição do desconto." };
   const descontos = distribuicao.modo === "PROPORCIONAL" ? ratearDesconto(custos.desconto, custos.itens) : custos.itens.map(item => item.desconto);
