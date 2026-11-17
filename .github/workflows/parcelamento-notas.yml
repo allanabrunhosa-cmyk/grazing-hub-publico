@@ -62,3 +62,5 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Parcelamento em celular, tablet e desktop
         run: npx playwright test --config testes/visual/parcelamento-cartao.playwright.config.ts
+      - name: Capturas sintéticas para inspeção sem cota de artefatos
+        run: node --input-type=module -e 'import fs from "node:fs"; for (const w of [390,768,1440]) console.log("PARCELAMENTO_PNG_"+w+"="+fs.readFileSync(".tmp/parcelamento-cartao/parcelas-"+w+".png").toString("base64"));'
