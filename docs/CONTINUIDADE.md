@@ -71,7 +71,7 @@ Divergência explícita: as instruções recebidas nesta tarefa pedem X neutro e
 | Busca por valor | **Verificado nas áreas mapeadas** | PR #26 / `b3093abd`; `src/lib/busca-valor.ts`. Movimentações, Conciliação, lista/itens/candidatos de faturas, NF-e/NFS-e e despesas de entrega. Testes `testes/busca-valor.test.ts` e consumidores. Não afirmar cobertura de telas não inventariadas |
 | Configurações → usuários/permissões | **Verificado** | PR #27 / `50e57d5a`; `src/components/layout/acesso-contexto.tsx` entra em `/configuracoes`; página prioriza usuários e resolve destino autorizado no servidor. Testes `testes/layout/entrada-configuracoes.test.tsx` e `brasilnfe-integracoes.test.tsx` |
 | PIX ativo aparecer no pedido | **Pendente** | `src/app/(protegido)/vendas/pedidos/dados-editor.ts` ainda filtra PIX por taxas zero e `faixasTaxa` como array vazio no modo financeiro. Ativo não basta. Configuração real da ocorrência não consultada; reproduzir com fixture |
-| Justificativa imediata de frete manual | **Pendente** | `src/app/(protegido)/vendas/pedidos/frete-pedido.tsx::alterarFrete` não abre campo/popup; depende de “Detalhes do frete”. Servidor já exige motivo em `src/lib/vendas/entregas.ts`; preservar essa validação |
+| Justificativa imediata de frete manual | **Publicado em 17/11/2026 (PR #30)** | `src/app/(protegido)/vendas/pedidos/frete-pedido.tsx::alterarFrete` não abre campo/popup; depende de “Detalhes do frete”. Servidor já exige motivo em `src/lib/vendas/entregas.ts`; preservar essa validação |
 
 ## Integrações
 
@@ -161,3 +161,13 @@ A pendência "PIX ativo aparecer no pedido" foi **implementada, testada e public
 **Não verificado:** tela autenticada em produção e um recebimento real com taxa. Nenhum pedido, pagamento ou lançamento real foi criado para teste.
 
 Operação: a `main` é protegida e exige Pull Request. Sem `gh` no terminal, o PR foi aberto e integrado pelo Chrome do responsável. Pendência funcional restante: justificativa imediata de frete manual.
+
+## Publicação da justificativa do frete manual — 17/11/2026
+
+**Implementado:** `frete-pedido.tsx` mostra o campo "Justificativa do frete manual" na linha do Frete quando o método é manual (valor diferente do indicado), para quem tem permissão de frete manual. O popup "Detalhes do frete" e a validação do servidor não mudaram. Sem migration.
+
+**Testado:** lint, `lint:design`, tsc e build; `frete-pedido-interface` 45/45 (4 cenários novos); prévia isolada de Pedidos com dados fictícios. Bateria Vendas/Permissões local: 26 falhas por tempo esgotado sob carga em 7 arquivos; reexecução com menos paralelismo e `--testTimeout=30000` passou. CI do PR: 3/3.
+
+**Publicado:** PR #30, `main` `347b3d8` (funcional `9de5e6c`). Imagem anterior: `grazing-frete-justificativa-anterior:20261117` (`d53c6879106e`). Contêiner `c38641c11b86` estável >120 s, 0 reinícios; texto novo presente no build; iFood e banco 1/1; `/login` 200, `/vendas/pedidos` 307, `/api/mcp` 401.
+
+**Não verificado:** tela autenticada em produção. Sem backup de banco, pois não houve alteração de dados ou schema.
