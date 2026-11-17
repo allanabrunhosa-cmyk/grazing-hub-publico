@@ -104,7 +104,7 @@ export const ADAPTADORES_MCP: Record<NomeNegocioMcp, AdaptadorMcp> = {
   pedidos_revisar: async (d, a) => pedidos.revisarPedido(d.id, d.versao, d.pedido, a.chave, a.sessao),
   pedidos_cancelar: async (d, a) => pedidos.cancelarPedido(d.id, d.versao, d.motivo, a.chave, a.sessao),
   pedidos_registrar_entrega: async (d, a) => pedidos.registrarEntregaPedido(d.id, d.versao, a.chave, a.sessao),
-  pedidos_registrar_recebimento: async (d, a) => { await conferirLancamento(d, a.acesso); return pedidos.registrarRecebimentoPedido(d.pedidoId, d.tituloId, d.valor, d.contaId, d.data, a.chave, a.sessao); },
+  pedidos_registrar_recebimento: async (d, a) => { await conferirLancamento(d, a.acesso); return pedidos.registrarRecebimentoPedido(d.pedidoId, d.tituloId, d.valor, d.contaId, d.data, a.chave, a.sessao, d.categoriaTaxaId); },
   pedidos_ajustar_vencimento: async (d, a) => { await conferirLancamento(d, a.acesso); return pedidos.ajustarVencimentoPedido(d.pedidoId, d.tituloId, d.vencimento, a.chave, a.sessao); },
   financeiro_criar_lancamento: async (d, a) => {
     if (a.acesso.restricoes.contas !== null || a.acesso.restricoes.lancamentos !== null) throw new ErroMcp("insufficient_scope", 403, "Esta conexão possui restrições incompatíveis com criar títulos novos.");

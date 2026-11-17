@@ -68,9 +68,9 @@ export async function registrarEntregaPedidoVendaAction(id: string, versao: numb
   const sessao = await exigirPermissao("vendas.pedidos.revisar", "editar");
   try { const salvo = await registrarEntregaPedido(id, versao, chave, sessao); atualizar(salvo.id); return { ok: true as const, ...salvo }; } catch (erro) { return falha(erro); }
 }
-export async function registrarRecebimentoPedidoAction(id: string, tituloId: string, valor: string, contaId: string, data: string, chave: string) {
+export async function registrarRecebimentoPedidoAction(id: string, tituloId: string, valor: string, contaId: string, data: string, chave: string, categoriaTaxaId?: string) {
   const sessao = await exigirPermissao("financeiro.baixas", "editar");
-  try { const financeiro = await registrarRecebimentoPedido(id, tituloId, valor, contaId, data, chave, sessao); atualizar(id); return { ok: true as const, financeiro }; } catch (erro) { return falha(erro); }
+  try { const financeiro = await registrarRecebimentoPedido(id, tituloId, valor, contaId, data, chave, sessao, categoriaTaxaId); atualizar(id); return { ok: true as const, financeiro }; } catch (erro) { return falha(erro); }
 }
 export async function ajustarVencimentoPedidoAction(id: string, tituloId: string, vencimento: string, chave: string) {
   const sessao = await exigirPermissao("vendas.pedidos.revisar", "editar");

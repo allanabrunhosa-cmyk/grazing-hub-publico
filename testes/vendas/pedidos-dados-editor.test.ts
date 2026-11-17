@@ -1,8 +1,8 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const sim = vi.hoisted(() => ({ clientes: vi.fn(), loja: vi.fn(), horarios: vi.fn(), produtos: vi.fn(), entregas: vi.fn(), acesso: vi.fn(), identidade: vi.fn() }));
+const sim = vi.hoisted(() => ({ clientes: vi.fn(), loja: vi.fn(), horarios: vi.fn(), produtos: vi.fn(), entregas: vi.fn(), acesso: vi.fn(), identidade: vi.fn(), formas: vi.fn() }));
 vi.mock("server-only", () => ({}));
-vi.mock("@/lib/prisma", () => ({ prisma: { configuracaoLoja: { findUnique: sim.loja }, clienteVenda: { findMany: sim.clientes }, canalVenda: { findMany: async () => [] }, formaPagamentoVenda: { findMany: async () => [] } } }));
+vi.mock("@/lib/prisma", () => ({ prisma: { configuracaoLoja: { findUnique: sim.loja }, clienteVenda: { findMany: sim.clientes }, canalVenda: { findMany: async () => [] }, formaPagamentoVenda: { findMany: sim.formas }, categoriaFinanceira: { findMany: async () => [] }, contaBancaria: { findMany: async () => [] }, creditoClienteMovimento: { groupBy: async () => [] } } }));
 vi.mock("@/lib/vendas/pedidos-horarios", () => ({ consultarHorariosPedidos: sim.horarios }));
 vi.mock("@/lib/vendas/consultas", () => ({ consultarProdutos: sim.produtos }));
 vi.mock("@/lib/vendas/entregas", () => ({ consultarEntregas: sim.entregas }));
@@ -19,6 +19,19 @@ beforeEach(() => {
   sim.acesso.mockResolvedValue(false);
   sim.identidade.mockResolvedValue("hub");
   sim.loja.mockResolvedValue({ fusoHorario: "America/Sao_Paulo" });
+  sim.formas.mockResolvedValue([]);
+});
+
+it("Pix ativo com taxa continua disponível no pedido, inclusive no modo financeiro", async () => {
+  const forma = (id: string, tipo: string, taxaFixa: string) => ({ id, nome: id, tipo, taxaPercentual: "0", taxaFixa, faixasTaxa: [], permiteParcelamento: false, maximoParcelas: 1 });
+  sim.clientes.mockResolvedValue([]);
+  sim.formas.mockResolvedValue([forma("boleto", "BOLETO", "0"), forma("pix-com-taxa", "PIX", "0.75"), forma("pix-sem-taxa", "PIX", "0")]);
+  for (const financeiro of [true, false]) {
+    const { formas } = await dadosEditorPedido(financeiro);
+    expect(formas.map(f => f.id)).toEqual(["boleto", "pix-com-taxa", "pix-sem-taxa"]);
+    expect(formas[1]).toEqual({ id: "pix-com-taxa", nome: "pix-com-taxa", tipo: "PIX", permiteParcelamento: false, maximoParcelas: 1 });
+  }
+  expect(sim.formas).toHaveBeenCalledWith(expect.objectContaining({ where: { ativo: true, tipo: { in: ["PIX", "BOLETO", "CARTAO_CREDITO", "CARTAO_DEBITO"] } } }));
 });
 
 it("data inicial da compra usa o fuso da loja, inclusive antes da meia-noite local", async () => {

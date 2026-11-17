@@ -40,6 +40,7 @@ import { hojeFiscal } from "@/lib/tributacao/validacao";
 import type { ClassificacaoFiscal, FotografiaKitFiscal, ReceitaFiscalDocumentadaSnapshot } from "@/lib/tributacao/tipos";
 import { itemComercialPreservado, type PrecoItemHistorico } from "./pedidos-preco-historico";
 import { condicaoDoPagamento } from "./pedidos-condicao";
+import { taxaRecebimentoPix } from "./pedidos-taxa-recebimento";
 import { ehPedidoHistorico, ORIGEM_HISTORICA } from "./historico-dominio";
 import { revisarObrigacoesPedido } from "./pedidos-revisao-financeira";
 import { mensagemAlteracaoComercialPedido, validarInformacoesPedido, type InformacoesPedidoEntrada } from "./pedidos-edicao";
@@ -213,7 +214,6 @@ async function validarCondicao(tx: Tx, entrada: unknown, total: Prisma.Decimal, 
   const parcelas = c.parcelas.map((p, indice) => {
     const forma = porId.get(p.formaPagamentoVendaId);
     if (!forma?.ativo || !meiosPedido.has(forma.tipo)) throw new ErroPedidoVenda("A forma escolhida não está disponível em Pedidos.");
-    if (forma.tipo === "PIX" && (!forma.taxaPercentual.isZero() || !forma.taxaFixa.isZero() || (Array.isArray(forma.faixasTaxa) && forma.faixasTaxa.length > 0))) throw new ErroPedidoVenda("Pix com taxa ainda não está habilitado para baixa direta em Pedidos.");
     const parcelasCliente = p.parcelasCliente ?? 1;
     if (!Number.isSafeInteger(parcelasCliente) || parcelasCliente < 1 || (forma.tipo === "CARTAO_CREDITO" ? parcelasCliente > 4 || (parcelasCliente > 1 && (!forma.permiteParcelamento || parcelasCliente > forma.maximoParcelas)) : parcelasCliente !== 1)) throw new ErroPedidoVenda("Parcelamento do cliente incompatível com a forma de pagamento.");
     const valor = valorFinanceiro(p.valor);
@@ -994,10 +994,12 @@ async function executarOperacaoPedidoInterna(pedidoId: unknown, versaoAtual: unk
   }, { timeout: 30000 });
 }
 
-export async function registrarRecebimentoPedido(pedidoValor: unknown, tituloValor: unknown, valor: unknown, contaValor: unknown, dataValor: unknown, operacao: unknown, sessao: SessaoAtual) {
+export async function registrarRecebimentoPedido(pedidoValor: unknown, tituloValor: unknown, valor: unknown, contaValor: unknown, dataValor: unknown, operacao: unknown, sessao: SessaoAtual, categoriaTaxaValor?: unknown) {
   const id = identificador(pedidoValor), tituloId = identificador(tituloValor), contaId = identificador(contaValor);
   const quantia = valorFinanceiro(valor), data = dataFinanceira(dataValor, "a data do recebimento");
-  const chaveOperacao = chave(operacao), resumo = hash({ tipo: "RECEBIMENTO", id, tituloId, valor: quantia.toFixed(2), contaId, data: data.toISOString() });
+  // Categoria da despesa da taxa do Pix; só é exigida quando a fotografia do título tem taxa.
+  const categoriaTaxaId = categoriaTaxaValor === undefined || categoriaTaxaValor === null || categoriaTaxaValor === "" ? null : identificador(categoriaTaxaValor);
+  const chaveOperacao = chave(operacao), resumo = hash({ tipo: "RECEBIMENTO", id, tituloId, valor: quantia.toFixed(2), contaId, data: data.toISOString(), ...(categoriaTaxaId ? { categoriaTaxaId } : {}) });
   return prisma.$transaction(async tx => {
     const autor = await conferirAcesso(tx, sessao, ["consultar", "receber"], id);
     await travarOperacao(tx, chaveOperacao);
@@ -1007,7 +1009,7 @@ export async function registrarRecebimentoPedido(pedidoValor: unknown, tituloVal
       return resumoFinanceiro(tx, id);
     }
     await tx.$queryRaw`SELECT id FROM "PedidoVenda" WHERE id = ${id} FOR UPDATE`;
-    const pedido = await tx.pedidoVenda.findUnique({ where: { id }, select: { status: true } });
+    const pedido = await tx.pedidoVenda.findUnique({ where: { id }, select: { status: true, numero: true } });
     if (pedido?.status !== "CONFIRMADO") throw new ErroPedidoVenda("Somente pedido confirmado aceita recebimento.");
     const conta = await tx.contaBancaria.findUnique({ where: { id: contaId }, select: { ativo: true } });
     if (!conta?.ativo) throw new ErroPedidoVenda("Selecione uma conta ativa.");
@@ -1017,6 +1019,14 @@ export async function registrarRecebimentoPedido(pedidoValor: unknown, tituloVal
     const forma = await tx.formaPagamentoVenda.findUnique({ where: { id: titulo.formaPagamentoVendaId }, select: { tipo: true } });
     if (!forma || !meiosDiretos.has(forma.tipo) || await tx.pagamentoExternoPedido.count({ where: { tituloId, status: "CAPTURADO" } })) throw new ErroPedidoVenda("Esta cobrança requer confirmação externa; não pode ser baixada como recebimento direto.");
     if (quantia.greaterThan(titulo.valor)) throw new ErroPedidoVenda("O recebimento excede o saldo deste título.");
+    // A receita permanece bruta; a taxa fotografada na confirmação vira despesa financeira própria.
+    const taxa = dinheiro(taxaRecebimentoPix(titulo.pedidoFormaSnapshot, quantia.toFixed(2)));
+    if (taxa.greaterThan(0)) {
+      if (taxa.greaterThanOrEqualTo(quantia)) throw new ErroPedidoVenda("O valor recebido precisa ser maior que a taxa do Pix deste recebimento.");
+      if (!categoriaTaxaId) throw new ErroPedidoVenda("Escolha a categoria da taxa do Pix.");
+      const categoria = await tx.categoriaFinanceira.findUnique({ where: { id: categoriaTaxaId } });
+      if (!categoria?.ativo || categoria.excluidoEm || categoria.grupo !== "DESPESAS_FINANCEIRAS") throw new ErroPedidoVenda("Escolha categoria ativa de despesas financeiras para a taxa.");
+    }
     const saldo = titulo.valor.minus(quantia);
     if (saldo.greaterThan(0)) {
       await tx.lancamentoFinanceiro.update({ where: { id: titulo.id }, data: { valor: quantia } });
@@ -1030,7 +1040,18 @@ export async function registrarRecebimentoPedido(pedidoValor: unknown, tituloVal
       } });
     }
     await baixarLancamento({ lancamentoId: titulo.id, contaBancariaId: contaId, dataPagamento: data, tx, origemPedido: true });
-    await historicoFinanceiro(tx, id, chaveOperacao, resumo, "RECEBIMENTO", autor, { tituloId, parcelaRaiz: titulo.pedidoParcelaRaiz, valorOriginal: titulo.pedidoValorOriginal.toString(), valorAnterior: titulo.valor.toString(), recebido: quantia.toString(), saldo: saldo.toString(), contaId, data: data.toISOString() });
+    let taxaLancamentoId: string | null = null;
+    if (taxa.greaterThan(0)) {
+      const nomeForma = (titulo.pedidoFormaSnapshot as { nome?: unknown }).nome;
+      const taxaLancamento = await tx.lancamentoFinanceiro.create({ data: {
+        tipo: "DESPESA", descricao: `Taxa do Pix do pedido #${pedido.numero}`, valor: taxa, categoriaId: categoriaTaxaId!,
+        dataCompetencia: data, dataVencimento: data, contraparteNome: typeof nomeForma === "string" ? nomeForma : null,
+        criadoPorId: autor.userId, pedidoVendaId: id, pedidoEfeitoChave: `taxa-recebimento:${tituloId}:${chaveOperacao}`,
+      } });
+      taxaLancamentoId = taxaLancamento.id;
+      await baixarLancamento({ lancamentoId: taxaLancamento.id, contaBancariaId: contaId, dataPagamento: data, tx, origemPedido: true });
+    }
+    await historicoFinanceiro(tx, id, chaveOperacao, resumo, "RECEBIMENTO", autor, { tituloId, parcelaRaiz: titulo.pedidoParcelaRaiz, valorOriginal: titulo.pedidoValorOriginal.toString(), valorAnterior: titulo.valor.toString(), recebido: quantia.toString(), saldo: saldo.toString(), contaId, data: data.toISOString(), ...(taxaLancamentoId ? { taxa: taxa.toString(), taxaLancamentoId, categoriaTaxaId } : {}) });
     return resumoFinanceiro(tx, id);
   }, { timeout: 30000 });
 }
@@ -1057,12 +1078,19 @@ export async function corrigirRecebimentoPedido(pedidoValor: unknown, tituloValo
     if (await tx.alocacaoTratamentoPedido.count({ where: { origemTituloId: tituloId, tratamento: { status: { in: ["SOLICITADA", "PROCESSANDO", "CONCLUIDA"] } } } })) throw new ErroPedidoVenda("Recebimento usado em devolução ou crédito. Resolva o tratamento antes de corrigir sua origem.");
     const movimento = await tx.movimentacaoBancaria.findUnique({ where: { lancamentoId: tituloId } });
     if (!movimento || !movimento.valor.eq(titulo.valor)) throw new ErroPedidoVenda("Entrada bancária inconsistente; nenhuma correção foi aplicada.");
+    // Taxas do Pix lançadas por este recebimento acompanham a correção do registro.
+    const taxas = titulos.filter(t => t.tipo === "DESPESA" && t.status === "BAIXADO" && t.pedidoEfeitoChave?.startsWith(`taxa-recebimento:${tituloId}:`));
+    if (taxas.length && await tx.vinculoExtrato.count({ where: { lancamentoId: { in: taxas.map(t => t.id) } } })) throw new ErroPedidoVenda("Desfaça a conciliação da taxa do Pix no Financeiro antes de corrigir o recebimento.");
     // Correção de registro, conforme contrato da baixa existente. A fotografia
     // integral permanece na auditoria; não registrar saída financeira fictícia.
     await tx.movimentacaoBancaria.delete({ where: { id: movimento.id } });
+    for (const taxa of taxas) {
+      await tx.movimentacaoBancaria.deleteMany({ where: { lancamentoId: taxa.id } });
+      await tx.lancamentoFinanceiro.update({ where: { id: taxa.id }, data: { status: "CANCELADO", dataPagamento: null, contaBancariaId: null } });
+    }
     await tx.lancamentoFinanceiro.update({ where: { id: tituloId }, data: { status: pedido.status === "CANCELADO" ? "CANCELADO" : "PENDENTE", dataPagamento: null, contaBancariaId: null } });
     const ajuste = pedido.versaoFinanceiro === 1 && pedido.status === "CONFIRMADO" ? await revisarObrigacoesPedido(tx, id, pedido.total, (await bloquearTitulos(tx, id)).filter(t => t.tipo === "RECEITA"), chaveOperacao, autor.userId) : null;
-    await historicoFinanceiro(tx, id, chaveOperacao, resumo, "RECEBIMENTO_CORRIGIDO", autor, { tituloId, motivo, tituloAnterior: titulo, movimentoAnterior: movimento, ajuste, devolucaoDinheiro: false });
+    await historicoFinanceiro(tx, id, chaveOperacao, resumo, "RECEBIMENTO_CORRIGIDO", autor, { tituloId, motivo, tituloAnterior: titulo, movimentoAnterior: movimento, ...(taxas.length ? { taxasAnteriores: taxas } : {}), ajuste, devolucaoDinheiro: false });
     return resumoFinanceiro(tx, id);
   }, { timeout: 30000 });
 }
