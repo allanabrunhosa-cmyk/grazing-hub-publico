@@ -146,3 +146,18 @@ Preparação de ambiente, sem deploy e sem alteração de código funcional. Clo
 - `docs/CONTINUIDADE.md` e `docs/AMBIENTE_E_PUBLICACAO.md` existem apenas nesta branch, não em `main` nem no checkout antigo.
 
 Pendências funcionais inalteradas: PIX ativo no pedido e justificativa imediata de frete manual.
+
+## Publicação do Pix com taxa — 17/11/2026
+
+A pendência "PIX ativo aparecer no pedido" foi **implementada, testada e publicada**. PR #29, merge `347bc97` (funcional `32f9fc5`). Detalhes da regra em [Financeiro](modulos/financeiro.md).
+
+- Causa confirmada em leitura no destino: forma Pix ativa com taxa fixa, ocultada pelo editor e recusada na confirmação.
+- Decisão do responsável: liberar o Pix com taxa e lançar a taxa como despesa financeira no recebimento.
+- Backup `etiquetas-pix-taxa-recebimento-20261117-4412b4bf` verificado (leitura integral e checksum); imagem anterior em `grazing-pix-taxa-anterior:20261117`.
+- Migration `20261117120000_pedidos_taxa_recebimento_pix` aplicada antes do código pelo executor de plano aprovado, com candidato montado sobre a imagem vigente. Uma pendência, checksum conferido.
+- CI do PR: quatro verificações aprovadas. Build Dokploy sem erros; contêiner `0f266a48ef23` Running por mais de 120 s, zero reinícios; schema em dia; arquivos publicados conferidos por hash; configuração fiscal preservada.
+- HTTPS: `/login` 200; rotas de Pedidos, Formas de pagamento e Movimentações redirecionam sem sessão; `/api/mcp` 401.
+
+**Não verificado:** tela autenticada em produção e um recebimento real com taxa. Nenhum pedido, pagamento ou lançamento real foi criado para teste.
+
+Operação: a `main` é protegida e exige Pull Request. Sem `gh` no terminal, o PR foi aberto e integrado pelo Chrome do responsável. Pendência funcional restante: justificativa imediata de frete manual.
