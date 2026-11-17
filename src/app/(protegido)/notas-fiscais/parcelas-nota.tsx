@@ -18,7 +18,7 @@ function DividirValor({ indice, parcelas, cartoes, onChange }: { indice: number;
   return <div className="basis-full space-y-2 border-t pt-2">
     <div className="flex flex-wrap items-end gap-2">
       <label className="w-40 space-y-1 text-xs">Quantidade de parcelas<Input aria-label={"Quantidade de parcelas para dividir " + (indice + 1)} type="number" min={2} max={120} maxLength={3} step={1} value={quantidade} onChange={e => { setQuantidade(e.target.value); setErro(""); }} /></label>
-      <Button type="button" data-dialogo-altera variant="outline" size="sm" aria-label={"Dividir em parcelas o valor da parcela " + (indice + 1)} onClick={() => {
+      <Button type="button" data-dialogo-altera variant="outline" aria-label={"Dividir em parcelas o valor da parcela " + (indice + 1)} onClick={() => {
         try { onChange(dividirParcelaCartao(parcelas, indice, Number(quantidade), cartoes)); setQuantidade("2"); setErro(""); }
         catch (e) { setErro(e instanceof Error ? e.message : "Confira os dados do parcelamento."); }
       }}>Dividir em parcelas</Button>
