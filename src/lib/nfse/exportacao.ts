@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { nomeArquivoGrazing, numeroNoNome } from "@/lib/nome-arquivo";
 
 export function periodoExportacaoNfse(de: string, ate: string) {
   const lerData = (valor: string) => {
@@ -19,6 +20,16 @@ export function periodoExportacaoNfse(de: string, ate: string) {
 
 export function nomeArquivoNfse(nota: { id: string; numero: string | null }) {
   return `nfse-${(nota.numero ?? "sem-numero").replace(/[^a-zA-Z0-9_-]/g, "")}-${nota.id.replace(/[^a-zA-Z0-9_-]/g, "")}.xml`;
+}
+
+/** Nome do XML baixado individualmente. Dentro do ZIP segue o nome técnico único acima. */
+export function nomeDownloadNfse(nota: { numero: string | null }) {
+  return nomeArquivoGrazing("NFS-e", "xml", numeroNoNome(nota.numero) || "sem número");
+}
+
+export function nomeDownloadZipNfse(de: string, ate: string) {
+  const periodo = de && ate ? `${de} a ${ate}` : de ? `desde ${de}` : ate ? `até ${ate}` : "todas";
+  return nomeArquivoGrazing("NFS-e XMLs", "zip", periodo);
 }
 
 export async function compactarXmlsNfse(notas: { id: string; numero: string | null; xml: string }[]) {

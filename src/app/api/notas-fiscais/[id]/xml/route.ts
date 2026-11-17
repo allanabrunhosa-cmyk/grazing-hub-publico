@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { podeAcessar } from "@/lib/permissoes/servidor";
+import { disposicaoArquivo, nomeArquivoGrazing, numeroNoNome } from "@/lib/nome-arquivo";
 import { xmlRecebidoCompleto } from "@/lib/fiscal-dashboard/arquivo-recebido";
 
 /** Download do XML já armazenado. Não consulta a SEFAZ nem manifesta a nota. */
@@ -14,10 +15,11 @@ export async function GET(_requisicao: Request, contexto: { params: Promise<{ id
   try {
     const nota = await prisma.notaFiscalRecebida.findUnique({ where: { id }, select: { tipo: true, xml: true, chaveAcesso: true } });
     if (!nota || !xmlRecebidoCompleto(nota)) return Response.json({ erro: "XML completo não disponível para esta nota." }, { status: 404 });
-    const identificador = /^\d{44}$/.test(nota.chaveAcesso) ? nota.chaveAcesso : id;
+    // Posições 26–34 da chave de acesso guardam o número da nota.
+    const identificador = /^\d{44}$/.test(nota.chaveAcesso) ? numeroNoNome(nota.chaveAcesso.slice(25, 34)) : id;
     return new Response(nota.xml, { headers: {
       "Content-Type": "application/xml; charset=utf-8",
-      "Content-Disposition": `attachment; filename="nota-recebida-${identificador}.xml"`,
+      "Content-Disposition": disposicaoArquivo(nomeArquivoGrazing("NF entrada", "xml", identificador)),
       "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "sandbox; default-src 'none'; base-uri 'none'; form-action 'none'",
     } });

@@ -21,7 +21,7 @@ beforeEach(() => {
 
 it("exporta todo o histórico sem datas e preserva exatamente o XML original no ZIP", async () => {
   const resultado = await exportarXmlPorDataAction("", "");
-  expect(resultado).toMatchObject({ nomeArquivo: "notas-fiscais_todas.zip", quantidade: 1, semXml: 0 });
+  expect(resultado).toMatchObject({ nomeArquivo: "Grazing - NF entrada XMLs todas.zip", quantidade: 1, semXml: 0 });
   expect(simulacao.notas).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
   if ("erro" in resultado) throw Error(resultado.erro);
   const zip = await JSZip.loadAsync(resultado.conteudoBase64, { base64: true, checkCRC32: true });
@@ -30,7 +30,7 @@ it("exporta todo o histórico sem datas e preserva exatamente o XML original no 
 });
 
 it("inclui todo o primeiro e último dia do período, inclusive fevereiro bissexto", async () => {
-  expect(await exportarXmlPorDataAction("2024-02-01", "2024-02-29")).toMatchObject({ nomeArquivo: "notas-fiscais_2024-02-01_a_2024-02-29.zip" });
+  expect(await exportarXmlPorDataAction("2024-02-01", "2024-02-29")).toMatchObject({ nomeArquivo: "Grazing - NF entrada XMLs 2024-02-01 a 2024-02-29.zip" });
   expect(simulacao.notas).toHaveBeenCalledWith(expect.objectContaining({ where: { dataEmissao: {
     gte: new Date("2024-02-01T00:00:00.000Z"), lte: new Date("2024-02-29T23:59:59.999Z"),
   } } }));

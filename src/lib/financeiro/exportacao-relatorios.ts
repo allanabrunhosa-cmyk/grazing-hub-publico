@@ -45,7 +45,7 @@ export function montarExportacaoDre(resultado: ResultadoDre, de: string, ate: st
   grupo("DEPRECIACAO_AMORTIZACAO", "Depreciação e Amortização", true);
   grupo("DESPESAS_NAO_OPERACIONAIS", "Despesas Não Operacionais", true);
   total("Resultado Líquido", resultado.resultadoLiquido);
-  return { titulo: "DRE", arquivo: `dre-${modo.toLowerCase()}-${de || "inicio"}-${ate || "fim"}`,
+  return { titulo: "DRE", arquivo: `Grazing - DRE ${modo === "CAIXA" ? "caixa" : "competência"} ${de || "início"} a ${ate || "fim"}`,
     filtros: `${filtroPeriodo(de, ate)} | ${modo === "CAIXA" ? "Caixa" : "Competência"}`,
     colunas: ["Valor (R$)"], linhas };
 }
@@ -94,7 +94,7 @@ export function montarExportacaoFluxo(planilha: PlanilhaFluxoCaixa, lancamentos:
         status: l.status === "BAIXADO" ? "Baixado" : "Pendente (projeção)", valor: l.tipo === "DESPESA" ? -l.valor : l.valor });
     }
   }
-  return { titulo: "Fluxo de Caixa", arquivo: `fluxo-de-caixa-${mensal ? "mensal-" : ""}${de || "inicio"}-${ate || "fim"}`,
+  return { titulo: "Fluxo de Caixa", arquivo: `Grazing - Fluxo de caixa ${mensal ? "mensal " : ""}${de || "início"} a ${ate || "fim"}`,
     filtros: `${filtroPeriodo(de, ate)}${mensal ? " | Agrupamento: Mensal" : ""}`, agrupamentoFluxo: agrupamento,
     colunas: incluirTotal(planilha.dias.map(d => mensal ? `${d.slice(5, 7)}/${d.slice(0, 4)}` : dataRelatorio(d)), "Total do período"), linhas, detalhes };
 }

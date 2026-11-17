@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { podeAcessar } from "@/lib/permissoes/servidor";
-import { compactarXmlsNfse, nomeArquivoNfse, periodoExportacaoNfse } from "@/lib/nfse/exportacao";
+import { compactarXmlsNfse, nomeDownloadNfse, nomeDownloadZipNfse, periodoExportacaoNfse } from "@/lib/nfse/exportacao";
+import { disposicaoArquivo } from "@/lib/nome-arquivo";
 import { NOTAS_NFSE_VISIVEIS } from "@/lib/nfse/visibilidade";
 
 export async function GET(requisicao: Request) {
@@ -20,7 +21,7 @@ export async function GET(requisicao: Request) {
     const conteudo = id ? notas[0].xml! : await compactarXmlsNfse(notas.map(nota => ({ ...nota, xml: nota.xml! })));
     return new Response(conteudo as BodyInit, { headers: {
       "Content-Type": id ? "application/xml; charset=utf-8" : "application/zip",
-      "Content-Disposition": `attachment; filename="${id ? nomeArquivoNfse(notas[0]) : "nfse-xmls.zip"}"`,
+      "Content-Disposition": disposicaoArquivo(id ? nomeDownloadNfse(notas[0]) : nomeDownloadZipNfse(consulta.get("de") ?? "", consulta.get("ate") ?? "")),
       "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
     } });
   } catch (erro) {
