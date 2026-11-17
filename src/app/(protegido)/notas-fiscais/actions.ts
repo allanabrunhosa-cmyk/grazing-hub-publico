@@ -10,7 +10,7 @@ import { paraCaixaAlta, paraCaixaAltaOpcional } from "@/lib/caixa-alta";
 import { revalidatePath } from "next/cache";
 import JSZip from "jszip";
 import { extrairCustosNFe } from "@/lib/sefaz/custosNFe";
-import { ratearValor, lerComposicaoCusto, type CustosNotaFiscal, type DistribuicaoDesconto } from "@/lib/notas-fiscais/custos";
+import { centavos, ratearItensPorDuplicatas, lerComposicaoCusto, type CustosNotaFiscal, type DistribuicaoDesconto } from "@/lib/notas-fiscais/custos";
 import { validarCustosConciliacao } from "@/lib/notas-fiscais/validar-custos";
 import { resolverFornecedorNota } from "@/lib/notas-fiscais/fornecedor";
 import { resolverCategoriaCompraInsumo } from "@/lib/insumos/categoria-financeira";
@@ -353,18 +353,6 @@ export type ResultadoConciliacaoNota = { erro: string } | { ok: true; movimentac
 // catch, pra nunca vazar detalhe interno (ex: erro de driver do banco).
 class ErroValidacaoConciliacao extends Error {}
 
-// Divide o valor de um item proporcionalmente ao peso de cada duplicata na SOMA das
-// duplicatas informadas (não no valor total da nota) — garante que a soma das partes
-// sempre feche em exatamente `valorItem`, mesmo se o usuário editou as parcelas e a
-// soma delas divergir do valor original da nota. Os maiores restos recebem os centavos restantes, sem gerar parcela negativa.
-function ratearPorDuplicatas(
-  valorItem: number,
-  duplicatas: { id: string; valor: number }[]
-): { duplicataId: string; valor: number }[] {
-  const valores = ratearValor(valorItem, duplicatas.map(d => d.valor));
-  return duplicatas.map((d, indice) => ({ duplicataId: d.id, valor: valores[indice] }));
-}
-
 // Confirma a conciliação: sincroniza as duplicatas (parcelas de pagamento) editadas
 // pelo usuário, depois por item: destino ESTOQUE gera MovimentacaoEstoque
 // (ENTRADA_COMPRA) uma única vez e memoriza o vínculo fornecedor+código→Insumo pras
@@ -383,6 +371,9 @@ export async function confirmarConciliacaoNotaAction(input: {
 }): Promise<ResultadoConciliacaoNota> {
   await exigirPermissao("notas.manifestar", "editar");
   await exigirPermissao("notas", "visualizar");
+  if (new Set(input.itens.map(item => item.notaFiscalItemId)).size !== input.itens.length) {
+    return { erro: "Há itens repetidos na conciliação. Reabra a nota." };
+  }
   const paraConciliar = input.itens.filter(
     (i): i is Extract<ItemConciliacaoInput, { acao: "CONCILIAR" }> => i.acao === "CONCILIAR"
   );
@@ -492,11 +483,18 @@ export async function confirmarConciliacaoNotaAction(input: {
       }
       const duplicatasParaRateio = duplicatasFinais.map((d) => ({ id: d.id, valor: Number(d.valor) }));
 
+      const acoesComItens = await Promise.all(input.itens.map(async acao => ({ acao, item: await tx.notaFiscalItem.findUnique({ where: { id: acao.notaFiscalItemId } }) })));
+      const novos = acoesComItens.filter(({ acao, item }) => acao.acao === "CONCILIAR" && item?.notaFiscalId === input.notaFiscalId && item.status === "PENDENTE");
+      const anteriores = duplicatasAtuais.some(d => d._count.lancamentos > 0)
+        ? await tx.notaFiscalItemLancamento.findMany({ where: { notaFiscalItem: { notaFiscalId: input.notaFiscalId }, lancamentoFinanceiro: { status: { not: "CANCELADO" } } }, select: { notaFiscalDuplicataId: true, valor: true } }) : [];
+      const valoresAnteriores = duplicatasParaRateio.map(d => anteriores.reduce((soma, elo) => soma + (elo.notaFiscalDuplicataId === d.id ? centavos(Number(elo.valor)) : 0), 0) / 100);
+      const matrizRateio = ratearItensPorDuplicatas(novos.map(({ acao }) => acao.acao === "CONCILIAR" ? acao.valorTotal : 0), duplicatasParaRateio.map(d => d.valor), valoresAnteriores);
+      const rateios = new Map(novos.map(({ item }, indice) => [item!.id, matrizRateio[indice]]));
+
       const fornecedor = await resolverFornecedorNota(tx, nota.fornecedorCnpj);
 
       let criadas = 0;
-      for (const acaoItem of input.itens) {
-        const item = await tx.notaFiscalItem.findUnique({ where: { id: acaoItem.notaFiscalItemId } });
+      for (const { acao: acaoItem, item } of acoesComItens) {
         if (!item || item.notaFiscalId !== input.notaFiscalId || item.status !== "PENDENTE") continue;
 
         if (acaoItem.acao === "IGNORAR") {
@@ -505,7 +503,7 @@ export async function confirmarConciliacaoNotaAction(input: {
         }
 
         const composicaoCusto = custosValidados.composicoes.get(item.id);
-        const partes = ratearPorDuplicatas(acaoItem.valorTotal, duplicatasParaRateio);
+        const partes = duplicatasParaRateio.map((d, indice) => ({ duplicataId: d.id, valor: rateios.get(item.id)![indice] }));
 
         if (acaoItem.destino === "ESTOQUE") {
           const categoriaEstoque = await resolverCategoriaCompraInsumo(tx, acaoItem.insumoId);
@@ -528,6 +526,7 @@ export async function confirmarConciliacaoNotaAction(input: {
           });
           criadas++;
 
+          const indiceOrigem = partes.findIndex(parte => parte.valor > 0);
           for (const [indice, parte] of partes.entries()) {
               if (parte.valor <= 0) continue;
               const duplicata = duplicatasFinais.find((d) => d.id === parte.duplicataId)!;
@@ -543,7 +542,7 @@ export async function confirmarConciliacaoNotaAction(input: {
                   fornecedorId: fornecedor?.id ?? null,
                   contraparteNome: fornecedor ? null : paraCaixaAltaOpcional(nota.fornecedorNome),
                   criadoPorId: session?.userId ?? null,
-                  origemMovimentacaoEstoqueId: indice === 0 ? resultado.movimentacaoId : null,
+                  origemMovimentacaoEstoqueId: indice === indiceOrigem ? resultado.movimentacaoId : null,
                 },
               });
               await tx.notaFiscalItemLancamento.create({
