@@ -127,3 +127,22 @@ Esta passagem inspecionou código/refs/API e documentação. Não executou build
 Revisão de entrega: links relativos conferidos contra a árvore pública e os arquivos novos; diff documental sem erros de whitespace; parser dos scripts PowerShell sem erros. Foram revisados somente 19 arquivos de saída (quatro Markdown e 15 arquivos de manutenção), sem objetos do histórico privado. Os workflows existentes disparam em PR e/ou push em main; esta preparação não abre PR nem atualiza main.
 
 Encerramento local: nenhum servidor, teste persistente ou instalação foi iniciado; nenhuma cópia/cache foi removida. Espaço livre medido ao final da preparação: aproximadamente 22,79 GB decimais. Ambientes antigos permanecem preservados porque há acervo privado pendente; não registrar seu encerramento como se todo HEAD e trabalho privado já estivessem enviados.
+
+## Conferência no Claude Code — 17/11/2026
+
+Preparação de ambiente, sem deploy e sem alteração de código funcional. Clone próprio em `grazing-hub-claude`, branch `claude/continuidade-20261116`, base `215abe74`; `origin` = público. O checkout antigo em `codex/cardapio` não foi alterado.
+
+**Executado e aprovado neste clone:** `npm ci`, `npx prisma generate`, `npx prisma validate`, `npx next typegen`, `npx tsc --noEmit`, três arquivos de teste focados (59 testes: extrato, busca por valor, parcelamento de cartão) e `npm run dev` com `/login` respondendo 200 em localhost. Não executados: `npm test` completo, `npm run build`, testes com banco (flags opt-in) e migrations.
+
+**Divergências em relação ao registro de 16/11:**
+
+- O terminal do Claude resolve `github.com`, faz `fetch` e alcança a VPS. As falhas de DNS/SSH descritas acima eram do ambiente anterior.
+- Envio Git para o público funciona pelo gerenciador de credenciais do Windows. O privado arquivado recusa gravação (403), como esperado.
+- SSH com a chave local e host key já conhecida funcionou em leitura: serviço do app `1/1`, tarefa Running, imagem `:latest`. O SHA Git em produção continua **não verificado**; o banco da VPS usa imagem `postgres:16` (CI e local usam 17).
+- HTTPS público: `/login` 200; `/api/mcp` 401 sem token; metadados OAuth 200. O MCP está no ar, mas **não há conector do HUB registrado no Claude**.
+- Node local é 24.19; o projeto pede 22. As verificações acima passaram em 24, mas o build produtivo roda em 22.
+- `gh` e Docker não estão instalados nesta máquina. PR/merge dependem do navegador; a imagem produtiva não pode ser reproduzida localmente.
+- O `.env` do clone foi copiado do checkout antigo e aponta para PostgreSQL local (`localhost`). O estado das migrations desse banco não foi conferido; a pendência do bootstrap em banco vazio permanece.
+- `docs/CONTINUIDADE.md` e `docs/AMBIENTE_E_PUBLICACAO.md` existem apenas nesta branch, não em `main` nem no checkout antigo.
+
+Pendências funcionais inalteradas: PIX ativo no pedido e justificativa imediata de frete manual.
