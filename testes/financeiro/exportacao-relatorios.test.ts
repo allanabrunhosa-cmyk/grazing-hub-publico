@@ -61,7 +61,7 @@ describe("exportação dos resultados financeiros", () => {
     const r = montarExportacaoFluxo(mensal, dados, limites.de, limites.ate, "mensal");
     expect(r.colunas).toEqual(["09/2026", "10/2026"]);
     expect(r.agrupamentoFluxo).toBe("mensal");
-    expect(r.arquivo).toBe("fluxo-de-caixa-mensal-2026-09-01-2026-10-31");
+    expect(r.arquivo).toBe("Grazing - Fluxo de caixa mensal 2026-09-01 a 2026-10-31");
     expect(r.filtros).toContain("Agrupamento: Mensal");
     const receitas = r.linhas.find(l => l.nome === "Total de Receitas")!.valores;
     [110.55, 20.35].forEach((valor, indice) => expect(receitas[indice]).toBeCloseTo(valor));

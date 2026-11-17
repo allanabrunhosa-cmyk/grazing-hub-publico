@@ -21,6 +21,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - UI executa os contratos Playwright pertinentes e registra capturas conforme [proteção visual](docs/design-system/protecao-visual-automatizada.md). Comparações só bloqueiam com referência aprovada no ambiente correspondente; não atualizar screenshots/baselines para passar testes nem aprovar referências em nome do usuário.
 - Campos devem limitar tamanho e caracteres conforme o domínio, incluindo digitação/colagem e validação no servidor. Campos numéricos não aceitam letras; reutilizar a proteção da Central e declarar precisão/máscara quando necessária.
 - Toda ação de remover/excluir usa apenas o ícone X, vermelho pastel fixo com efeito no hover, com nome acessível. Fechar janelas e remover fotos ou pequenos itens podem usar apenas X cinza. Reutilizar o botão oficial; preservar confirmação, permissões e auditoria da operação.
+- Todo arquivo baixado do sistema tem nome organizado e começa por `Grazing - <tema>` (ex.: `Grazing - NF saída #1234.pdf`). Usar `src/lib/nome-arquivo.ts`; não montar nome de download à mão.
 - Não publicar segredos, dados pessoais reais ou logs sensíveis. Não inventar resultado de teste.
 
 ## Contexto mínimo

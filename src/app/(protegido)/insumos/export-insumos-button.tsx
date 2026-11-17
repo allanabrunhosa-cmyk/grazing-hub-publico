@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { downloadCsv } from "@/app/(protegido)/insumos/csv";
 import type { InsumoRow } from "@/app/(protegido)/insumos/types";
 import { marcasDoInsumo } from "@/lib/insumos/marcas";
+import { nomeArquivoGrazing } from "@/lib/nome-arquivo";
 
 export function ExportInsumosButton({ insumos }: { insumos: InsumoRow[] }) {
   function handleExport() {
@@ -26,7 +27,7 @@ export function ExportInsumosButton({ insumos }: { insumos: InsumoRow[] }) {
       fornecedorPrincipal: i.fornecedorPrincipal?.nome ?? "",
       status: i.ativo ? "ativo" : "inativo",
     }));
-    downloadCsv("catalogo-global.csv", rows);
+    downloadCsv(nomeArquivoGrazing("Catálogo global", "csv"), rows);
   }
 
   return (

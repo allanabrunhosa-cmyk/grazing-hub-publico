@@ -17,6 +17,7 @@ import type { ImpactoFiscal, PainelFiscal, TipoVersaoFiscal, VersaoFiscalDto } f
 import { analisarImpactoFiscalAction, ativarVersaoFiscalAction } from "../estrutura-actions";
 import { EditorVersaoFiscal } from "./versao-editor";
 import { DetalhesAnaliseNcm, ncmDiscriminadoPorEscolha } from "@/components/fiscal/analise-ncm";
+import { nomeArquivoGrazing } from "@/lib/nome-arquivo";
 
 const estados = { APTO: "Classificação confirmada", PENDENTE: "Emissão pendente", CONFIGURACAO: "Opção de configuração" };
 const tipos: Record<TipoVersaoFiscal, string> = { CLASSIFICACAO: "Classificação", PERFIL: "Perfil", REGRA: "Regra", TABELA: "Tabela oficial", COMPLEMENTO: "Complemento" };
@@ -63,7 +64,7 @@ export function PainelEstruturaFiscal({ painel, abaInicial = "cobertura" }: { pa
     const celula = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""').replace(/^[=+@-]/, "'$&")}"`;
     const csv = [cabecalho, ...painel.produtos.map(p => [p.id, p.codigo, p.nome, p.grupo, p.ncm, p.ncmAplicabilidade === "NAO_APLICAVEL" ? "Não aplicável" : ncmDiscriminadoPorEscolha(p) ? "Conforme escolha" : p.ncmAplicabilidade === "APLICAVEL" ? "Aplicável" : "Não registrada", p.analiseNcm?.confianca, p.analiseNcm?.fundamento, p.analiseNcm?.descricaoNcm, p.analiseNcm?.dataAnalise, p.analiseNcm?.justificativa, p.analiseNcm?.fontes.join(" | "), JSON.stringify(p.configuracaoNcm ?? {}), estados[p.status], p.pendencias.join(" | "), JSON.stringify(p.composicao), JSON.stringify(p.evidencias)])].map(l => l.map(celula).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a"); a.href = url; a.download = "cobertura-fiscal-produtos.csv"; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement("a"); a.href = url; a.download = nomeArquivoGrazing("Cobertura fiscal de produtos", "csv"); a.click(); URL.revokeObjectURL(url);
   }
   return <div className="space-y-5">
     <CabecalhoVendas titulo="Estrutura fiscal" descricao="Cobertura dos produtos ativos, regras por vigência e evidências de classificação.">

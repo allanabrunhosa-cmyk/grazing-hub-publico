@@ -11,5 +11,5 @@ it("não lê documentos sem sessão ou permissão",async()=>{
 });
 it("download autorizado é privado, attachment e sem sniffing",async()=>{
   mocks.sessao.mockResolvedValue({admin:true});mocks.arquivo.mockResolvedValue({nome:"fatura.csv",dados:Buffer.from("ficticio")});
-  const r=await pedido();expect(r.headers.get("cache-control")).toContain("no-store");expect(r.headers.get("content-disposition")).toContain("attachment;");expect(r.headers.get("x-content-type-options")).toBe("nosniff");expect(await r.text()).toBe("ficticio");
+  const r=await pedido();expect(r.headers.get("cache-control")).toContain("no-store");expect(r.headers.get("content-disposition")).toBe(`attachment; filename="Grazing - Fatura cartao - fatura.csv"; filename*=UTF-8''Grazing%20-%20Fatura%20cart%C3%A3o%20-%20fatura.csv`);expect(r.headers.get("x-content-type-options")).toBe("nosniff");expect(await r.text()).toBe("ficticio");
 });

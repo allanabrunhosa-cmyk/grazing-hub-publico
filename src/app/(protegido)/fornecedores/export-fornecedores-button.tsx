@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { downloadCsv } from "@/app/(protegido)/fornecedores/csv";
 import type { FornecedorRow } from "@/app/(protegido)/fornecedores/types";
+import { nomeArquivoGrazing } from "@/lib/nome-arquivo";
 
 export function ExportFornecedoresButton({ fornecedores }: { fornecedores: FornecedorRow[] }) {
   function handleExport() {
@@ -22,7 +23,7 @@ export function ExportFornecedoresButton({ fornecedores }: { fornecedores: Forne
       status: f.ativo ? "ativo" : "inativo",
       observacoes: f.observacoes ?? "",
     }));
-    downloadCsv("fornecedores.csv", rows);
+    downloadCsv(nomeArquivoGrazing("Fornecedores", "csv"), rows);
   }
 
   return (

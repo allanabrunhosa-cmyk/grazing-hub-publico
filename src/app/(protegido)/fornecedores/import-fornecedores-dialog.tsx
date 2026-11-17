@@ -21,6 +21,7 @@ import {
   type ImportSummary,
 } from "@/app/(protegido)/fornecedores/actions";
 import { FORNECEDOR_CSV_EXEMPLO, downloadCsv } from "@/app/(protegido)/fornecedores/csv";
+import { nomeArquivoGrazing } from "@/lib/nome-arquivo";
 
 export function ImportFornecedoresDialog({ trigger }: { trigger: ReactElement }) {
   const [open, setOpen] = useState(false);
@@ -89,7 +90,7 @@ export function ImportFornecedoresDialog({ trigger }: { trigger: ReactElement })
         <Button
           type="button"
           variant="outline"
-          onClick={() => downloadCsv("modelo-fornecedores.csv", [FORNECEDOR_CSV_EXEMPLO])}
+          onClick={() => downloadCsv(nomeArquivoGrazing("Modelo fornecedores", "csv"), [FORNECEDOR_CSV_EXEMPLO])}
         >
           <Download className="size-4" />
           Baixar modelo de planilha

@@ -25,7 +25,7 @@ describe("permissões e respostas das rotas NFS", () => {
     mocks.notas.mockResolvedValue([{ id: "nota", numero: "42", xml }]);
     const resposta = await GET(new Request("https://teste/api/nfse/exportar-xml?id=nota"));
     expect(await resposta.text()).toBe(xml);
-    expect(resposta.headers.get("content-disposition")).toContain('filename="nfse-42-nota.xml"');
+    expect(resposta.headers.get("content-disposition")).toContain('filename="Grazing - NFS-e #42.xml"');
     expect(resposta.headers.get("cache-control")).toBe("private, no-store");
     expect(mocks.notas.mock.calls[0][0].where).toMatchObject({
       dataEmissao: {},
