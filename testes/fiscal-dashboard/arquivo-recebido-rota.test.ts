@@ -35,7 +35,7 @@ describe("XML recebido no Dashboard: download privado e somente local", () => {
     const r = await GET(requisicao(), contexto());
     expect(r.status).toBe(200); expect(await r.text()).toBe(xml);
     expect(r.headers.get("Content-Type")).toBe("application/xml; charset=utf-8");
-    expect(r.headers.get("Content-Disposition")).toBe(`attachment; filename="nota-recebida-${chave}.xml"`);
+    expect(r.headers.get("Content-Disposition")).toBe(`attachment; filename="Grazing - NF entrada #${Number(chave.slice(25, 34))}.xml"; filename*=UTF-8''Grazing%20-%20NF%20entrada%20%23${Number(chave.slice(25, 34))}.xml`);
     expect(r.headers.get("Cache-Control")).toBe("private, no-store");
     expect(r.headers.get("X-Content-Type-Options")).toBe("nosniff");
     expect(r.headers.get("Content-Security-Policy")).toContain("sandbox");
@@ -44,7 +44,7 @@ describe("XML recebido no Dashboard: download privado e somente local", () => {
   it("usa um nome seguro mesmo se a chave armazenada for inválida", async () => {
     m.nota.mockResolvedValue({ chaveAcesso: 'x"\r\nX-Teste: sim', tipo: "PROC_NFE", xml });
     const r = await GET(requisicao(), contexto());
-    expect(r.headers.get("Content-Disposition")).toBe('attachment; filename="nota-recebida-nota.xml"');
+    expect(r.headers.get("Content-Disposition")).toBe('attachment; filename="Grazing - NF entrada nota.xml"; filename*=UTF-8\'\'Grazing%20-%20NF%20entrada%20nota.xml');
   });
   it("não expõe erros internos de leitura", async () => {
     m.nota.mockRejectedValue(Error("conexão privada"));

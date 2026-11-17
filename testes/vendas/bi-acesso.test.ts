@@ -49,7 +49,7 @@ describe("autorização do BI no servidor", () => {
     expect(resposta.status).toBe(200);
     expect(sim.exportar).toHaveBeenCalledWith({ de: "2026-01-01", ate: "2026-09-30", aba: "produtos", pagina: 2 }, { contatos: false, custos: false, pedidos: false, exportar: true });
     expect(resposta.headers.get("cache-control")).toBe("private, no-store");
-    expect(resposta.headers.get("content-disposition")).toContain("bi-de-vendas.csv");
+    expect(resposta.headers.get("content-disposition")).toContain('filename="Grazing - BI de vendas.csv"');
     expect(await resposta.text()).toContain("Indicador;Valor");
   });
   it("devolve a restrição da aba protegida como falta de permissão", async () => {

@@ -4,6 +4,7 @@ import type { DadosEtiqueta } from "@/lib/etiquetas/tipos";
 import { sanitizarTextoZpl } from "@/lib/etiquetas/texto";
 import { dimensionarFonte0 } from "@/lib/etiquetas/fonte-zpl";
 import { codigoSerializado } from "@/lib/etiquetas/rastreio";
+import { nomeArquivoGrazing } from "@/lib/nome-arquivo";
 export { sanitizarTextoZpl } from "@/lib/etiquetas/texto";
 
 function pontos(mm: number, resolucaoDpi: number) {
@@ -89,9 +90,9 @@ export function gerarZplEtiqueta(dados: DadosEtiqueta) {
 
 export function nomeArquivoZpl(produtoNome: string, id: string) {
   const seguro = sanitizarTextoZpl(produtoNome)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40) || "etiqueta";
-  return `${seguro}-${id.slice(-8)}.zpl`;
+    .replace(/[^A-Za-z0-9]+/g, " ")
+    .trim()
+    .slice(0, 40)
+    .trim();
+  return nomeArquivoGrazing("Etiqueta", "zpl", `${seguro} ${id.slice(-8)}`);
 }

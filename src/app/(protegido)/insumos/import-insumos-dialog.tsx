@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { importInsumosAction, type ImportInsumoRow, type ImportSummary } from "@/app/(protegido)/insumos/actions";
 import { INSUMO_CSV_EXEMPLO, downloadCsv } from "@/app/(protegido)/insumos/csv";
+import { nomeArquivoGrazing } from "@/lib/nome-arquivo";
 
 export function ImportInsumosDialog({ trigger }: { trigger: ReactElement }) {
   const [open, setOpen] = useState(false);
@@ -85,7 +86,7 @@ export function ImportInsumosDialog({ trigger }: { trigger: ReactElement }) {
 
         <p className="text-xs text-muted-foreground">Na coluna marcasHomologadas, use uma lista como {'["União", "Da Barra"]'}. Use [] para remover todas. A coluna marca dos arquivos antigos continua aceita e preserva as demais marcas já homologadas.</p>
 
-        <Button type="button" variant="outline" onClick={() => downloadCsv("modelo-catalogo-global.csv", [INSUMO_CSV_EXEMPLO])}>
+        <Button type="button" variant="outline" onClick={() => downloadCsv(nomeArquivoGrazing("Modelo catálogo global", "csv"), [INSUMO_CSV_EXEMPLO])}>
           <Download className="size-4" />
           Baixar modelo de planilha
         </Button>

@@ -31,6 +31,7 @@ import type {
   DuplicataRow,
   DetalhesFiscaisRow,
 } from "@/app/(protegido)/notas-fiscais/types";
+import { nomeArquivoGrazing } from "@/lib/nome-arquivo";
 
 export async function sincronizarAction(): Promise<{ agendada: true; mensagem: string } | { erro: string }> {
   await exigirPermissao("notas", "adicionar");
@@ -147,7 +148,7 @@ export async function exportarXmlPorDataAction(dataInicio: string, dataFim: stri
     for (const nota of completas) zip.file(nota.chaveAcesso + ".xml", nota.xml!);
     const conteudoBase64 = await zip.generateAsync({ type: "base64", compression: "DEFLATE" });
     return {
-      nomeArquivo: todas ? "notas-fiscais_todas.zip" : "notas-fiscais_" + dataInicio + "_a_" + dataFim + ".zip",
+      nomeArquivo: nomeArquivoGrazing("NF entrada XMLs", "zip", todas ? "todas" : dataInicio + " a " + dataFim),
       conteudoBase64,
       quantidade: completas.length,
       semXml: notas.length - completas.length,

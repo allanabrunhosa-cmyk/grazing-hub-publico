@@ -337,6 +337,10 @@ async function obterArquivosComAdaptador(id: string, sessao: SessaoAtual, a: Ada
   });
 }
 export async function baixarArquivoFiscalSaida(id: string, tipo: string, sessao: SessaoAtual) {
+  return (await baixarArquivoNumeradoFiscalSaida(id, tipo, sessao)).conteudo;
+}
+/** Mesmo arquivo, com o número do documento para compor o nome do download. */
+export async function baixarArquivoNumeradoFiscalSaida(id: string, tipo: string, sessao: SessaoAtual) {
   if (!idValido(id) || !["xml", "pdf", "html", "cancelamento"].includes(tipo)) throw new ErroPedidoVenda("Arquivo inválido.");
-  return prisma.$transaction(async tx => { await acessoConsulta(tx, sessao); const d = await tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id }, select: { xml: true, pdf: true, html: true, xmlCancelamento: true } }); return tipo === "xml" ? d.xml : tipo === "pdf" ? d.pdf : tipo === "html" ? d.html : d.xmlCancelamento; });
+  return prisma.$transaction(async tx => { await acessoConsulta(tx, sessao); const d = await tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id }, select: { xml: true, pdf: true, html: true, xmlCancelamento: true, numero: true } }); return { numero: d.numero, conteudo: tipo === "xml" ? d.xml : tipo === "pdf" ? d.pdf : tipo === "html" ? d.html : d.xmlCancelamento }; });
 }

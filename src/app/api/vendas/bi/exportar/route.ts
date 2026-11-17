@@ -3,6 +3,7 @@ import { podeAcessar } from "@/lib/permissoes/servidor";
 import { exportarConsultaBiCsv } from "@/lib/vendas/bi-consultas";
 import { entradaBiDaUrl } from "@/lib/vendas/bi-url";
 import { ErroBi } from "@/lib/vendas/bi-filtros";
+import { disposicaoArquivo, nomeArquivoGrazing } from "@/lib/nome-arquivo";
 
 export async function GET(requisicao: Request) {
   const cabecalhos = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
@@ -18,7 +19,7 @@ export async function GET(requisicao: Request) {
     const conteudo = await exportarConsultaBiCsv(entrada, { contatos, custos, pedidos, exportar: true });
     return new Response(conteudo, { headers: {
       ...cabecalhos, "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="bi-de-vendas.csv"',
+      "Content-Disposition": disposicaoArquivo(nomeArquivoGrazing("BI de vendas", "csv")),
     } });
   } catch (erro) {
     return Response.json({ erro: erro instanceof ErroBi ? erro.message : "Não foi possível exportar a seleção. Confira os filtros e tente novamente." }, { status: erro instanceof ErroBi ? erro.status : 400, headers: cabecalhos });

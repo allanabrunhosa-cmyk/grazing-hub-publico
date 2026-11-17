@@ -30,6 +30,7 @@ import { dataCalendarioValida, vencimentoCartao, type CartaoOption } from "@/lib
 import { dataParaIso, somarFrequencia } from "@/lib/financeiro/recorrencia";
 import { DATA_LANCAMENTO_MIN, DATA_LANCAMENTO_MAX } from "@/lib/financeiro/data-lancamento";
 import { MUNICIPIOS_NFSE, type MunicipioNfse } from "@/lib/nfse/municipios";
+import { nomeArquivoGrazing, nomeDaDisposicao } from "@/lib/nome-arquivo";
 
 type DestinoFinanceiro = "FINANCEIRO" | "SOMENTE_FISCAL";
 type AcaoDecisaoNfse = "ACEITAR" | "RECUSAR" | "ALTERAR_DESTINO_FINANCEIRO";
@@ -75,7 +76,7 @@ function ExportarXml({ id, de = "", ate = "", disabled = false }: { id?: string;
       const url = URL.createObjectURL(await resposta.blob());
       const link = document.createElement("a");
       link.href = url;
-      link.download = resposta.headers.get("Content-Disposition")?.match(/filename="([^"]+)"/)?.[1] ?? (id ? "nfse.xml" : "nfse-xmls.zip");
+      link.download = nomeDaDisposicao(resposta.headers.get("Content-Disposition")) ?? nomeArquivoGrazing(id ? "NFS-e" : "NFS-e XMLs", id ? "xml" : "zip");
       document.body.appendChild(link); link.click(); link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (erro) {
