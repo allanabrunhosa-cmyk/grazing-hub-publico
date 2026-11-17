@@ -228,6 +228,40 @@ describe("Cálculo com assinatura, debounce e proteção contra respostas antiga
   });
 });
 
+describe("Justificativa imediata ao alterar o frete manualmente", () => {
+  const campoLinha = () => screen.queryByRole("textbox", { name: "Justificativa do frete manual" }) as HTMLInputElement | null;
+  it("mostra o campo assim que o frete diverge do indicado e grava o motivo no pedido sem popup", async () => {
+    render(<Formulario />); fireEvent.click(screen.getByRole("button", { name: "Calcular frete por rota" }));
+    await waitFor(() => expect(valorSalvo().frete).toBe("22.00")); expect(campoLinha()).toBeNull();
+    fireEvent.change(screen.getByRole("textbox", { name: "Frete" }), { target: { value: "1800" } });
+    expect(valorSalvo()).toMatchObject({ frete: "18.00", entrega: { metodo: "MANUAL", recibo: "recibo-ficticio", motivo: "" } });
+    expect(campoLinha()!.maxLength).toBe(1000); expect(screen.getByText("Informe a justificativa do frete manual antes de confirmar.")).toBeTruthy();
+    fireEvent.change(campoLinha()!, { target: { value: "Acordo fictício com o cliente" } });
+    expect(valorSalvo()).toMatchObject({ frete: "18.00", entrega: { metodo: "MANUAL", recibo: "recibo-ficticio", motivo: "Acordo fictício com o cliente", excecaoCobertura: false, motivoCobertura: "" } });
+    expect(screen.queryByText("Informe a justificativa do frete manual antes de confirmar.")).toBeNull(); expect(screen.queryByRole("dialog")).toBeNull();
+  });
+  it("voltar ao valor indicado retira o campo e o método manual", async () => {
+    render(<Formulario />); fireEvent.click(screen.getByRole("button", { name: "Calcular frete por rota" })); await waitFor(() => expect(valorSalvo().frete).toBe("22.00"));
+    fireEvent.change(screen.getByRole("textbox", { name: "Frete" }), { target: { value: "1800" } }); expect(campoLinha()).toBeTruthy();
+    fireEvent.change(screen.getByRole("textbox", { name: "Frete" }), { target: { value: "2200" } });
+    expect(valorSalvo().entrega?.metodo).toBe("AUTOMATICO"); expect(campoLinha()).toBeNull();
+  });
+  it("ajuste histórico aparece preenchido e a edição preserva aprovação de cobertura registrada", () => {
+    render(<Formulario inicial={{ ...pedido(), frete: "19.00", entrega: null }} snapshot={{ metodo: "MANUAL", motivo: "Acordo histórico fictício", excepcional: true, motivoCobertura: "Aprovação antiga", memoria: { frete: "22.00" } }} />);
+    expect(campoLinha()!.value).toBe("Acordo histórico fictício"); expect(mocks.alterar).not.toHaveBeenCalled();
+    fireEvent.change(campoLinha()!, { target: { value: "Acordo revisto" } });
+    expect(valorSalvo()).toMatchObject({ frete: "19.00", entrega: { metodo: "MANUAL", motivo: "Acordo revisto", excecaoCobertura: true, motivoCobertura: "Aprovação antiga" } });
+  });
+  it("sem permissão de frete manual, retirada ou configuração ausente não exibem o campo", () => {
+    const manualSalvo: PedidoEntrada = { ...pedido(), frete: "19.00", entrega: { metodo: "MANUAL", recibo: "", motivo: "", excecaoCobertura: false, motivoCobertura: "" } };
+    const { unmount } = render(<Formulario inicial={manualSalvo} manual={false} />);
+    expect(campoLinha()).toBeNull(); expect(screen.getByText("Informe a justificativa em Detalhes do frete antes de confirmar.")).toBeTruthy(); unmount();
+    const retirada = render(<Formulario inicial={{ ...manualSalvo, atendimento: "RETIRADA" }} />); expect(campoLinha()).toBeNull(); retirada.unmount();
+    render(<Formulario configuracaoExistente={false} />); fireEvent.change(screen.getByRole("textbox", { name: "Frete" }), { target: { value: "1800" } });
+    expect(campoLinha()).toBeNull(); expect(valorSalvo().entrega).toBeNull();
+  });
+});
+
 describe("Detalhes e justificativas permanecem em popup local", () => {
   it("altera motivo somente no rascunho do popup e aplica sem perder valor/recibo", async () => {
     render(<Formulario inicial={{ ...pedido(), frete: "19.00", entrega: { metodo: "MANUAL", recibo: "recibo-atual", motivo: "Motivo anterior", excecaoCobertura: false, motivoCobertura: "" } }} />);

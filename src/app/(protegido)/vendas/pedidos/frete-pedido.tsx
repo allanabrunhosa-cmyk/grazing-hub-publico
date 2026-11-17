@@ -112,6 +112,11 @@ export function FretePedido({ dados: d, alterar, snapshot, manual, aprovarCobert
     alterar({ ...atual, frete: valor || "0", entrega: { metodo: automatico ? "AUTOMATICO" : "MANUAL", recibo: r?.recibo ?? "",
       motivo: atual.entrega?.motivo ?? atuais.current.historico?.motivo ?? "", excecaoCobertura: atual.entrega?.excecaoCobertura ?? false, motivoCobertura: atual.entrega?.motivoCobertura ?? "" } });
   }
+  function alterarMotivo(motivo: string) {
+    const atual = atuais.current.dados;
+    alterar({ ...atual, entrega: { metodo: "MANUAL", recibo: r?.recibo ?? atual.entrega?.recibo ?? "", motivo,
+      excecaoCobertura: atual.entrega?.excecaoCobertura ?? registroVigente?.excepcional ?? false, motivoCobertura: atual.entrega?.motivoCobertura ?? registroVigente?.motivoCobertura ?? "" } });
+  }
   function abrirDetalhes() {
     const atual = atuais.current.dados;
     const valores = { motivo: atual.entrega?.motivo ?? registroVigente?.motivo ?? "", excecaoCobertura: atual.entrega?.excecaoCobertura ?? registroVigente?.excepcional ?? false, motivoCobertura: atual.entrega?.motivoCobertura ?? registroVigente?.motivoCobertura ?? "" };
@@ -122,6 +127,7 @@ export function FretePedido({ dados: d, alterar, snapshot, manual, aprovarCobert
     alterar({ ...atual, entrega: { metodo: atual.entrega?.metodo ?? (registroVigente?.metodo === "AUTOMATICO" ? "AUTOMATICO" : "MANUAL"), recibo: r?.recibo ?? atual.entrega?.recibo ?? "", ...motivos } });
     setBaseMotivos(motivos); setAberto(false);
   }
+  const motivoAtual = d.entrega?.motivo ?? registroVigente?.motivo ?? "";
   const pendencia = d.atendimento === "RETIRADA" ? "Retirada: frete zero."
     : ocupado ? "Calculando frete…"
     : resultado && !r ? "Pedido alterado. Cálculo anterior invalidado; calcule novamente."
@@ -181,6 +187,9 @@ export function FretePedido({ dados: d, alterar, snapshot, manual, aprovarCobert
       </div>{(freteAlterado || legadoAjustado) && <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground"><Badge variant="warning">Alterado manualmente</Badge>{valorIndicado != null && <span>Indicado: {moeda(valorIndicado)}.</span>}</span>}</CampoEntrega>
     </div>
     {erro ? <p role="alert" className="text-xs text-destructive">{erro}</p> : pendencia && <p role="status" className="text-xs text-muted-foreground">{pendencia}</p>}
-    {metodoManual && configuracaoExistente && !(d.entrega?.motivo ?? registroVigente?.motivo ?? "").trim() && <p className="text-xs text-warning">Informe a justificativa em Detalhes do frete antes de confirmar.</p>}
+    {metodoManual && configuracaoExistente && d.atendimento !== "RETIRADA" && manual
+      ? <div className="max-w-[31rem] space-y-1"><CampoEntrega nome="Justificativa do frete manual"><Input value={motivoAtual} maxLength={1000} aria-required onChange={e => alterarMotivo(e.target.value)} /></CampoEntrega>
+        {!motivoAtual.trim() && <p className="text-xs text-warning">Informe a justificativa do frete manual antes de confirmar.</p>}</div>
+      : metodoManual && configuracaoExistente && !motivoAtual.trim() && <p className="text-xs text-warning">Informe a justificativa em Detalhes do frete antes de confirmar.</p>}
   </div>;
 }
