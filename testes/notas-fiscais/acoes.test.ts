@@ -10,7 +10,7 @@ const simulacao = vi.hoisted(() => {
     formaPagamento: { upsert: vi.fn() }, insumo: { findUniqueOrThrow: vi.fn(), findUnique: vi.fn() },
     categoriaFinanceira: { findFirst: vi.fn(), findUnique: vi.fn() }, fornecedor: { findUnique: vi.fn() },
     notaFiscalItem: { findUnique: vi.fn(), update: vi.fn(), count: vi.fn() },
-    lancamentoFinanceiro: { create: vi.fn() }, notaFiscalItemLancamento: { create: vi.fn() },
+    lancamentoFinanceiro: { create: vi.fn() }, notaFiscalItemLancamento: { create: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() },
     fornecedorNotaVinculo: { findUnique: vi.fn() },
     insumoCodigoFornecedor: { upsert: vi.fn() }, insumoFornecedor: { upsert: vi.fn() },
   };
@@ -86,6 +86,39 @@ describe("ações e conciliação com banco simulado", () => {
     await confirmarConciliacaoNotaAction({ dataEntradaEstoque: "2024-02-29", notaFiscalId: "nota", localId: "local", duplicatas, itens: [{ notaFiscalItemId: "item", acao: "CONCILIAR", destino: "ESTOQUE", insumoId: "insumo", quantidade: 1, valorTotal: 100, modoCusto: "MEDIA" }] });
     expect(simulacao.movimentar).not.toHaveBeenCalled();
     expect(simulacao.banco.lancamentoFinanceiro.create).not.toHaveBeenCalled();
+  });
+  it.each(["ESTOQUE", "USO_E_CONSUMO"] as const)("rejeita o mesmo item repetido no aceite de %s antes de gerar efeitos", async destino => {
+    const item = destino === "ESTOQUE"
+      ? { notaFiscalItemId: "item", acao: "CONCILIAR" as const, destino, insumoId: "insumo", quantidade: 1, valorTotal: 3, modoCusto: "MEDIA" as const }
+      : { notaFiscalItemId: "item", acao: "CONCILIAR" as const, destino, categoriaFinanceiraId: "consumo", valorTotal: 3 };
+    const resultado = await confirmarConciliacaoNotaAction({ notaFiscalId: "nota", localId: "local", dataEntradaEstoque: "2024-02-29", duplicatas, itens: [item, { ...item }] });
+    expect(resultado).toEqual({ erro: "Há itens repetidos na conciliação. Reabra a nota." });
+    expect(simulacao.transacao).not.toHaveBeenCalled();
+    expect(simulacao.movimentar).not.toHaveBeenCalled();
+    expect(simulacao.banco.lancamentoFinanceiro.create).not.toHaveBeenCalled();
+    expect(simulacao.banco.notaFiscalItemLancamento.create).not.toHaveBeenCalled();
+  });
+  it("fecha o valor de cada duplicata ao conciliar vários itens com restos de centavos", async () => {
+    const parcelas = duplicatas.map(d => ({ ...d, valor: 1.01 }));
+    simulacao.banco.notaFiscalDuplicata.findMany.mockResolvedValue(parcelas.map(d => ({ ...d, dataVencimento: new Date(d.dataVencimento + "T12:00:00Z"), _count: { lancamentos: 0 } })));
+    simulacao.banco.notaFiscalItem.findUnique.mockImplementation(async ({ where }) => ({ id: where.id, notaFiscalId: "nota", status: "PENDENTE", numeroItem: 1, descricaoProduto: "Item fictício" }));
+    expect(await confirmarConciliacaoNotaAction({ notaFiscalId: "nota", localId: "", dataEntradaEstoque: "2024-02-29", duplicatas: parcelas,
+      itens: ["a", "b"].map(notaFiscalItemId => ({ notaFiscalItemId, acao: "CONCILIAR", destino: "USO_E_CONSUMO", categoriaFinanceiraId: "consumo", valorTotal: 1.01 })),
+    })).toEqual({ ok: true, movimentacoesCriadas: 0 });
+    const elos = simulacao.banco.notaFiscalItemLancamento.create.mock.calls.map(([entrada]) => entrada.data);
+    expect(parcelas.map(d => elos.filter(e => e.notaFiscalDuplicataId === d.id).reduce((soma, e) => soma + Math.round(e.valor * 100), 0))).toEqual([101, 101]);
+    expect(["a", "b"].map(id => elos.filter(e => e.notaFiscalItemId === id).reduce((soma, e) => soma + Math.round(e.valor * 100), 0))).toEqual([101, 101]);
+  });
+  it("concilia só o novo item e desconta o rateio do aceite parcial anterior", async () => {
+    const parcelas = duplicatas.map(d => ({ ...d, valor: 1.01 }));
+    simulacao.banco.notaFiscalDuplicata.findMany.mockResolvedValue(parcelas.map(d => ({ ...d, dataVencimento: new Date(d.dataVencimento + "T12:00:00Z"), _count: { lancamentos: 1 } })));
+    simulacao.banco.notaFiscalItemLancamento.findMany.mockResolvedValue([{ notaFiscalDuplicataId: "parcela-1", valor: 0.51 }, { notaFiscalDuplicataId: "parcela-2", valor: 0.50 }]);
+    simulacao.banco.notaFiscalItem.findUnique.mockImplementation(async ({ where }) => ({ id: where.id, notaFiscalId: "nota", status: where.id === "anterior" ? "CONCILIADO" : "PENDENTE", numeroItem: 1, descricaoProduto: "Item fictício" }));
+    expect(await confirmarConciliacaoNotaAction({ notaFiscalId: "nota", localId: "", dataEntradaEstoque: "2024-02-29", duplicatas: parcelas,
+      itens: ["anterior", "novo"].map(notaFiscalItemId => ({ notaFiscalItemId, acao: "CONCILIAR", destino: "USO_E_CONSUMO", categoriaFinanceiraId: "consumo", valorTotal: 1.01 })),
+    })).toEqual({ ok: true, movimentacoesCriadas: 0 });
+    const elos = simulacao.banco.notaFiscalItemLancamento.create.mock.calls.map(([entrada]) => entrada.data);
+    expect(elos.map(elo => [elo.notaFiscalItemId, elo.valor])).toEqual([["novo", 0.50], ["novo", 0.51]]);
   });
   it("exige parcela para conciliar", async () => {
     expect(await confirmarConciliacaoNotaAction({ dataEntradaEstoque: "2024-02-29", notaFiscalId: "nota", localId: "", duplicatas: [], itens: [{ notaFiscalItemId: "item", acao: "CONCILIAR", destino: "USO_E_CONSUMO", categoriaFinanceiraId: "consumo", valorTotal: 100 }] })).toHaveProperty("erro");
