@@ -22,6 +22,10 @@ cada commit, respeitar os [testes A/B/C](testes.md) e confirmar diretamente no r
 que a branch e os commits enviados existem. Falha de envio deve ser informada como
 pendência; commit apenas local não encerra a sincronização.
 
+O fechamento inclui o [encerramento do ambiente](armazenamento.md).
+Em tarefas de limpeza, não criar commits nem publicar código apenas para permitir a remoção de cópias.
+Uma restrição explícita do usuário à publicação prevalece sobre o fluxo normal acima.
+
 Merge/push na `main` deve respeitar as validações e o fluxo de integração do projeto.
 Não duplicar mudanças equivalentes já incorporadas. Reconciliar em branch própria
 baseada na `main` atual, preservando o trabalho anterior em branches recuperáveis.
