@@ -1,31 +1,57 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Bot, FileText, Plug } from "lucide-react";
+import { Bot, FileText, Plug, Plus, Server, ShieldCheck } from "lucide-react";
 import { cn } from "cn";
 import { Card, CardContent } from "@/components/ui/card";
-import { IconeTom, type Tom } from "./tons";
+import { FaixaServidorMcp } from "./mcp/faixa-servidor";
+import { IconeTom, situacaoDaConexao, type Tom } from "./tons";
 
-export type IntegracaoId = "mcp" | "brasilnfe";
-const INTEGRACOES: { id: IntegracaoId; nome: string; resumo: string; href: string; tom: Tom; icone: typeof Bot; externa?: boolean }[] = [
-  { id: "mcp", nome: "MCP do Grazing HUB", resumo: "Assistentes de IA", href: "/configuracoes/integracoes/mcp", tom: "azul", icone: Bot },
-  { id: "brasilnfe", nome: "Brasil NFe", resumo: "NF-e e NFC-e · abre em Fiscal", href: "/configuracoes/integracoes/brasilnfe", tom: "verde", icone: FileText, externa: true },
-];
+export type ResumoIntegracoes = {
+  mcp: { endereco: string; ativo: boolean; configurado: boolean; editar: boolean; conexoes: { id: string; nome: string; clienteNome: string; situacao: string }[] } | null;
+  brasilnfe: boolean;
+  certificado: { resumo: string; tom: Tom } | null;
+};
+type Item = { id: string; nome: string; resumo: string; href: string; tom: Tom; icone: typeof Bot; tracejado?: boolean };
 
-/** Cabeçalho e seletor comuns das Integrações. A permissão de cada item é decidida no servidor pela página. */
-export function CabecalhoIntegracoes({ disponiveis, ativa }: { disponiveis: IntegracaoId[]; ativa?: IntegracaoId }) {
-  const itens = INTEGRACOES.filter(i => disponiveis.includes(i.id));
-  return <div className="space-y-6">
+export const rotaConexaoMcp = (id: string) => `/configuracoes/integracoes/mcp?conexao=${encodeURIComponent(id)}`;
+/** Conexão aberta quando a URL não escolhe uma: a primeira ativa, depois a primeira vigente. */
+export function conexaoMcpInicial(mcp: NonNullable<ResumoIntegracoes["mcp"]>) {
+  return (mcp.conexoes.find(c => c.situacao === "ATIVA") ?? mcp.conexoes.find(c => c.situacao !== "REVOGADA"))?.id ?? (mcp.editar ? "nova" : "servidor");
+}
+
+/** Todas as conexões que a pessoa pode ver, na ordem do seletor. As permissões vêm resolvidas do servidor. */
+export function itensDoSeletor(resumo: ResumoIntegracoes): Item[] {
+  const itens: Item[] = [];
+  if (resumo.mcp) {
+    const ordenadas = [...resumo.mcp.conexoes].sort((a, b) => Number(a.situacao === "REVOGADA") - Number(b.situacao === "REVOGADA"));
+    for (const c of ordenadas) { const s = situacaoDaConexao(c.situacao); itens.push({ id: `mcp:${c.id}`, nome: c.nome, resumo: `${c.clienteNome} · ${s.rotulo}`, href: rotaConexaoMcp(c.id), tom: s.tom, icone: Bot }); }
+  }
+  if (resumo.brasilnfe) itens.push({ id: "brasilnfe", nome: "Brasil NFe", resumo: "Emissão de NF-e e NFC-e", href: "/configuracoes/integracoes/brasilnfe", tom: "verde", icone: FileText });
+  if (resumo.certificado) itens.push({ id: "certificado", nome: "Certificado A1", resumo: resumo.certificado.resumo, href: "/configuracoes/integracoes/certificado", tom: resumo.certificado.tom, icone: ShieldCheck });
+  if (resumo.mcp) {
+    itens.push({ id: "mcp:servidor", nome: "Servidor MCP", resumo: "Diagnóstico, aplicações e histórico", href: rotaConexaoMcp("servidor"), tom: "roxo", icone: Server });
+    if (resumo.mcp.editar) itens.push({ id: "mcp:nova", nome: "Nova conexão", resumo: "Conectar um assistente de IA", href: rotaConexaoMcp("nova"), tom: "azul", icone: Plus, tracejado: true });
+  }
+  return itens;
+}
+
+/** Moldura comum das Integrações: título, endereço do servidor MCP, todas as conexões e, abaixo, o detalhe da selecionada. */
+export function MolduraIntegracoes({ resumo, ativa, children }: { resumo: ResumoIntegracoes; ativa: string; children: ReactNode }) {
+  const itens = itensDoSeletor(resumo);
+  return <div className="space-y-5">
     <header className="flex min-w-0 items-center gap-3">
       <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-[var(--ds-cartao-raio)] bg-primary text-primary-foreground"><Plug className="size-5" /></span>
       <div className="min-w-0"><h1 className="text-display break-words">Integrações</h1><p className="mt-1 text-sm text-muted-foreground">Conecte e gerencie as integrações do Grazing HUB.</p></div>
     </header>
-    <Card size="sm"><CardContent><nav aria-label="Integrações disponíveis" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+    {resumo.mcp && <FaixaServidorMcp endereco={resumo.mcp.endereco} ativo={resumo.mcp.ativo} configurado={resumo.mcp.configurado} editar={resumo.mcp.editar} />}
+    <Card size="sm"><CardContent><nav aria-label="Conexões" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {itens.map(i => { const Icone = i.icone; const selecionada = i.id === ativa; return <Link key={i.id} href={i.href} aria-current={selecionada ? "page" : undefined}
-        className={cn("flex min-h-11 min-w-0 items-center gap-3 rounded-[var(--ds-aba-raio)] px-3 py-2 text-sm transition-colors duration-[var(--ds-movimento-rapido)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-          selecionada ? "bg-foreground text-background" : "hover:bg-muted")}>
+        className={cn("flex min-h-11 min-w-0 items-center gap-3 rounded-[var(--ds-aba-raio)] border px-3 py-2 text-sm transition-colors duration-[var(--ds-movimento-rapido)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          selecionada ? "border-transparent bg-foreground text-background" : i.tracejado ? "border-dashed border-border hover:bg-muted" : "border-transparent hover:bg-muted")}>
         <IconeTom tom={i.tom} tamanho="pequeno"><Icone /></IconeTom>
         <span className="min-w-0 flex-1"><span className="block truncate font-medium">{i.nome}</span><span className={cn("block truncate text-xs", selecionada ? "text-background/70" : "text-muted-foreground")}>{i.resumo}</span></span>
-        {i.externa && <ArrowUpRight aria-hidden="true" className="size-4 shrink-0 opacity-60" />}
       </Link>; })}
     </nav></CardContent></Card>
+    {children}
   </div>;
 }

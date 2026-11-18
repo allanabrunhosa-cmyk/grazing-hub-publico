@@ -5,17 +5,23 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { ProvedorAcesso } from "@/components/layout/acesso-contexto";
 import { ConteudoMenuLateral } from "@/components/layout/sidebar";
 import IntegracoesPage from "@/app/(protegido)/configuracoes/integracoes/page";
-import { CabecalhoIntegracoes } from "@/app/(protegido)/configuracoes/integracoes/seletor";
+import { MolduraIntegracoes, conexaoMcpInicial, itensDoSeletor } from "@/app/(protegido)/configuracoes/integracoes/seletor";
 import ConfiguracoesPage from "@/app/(protegido)/configuracoes/page";
 import { BlocoEmissorFiscal } from "@/app/(protegido)/financeiro/fiscal/configuracoes/emissor";
 import BrasilNfePage from "@/app/(protegido)/configuracoes/integracoes/brasilnfe/page";
+import CertificadoIntegracaoPage from "@/app/(protegido)/configuracoes/integracoes/certificado/page";
 import { configuracaoBrasilNfeFicticia } from "../fiscal-saida/brasilnfe-interface-dados";
 import { preRequisitosBrasilNfeVazios } from "@/lib/fiscal-saida/brasilnfe/pre-requisitos-dominio";
 
 const { recursos, guarda, redirecionar, carregar, preRequisitos, controle } = vi.hoisted(() => ({ recursos: new Set<string>(), guarda: vi.fn(async (): Promise<void> => { throw new Error("SEM_ACESSO"); }), carregar: vi.fn(), preRequisitos: vi.fn(), controle: vi.fn(), redirecionar: vi.fn((rota: string) => { throw new Error(`REDIRECT:${rota}`); }) }));
 vi.mock("@/lib/permissoes/servidor", () => ({ podeAcessar: vi.fn(async (recurso: string, acao = "visualizar") => recursos.has(acao === "visualizar" ? recurso : `${recurso}:${acao}`)), exigirPermissao: guarda }));
 vi.mock("@/app/(protegido)/configuracoes/integracoes/brasilnfe-actions", () => ({ obterConfiguracaoBrasilNfeAction: carregar, salvarConfiguracaoBrasilNfeAction: vi.fn(), validarConexaoBrasilNfeAction: vi.fn(), obterPreRequisitosBrasilNfeAction: preRequisitos, registrarEvidenciaPainelBrasilNfeAction: vi.fn(), verificarPreRequisitosBrasilNfeAction: vi.fn(), obterHabilitacaoEmissaoBrasilNfeAction: controle, configurarHabilitacaoEmissaoBrasilNfeAction: vi.fn() }));
-vi.mock("next/navigation", () => ({ usePathname: () => "/configuracoes/integracoes/brasilnfe", redirect: redirecionar }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/configuracoes/integracoes/brasilnfe", redirect: redirecionar, useRouter: () => ({ refresh: vi.fn() }) }));
+const leituraCertificado = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/prisma", () => ({ prisma: { certificadoDigital: { findUnique: leituraCertificado } } }));
+vi.mock("@/app/(protegido)/configuracoes/actions", () => ({ uploadCertificadoAction: vi.fn(), removerCertificadoAction: vi.fn(), obterSenhaCertificadoAction: vi.fn() }));
+vi.mock("@/app/(protegido)/configuracoes/integracoes/mcp/actions", () => ({ salvarMcpAction: vi.fn(), diagnosticarMcpAction: vi.fn() }));
+vi.mock("@/app/(protegido)/configuracoes/integracoes/resumo", () => ({ carregarResumoIntegracoes: vi.fn(async () => ({ mcp: null, brasilnfe: true, certificado: null })) }));
 vi.mock("next/link", () => ({ default: (props: React.ComponentProps<"a">) => <a {...props} /> }));
 beforeEach(() => { vi.clearAllMocks(); recursos.clear(); preRequisitos.mockResolvedValue({ ok: true, dados: preRequisitosBrasilNfeVazios(1) }); controle.mockResolvedValue({ ok: false, erro: "Controle indisponível na fixture sintética." }); });
 afterEach(cleanup);
@@ -27,21 +33,30 @@ it("abre a integração MCP selecionada quando há acesso ao MCP, com ou sem ace
   await expect(IntegracoesPage()).rejects.toThrow("REDIRECT:/configuracoes/integracoes/mcp");
 });
 
-it("perfil somente fiscal vê apenas a Brasil NFe na entrada Integrações", async () => {
+it("perfil somente fiscal entra direto na Brasil NFe", async () => {
   recursos.add("configuracoes.brasilnfe");
-  render(await IntegracoesPage());
-  expect(screen.getByRole("heading", { level: 1, name: "Integrações" })).toBeTruthy();
-  expect(screen.getByRole("link", { name: "Configurar Brasil NFe" }).getAttribute("href")).toBe("/configuracoes/integracoes/brasilnfe");
-  expect(screen.getByRole("link", { name: /^Brasil NFe/ }).getAttribute("href")).toBe("/configuracoes/integracoes/brasilnfe");
-  expect(screen.queryByRole("link", { name: /MCP/ })).toBeNull();
+  await expect(IntegracoesPage()).rejects.toThrow("REDIRECT:/configuracoes/integracoes/brasilnfe");
 });
 
-it("seletor mostra somente as integrações autorizadas e marca a selecionada", () => {
-  const { rerender } = render(<CabecalhoIntegracoes ativa="mcp" disponiveis={["mcp"]} />);
-  expect(screen.getByRole("link", { name: /MCP do Grazing HUB/ }).getAttribute("aria-current")).toBe("page");
-  expect(screen.queryByRole("link", { name: /Brasil NFe/ })).toBeNull();
-  rerender(<CabecalhoIntegracoes ativa="mcp" disponiveis={["mcp", "brasilnfe"]} />);
-  expect(screen.getByRole("link", { name: /Brasil NFe/ }).getAttribute("aria-current")).toBeNull();
+const servidorMcp = { endereco: "https://hub.example.invalid/api/mcp", ativo: true, configurado: true, editar: true, conexoes: [{ id: "c-revogada", nome: "Conexão revogada", clienteNome: "Cliente fictício", situacao: "REVOGADA" }, { id: "c-ativa", nome: "Análises fictícias", clienteNome: "Cliente fictício", situacao: "ATIVA" }] };
+
+it("seletor lista todas as conexões autorizadas, com Brasil NFe separada do Certificado A1", () => {
+  render(<MolduraIntegracoes ativa="mcp:c-ativa" resumo={{ mcp: servidorMcp, brasilnfe: true, certificado: { resumo: "Válido até 01/01/2027", tom: "roxo" } }}><p>Detalhe fictício</p></MolduraIntegracoes>);
+  const nomes = screen.getAllByRole("link").map(l => l.textContent);
+  expect(nomes.map(n => n?.split("Cliente")[0])).toEqual(["Análises fictícias", "Conexão revogada", "Brasil NFeEmissão de NF-e e NFC-e", "Certificado A1Válido até 01/01/2027", "Servidor MCPDiagnóstico, aplicações e histórico", "Nova conexãoConectar um assistente de IA"]);
+  expect(screen.getByRole("link", { name: /Análises fictícias/ }).getAttribute("aria-current")).toBe("page");
+  expect(screen.getByRole("link", { name: /Brasil NFe/ }).getAttribute("href")).toBe("/configuracoes/integracoes/brasilnfe");
+  expect(screen.getByRole("link", { name: /Certificado A1/ }).getAttribute("href")).toBe("/configuracoes/integracoes/certificado");
+  expect(screen.getByText("https://hub.example.invalid/api/mcp")).toBeTruthy();
+  expect(screen.getByText("Detalhe fictício")).toBeTruthy();
+});
+
+it("seletor omite o que a pessoa não pode ver e não oferece nova conexão sem edição", () => {
+  expect(itensDoSeletor({ mcp: null, brasilnfe: true, certificado: null }).map(i => i.id)).toEqual(["brasilnfe"]);
+  expect(itensDoSeletor({ mcp: { ...servidorMcp, editar: false }, brasilnfe: false, certificado: null }).map(i => i.id)).toEqual(["mcp:c-ativa", "mcp:c-revogada", "mcp:servidor"]);
+  expect(conexaoMcpInicial(servidorMcp)).toBe("c-ativa");
+  expect(conexaoMcpInicial({ ...servidorMcp, conexoes: [] })).toBe("nova");
+  expect(conexaoMcpInicial({ ...servidorMcp, editar: false, conexoes: [servidorMcp.conexoes[0]] })).toBe("servidor");
 });
 
 it("aciona a guarda central quando nenhum recurso de integração está autorizado", async () => {
@@ -62,6 +77,13 @@ it("nega o item de navegação quando ambas as permissões estão ausentes", () 
 it("encaminha a entrada Configurações à integração para perfil somente fiscal", async () => {
   recursos.add("configuracoes.brasilnfe");
   await expect(ConfiguracoesPage()).rejects.toThrow("REDIRECT:/configuracoes/integracoes");
+});
+
+it("protege o Certificado A1 pela permissão de dados da empresa antes de qualquer leitura", async () => {
+  recursos.add("configuracoes.mcp"); recursos.add("configuracoes.brasilnfe");
+  await expect(CertificadoIntegracaoPage()).rejects.toThrow("SEM_ACESSO");
+  expect(guarda).toHaveBeenCalledWith("configuracoes.loja");
+  expect(leituraCertificado).not.toHaveBeenCalled();
 });
 
 it("protege a página fiscal antes de carregar qualquer configuração", async () => {
