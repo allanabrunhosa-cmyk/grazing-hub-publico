@@ -1,7 +1,10 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { GestaoMcp } from "@/app/(protegido)/configuracoes/integracoes/mcp/gestao";
-import { dadosMcpFicticios } from "../mcp/fixture-gestao";
+import { CabecalhoIntegracoes } from "@/app/(protegido)/configuracoes/integracoes/seletor";
+import { dadosMcpFicticios, dadosMcpFicticiosEmUso } from "../mcp/fixture-gestao";
 import "@/app/globals.css";
-document.documentElement.className = new URLSearchParams(location.search).get("tema") === "escuro" ? "dark" : "light";
-createRoot(document.getElementById("root")!).render(<main className="mx-auto max-w-7xl space-y-4 p-6"><p className="text-sm text-muted-foreground">Prévia isolada · dados fictícios · sem gravação · Em revisão visual</p><GestaoMcp dados={dadosMcpFicticios} editar /></main>);
+const parametros = new URLSearchParams(location.search);
+document.documentElement.className = parametros.get("tema") === "escuro" ? "dark" : "light";
+const dados = parametros.get("cenario") === "uso" ? dadosMcpFicticiosEmUso : dadosMcpFicticios;
+createRoot(document.getElementById("root")!).render(<main className="mx-auto max-w-7xl space-y-4 p-6"><p className="text-sm text-muted-foreground">Prévia isolada · dados fictícios · sem gravação · Em revisão visual</p><div className="space-y-6"><CabecalhoIntegracoes ativa="mcp" disponiveis={["mcp", "brasilnfe"]} /><GestaoMcp dados={dados} editar abaInicial={parametros.get("aba") ?? "visao"} /></div></main>);

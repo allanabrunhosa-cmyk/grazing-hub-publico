@@ -371,3 +371,28 @@ Não recriar plugin/cliente nem remover conta para tentar resolver. Próximo pas
 é um mecanismo suportado de apresentação do app no ChatGPT ou correção dessa
 exibição; sem causa raiz estabelecida para o ícone. Fontes e registro enviados
 somente à branch, preservando main/produção funcional `a49f33a6`.
+
+### Reformulação da tela de Integrações/MCP — 18/11/2026
+
+Pedido do responsável: tela mais intuitiva e colorida, com seletor de integrações em
+grade. Somente interface: `carregarAdministracaoMcp`, `alterarAdministracaoMcp`,
+`diagnosticarMcp`, as ações de servidor, OAuth e permissões não foram alterados; sem
+migration. Componentes e cores em [inventário](../../design-system/inventario.md).
+
+- `/configuracoes/integracoes` redireciona ao MCP quando há `configuracoes.mcp`;
+  perfil somente fiscal continua vendo a entrada com a Brasil NFe.
+- MCP: situação geral, indicadores, passos da conexão com progresso (cadastro,
+  autorização preparada, consentimento, primeira consulta), cópia do identificador de
+  cliente, selos de situação/resultado, catálogo por módulo e diagnóstico em lista.
+  `?aba=` aceita `visao`, `conexoes`, `funcoes` e `historico`.
+- Confirmações usam variante semântica: `entrada` para ativar/repreparar e `saida`
+  para suspender/revogar.
+
+Validação local na branch `claude/integracoes-mcp-20261118`: `npx tsc --noEmit`,
+`npm run lint:design` (0 novos, 0 resolvidos), eslint dos caminhos alterados,
+`npx vitest run testes/mcp testes/layout testes/design-system testes/permissoes`
+(917 aprovados, 96 ignorados por flags de banco não ativadas) e `npm run build`.
+Prévia Vite isolada inspecionada em 1440 e 390 px, claro e escuro, cenários sem uso
+e em uso; `auditarInterface` sem problemas nas quatro abas em 390 px. Não executados:
+contratos Playwright (não há contrato desta tela), suítes com banco, leitor de tela e
+OAuth real. Referência visual **Em revisão**, sem aprovação humana registrada.

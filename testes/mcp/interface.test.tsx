@@ -8,7 +8,7 @@ vi.mock("@/app/(protegido)/configuracoes/integracoes/mcp/actions", () => ({ salv
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: s.refresh }) }));
 vi.mock("next/link", () => ({ default: ({ children, ...props }: React.ComponentProps<"a">) => <a {...props}>{children}</a> }));
 import { GestaoMcp } from "@/app/(protegido)/configuracoes/integracoes/mcp/gestao";
-import { dadosMcpFicticios } from "./fixture-gestao";
+import { dadosMcpFicticios, dadosMcpFicticiosEmUso } from "./fixture-gestao";
 beforeEach(() => { s.salvar.mockReset().mockResolvedValue({ ok: true }); s.diagnostico.mockReset().mockResolvedValue({ ok: true }); });
 afterEach(cleanup);
 it("distingue configuração de conexão e mantém endereço não editável", () => {
@@ -49,4 +49,30 @@ it("busca e filtros do catálogo usam funções reais sem controles de concessã
   await userEvent.click(screen.getByRole("button", { name: "Limpar busca" }));
   expect(screen.getByText("financeiro_dre")).toBeTruthy();
   expect(s.salvar).not.toHaveBeenCalled();
+});
+
+it("resume a situação e indica o próximo passo da conexão sem conceder acesso", async () => {
+  const { unmount } = render(<GestaoMcp dados={dadosMcpFicticios} editar />);
+  expect(screen.getByText("Acesso suspenso")).toBeTruthy();
+  const proximo = screen.getByText("Autorize pelo assistente").closest("li")!;
+  expect(proximo.getAttribute("aria-current")).toBe("step");
+  expect(screen.getAllByText("Concluído")).toHaveLength(2);
+  await userEvent.click(screen.getByRole("button", { name: "Ver identificadores" }));
+  expect(screen.getByRole("button", { name: "Copiar identificador de Cliente de demonstração" })).toBeTruthy();
+  expect(s.salvar).not.toHaveBeenCalled();
+  unmount();
+  render(<GestaoMcp dados={dadosMcpFicticiosEmUso} editar abaInicial="conexoes" />);
+  expect(screen.getByText("Conectado")).toBeTruthy();
+  expect(screen.getByText("Suspensa")).toBeTruthy(); expect(screen.getByText("Revogada")).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: "Revogar" })).toHaveLength(2);
+});
+
+it("diagnóstico informa conclusão própria e suspensão usa confirmação destrutiva", async () => {
+  render(<GestaoMcp dados={dadosMcpFicticiosEmUso} editar />);
+  await userEvent.click(screen.getByRole("button", { name: "Executar diagnóstico" }));
+  await waitFor(() => expect(s.diagnostico).toHaveBeenCalledOnce());
+  await userEvent.click(screen.getByRole("switch", { name: "Status de Acesso global MCP" }));
+  expect(screen.getByText("Suspender todo o acesso MCP?")).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Confirmar" }));
+  await waitFor(() => expect(s.salvar).toHaveBeenCalledWith({ tipo: "global", ativo: false }));
 });
