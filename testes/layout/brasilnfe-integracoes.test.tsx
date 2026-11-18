@@ -5,6 +5,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { ProvedorAcesso } from "@/components/layout/acesso-contexto";
 import { ConteudoMenuLateral } from "@/components/layout/sidebar";
 import IntegracoesPage from "@/app/(protegido)/configuracoes/integracoes/page";
+import { CabecalhoIntegracoes } from "@/app/(protegido)/configuracoes/integracoes/seletor";
 import ConfiguracoesPage from "@/app/(protegido)/configuracoes/page";
 import { BlocoEmissorFiscal } from "@/app/(protegido)/financeiro/fiscal/configuracoes/emissor";
 import BrasilNfePage from "@/app/(protegido)/configuracoes/integracoes/brasilnfe/page";
@@ -19,18 +20,28 @@ vi.mock("next/link", () => ({ default: (props: React.ComponentProps<"a">) => <a 
 beforeEach(() => { vi.clearAllMocks(); recursos.clear(); preRequisitos.mockResolvedValue({ ok: true, dados: preRequisitosBrasilNfeVazios(1) }); controle.mockResolvedValue({ ok: false, erro: "Controle indisponível na fixture sintética." }); });
 afterEach(cleanup);
 
-it.each(["configuracoes.mcp", "configuracoes.brasilnfe"])("preserva o acesso de %s à entrada Integrações", async recurso => {
-  recursos.add(recurso);
-  render(await IntegracoesPage());
-  expect(Boolean(screen.queryByRole("link", { name: "Gerenciar MCP" }))).toBe(recurso === "configuracoes.mcp");
-  expect(Boolean(screen.queryByRole("link", { name: "Configurar Brasil NFe" }))).toBe(recurso === "configuracoes.brasilnfe");
+it("abre a integração MCP selecionada quando há acesso ao MCP, com ou sem acesso fiscal", async () => {
+  recursos.add("configuracoes.mcp");
+  await expect(IntegracoesPage()).rejects.toThrow("REDIRECT:/configuracoes/integracoes/mcp");
+  recursos.add("configuracoes.brasilnfe");
+  await expect(IntegracoesPage()).rejects.toThrow("REDIRECT:/configuracoes/integracoes/mcp");
 });
 
-it("exibe ambos os cartões somente quando há acesso aos dois recursos", async () => {
-  recursos.add("configuracoes.mcp"); recursos.add("configuracoes.brasilnfe");
+it("perfil somente fiscal vê apenas a Brasil NFe na entrada Integrações", async () => {
+  recursos.add("configuracoes.brasilnfe");
   render(await IntegracoesPage());
-  expect(screen.getByRole("link", { name: "Gerenciar MCP" }).getAttribute("href")).toBe("/configuracoes/integracoes/mcp");
+  expect(screen.getByRole("heading", { level: 1, name: "Integrações" })).toBeTruthy();
   expect(screen.getByRole("link", { name: "Configurar Brasil NFe" }).getAttribute("href")).toBe("/configuracoes/integracoes/brasilnfe");
+  expect(screen.getByRole("link", { name: /^Brasil NFe/ }).getAttribute("href")).toBe("/configuracoes/integracoes/brasilnfe");
+  expect(screen.queryByRole("link", { name: /MCP/ })).toBeNull();
+});
+
+it("seletor mostra somente as integrações autorizadas e marca a selecionada", () => {
+  const { rerender } = render(<CabecalhoIntegracoes ativa="mcp" disponiveis={["mcp"]} />);
+  expect(screen.getByRole("link", { name: /MCP do Grazing HUB/ }).getAttribute("aria-current")).toBe("page");
+  expect(screen.queryByRole("link", { name: /Brasil NFe/ })).toBeNull();
+  rerender(<CabecalhoIntegracoes ativa="mcp" disponiveis={["mcp", "brasilnfe"]} />);
+  expect(screen.getByRole("link", { name: /Brasil NFe/ }).getAttribute("aria-current")).toBeNull();
 });
 
 it("aciona a guarda central quando nenhum recurso de integração está autorizado", async () => {

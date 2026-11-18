@@ -201,6 +201,28 @@ Preço de Produtos reutiliza CurrencyInput/AcoesEdicao somenteConfirmar, com cam
 menor, check adjacente apenas na edição e espaço reservado antes do status.
 Contrato no [manual](padroes.md); validação em [Execução de Vendas](../execucao-vendas.md).
 
+## Integrações e MCP — 18/11/2026 — Em revisão visual
+
+Pedido do responsável: tela mais intuitiva e com mais cores, inspirada em um seletor de
+integrações em grade. `src/app/(protegido)/configuracoes/integracoes/seletor.tsx`
+(`CabecalhoIntegracoes`) traz título e seletor comuns; cada página decide no servidor
+quais integrações aparecem. `/configuracoes/integracoes` abre o MCP selecionado quando
+há essa permissão; o perfil somente fiscal vê apenas a Brasil NFe (substitui a frase
+"preserva o cartão MCP" da seção seguinte).
+
+`mcp/gestao.tsx` reutiliza `Card`, `Badge`, `Tabs`, `Table`, `Dialog`, `StatusAtivo`,
+`GrupoAcoes`, `CampoBusca`, `FiltroPeriodo` e `Button` (`entrada`/`saida` na confirmação,
+`saida-outline` em Revogar). Cabeçalho com situação e acesso global, quatro indicadores,
+passos da conexão com progresso, conexões em cartões com selo de situação, catálogo
+agrupado por módulo e diagnóstico em lista de verificação. As ações de servidor,
+permissões, confirmações e auditoria não mudaram.
+
+Cores: `tons.tsx` (`TONS`/`IconeTom`) só combina pares fundo/texto já existentes
+(`secondary`/`primary`, `success`, `warning`, `destructive`, `muted` e
+`--ds-processo-entregue`), sem token novo nem cor literal. É um agrupamento local das
+Integrações, Em revisão; promover ao catálogo tipado antes de reutilizar em outro módulo.
+Prévia: `testes/visual/mcp.vite.config.mts` (`?cenario=uso`, `?aba=`, `?tema=escuro`).
+
 ## Brasil NFe — Marco 1 — 10/10/2026 — Em revisão visual
 
 `/configuracoes/integracoes` preserva o cartão MCP e apresenta Brasil NFe conforme a
