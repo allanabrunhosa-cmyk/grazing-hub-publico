@@ -203,25 +203,33 @@ Contrato no [manual](padroes.md); validação em [Execução de Vendas](../execu
 
 ## Integrações e MCP — 18/11/2026 — Em revisão visual
 
-Pedido do responsável: tela mais intuitiva e com mais cores, inspirada em um seletor de
-integrações em grade. `src/app/(protegido)/configuracoes/integracoes/seletor.tsx`
-(`CabecalhoIntegracoes`) traz título e seletor comuns; cada página decide no servidor
-quais integrações aparecem. `/configuracoes/integracoes` abre o MCP selecionado quando
-há essa permissão; o perfil somente fiscal vê apenas a Brasil NFe (substitui a frase
-"preserva o cartão MCP" da seção seguinte).
+Pedido do responsável, em duas rodadas no mesmo dia: seguir de perto um seletor de
+integrações em grade, com o detalhe da conexão escolhida logo abaixo. Estado vigente:
 
-`mcp/gestao.tsx` reutiliza `Card`, `Badge`, `Tabs`, `Table`, `Dialog`, `StatusAtivo`,
-`GrupoAcoes`, `CampoBusca`, `FiltroPeriodo` e `Button` (`entrada`/`saida` na confirmação,
-`saida-outline` em Revogar). Cabeçalho com situação e acesso global, quatro indicadores,
-passos da conexão com progresso, conexões em cartões com selo de situação, catálogo
-agrupado por módulo e diagnóstico em lista de verificação. As ações de servidor,
-permissões, confirmações e auditoria não mudaram.
+- `integracoes/seletor.tsx` (`MolduraIntegracoes`): título, faixa compacta do servidor
+  MCP (`mcp/faixa-servidor.tsx`: endereço, copiar e acesso global com confirmação) e a
+  grade com **todas as conexões** que a pessoa pode ver: cada conexão MCP, Brasil NFe,
+  Certificado A1, Servidor MCP e Nova conexão. `integracoes/resumo.ts` resolve as
+  permissões no servidor; cada página e ação continua conferindo a própria.
+- Rotas: `/configuracoes/integracoes/mcp?conexao=<id|servidor|nova>`,
+  `/configuracoes/integracoes/brasilnfe` (passa a renderizar `BlocoEmissorFiscal` em vez
+  de redirecionar ao Fiscal) e `/configuracoes/integracoes/certificado` (`CertificadoCard`,
+  permissão `configuracoes.loja`, edição restrita a administrador como em Configurações
+  fiscais). A Central fiscal continua mostrando os dois blocos; substitui a frase
+  "preserva o cartão MCP" da seção seguinte.
+- `mcp/gestao.tsx`: detalhe em blocos Status, Conexão e Funcionalidades (função por
+  função com selo Liberada, Aguardando autorização ou Sem permissão no HUB); Servidor
+  reúne diagnóstico, aplicações, histórico e catálogo; Nova conexão traz os passos com
+  progresso. Reutiliza `Card`, `Badge`, `Table`, `Dialog`, `StatusAtivo`, `GrupoAcoes`,
+  `CampoBusca`, `FiltroPeriodo` e `Button` (`entrada`/`saida` na confirmação,
+  `saida-outline` em Revogar). As abas e os indicadores da primeira rodada saíram.
 
 Cores: `tons.tsx` (`TONS`/`IconeTom`) só combina pares fundo/texto já existentes
 (`secondary`/`primary`, `success`, `warning`, `destructive`, `muted` e
 `--ds-processo-entregue`), sem token novo nem cor literal. É um agrupamento local das
 Integrações, Em revisão; promover ao catálogo tipado antes de reutilizar em outro módulo.
-Prévia: `testes/visual/mcp.vite.config.mts` (`?cenario=uso`, `?aba=`, `?tema=escuro`).
+Prévia: `testes/visual/mcp.vite.config.mts` (`?cenario=uso`, `?conexao=`, `?tema=escuro`);
+Brasil NFe e Certificado A1 dependem do servidor e não têm prévia isolada nesta moldura.
 
 ## Brasil NFe — Marco 1 — 10/10/2026 — Em revisão visual
 

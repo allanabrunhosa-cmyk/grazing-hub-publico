@@ -12,6 +12,16 @@ export const TONS = {
 } as const;
 export type Tom = keyof typeof TONS;
 export const TONS_DESTAQUE: Tom[] = ["azul", "verde", "ambar", "roxo", "vermelho"];
+export type VarianteSelo = "success" | "warning" | "muted" | "destructive" | "secondary";
+
+/** Situação de uma conexão MCP: rótulo, selo e tom usados no seletor e no detalhe. */
+export const SITUACOES_CONEXAO: Record<string, { rotulo: string; variante: VarianteSelo; tom: Tom }> = {
+  ATIVA: { rotulo: "Ativa", variante: "success", tom: "verde" },
+  PREPARADA: { rotulo: "Aguardando autorização", variante: "warning", tom: "ambar" },
+  SUSPENSA: { rotulo: "Suspensa", variante: "muted", tom: "neutro" },
+  REVOGADA: { rotulo: "Revogada", variante: "destructive", tom: "vermelho" },
+};
+export const situacaoDaConexao = (situacao: string) => SITUACOES_CONEXAO[situacao] ?? { rotulo: situacao, variante: "muted" as const, tom: "neutro" as const };
 
 export function IconeTom({ tom, children, tamanho = "padrao", className }: { tom: Tom; children: ReactNode; tamanho?: "padrao" | "grande" | "pequeno"; className?: string }) {
   return <span aria-hidden="true" className={cn("flex shrink-0 items-center justify-center rounded-[var(--ds-aba-raio)] [&_svg]:size-5",

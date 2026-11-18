@@ -396,3 +396,27 @@ Prévia Vite isolada inspecionada em 1440 e 390 px, claro e escuro, cenários se
 e em uso; `auditarInterface` sem problemas nas quatro abas em 390 px. Não executados:
 contratos Playwright (não há contrato desta tela), suítes com banco, leitor de tela e
 OAuth real. Referência visual **Em revisão**, sem aprovação humana registrada.
+
+### Conexões no formato de seletor e Certificado A1 separado — 18/11/2026
+
+Segundo pedido do responsável no mesmo dia: a primeira versão ainda estava confusa.
+Passa a valer: endereço do servidor em faixa compacta, todas as conexões na grade e o
+detalhe da escolhida abaixo (Status, Conexão, Funcionalidades). Brasil NFe e
+Certificado A1 viram conexões separadas dentro de Integrações. Estrutura, rotas e
+componentes no [inventário](../../design-system/inventario.md).
+
+- Sem migration e sem mudança em OAuth, políticas ou auditoria. Acréscimos de
+  servidor: `resumirServidorMcp` (leitura mínima para o seletor) e a revalidação de
+  `/configuracoes/integracoes/certificado` nas ações do certificado.
+- `/configuracoes/integracoes/brasilnfe` deixou de redirecionar para Configurações
+  fiscais; os links existentes para essa rota agora abrem a Brasil NFe em Integrações.
+- `?aba=historico` de links antigos abre o detalhe do Servidor MCP.
+
+Validação local na branch `claude/integracoes-conexoes-20261118`: `npx tsc --noEmit`,
+`npm run lint:design` (0 novos, 0 resolvidos), eslint dos caminhos alterados,
+`npx vitest run` de mcp, layout, design-system, permissoes, fiscal-saida,
+fiscal-dashboard e navegação fiscal do pedido (2722 aprovados, 293 ignorados por
+flags de banco não ativadas) e `npm run build`. Prévia Vite isolada do MCP em 1440 e
+390 px, claro e escuro, com `auditarInterface` sem problemas. Não executados: as
+telas de Brasil NFe e Certificado A1 em prévia isolada, suítes com banco, leitor de
+tela e OAuth real. Referência visual **Em revisão**.

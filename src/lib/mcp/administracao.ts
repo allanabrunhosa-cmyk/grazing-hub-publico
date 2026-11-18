@@ -98,6 +98,16 @@ export async function carregarAdministracaoMcp(entrada: unknown = {}) {
 }
 export type DadosAdministracaoMcp = Awaited<ReturnType<typeof carregarAdministracaoMcp>>;
 
+/** Leitura mínima para o seletor de Integrações fora da gestão do MCP. Quem chama confere `configuracoes.mcp`. */
+export async function resumirServidorMcp() {
+  const [config, autorizacoes] = await Promise.all([
+    prisma.mcpConfiguracao.findUnique({ where: { id: "singleton" }, select: { ativo: true } }),
+    prisma.mcpAutorizacao.findMany({ select: { id: true, nome: true, situacao: true, cliente: { select: { nome: true } } }, orderBy: { createdAt: "desc" } }),
+  ]);
+  return { endereco: enderecosMcp().recurso, ativo: config?.ativo ?? false, configurado: !!config,
+    conexoes: autorizacoes.map(a => ({ id: a.id, nome: a.nome, clienteNome: a.cliente.nome, situacao: a.situacao })) };
+}
+
 export async function diagnosticarMcp(autorId: string) {
   const inicio = Date.now();
   const recurso = metadadosRecurso(); const oauth = metadadosAutorizacao();

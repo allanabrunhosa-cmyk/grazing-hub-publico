@@ -107,6 +107,7 @@ export async function uploadCertificadoAction(_prevState: unknown, formData: For
   invalidarCacheCertificado();
   revalidatePath("/financeiro/fiscal/configuracoes");
   revalidatePath("/financeiro/fiscal");
+  revalidatePath("/configuracoes/integracoes/certificado");
   return {
     ok: true,
     arquivoNome: arquivo.name,
@@ -124,6 +125,7 @@ export async function removerCertificadoAction(): Promise<ResultadoConfiguracao>
   invalidarCacheCertificado();
   revalidatePath("/financeiro/fiscal/configuracoes");
   revalidatePath("/financeiro/fiscal");
+  revalidatePath("/configuracoes/integracoes/certificado");
   return { ok: true };
 }
 
