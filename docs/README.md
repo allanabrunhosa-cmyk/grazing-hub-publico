@@ -15,6 +15,7 @@ não autorização para repetir operações. Código e testes confirmam a implem
 | Publicação, infraestrutura, reversão | [Deploy](contexto/deploy.md) |
 | Atendimento, repositório próprio e integração com o HUB | [Atendimento](contexto/atendimento.md) |
 | Git, branches e fechamento de tarefa | [Versionamento](contexto/versionamento.md) |
+| Espaço em disco, cópias de trabalho e encerramento de ambiente | [Armazenamento](contexto/armazenamento.md) |
 | Escolher validações | [Testes A/B/C](contexto/testes.md) |
 | Registrar descoberta / feature extensa | [Manutenção do contexto](contexto/documentacao.md), [features](features/README.md) |
 | Movimentações, extrato, DRE, faturas | [Financeiro](modulos/financeiro.md) |

@@ -24,6 +24,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Todo arquivo baixado do sistema tem nome organizado e começa por `Grazing - <tema>` (ex.: `Grazing - NF saída #1234.pdf`). Usar `src/lib/nome-arquivo.ts`; não montar nome de download à mão.
 - Não publicar segredos, dados pessoais reais ou logs sensíveis. Não inventar resultado de teste.
 
+## Armazenamento
+
+Antes de criar cópias de trabalho, instalar dependências ou fazer uma compilação grande,
+verifique o espaço livre do C: e siga o [contrato de armazenamento](docs/contexto/armazenamento.md).
+Abaixo de 20 GB, informe e avalie o espaço necessário; abaixo de 10 GB, resolva a falta de
+espaço antes de iniciar operações que possam consumir vários GB. Os 20 GB são piso de alerta,
+não meta de limpeza. Ao concluir cada tarefa, siga o encerramento de ambiente do contrato.
+Não remova cópias automaticamente.
+
 ## Contexto mínimo
 
 Escolha **somente** os guias relacionados. CONTEXTO.md é índice, não leitura prévia obrigatória.
