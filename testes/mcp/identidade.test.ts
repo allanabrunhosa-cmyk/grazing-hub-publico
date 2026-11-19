@@ -8,7 +8,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 import { identidadeServidorMcp } from "@/lib/mcp/metadados";
 import { recursoEstatico } from "@/lib/hosts";
-import { itensDoSeletor, monogramaDaAplicacao } from "@/app/(protegido)/configuracoes/integracoes/seletor";
+import { itensDoSeletor, logoDaAplicacao, monogramaDaAplicacao } from "@/app/(protegido)/configuracoes/integracoes/seletor";
 
 describe("MCP: identificação do servidor e das conexões", () => {
   it("apresenta nome de exibição, site e ícones PNG públicos que existem no projeto", () => {
@@ -38,5 +38,20 @@ describe("MCP: identificação do servidor e das conexões", () => {
     expect(itens.find(i => i.id === "mcp:c1")).toMatchObject({ monograma: "OB" });
     expect(itens.find(i => i.id === "mcp:servidor")).toMatchObject({ marca: "hub" });
     expect(itens.find(i => i.id === "brasilnfe")).not.toHaveProperty("monograma");
+  });
+
+  it("usa o logo de sistemas conhecidos, servido sem sessão, e recai nas iniciais para os demais", () => {
+    expect(logoDaAplicacao("OpenBot")).toBe("/marca/integracoes/openbot.png");
+    expect(logoDaAplicacao("ChatGPT — Allan")).toBe("/marca/integracoes/chatgpt.png");
+    expect(logoDaAplicacao("Cliente de demonstração")).toBeUndefined();
+    const itens = itensDoSeletor({ mcp: { endereco: "https://grazinghub.com.br/api/mcp", ativo: true, configurado: true, editar: false,
+      conexoes: [{ id: "c1", nome: "Assistente fictício", clienteNome: "OpenBot", situacao: "ATIVA" }, { id: "c2", nome: "Outro fictício", clienteNome: "Cliente fictício", situacao: "ATIVA" }] }, brasilnfe: true, certificado: null });
+    expect(itens.find(i => i.id === "mcp:c2")?.logo).toBeUndefined();
+    const logos = itens.map(i => i.logo).filter((l): l is string => !!l);
+    expect(logos).toEqual(["/marca/integracoes/openbot.png", "/marca/integracoes/brasilnfe.png"]);
+    for (const logo of [...logos, "/marca/integracoes/chatgpt.png"]) {
+      expect(recursoEstatico(logo)).toBe(true);
+      expect(existsSync(`public${logo}`), logo).toBe(true);
+    }
   });
 });
