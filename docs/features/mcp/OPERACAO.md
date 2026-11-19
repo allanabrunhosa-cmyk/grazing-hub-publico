@@ -87,6 +87,15 @@ Clientes são públicos, previamente cadastrados, com `client_id` UUID e sem seg
 Não há DCR aberto nem leitura remota de metadados de clientes. Redirect HTTPS é
 comparado exatamente com o cadastro; não deduzir callback de exemplos antigos.
 
+Aplicativo instalado no computador (cliente nativo, RFC 8252 seção 7.3): desde
+18/11/2026 o cadastro também aceita `http://127.0.0.1:<porta>/<caminho>`, somente
+pelo IP literal e com porta declarada (`validarRedirectCliente`). Continuam
+recusados `localhost`, `[::1]`, outras grafias do IP, HTTP para qualquer outro host
+e esquemas próprios. A comparação segue exata, inclusive a porta: aplicativo que
+sorteia a porta a cada login não é atendido. PKCE S256, cadastro prévio por
+administrador e consentimento individual não mudam. A proteção passa a depender
+também da máquina de quem conecta: usar apenas em computadores de confiança.
+
 1. Após publicação autorizada, abrir a criação de servidor MCP personalizado no
    ChatGPT conforme sua conta/workspace e selecionar OAuth. A disponibilidade
    depende do plano e da política do workspace.

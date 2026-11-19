@@ -155,7 +155,7 @@ export function GestaoMcp({ dados, editar, verUsuarios = false, selecao }: { dad
   function novaConexao() {
     const passos: { titulo: string; descricao: string; feito: boolean; acao?: ReactNode }[] = [
       { titulo: "Cadastre a aplicação", feito: dados.clientes.length > 0,
-        descricao: "No ChatGPT, abra Plugins e a opção de adicionar um servidor MCP personalizado. Informe o endereço do servidor (faixa acima), selecione OAuth e copie o redirecionamento exato mostrado. O nome informado aqui é apenas uma referência.",
+        descricao: "No ChatGPT, abra Plugins e a opção de adicionar um servidor MCP personalizado. Informe o endereço do servidor (faixa acima), selecione OAuth e copie o redirecionamento exato mostrado. Em aplicativos instalados no computador, use a URL de retorno que o aplicativo exibe (http://127.0.0.1 com a porta). O nome informado aqui é apenas uma referência.",
         acao: <Button size="sm" variant="outline" disabled={!editar} onClick={abrirCliente}><Plus className="size-4" />Cadastrar aplicação</Button> },
       { titulo: "Prepare a autorização do responsável", feito: vigentes > 0,
         descricao: "Informe no ChatGPT o identificador de cliente gerado pelo HUB (cliente público, sem segredo) e prepare a política do usuário que fará a autorização.",
@@ -217,7 +217,7 @@ export function GestaoMcp({ dados, editar, verUsuarios = false, selecao }: { dad
     {erro && !modal && !confirmacao && <p role="alert" className="text-sm text-destructive">{erro}</p>}
     {conexao ? detalheDaConexao(conexao) : selecao === "nova" ? novaConexao() : servidor()}
 
-    <Dialog open={modal !== null} onOpenChange={aberto => { if (!aberto && !pendente) setModal(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>{modal === "cliente" ? "Cadastrar aplicação" : "Conexão individual"}</DialogTitle><DialogDescription>{modal === "cliente" ? "Copie o redirecionamento exato da configuração OAuth do cliente. Nenhuma conexão é autorizada neste cadastro." : "Salvar invalida as credenciais atuais e exige novo consentimento do responsável. Nenhuma permissão do HUB é alterada."}</DialogDescription></DialogHeader>
+    <Dialog open={modal !== null} onOpenChange={aberto => { if (!aberto && !pendente) setModal(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>{modal === "cliente" ? "Cadastrar aplicação" : "Conexão individual"}</DialogTitle><DialogDescription>{modal === "cliente" ? "Copie o redirecionamento exato da configuração OAuth do cliente: um endereço HTTPS ou, para aplicativo instalado no computador, http://127.0.0.1 com a porta. Nenhuma conexão é autorizada neste cadastro." : "Salvar invalida as credenciais atuais e exige novo consentimento do responsável. Nenhuma permissão do HUB é alterada."}</DialogDescription></DialogHeader>
       <form key={`${modal}:${autorizacao?.id ?? ""}`} className="space-y-4" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); const nome = String(f.get("nome") ?? ""); let op: unknown;
         if (modal === "cliente") op = { tipo: "cliente", nome, redirectUri: String(f.get("redirectUri") ?? "").trim() };
         else op = { tipo: "autorizacao", id: autorizacao?.id, versao: autorizacao?.versao, nome, clienteId: autorizacao?.clienteId ?? String(f.get("clienteId") ?? ""), usuarioId: autorizacao?.usuarioId ?? usuarioId, restricoes: { contas: lerRestricao(f, "contas"), lancamentos: lerRestricao(f, "lancamentos") } };

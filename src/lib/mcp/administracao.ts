@@ -16,10 +16,18 @@ export const OperacaoMcpSchema = z.discriminatedUnion("tipo", [
 ]);
 export type OperacaoMcp = z.infer<typeof OperacaoMcpSchema>;
 
+// Aplicativo instalado (RFC 8252, 7.3): retorno na própria máquina, somente pelo IP
+// literal 127.0.0.1 e com porta declarada. `localhost` fica de fora porque depende de
+// resolução de nomes. O redirecionamento continua comparado por igualdade exata e o
+// fluxo segue exigindo PKCE S256, cadastro prévio e consentimento individual.
+function retornoLocalDeAplicativo(valor: string, url: URL) {
+  return url.protocol === "http:" && url.hostname === "127.0.0.1" && url.port !== "" && valor.startsWith(`http://127.0.0.1:${url.port}/`);
+}
+
 export function validarRedirectCliente(valor: string) {
   const url = new URL(valor);
   if (url.username || url.password || url.hash || [...url.searchParams.keys()].some(k => /^(code|access_token|refresh_token|token|api_key|apikey|secret|password|senha|client_secret|authorization)$/i.test(k)) ||
-    (url.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname)))) throw new ErroMcp("invalid_request", 400, "Copie o redirecionamento HTTPS exato informado pelo cliente, sem credenciais.");
+    (url.protocol !== "https:" && !retornoLocalDeAplicativo(valor, url) && !(process.env.NODE_ENV !== "production" && url.protocol === "http:" && ["127.0.0.1", "localhost"].includes(url.hostname)))) throw new ErroMcp("invalid_request", 400, "Copie o redirecionamento exato informado pelo cliente, sem credenciais: HTTPS ou, para aplicativo instalado no computador, http://127.0.0.1 com a porta.");
   return valor;
 }
 

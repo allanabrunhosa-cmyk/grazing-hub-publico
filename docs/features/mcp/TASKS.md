@@ -420,3 +420,20 @@ flags de banco não ativadas) e `npm run build`. Prévia Vite isolada do MCP em 
 390 px, claro e escuro, com `auditarInterface` sem problemas. Não executados: as
 telas de Brasil NFe e Certificado A1 em prévia isolada, suítes com banco, leitor de
 tela e OAuth real. Referência visual **Em revisão**.
+
+### Retorno local para aplicativo instalado — 18/11/2026
+
+Pedido do responsável: conectar um aplicativo de computador cujo retorno OAuth é
+`http://127.0.0.1:<porta>/...`. O cadastro de aplicação recusava esse endereço em
+produção. `validarRedirectCliente` passa a aceitar HTTP apenas no IP literal
+`127.0.0.1` com porta declarada; regra e cuidados em [OPERACAO](OPERACAO.md).
+
+- Sem migration. Sem mudança em PKCE, comparação exata, consentimento, escopos,
+  políticas ou auditoria. Textos de ajuda do cadastro atualizados em `mcp/gestao.tsx`.
+- Teste novo: `testes/mcp/redirect-cliente.test.ts` (aceites e recusas em produção).
+
+Validação local na branch `claude/mcp-retorno-local-20261118`: `npx vitest run
+testes/mcp testes/layout` (393 aprovados, 63 ignorados por flags de banco não
+ativadas), `npx tsc --noEmit`, `npm run lint:design` (0 novos, 0 resolvidos), eslint
+dos arquivos alterados e `npm run build`. Não executados: suítes com banco e o
+fluxo OAuth real com um aplicativo instalado.
