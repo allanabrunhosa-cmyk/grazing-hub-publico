@@ -46,6 +46,16 @@ describe("ação de frete com catálogo real e entrada mínima", () => {
     await calcularFretePedidoAction({ ...entrada(), itens: [{ produtoId: "p", quantidade: "1", escolhas: { o: 1 } }] });
     expect(s.entrega.mock.calls[0][0]).toMatchObject({ subtotalProdutos: "110.00", slotsOcupados: 5 });
   });
+  it("complemento vinculado inativo ou ausente não impede o cálculo do frete", async () => {
+    const itens = [{ produtoId: "p", quantidade: "1", escolhas: { o: 1 } }];
+    s.produto.mockResolvedValue({ ...produto(), grupos: [grupo()] });
+    s.vinculados.mockResolvedValue([{ id: "c", preco: new Prisma.Decimal(10), slotsEntrega: 3, ativo: false }]);
+    expect(await calcularFretePedidoAction({ ...entrada(), itens })).toHaveProperty("resultado");
+    expect(s.entrega.mock.calls[0][0]).toMatchObject({ subtotalProdutos: "110.00", slotsOcupados: 4 });
+    s.vinculados.mockResolvedValue([]);
+    expect(await calcularFretePedidoAction({ ...entrada(), itens, veiculoEntregaId: "carro-sintetico" })).toHaveProperty("resultado");
+    expect(s.entrega.mock.calls[1][0]).toMatchObject({ veiculoEntregaId: "carro-sintetico", slotsOcupados: null });
+  });
   it("arredonda dinheiro por linha e slots somente na soma final", async () => {
     s.produto.mockResolvedValue({ ...produto(), unidade: "KG", preco: new Prisma.Decimal("1.99"), slotsEntrega: 3 });
     await calcularFretePedidoAction({ ...entrada(), itens: [{ produtoId: "p", quantidade: "0.5" }, { produtoId: "p", quantidade: "0.5" }] });

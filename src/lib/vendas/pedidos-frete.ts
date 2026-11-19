@@ -58,9 +58,10 @@ export async function calcularItensFretePedido(tx: Prisma.TransactionClient, d: 
     const preco = entrada.precoManual === null ? base : new Prisma.Decimal(entrada.precoManual);
     subtotal = subtotal.plus(preco.plus(acrescimos).mul(quantidade).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP));
     const escolhas = grupos.filter(g => g.ativo).flatMap(g => g.opcoes.filter(o => o.ativo && entrada.escolhas[o.id] && o.produtoId).map(o => {
-      const produto = vinculados.find(p => p.id === o.produtoId);
-      if (!produto?.ativo) throw new ErroPedidoVenda("Complemento vinculado indisponível.");
-      return { slots: produto.slotsEntrega, quantidade: entrada.escolhas[o.id], multiplicador: o.composicao == null ? o.quantidade : "1" };
+      // Disponibilidade do complemento é regra da confirmação; o frete só precisa da ocupação.
+      // Vínculo inativo conserva seus slots; vínculo ausente deixa a ocupação pendente, sem recusar o cálculo.
+      const vinculado = vinculados.find(p => p.id === o.produtoId);
+      return { slots: vinculado?.slotsEntrega, quantidade: entrada.escolhas[o.id], multiplicador: o.composicao == null ? o.quantidade : "1" };
     }));
     itens.push({ quantidade, produtoSnapshot: { slotsEntrega: slotsPorUnidade(produto.slotsEntrega, multiplicador, escolhas) } });
     const embalagem = entrada.tipoEmbalagemId === undefined ? produto.tipoEmbalagemId : entrada.tipoEmbalagemId;
