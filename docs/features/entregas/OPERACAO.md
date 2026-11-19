@@ -43,7 +43,9 @@ diferente da indicação. Voltar à opção indicada restaura a seleção por sl
 A troca invalida o recibo e recalcula perfil de rota e preço. O servidor verifica o
 veículo na configuração; não aceita perfil informado pelo navegador.
 Alterar cliente, canal, endereço, itens, desconto ou modalidade também invalida o
-resultado. O ajuste manual de preço conserva motivo e permissão próprios.
+resultado. O ajuste manual de preço conserva motivo e permissão próprios e não
+depende do cálculo: sem recibo válido o pedido salva com cobertura não validada; fora
+da última faixa, salva registrando a exceção.
 O recibo assinado dura 10 minutos e vincula loja, usuário, cliente, destino, origem,
 veículo, escolha e versão. Alterar configuração/origem exige novo cálculo.
 O simulador não gera recibo reutilizável em pedido.

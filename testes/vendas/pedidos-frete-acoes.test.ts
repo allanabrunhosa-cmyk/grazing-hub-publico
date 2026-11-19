@@ -65,7 +65,9 @@ describe("ação de frete com catálogo real e entrada mínima", () => {
     expect(await calcularFretePedidoAction({ ...entrada(), itens: [{ produtoId: "p", quantidade }] })).toHaveProperty("erro"); expect(s.entrega).not.toHaveBeenCalled();
   });
   it("recusa produto indisponível e seleção desconhecida", async () => {
-    s.produto.mockResolvedValueOnce(null); expect(await calcularFretePedidoAction(entrada())).toEqual({ erro: "Produto indisponível." });
+    s.produto.mockResolvedValueOnce(null); expect(await calcularFretePedidoAction(entrada())).toEqual({ erro: "Produto indisponível: o item 1 do pedido não existe mais no catálogo. Remova-o do pedido." });
+    s.produto.mockResolvedValueOnce({ ...produto(), nome: "Tábua fictícia", ativo: false });
+    expect(await calcularFretePedidoAction(entrada())).toEqual({ erro: "Produto indisponível: \"Tábua fictícia\" (item 1 do pedido) está desativado no catálogo. Reative o produto em Vendas ou remova-o do pedido." });
     expect(await calcularFretePedidoAction({ ...entrada(), itens: [{ produtoId: "p", quantidade: "1", escolhas: { desconhecida: 1 } }] })).toHaveProperty("erro"); expect(s.entrega).not.toHaveBeenCalled();
   });
   it("recusa acesso não autorizado sem calcular", async () => {

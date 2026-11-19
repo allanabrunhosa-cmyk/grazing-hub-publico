@@ -142,9 +142,16 @@ export async function validarFretePedido(tx: Tx, d: PedidoEntrada, subtotalProdu
   // Uma simulação anterior ao cadastro do cliente continua válida com as mesmas entradas logísticas/comerciais.
   // Recibos vinculados a um cliente existente continuam proibidos para outro cliente.
   const vinculos = [vinculo(e, sessao, origem, loja?.versaoEntregas ?? 0, selecao.perfil, selecao), vinculo({ ...e, clienteId: null }, sessao, origem, loja?.versaoEntregas ?? 0, selecao.perfil, selecao)];
-  const memoria = instrucao.recibo ? (await verificarEntrega(instrucao.recibo, vinculos)).memoria as MemoriaEntrega : memoriaPendente(!enderecoPreciso(e.endereco) ? "ENDERECO_PENDENTE" : c.ativo && !pendenciasEntregas(c,origemLoja,e.veiculoEntregaId).length && !integracaoMapasPronta() ? "PROVEDOR_INDISPONIVEL" : "CONFIGURACAO_INCOMPLETA", subtotalProdutos);
-  if (c.modelo === "SLOTS" && (memoria.estado === "FORA_AREA" || instrucao.excecaoCobertura)) throw new ErroPedidoVenda("Entrega limitada às faixas cadastradas em Frete, sem exceção de cobertura.");
-  let frete = d.frete, cobertura = memoria.estado, excepcional = false;
+  const calculavel = c.ativo && !pendenciasEntregas(c, origemLoja, e.veiculoEntregaId).length;
+  const pendente = () => memoriaPendente(!enderecoPreciso(e.endereco) ? "ENDERECO_PENDENTE" : calculavel && !integracaoMapasPronta() ? "PROVEDOR_INDISPONIVEL" : "CONFIGURACAO_INCOMPLETA", subtotalProdutos);
+  // Frete manual justificado é decisão humana: recibo ausente, vencido ou de outro veículo não impede a venda;
+  // a cobertura fica registrada como não validada. O frete automático continua exigindo recibo íntegro.
+  let memoria: MemoriaEntrega, validada = !!instrucao.recibo;
+  if (!instrucao.recibo) memoria = pendente();
+  else if (instrucao.metodo === "AUTOMATICO") memoria = (await verificarEntrega(instrucao.recibo, vinculos)).memoria as MemoriaEntrega;
+  else try { memoria = (await verificarEntrega(instrucao.recibo, vinculos)).memoria as MemoriaEntrega; }
+    catch (erro) { if (!(erro instanceof ErroPedidoVenda)) throw erro; memoria = pendente(); validada = false; }
+  let frete = d.frete, cobertura: MemoriaEntrega["estado"] | "NAO_VALIDADA" = memoria.estado, excepcional = false;
   if (instrucao.metodo === "AUTOMATICO") {
     if (memoria.estado !== "PERMITIDO" || memoria.frete == null) throw new ErroPedidoVenda(memoria.motivo);
     if (cents(d.frete) !== cents(memoria.frete)) throw new ErroPedidoVenda("Frete divergente do cálculo. Calcule novamente ou justifique ajuste manual.");
@@ -152,14 +159,16 @@ export async function validarFretePedido(tx: Tx, d: PedidoEntrada, subtotalProdu
   } else {
     await autorEntregas(tx, sessao, "vendas.pedidos.frete");
     if (!instrucao.motivo) throw new ErroPedidoVenda("Informe o motivo do ajuste manual do frete.");
-    if (!instrucao.recibo && c.ativo && integracaoMapasPronta() && !pendenciasEntregas(c, origemLoja, e.veiculoEntregaId).length) throw new ErroPedidoVenda("Calcule a cobertura antes de ajustar o preço manualmente.");
+    if (!validada && calculavel && integracaoMapasPronta() && enderecoPreciso(e.endereco)) cobertura = "NAO_VALIDADA";
     const bloqueado = e.endereco && regrasAplicaveis(c, e.endereco).some(r => r.bloquear);
     const minimo = e.endereco ? excecaoComercialEntrega(c,e.endereco)?.pedidoMinimo ?? c.pedidoMinimo : c.pedidoMinimo;
     if (memoria.estado === "ABAIXO_MINIMO" || (minimo && cents(subtotalProdutos) < cents(minimo))) throw new ErroPedidoVenda("Pedido abaixo do mínimo. Ajuste os produtos antes de confirmar.");
-    if (bloqueado || memoria.estado === "FORA_AREA" || memoria.estado === "BLOQUEADO") {
+    // No modelo de slots não há aprovação de cobertura separada: fora da última faixa, o ajuste manual é a própria exceção.
+    if (c.modelo === "SLOTS") excepcional = memoria.estado === "FORA_AREA";
+    else if (bloqueado || memoria.estado === "FORA_AREA" || memoria.estado === "BLOQUEADO") {
       if (!instrucao.excecaoCobertura || !instrucao.motivoCobertura) throw new ErroPedidoVenda("Ajustar o preço não libera a cobertura. Registre aprovação excepcional e motivo.");
       await autorEntregas(tx, sessao, "vendas.pedidos.cobertura"); excepcional = true; cobertura = bloqueado ? "BLOQUEADO" : memoria.estado;
     } else if (instrucao.excecaoCobertura) throw new ErroPedidoVenda("Exceção de cobertura só se aplica a região bloqueada ou fora da área.");
   }
-  return { frete, snapshot: json({ metodo: instrucao.metodo, configuracaoId: "singleton", versao: loja?.versaoEntregas ?? 0, origemInformada: origem, destinoInformado: e.endereco, veiculo: selecao.perfil, selecaoVeiculo: selecao, veiculoEntregaId: d.veiculoEntregaId ?? null, assinaturaComercial, cobertura, validacaoAutomatica: memoria.estado === "PERMITIDO" && !!instrucao.recibo, excepcional, motivo: instrucao.motivo || null, motivoCobertura: instrucao.motivoCobertura || null, memoria, freteCobrado: frete, calculadoEm: new Date().toISOString(), usuarioId: sessao.userId, dadosMapas: "Não persistidos; distância e duração disponíveis somente no cálculo corrente." }) };
+  return { frete, snapshot: json({ metodo: instrucao.metodo, configuracaoId: "singleton", versao: loja?.versaoEntregas ?? 0, origemInformada: origem, destinoInformado: e.endereco, veiculo: selecao.perfil, selecaoVeiculo: selecao, veiculoEntregaId: d.veiculoEntregaId ?? null, assinaturaComercial, cobertura, validacaoAutomatica: memoria.estado === "PERMITIDO" && validada, excepcional, motivo: instrucao.motivo || null, motivoCobertura: instrucao.motivoCobertura || null, memoria, freteCobrado: frete, calculadoEm: new Date().toISOString(), usuarioId: sessao.userId, dadosMapas: "Não persistidos; distância e duração disponíveis somente no cálculo corrente." }) };
 }

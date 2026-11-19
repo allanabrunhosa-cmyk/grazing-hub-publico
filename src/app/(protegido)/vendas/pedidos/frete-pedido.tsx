@@ -171,7 +171,7 @@ export function FretePedido({ dados: d, alterar, snapshot, manual, aprovarCobert
             {r && <ResultadoCalculoEntrega key={r.calculadoEm} resultado={r} />}
             {d.atendimento !== "RETIRADA" && metodoManual && configuracaoExistente && <>
               <CampoEntrega nome="Justificativa do frete manual"><Input disabled={!manual} value={motivos.motivo} maxLength={1000} onChange={e => setMotivos(a => ({ ...a, motivo: e.target.value }))} /></CampoEntrega>
-              <p className="text-xs text-muted-foreground">{veiculos?.modelo === "SLOTS" ? "Alterar o preço exige justificativa e mantém a cobertura limitada à última faixa de Frete." : "Alterar o preço exige justificativa e não libera bloqueios ou distância máxima."}</p>
+              <p className="text-xs text-muted-foreground">{veiculos?.modelo === "SLOTS" ? "Alterar o preço exige justificativa. Sem cálculo ou fora da última faixa de Frete, o pedido registra a cobertura como não validada ou exceção." : "Alterar o preço exige justificativa e não libera bloqueios ou distância máxima."}</p>
               {aprovarCobertura && veiculos?.modelo !== "SLOTS" && <><EscolhaEntrega nome="Aprovação excepcional de atendimento" valor={motivos.excecaoCobertura ? "SIM" : "NAO"} opcoes={[{ value: "NAO", label: "Sem aprovação excepcional" }, { value: "SIM", label: "Aprovar região bloqueada ou fora da área" }]} alterar={valor => setMotivos(a => ({ ...a, excecaoCobertura: valor === "SIM" }))} />
                 {motivos.excecaoCobertura && <CampoEntrega nome="Justificativa da cobertura excepcional"><Input value={motivos.motivoCobertura} maxLength={1000} onChange={e => setMotivos(a => ({ ...a, motivoCobertura: e.target.value }))} /></CampoEntrega>}</>}
             </>}

@@ -114,8 +114,9 @@ describe.skipIf(process.env.ENTREGAS_BANCO_TESTE!=="1")("Entregas em PostgreSQL 
   const fora=await calcularEntrega({clienteId,atendimento:"ENTREGA",endereco,subtotalProdutos:"200.00",slotsOcupados:4},admin,provedor(2001));
   const foraDados={...d,entrega:{metodo:"MANUAL"as const,recibo:fora.recibo,motivo:"Preço manual sintético",excecaoCobertura:true,motivoCobertura:"Não pode ultrapassar a tabela"}};
   const foraPedido=await criarRascunhoPedido(foraDados,randomUUID(),admin);
-  await expect(confirmarPedido(foraPedido.id,foraPedido.versao,randomUUID(),admin)).rejects.toThrow("sem exceção de cobertura");
-  expect((await s.prisma.pedidoVenda.findUniqueOrThrow({where:{id:foraPedido.id}})).status).toBe("RASCUNHO");
+  // Frete manual justificado é decisão humana: fora da última faixa confirma e registra a exceção.
+  await confirmarPedido(foraPedido.id,foraPedido.versao,randomUUID(),admin);
+  expect(await s.prisma.pedidoVenda.findUniqueOrThrow({where:{id:foraPedido.id}})).toMatchObject({status:"CONFIRMADO",entregaSnapshot:{metodo:"MANUAL",cobertura:"FORA_AREA",excepcional:true,validacaoAutomatica:false}});
   await s.prisma.produtoVenda.update({where:{id:produtoId},data:{slotsEntrega:10}});
   await editarInformacoesPedido(p.id,salvo.versao,{destinatario:{nome:"Pessoa destinatária atualizada",contato:""},motivo:"Conservar ocupação e frete históricos"},randomUUID(),admin);
   salvo=await s.prisma.pedidoVenda.findUniqueOrThrow({where:{id:p.id}});expect(salvo.entregaSnapshot).toEqual(snapshot);

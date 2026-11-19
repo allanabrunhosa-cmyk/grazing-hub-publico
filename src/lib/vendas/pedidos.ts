@@ -23,7 +23,7 @@ import { salvarClienteNaTransacao } from "./persistencia";
 import { prepararClienteParaSalvar, type ClientePreparado } from "./cliente-cobranca-servidor";
 import { validarPagamentoComercial, type PagamentoComercialSnapshot } from "./pedidos-pagamento-comercial";
 import { exigirFormaPagamentoCliente, exigirLimiteCreditoCliente, exigirVencimentoBoletoCliente, saldoDevedorCliente } from "./pedidos-regras-pagamento";
-import { ErroPedidoVenda, exigirPedidoConfirmavel, exigirPagamentoConfirmacao, exigirTelefoneDestinatario, quantidadeComercial, validarEntradaPedido, type PedidoEntrada, type ItemPedidoEntrada } from "./pedidos-dominio";
+import { ErroPedidoVenda, erroComplementoIndisponivel, erroProdutoIndisponivel, exigirPedidoConfirmavel, exigirPagamentoConfirmacao, exigirTelefoneDestinatario, quantidadeComercial, validarEntradaPedido, type PedidoEntrada, type ItemPedidoEntrada } from "./pedidos-dominio";
 
 import { liberarReservasCancelamento } from "./pedidos-fisico";
 import { executarAutomaticoGestorNaTransacao } from "./pedidos-fisico-gestor";
@@ -359,7 +359,7 @@ export async function calcularPedido(tx: Tx, d: PedidoEntrada, pagamentoAnterior
       categorias: { include: { categoria: true } }, componentes: { include: { insumo: true }, orderBy: { ordem: "asc" } },
       grupos: { orderBy: { ordem: "asc" }, include: { grupo: { include: { opcoes: { orderBy: { ordem: "asc" } } } } } },
     } });
-    if (!produto?.ativo || !produto.classificacoes.some(c => ["PRINCIPAL", "OPCAO", "COMPLEMENTO"].includes(c))) throw new ErroPedidoVenda("Produto indisponível.");
+    if (!produto?.ativo || !produto.classificacoes.some(c => ["PRINCIPAL", "OPCAO", "COMPLEMENTO"].includes(c))) throw erroProdutoIndisponivel(ordem, produto);
     let complementoAvulso: { produtoOrigemId: string; grupoId: string; grupoNome: string; opcaoId: string; opcaoNome: string; multiplicador: string; unidadeProduto: string; preco: string } | undefined;
     if (!entrada.complementoAvulso && classificacaoComercial(produto) !== "PRINCIPAL") throw new ErroPedidoVenda("Complementos só podem ser escolhidos dentro de um produto.");
     if (entrada.complementoAvulso) {
@@ -408,7 +408,7 @@ export async function calcularPedido(tx: Tx, d: PedidoEntrada, pagamentoAnterior
       const opcional = opcionais.find(p => p.id === escolha.produtoId);
       if (!escolha.produtoId && escolha.composicao == null) { pendente = true; continue; }
       const aliasComposicao = escolha.grupoTipo === "COMPOSICAO" && !!escolha.composicao?.length;
-      if (escolha.produtoId && (!opcional || !opcional.ativo && !aliasComposicao)) throw new ErroPedidoVenda("Complemento vinculado indisponível. Atualize as escolhas.");
+      if (escolha.produtoId && (!opcional || !opcional.ativo && !aliasComposicao)) throw erroComplementoIndisponivel(produto.nome, escolha.grupoNome, escolha.opcaoNome, opcional);
       const componentes = escolha.composicao ?? opcional!.componentes;
       if (!componentes.length) { pendente = true; continue; }
       const insumos = escolha.composicao ? await tx.insumo.findMany({ where: { id: { in: componentes.map(c => c.insumoId) } } }) : [];

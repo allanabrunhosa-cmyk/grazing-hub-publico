@@ -27,6 +27,20 @@ describe("Motor compartilhado e aprovação comercial",()=>{
    expect((await validarFretePedido(tx,d,"100",sessao,undefined,[],4)).frete).toBe("24.00");
    await expect(validarFretePedido(tx,d,"100",sessao,undefined,[],5)).rejects.toThrow("outras entradas");
  });
+ it("frete manual justificado salva sem cálculo, com recibo de outro veículo e fora da última faixa",async()=>{
+   s.loja.mockResolvedValue({versaoEntregas:1,entregas:configSlots()});
+   const tx={$executeRaw:vi.fn(),$queryRaw:vi.fn(),configuracaoLoja:{findUnique:s.loja},usuario:{findUnique:vi.fn(async()=>({ativo:true,excluidoEm:null,sessaoVersao:0,perfilAcesso:{sistema:"ADMINISTRADOR"}}))}}as unknown as Prisma.TransactionClient;
+   const base={...entrada(),prazo:"IMEDIATO"as const,previsaoData:null,previsaoJanela:null,destinatario:null,observacoes:"",desconto:"0",frete:"88",canalId:"canal",itens:[],veiculoEntregaId:"c"};
+   const manual=(recibo:string,motivo="Decisão do atendente")=>({...base,entrega:{metodo:"MANUAL"as const,recibo,motivo,excecaoCobertura:false,motivoCobertura:""}});
+   expect(await validarFretePedido(tx,manual(""),"100",sessao)).toMatchObject({frete:"88",snapshot:{metodo:"MANUAL",cobertura:"NAO_VALIDADA",validacaoAutomatica:false,excepcional:false,selecaoVeiculo:{id:"c"}}});
+   const moto=await calcularEntrega({...entrada(),veiculoEntregaId:"m"},sessao,{calcular:vi.fn(async()=>rota)});
+   expect(await validarFretePedido(tx,manual(moto.recibo),"100",sessao)).toMatchObject({snapshot:{cobertura:"NAO_VALIDADA",validacaoAutomatica:false}});
+   await expect(validarFretePedido(tx,{...base,entrega:{...manual(moto.recibo).entrega,metodo:"AUTOMATICO"as const}},"100",sessao)).rejects.toThrow("outras entradas");
+   const fora=await calcularEntrega({...entrada(),veiculoEntregaId:"c"},sessao,{calcular:vi.fn(async()=>({...rota,distanciaMetros:2001}))});
+   expect(fora.memoria.estado).toBe("FORA_AREA");
+   expect(await validarFretePedido(tx,manual(fora.recibo),"100",sessao)).toMatchObject({frete:"88",snapshot:{cobertura:"FORA_AREA",excepcional:true,validacaoAutomatica:false}});
+   await expect(validarFretePedido(tx,manual("","") ,"100",sessao)).rejects.toThrow("motivo do ajuste manual");
+ });
  it("ocupação pendente e capacidade excedida não chamam mapas nem fabricam frete",async()=>{
    s.loja.mockResolvedValue({versaoEntregas:1,entregas:configSlots()});const p={calcular:vi.fn()};
    for(const slotsOcupados of [null,21]){const r=await calcularEntrega({...entrada(),slotsOcupados},sessao,p);expect(r.memoria.frete).toBeNull();expect(r.selecaoVeiculo?.perfil).toBeNull();}
