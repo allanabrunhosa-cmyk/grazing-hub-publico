@@ -461,3 +461,24 @@ ativadas), `npx tsc --noEmit`, `npm run lint:design` (0 novos, 0 resolvidos), es
 dos caminhos alterados e `npm run build`. Prévia Vite isolada do MCP em 1440 px claro
 e 375 px escuro, sem rolagem horizontal. Não executados: suítes com banco e a
 conferência do ícone em um cliente MCP real. Referência visual **Em revisão**.
+
+### Logos dos sistemas na grade — 18/11/2026
+
+Pedido do responsável: buscar e usar os logos dos sistemas. Baixados em 18/11/2026 dos
+sites oficiais e convertidos para PNG de 96 px em `public/marca/integracoes/`:
+
+| Arquivo | Origem |
+| --- | --- |
+| `openbot.png` | `https://openbot.run/apple-touch-icon.png` |
+| `chatgpt.png` | ícone de 180 px declarado em `https://chatgpt.com` |
+| `brasilnfe.png` | isotipo declarado como ícone em `https://www.brasilnfe.com.br` |
+
+São marcas dos respectivos titulares, usadas somente para identificar a integração.
+`logoDaAplicacao` (`integracoes/seletor.tsx`) reconhece o sistema pelo nome cadastrado
+da aplicação; sem correspondência, a grade mantém as iniciais. Sem mudança de servidor.
+
+Validação local na branch `claude/integracoes-logos-oficiais-20261118`: `npx vitest run
+testes/mcp testes/layout` (397 aprovados, 63 ignorados por flags de banco não
+ativadas), `npx tsc --noEmit`, `npm run lint:design` (0 novos, 0 resolvidos), eslint
+dos caminhos alterados e `npm run build`. Prévia Vite isolada com
+`?aplicacoes=OpenBot,ChatGPT`: as três imagens carregaram. Referência visual **Em revisão**.

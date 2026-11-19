@@ -14,7 +14,19 @@ export type ResumoIntegracoes = {
 };
 type Item = { id: string; nome: string; resumo: string; href: string; tom: Tom; icone: typeof Bot; tracejado?: boolean;
   /** Identificação visual no lugar do ícone genérico: a marca do HUB ou as iniciais da aplicação. */
-  marca?: "hub"; monograma?: string };
+  marca?: "hub"; monograma?: string; logo?: string };
+
+/** Logos de sistemas conhecidos, em `public/marca/integracoes` (origem e data no inventário visual). */
+const LOGOS_DE_APLICACOES: { padrao: RegExp; arquivo: string }[] = [
+  { padrao: /open\s*bot/i, arquivo: "openbot" },
+  { padrao: /chat\s*gpt|open\s*ai/i, arquivo: "chatgpt" },
+];
+const caminhoDoLogo = (arquivo: string) => `/marca/integracoes/${arquivo}.png`;
+/** Logo da aplicação quando o nome cadastrado identifica um sistema conhecido; senão, a grade usa as iniciais. */
+export function logoDaAplicacao(nome: string) {
+  const achado = LOGOS_DE_APLICACOES.find(l => l.padrao.test(nome));
+  return achado ? caminhoDoLogo(achado.arquivo) : undefined;
+}
 
 /** Iniciais da aplicação conectada ("OpenBot" → "OB", "ChatGPT — Allan" → "CG"), para distinguir conexões na grade. */
 export function monogramaDaAplicacao(nome: string) {
@@ -33,9 +45,9 @@ export function itensDoSeletor(resumo: ResumoIntegracoes): Item[] {
   const itens: Item[] = [];
   if (resumo.mcp) {
     const ordenadas = [...resumo.mcp.conexoes].sort((a, b) => Number(a.situacao === "REVOGADA") - Number(b.situacao === "REVOGADA"));
-    for (const c of ordenadas) { const s = situacaoDaConexao(c.situacao); itens.push({ id: `mcp:${c.id}`, nome: c.nome, resumo: `${c.clienteNome} · ${s.rotulo}`, href: rotaConexaoMcp(c.id), tom: s.tom, icone: Bot, monograma: monogramaDaAplicacao(c.clienteNome) }); }
+    for (const c of ordenadas) { const s = situacaoDaConexao(c.situacao); itens.push({ id: `mcp:${c.id}`, nome: c.nome, resumo: `${c.clienteNome} · ${s.rotulo}`, href: rotaConexaoMcp(c.id), tom: s.tom, icone: Bot, monograma: monogramaDaAplicacao(c.clienteNome), logo: logoDaAplicacao(c.clienteNome) }); }
   }
-  if (resumo.brasilnfe) itens.push({ id: "brasilnfe", nome: "Brasil NFe", resumo: "Emissão de NF-e e NFC-e", href: "/configuracoes/integracoes/brasilnfe", tom: "verde", icone: FileText });
+  if (resumo.brasilnfe) itens.push({ id: "brasilnfe", nome: "Brasil NFe", resumo: "Emissão de NF-e e NFC-e", href: "/configuracoes/integracoes/brasilnfe", tom: "verde", icone: FileText, logo: caminhoDoLogo("brasilnfe") });
   if (resumo.certificado) itens.push({ id: "certificado", nome: "Certificado A1", resumo: resumo.certificado.resumo, href: "/configuracoes/integracoes/certificado", tom: resumo.certificado.tom, icone: ShieldCheck });
   if (resumo.mcp) {
     itens.push({ id: "mcp:servidor", nome: "Servidor MCP", resumo: "Diagnóstico, aplicações e histórico", href: rotaConexaoMcp("servidor"), tom: "roxo", icone: Server, marca: "hub" });
@@ -58,6 +70,7 @@ export function MolduraIntegracoes({ resumo, ativa, children }: { resumo: Resumo
         className={cn("flex min-h-16 min-w-0 items-center gap-3 rounded-[var(--ds-aba-raio)] border px-4 py-3 transition-colors duration-[var(--ds-movimento-rapido)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
           selecionada ? "border-transparent bg-foreground text-background" : i.tracejado ? "border-dashed border-border hover:bg-muted" : "border-transparent hover:bg-muted")}>
         {i.marca === "hub" ? <span aria-hidden="true" className="flex shrink-0"><LogoMark className="size-10" /></span>
+          : i.logo ? <span aria-hidden="true" className="flex size-10 shrink-0 overflow-hidden rounded-[var(--ds-aba-raio)]"><img src={i.logo} alt="" width={40} height={40} loading="lazy" className="size-full object-contain" /></span>
           : <IconeTom tom={i.tom}>{i.monograma ? <span className="text-sm font-semibold">{i.monograma}</span> : <Icone />}</IconeTom>}
         <span className="min-w-0 flex-1"><span className="block truncate text-base font-semibold">{i.nome}</span><span className={cn("block truncate text-sm", selecionada ? "text-background/70" : "text-muted-foreground")}>{i.resumo}</span></span>
       </Link>; })}

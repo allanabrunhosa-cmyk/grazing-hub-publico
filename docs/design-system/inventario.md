@@ -227,7 +227,8 @@ integrações em grade, com o detalhe da conexão escolhida logo abaixo. Estado 
 - Identificação na grade (terceira rodada, mesmo dia): nome em `text-base`, resumo em
   `text-sm`; conexões MCP com as iniciais da aplicação dentro de `IconeTom`; Servidor
   MCP e a faixa do endereço com `LogoMark`. Iniciais e marca são decorativas
-  (`aria-hidden`). Sem marcas de terceiros.
+  (`aria-hidden`). Sistemas conhecidos (OpenBot, ChatGPT, Brasil NFe) usam o logo em
+  `public/marca/integracoes/`, com origem registrada em `docs/features/mcp/TASKS.md`.
 
 Cores: `tons.tsx` (`TONS`/`IconeTom`) só combina pares fundo/texto já existentes
 (`secondary`/`primary`, `success`, `warning`, `destructive`, `muted` e
