@@ -6,6 +6,18 @@ import { preservarCodigoMunicipio } from "./municipio";
 import { LIMITE_COBRANCAS_CLIENTE } from "./cliente-cobranca";
 import { dataCompraValida } from "./pedidos-data-compra";
 export class ErroPedidoVenda extends Error {}
+/** Recusa de catálogo identifica o item e o motivo, para o atendente saber o que corrigir. Não se trata de estoque. */
+export function erroProdutoIndisponivel(ordem: number, produto: { nome: string; ativo: boolean } | null | undefined) {
+  const item = `item ${ordem + 1} do pedido`;
+  return new ErroPedidoVenda(!produto ? `Produto indisponível: o ${item} não existe mais no catálogo. Remova-o do pedido.`
+    : !produto.ativo ? `Produto indisponível: "${produto.nome}" (${item}) está desativado no catálogo. Reative o produto em Vendas ou remova-o do pedido.`
+    : `Produto indisponível: "${produto.nome}" (${item}) não está classificado como produto, opção ou complemento de venda.`);
+}
+export function erroComplementoIndisponivel(produtoNome: string, grupoNome: string, opcaoNome: string, vinculado: { nome: string } | null | undefined) {
+  const onde = `em "${produtoNome}", a opção "${opcaoNome}" (${grupoNome})`;
+  return new ErroPedidoVenda(vinculado ? `Complemento vinculado indisponível: ${onde} usa o produto "${vinculado.nome}", que está desativado no catálogo. Reative esse produto em Vendas ou escolha outra opção.`
+    : `Complemento vinculado indisponível: ${onde} usa um produto que não existe mais no catálogo. Corrija o vínculo da opção em Vendas ou escolha outra.`);
+}
 
 export type ItemPedidoEntrada = {
   itemOrigemId?: string;

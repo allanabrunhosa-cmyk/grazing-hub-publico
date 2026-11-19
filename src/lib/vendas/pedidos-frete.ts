@@ -3,7 +3,7 @@ import "server-only";
 import { Prisma } from "@/generated/prisma/client";
 import { lerAjustesOpcoes, opcoesEfetivas, simularConfiguracao } from "./dominio";
 import { precosOpcoes } from "./complementos";
-import { ErroPedidoVenda, quantidadeComercial, validarEntradaPedido, type PedidoEntrada } from "./pedidos-dominio";
+import { ErroPedidoVenda, erroProdutoIndisponivel, quantidadeComercial, validarEntradaPedido, type PedidoEntrada } from "./pedidos-dominio";
 import { slotsDosItens, slotsPorUnidade } from "./entregas-veiculos";
 
 /** Frete não valida cadastro, cobrança, agenda, pagamento ou a conclusão das escolhas. */
@@ -29,11 +29,11 @@ export async function calcularItensFretePedido(tx: Prisma.TransactionClient, d: 
   let subtotal = new Prisma.Decimal(0);
   const itens: { quantidade: string; produtoSnapshot: { slotsEntrega: string | null } }[] = [];
   const embalagens = new Set<string>();
-  for (const entrada of d.itens) {
+  for (const [ordem, entrada] of d.itens.entries()) {
     const produto = await tx.produtoVenda.findUnique({ where: { id: entrada.produtoId }, include: {
       grupos: { include: { grupo: { include: { opcoes: true } } } },
     } });
-    if (!produto?.ativo || !produto.classificacoes.some(c => ["PRINCIPAL", "OPCAO", "COMPLEMENTO"].includes(c))) throw new ErroPedidoVenda("Produto indisponível.");
+    if (!produto?.ativo || !produto.classificacoes.some(c => ["PRINCIPAL", "OPCAO", "COMPLEMENTO"].includes(c))) throw erroProdutoIndisponivel(ordem, produto);
     if (!entrada.complementoAvulso && classificacaoComercial(produto) !== "PRINCIPAL") throw new ErroPedidoVenda("Complementos só podem ser escolhidos dentro de um produto.");
     let base = produto.preco, multiplicador = "1";
     // Itens avulsos históricos mantêm o preço e o multiplicador da opção. A confirmação continua validando sua origem.
@@ -58,9 +58,10 @@ export async function calcularItensFretePedido(tx: Prisma.TransactionClient, d: 
     const preco = entrada.precoManual === null ? base : new Prisma.Decimal(entrada.precoManual);
     subtotal = subtotal.plus(preco.plus(acrescimos).mul(quantidade).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP));
     const escolhas = grupos.filter(g => g.ativo).flatMap(g => g.opcoes.filter(o => o.ativo && entrada.escolhas[o.id] && o.produtoId).map(o => {
-      const produto = vinculados.find(p => p.id === o.produtoId);
-      if (!produto?.ativo) throw new ErroPedidoVenda("Complemento vinculado indisponível.");
-      return { slots: produto.slotsEntrega, quantidade: entrada.escolhas[o.id], multiplicador: o.composicao == null ? o.quantidade : "1" };
+      // Disponibilidade do complemento é regra da confirmação; o frete só precisa da ocupação.
+      // Vínculo inativo conserva seus slots; vínculo ausente deixa a ocupação pendente, sem recusar o cálculo.
+      const vinculado = vinculados.find(p => p.id === o.produtoId);
+      return { slots: vinculado?.slotsEntrega, quantidade: entrada.escolhas[o.id], multiplicador: o.composicao == null ? o.quantidade : "1" };
     }));
     itens.push({ quantidade, produtoSnapshot: { slotsEntrega: slotsPorUnidade(produto.slotsEntrega, multiplicador, escolhas) } });
     const embalagem = entrada.tipoEmbalagemId === undefined ? produto.tipoEmbalagemId : entrada.tipoEmbalagemId;

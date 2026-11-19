@@ -46,6 +46,16 @@ describe("ação de frete com catálogo real e entrada mínima", () => {
     await calcularFretePedidoAction({ ...entrada(), itens: [{ produtoId: "p", quantidade: "1", escolhas: { o: 1 } }] });
     expect(s.entrega.mock.calls[0][0]).toMatchObject({ subtotalProdutos: "110.00", slotsOcupados: 5 });
   });
+  it("complemento vinculado inativo ou ausente não impede o cálculo do frete", async () => {
+    const itens = [{ produtoId: "p", quantidade: "1", escolhas: { o: 1 } }];
+    s.produto.mockResolvedValue({ ...produto(), grupos: [grupo()] });
+    s.vinculados.mockResolvedValue([{ id: "c", preco: new Prisma.Decimal(10), slotsEntrega: 3, ativo: false }]);
+    expect(await calcularFretePedidoAction({ ...entrada(), itens })).toHaveProperty("resultado");
+    expect(s.entrega.mock.calls[0][0]).toMatchObject({ subtotalProdutos: "110.00", slotsOcupados: 4 });
+    s.vinculados.mockResolvedValue([]);
+    expect(await calcularFretePedidoAction({ ...entrada(), itens, veiculoEntregaId: "carro-sintetico" })).toHaveProperty("resultado");
+    expect(s.entrega.mock.calls[1][0]).toMatchObject({ veiculoEntregaId: "carro-sintetico", slotsOcupados: null });
+  });
   it("arredonda dinheiro por linha e slots somente na soma final", async () => {
     s.produto.mockResolvedValue({ ...produto(), unidade: "KG", preco: new Prisma.Decimal("1.99"), slotsEntrega: 3 });
     await calcularFretePedidoAction({ ...entrada(), itens: [{ produtoId: "p", quantidade: "0.5" }, { produtoId: "p", quantidade: "0.5" }] });
@@ -55,7 +65,9 @@ describe("ação de frete com catálogo real e entrada mínima", () => {
     expect(await calcularFretePedidoAction({ ...entrada(), itens: [{ produtoId: "p", quantidade }] })).toHaveProperty("erro"); expect(s.entrega).not.toHaveBeenCalled();
   });
   it("recusa produto indisponível e seleção desconhecida", async () => {
-    s.produto.mockResolvedValueOnce(null); expect(await calcularFretePedidoAction(entrada())).toEqual({ erro: "Produto indisponível." });
+    s.produto.mockResolvedValueOnce(null); expect(await calcularFretePedidoAction(entrada())).toEqual({ erro: "Produto indisponível: o item 1 do pedido não existe mais no catálogo. Remova-o do pedido." });
+    s.produto.mockResolvedValueOnce({ ...produto(), nome: "Tábua fictícia", ativo: false });
+    expect(await calcularFretePedidoAction(entrada())).toEqual({ erro: "Produto indisponível: \"Tábua fictícia\" (item 1 do pedido) está desativado no catálogo. Reative o produto em Vendas ou remova-o do pedido." });
     expect(await calcularFretePedidoAction({ ...entrada(), itens: [{ produtoId: "p", quantidade: "1", escolhas: { desconhecida: 1 } }] })).toHaveProperty("erro"); expect(s.entrega).not.toHaveBeenCalled();
   });
   it("recusa acesso não autorizado sem calcular", async () => {
