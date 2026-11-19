@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Bot, FileText, Plug, Plus, Server, ShieldCheck } from "lucide-react";
 import { cn } from "cn";
 import { Card, CardContent } from "@/components/ui/card";
+import { LogoMark } from "@/components/logo";
 import { FaixaServidorMcp } from "./mcp/faixa-servidor";
 import { IconeTom, situacaoDaConexao, type Tom } from "./tons";
 
@@ -11,7 +12,15 @@ export type ResumoIntegracoes = {
   brasilnfe: boolean;
   certificado: { resumo: string; tom: Tom } | null;
 };
-type Item = { id: string; nome: string; resumo: string; href: string; tom: Tom; icone: typeof Bot; tracejado?: boolean };
+type Item = { id: string; nome: string; resumo: string; href: string; tom: Tom; icone: typeof Bot; tracejado?: boolean;
+  /** Identificação visual no lugar do ícone genérico: a marca do HUB ou as iniciais da aplicação. */
+  marca?: "hub"; monograma?: string };
+
+/** Iniciais da aplicação conectada ("OpenBot" → "OB", "ChatGPT — Allan" → "CG"), para distinguir conexões na grade. */
+export function monogramaDaAplicacao(nome: string) {
+  const partes = nome.match(/\p{Lu}+(?!\p{Ll})|\p{Lu}?\p{Ll}+|\d+/gu) ?? [];
+  return partes.slice(0, 2).map(p => p[0]!.toLocaleUpperCase("pt-BR")).join("");
+}
 
 export const rotaConexaoMcp = (id: string) => `/configuracoes/integracoes/mcp?conexao=${encodeURIComponent(id)}`;
 /** Conexão aberta quando a URL não escolhe uma: a primeira ativa, depois a primeira vigente. */
@@ -24,12 +33,12 @@ export function itensDoSeletor(resumo: ResumoIntegracoes): Item[] {
   const itens: Item[] = [];
   if (resumo.mcp) {
     const ordenadas = [...resumo.mcp.conexoes].sort((a, b) => Number(a.situacao === "REVOGADA") - Number(b.situacao === "REVOGADA"));
-    for (const c of ordenadas) { const s = situacaoDaConexao(c.situacao); itens.push({ id: `mcp:${c.id}`, nome: c.nome, resumo: `${c.clienteNome} · ${s.rotulo}`, href: rotaConexaoMcp(c.id), tom: s.tom, icone: Bot }); }
+    for (const c of ordenadas) { const s = situacaoDaConexao(c.situacao); itens.push({ id: `mcp:${c.id}`, nome: c.nome, resumo: `${c.clienteNome} · ${s.rotulo}`, href: rotaConexaoMcp(c.id), tom: s.tom, icone: Bot, monograma: monogramaDaAplicacao(c.clienteNome) }); }
   }
   if (resumo.brasilnfe) itens.push({ id: "brasilnfe", nome: "Brasil NFe", resumo: "Emissão de NF-e e NFC-e", href: "/configuracoes/integracoes/brasilnfe", tom: "verde", icone: FileText });
   if (resumo.certificado) itens.push({ id: "certificado", nome: "Certificado A1", resumo: resumo.certificado.resumo, href: "/configuracoes/integracoes/certificado", tom: resumo.certificado.tom, icone: ShieldCheck });
   if (resumo.mcp) {
-    itens.push({ id: "mcp:servidor", nome: "Servidor MCP", resumo: "Diagnóstico, aplicações e histórico", href: rotaConexaoMcp("servidor"), tom: "roxo", icone: Server });
+    itens.push({ id: "mcp:servidor", nome: "Servidor MCP", resumo: "Diagnóstico, aplicações e histórico", href: rotaConexaoMcp("servidor"), tom: "roxo", icone: Server, marca: "hub" });
     if (resumo.mcp.editar) itens.push({ id: "mcp:nova", nome: "Nova conexão", resumo: "Conectar um assistente de IA", href: rotaConexaoMcp("nova"), tom: "azul", icone: Plus, tracejado: true });
   }
   return itens;
@@ -44,12 +53,13 @@ export function MolduraIntegracoes({ resumo, ativa, children }: { resumo: Resumo
       <div className="min-w-0"><h1 className="text-display break-words">Integrações</h1><p className="mt-1 text-sm text-muted-foreground">Conecte e gerencie as integrações do Grazing HUB.</p></div>
     </header>
     {resumo.mcp && <FaixaServidorMcp endereco={resumo.mcp.endereco} ativo={resumo.mcp.ativo} configurado={resumo.mcp.configurado} editar={resumo.mcp.editar} />}
-    <Card size="sm"><CardContent><nav aria-label="Conexões" className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <Card size="sm"><CardContent><nav aria-label="Conexões" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {itens.map(i => { const Icone = i.icone; const selecionada = i.id === ativa; return <Link key={i.id} href={i.href} aria-current={selecionada ? "page" : undefined}
-        className={cn("flex min-h-11 min-w-0 items-center gap-3 rounded-[var(--ds-aba-raio)] border px-3 py-2 text-sm transition-colors duration-[var(--ds-movimento-rapido)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+        className={cn("flex min-h-16 min-w-0 items-center gap-3 rounded-[var(--ds-aba-raio)] border px-4 py-3 transition-colors duration-[var(--ds-movimento-rapido)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
           selecionada ? "border-transparent bg-foreground text-background" : i.tracejado ? "border-dashed border-border hover:bg-muted" : "border-transparent hover:bg-muted")}>
-        <IconeTom tom={i.tom} tamanho="pequeno"><Icone /></IconeTom>
-        <span className="min-w-0 flex-1"><span className="block truncate font-medium">{i.nome}</span><span className={cn("block truncate text-xs", selecionada ? "text-background/70" : "text-muted-foreground")}>{i.resumo}</span></span>
+        {i.marca === "hub" ? <span aria-hidden="true" className="flex shrink-0"><LogoMark className="size-10" /></span>
+          : <IconeTom tom={i.tom}>{i.monograma ? <span className="text-sm font-semibold">{i.monograma}</span> : <Icone />}</IconeTom>}
+        <span className="min-w-0 flex-1"><span className="block truncate text-base font-semibold">{i.nome}</span><span className={cn("block truncate text-sm", selecionada ? "text-background/70" : "text-muted-foreground")}>{i.resumo}</span></span>
       </Link>; })}
     </nav></CardContent></Card>
     {children}

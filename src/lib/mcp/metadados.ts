@@ -1,6 +1,12 @@
 import { ESCOPOS_MCP } from "./catalogo";
 import { enderecosMcp } from "./servidor";
 
+/** Identificação que o servidor apresenta ao cliente na inicialização: nome de exibição, site e ícones públicos (`/marca/`). */
+export function identidadeServidorMcp() {
+  const { emissor } = enderecosMcp();
+  return { name: "grazing-hub", title: "Grazing HUB", version: "2.0.0", websiteUrl: emissor,
+    icons: [512, 192].map(t => ({ src: `${emissor}/marca/grazing-hub-${t}.png`, mimeType: "image/png", sizes: [`${t}x${t}`] })) };
+}
 export function metadadosRecurso() {
   const { emissor, recurso } = enderecosMcp();
   return { resource: recurso, resource_name: "MCP do Grazing HUB", authorization_servers: [emissor], scopes_supported: ESCOPOS_MCP, bearer_methods_supported: ["header"] };
