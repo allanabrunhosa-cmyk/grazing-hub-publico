@@ -526,7 +526,11 @@ describe("Novo Pedido sem janelas sobrepostas", () => {
     await usuario.click(await screen.findByRole("option", { name: "Cliente Fictício" }));
     fireEvent.click(screen.getByRole("button", { name: "Copiar endereço de cobrança" }));
     await usuario.click(screen.getByRole("button", { name: "Retirada" }));
-    const entrega = within(screen.getByRole("heading", { name: "Entrega" }).closest("section")!);
+    expect(screen.queryByRole("heading", { name: "Entrega" })).toBeNull();
+    const entrega = within(screen.getByRole("heading", { name: "Retirada" }).closest("section")!);
+    expect(entrega.getByLabelText("Data de retirada")).toBeTruthy();
+    expect(entrega.getByLabelText("Horário de retirada")).toBeTruthy();
+    expect(entrega.queryByLabelText("Data de entrega")).toBeNull();
     expect(entrega.queryByRole("combobox", { name: "País" })).toBeNull();
     expect(entrega.queryByLabelText("Logradouro")).toBeNull();
     expect(entrega.queryByRole("button", { name: "Copiar endereço de cobrança" })).toBeNull();

@@ -80,13 +80,13 @@ export function CobrancaClientePedido({ enderecos, selecionado, alterar, consult
 }
 
 export type DestinatarioClienteForm = { nome: string; primeiroNome?: string; sobrenome?: string; contato: string };
-export function CamposDestinatarioCliente({ valor, alterar, antesNome, depoisSobrenome, antesTelefone, somenteLeitura = false, obrigatorio = false }: {
-  valor: DestinatarioClienteForm | null; alterar: (valor: DestinatarioClienteForm) => void; antesNome?: ReactNode; depoisSobrenome?: ReactNode; antesTelefone?: ReactNode; somenteLeitura?: boolean; obrigatorio?: boolean;
+export function CamposDestinatarioCliente({ valor, alterar, antesNome, depoisSobrenome, antesTelefone, somenteLeitura = false, obrigatorio = false, nomeLargo = false, rotuloNome = "Nome Completo" }: {
+  valor: DestinatarioClienteForm | null; alterar: (valor: DestinatarioClienteForm) => void; antesNome?: ReactNode; depoisSobrenome?: ReactNode; antesTelefone?: ReactNode; somenteLeitura?: boolean; obrigatorio?: boolean; nomeLargo?: boolean; rotuloNome?: string;
 }) {
   const nome = valor?.nome ?? [valor?.primeiroNome, valor?.sobrenome].filter(Boolean).join(" ");
   return <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-4">
     {antesNome}
-    <div className="lg:col-span-2"><Campo nome={obrigatorio ? "Nome Completo *" : "Nome Completo"}><Input data-destinatario-nome readOnly={somenteLeitura} required={obrigatorio} value={nome} maxLength={160} onChange={e => alterar({ nome: e.target.value, primeiroNome: e.target.value.trim().split(/\s+/)[0] ?? "", sobrenome: e.target.value.trim().split(/\s+/).slice(1).join(" "), contato: valor?.contato ?? "" })} /></Campo></div>
+    <div className={nomeLargo ? "lg:col-span-3" : "lg:col-span-2"}><Campo nome={obrigatorio ? `${rotuloNome} *` : rotuloNome}><Input data-destinatario-nome readOnly={somenteLeitura} required={obrigatorio} value={nome} maxLength={160} onChange={e => alterar({ nome: e.target.value, primeiroNome: e.target.value.trim().split(/\s+/)[0] ?? "", sobrenome: e.target.value.trim().split(/\s+/).slice(1).join(" "), contato: valor?.contato ?? "" })} /></Campo></div>
     {depoisSobrenome}{antesTelefone}
     <CampoTelefone nome="Telefone" somenteLeitura={somenteLeitura} valor={valor?.contato} alterar={contato => alterar({ ...valor, nome, contato })} />
   </div>;
