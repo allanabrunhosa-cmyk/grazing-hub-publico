@@ -224,6 +224,11 @@ integrações em grade, com o detalhe da conexão escolhida logo abaixo. Estado 
   `CampoBusca`, `FiltroPeriodo` e `Button` (`entrada`/`saida` na confirmação,
   `saida-outline` em Revogar). As abas e os indicadores da primeira rodada saíram.
 
+- Identificação na grade (terceira rodada, mesmo dia): nome em `text-base`, resumo em
+  `text-sm`; conexões MCP com as iniciais da aplicação dentro de `IconeTom`; Servidor
+  MCP e a faixa do endereço com `LogoMark`. Iniciais e marca são decorativas
+  (`aria-hidden`). Sem marcas de terceiros.
+
 Cores: `tons.tsx` (`TONS`/`IconeTom`) só combina pares fundo/texto já existentes
 (`secondary`/`primary`, `success`, `warning`, `destructive`, `muted` e
 `--ds-processo-entregue`), sem token novo nem cor literal. É um agrupamento local das

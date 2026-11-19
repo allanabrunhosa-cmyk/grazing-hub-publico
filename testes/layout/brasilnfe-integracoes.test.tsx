@@ -42,7 +42,9 @@ const servidorMcp = { endereco: "https://hub.example.invalid/api/mcp", ativo: tr
 
 it("seletor lista todas as conexões autorizadas, com Brasil NFe separada do Certificado A1", () => {
   render(<MolduraIntegracoes ativa="mcp:c-ativa" resumo={{ mcp: servidorMcp, brasilnfe: true, certificado: { resumo: "Válido até 01/01/2027", tom: "roxo" } }}><p>Detalhe fictício</p></MolduraIntegracoes>);
-  const nomes = screen.getAllByRole("link").map(l => l.textContent);
+  // Iniciais e marca são decorativas (aria-hidden): o texto conferido é o que o leitor de tela anuncia.
+  const nomes = screen.getAllByRole("link").map(l => [...l.children].filter(f => f.getAttribute("aria-hidden") !== "true").map(f => f.textContent).join(""));
+  expect(screen.getAllByRole("link").map(l => l.querySelector("[aria-hidden=true]")?.textContent)).toEqual(["CF", "CF", "", "", "GH", ""]);
   expect(nomes.map(n => n?.split("Cliente")[0])).toEqual(["Análises fictícias", "Conexão revogada", "Brasil NFeEmissão de NF-e e NFC-e", "Certificado A1Válido até 01/01/2027", "Servidor MCPDiagnóstico, aplicações e histórico", "Nova conexãoConectar um assistente de IA"]);
   expect(screen.getByRole("link", { name: /Análises fictícias/ }).getAttribute("aria-current")).toBe("page");
   expect(screen.getByRole("link", { name: /Brasil NFe/ }).getAttribute("href")).toBe("/configuracoes/integracoes/brasilnfe");

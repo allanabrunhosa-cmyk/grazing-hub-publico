@@ -437,3 +437,27 @@ testes/mcp testes/layout` (393 aprovados, 63 ignorados por flags de banco não
 ativadas), `npx tsc --noEmit`, `npm run lint:design` (0 novos, 0 resolvidos), eslint
 dos arquivos alterados e `npm run build`. Não executados: suítes com banco e o
 fluxo OAuth real com um aplicativo instalado.
+
+### Grade mais legível e identificação do servidor — 18/11/2026
+
+Pedido do responsável: grade de conexões mais amigável, com letras maiores e a marca
+dos sistemas, e a marca do Grazing HUB aparecendo no cliente MCP.
+
+- Grade (`integracoes/seletor.tsx`): nome em `text-base`, resumo em `text-sm`, itens
+  mais altos. Cada conexão MCP mostra as iniciais da aplicação (`monogramaDaAplicacao`)
+  no tom da situação; Servidor MCP e a faixa do endereço usam `LogoMark`. Marcas de
+  terceiros **não** foram incluídas: o repositório não tem os arquivos oficiais; entram
+  quando o responsável fornecer ou autorizar a origem.
+- Servidor (`identidadeServidorMcp` em `lib/mcp/metadados.ts`): a inicialização passa a
+  informar `title` "Grazing HUB", `websiteUrl` e `icons` PNG de 512 e 192 px em
+  `/marca/`, já público em `recursoEstatico`. Acrescentado `public/favicon.ico`. Os
+  arquivos reproduzem a composição de `src/components/logo.tsx`. Exibir o ícone é
+  decisão de cada cliente MCP; nada garante que um cliente específico o mostre.
+- Sem migration e sem mudança em OAuth, escopos, políticas ou auditoria.
+
+Validação local na branch `claude/integracoes-logos-20261118`: `npx vitest run
+testes/mcp testes/layout` (396 aprovados, 63 ignorados por flags de banco não
+ativadas), `npx tsc --noEmit`, `npm run lint:design` (0 novos, 0 resolvidos), eslint
+dos caminhos alterados e `npm run build`. Prévia Vite isolada do MCP em 1440 px claro
+e 375 px escuro, sem rolagem horizontal. Não executados: suítes com banco e a
+conferência do ícone em um cliente MCP real. Referência visual **Em revisão**.

@@ -1,14 +1,14 @@
 "use client";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, Copy } from "lucide-react";
+import { Copy } from "lucide-react";
+import { LogoMark } from "@/components/logo";
 import { toast } from "sonner";
 import { GrupoAcoes } from "@/components/padroes-operacionais";
 import { StatusAtivo } from "@/components/status-ativo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { IconeTom } from "../tons";
 import { salvarMcpAction } from "./actions";
 
 /** Faixa compacta com o endereço do servidor MCP e o acesso global. A permissão é reconferida na ação de servidor. */
@@ -28,7 +28,7 @@ export function FaixaServidorMcp({ endereco, ativo, configurado, editar }: { end
   }
   return <section aria-label="Servidor MCP do Grazing HUB" className="space-y-2">
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[var(--ds-cartao-raio)] border border-border/80 bg-card px-4 py-2.5 shadow-sm">
-      <IconeTom tom="azul" tamanho="pequeno" className="bg-primary text-primary-foreground"><Bot /></IconeTom>
+      <span aria-hidden="true" className="flex shrink-0"><LogoMark className="size-7" /></span>
       <span className="text-sm font-medium">Servidor MCP</span>
       <code title="Endereço do servidor MCP" className="min-w-0 flex-1 basis-56 truncate rounded-[var(--ds-controle-raio)] bg-muted px-2 py-1 font-mono text-xs select-all">{endereco}</code>
       <Button size="sm" variant="outline" onClick={copiar}><Copy className="size-4" />Copiar endereço</Button>
