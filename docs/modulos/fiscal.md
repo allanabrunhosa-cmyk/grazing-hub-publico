@@ -322,6 +322,8 @@ composição/unidade/quantidades; a prévia compara receita analisada, pedido fe
 atual. Mudança de ingrediente bloqueia o ramo afetado. Nome, preço e foto não alteram
 a identidade física. `modoFiscal=UNIDADES_SEPARADAS` exige prova de mercadoria individual
 por opção e discrimina quantidade/valor fotografados; base não discriminada exige revisão.
+Exceção (23/11/2026): com uma única opção escolhida, ela é a mercadoria inteira da linha e
+recebe todo o valor, inclusive o preço cobrado no principal; duas ou mais seguem bloqueadas.
 APRESENTACAO integra valor, versão e justificativa ao principal, mas não é ingrediente alimentar
 no seletor NCM. Embalagem vendida como mercadoria independente mantém classificação própria.
 
@@ -331,7 +333,13 @@ Normal e referência interna têm fotografia técnica própria gerada ao salvar;
 o selo por ramo. Pedidos novos guardam hashes materiais no snapshot fechado. Receita histórica
 sem essa prova não é atualizada automaticamente para parecer confirmada. Ciclo, profundidade
 excessiva ou identidade divergente impedem somente a prévia fiscal afetada. Preço, nome, foto,
-custos e auditoria do insumo não entram no selo. O hash do lote inclui ComposicaoInsumo;
+custos e auditoria do insumo não entram no selo. Desde 23/11/2026 a resolução do NCM usa
+`materiaisCorrespondem` (`ncm-configuracao.ts`): insumo simples, sem composição própria, é
+conferido só pela identidade — trocar marca, marcas homologadas, EAN ou especificação não
+bloqueia a emissão nem exige nova classificação. Incluir/retirar/trocar material e alterar a
+receita de uma preparação continuam bloqueando. Limite conhecido: o selo da preparação embute
+o cadastro dos seus ingredientes, então marca trocada **dentro** de uma preparação ainda
+diverge. O selo gravado, a ativação da classificação e FCI não mudaram. O hash do lote inclui ComposicaoInsumo;
 manutenção/propagação do grupo fiscal preserva também JSONB exato do grupo e seus cadastros.
 
 A sincronização da classificação mantém as observações anteriores integralmente. Quando a

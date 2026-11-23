@@ -1,6 +1,16 @@
-import type { CenarioNcmCalculado, ClassificacaoFiscal, ItemComercialFiscal } from "./tipos";
-import { hashOpcaoTecnica, hashTecnico, type FotografiaReceitaFiscal } from "./fotografia-tecnica";
+import type { CenarioNcmCalculado, ClassificacaoFiscal, ItemComercialFiscal, MateriaisFiscaisFotografados } from "./tipos";
+import { hashOpcaoTecnica, type FotografiaReceitaFiscal } from "./fotografia-tecnica";
 import { Prisma } from "@/generated/prisma/client";
+
+/** Confere os materiais analisados contra o pedido ou o cadastro atual, para fins de NCM.
+ * Insumo sem composição própria carrega no selo somente a identificação do cadastro
+ * (marca, marcas homologadas, EAN, especificação): trocar a marca não altera a mercadoria
+ * final nem seu NCM. Preparações continuam conferidas pelo selo de toda a sua receita,
+ * e incluir, retirar ou trocar um material sempre diverge. */
+export function materiaisCorrespondem(analisados: MateriaisFiscaisFotografados | undefined, outros: MateriaisFiscaisFotografados | undefined) {
+  if (!analisados || !outros || !Array.isArray(analisados.insumos) || !Array.isArray(outros.insumos) || analisados.insumos.length !== outros.insumos.length) return false;
+  return analisados.insumos.every(a => { const b = outros.insumos.find(x => x.insumoId === a.insumoId); return !!b && a.transitiva === b.transitiva && (!a.transitiva || a.hash === b.hash); });
+}
 
 /** Seleção exata por identidade comercial fotografada; não há prioridade, regex ou código padrão implícito. */
 export function resolverNcmConfiguracao(c: ClassificacaoFiscal, escolhas: ItemComercialFiscal["escolhas"], versaoId: string, receitaFotografada?: ItemComercialFiscal["receitaFotografada"], tecnicaAtual?: FotografiaReceitaFiscal) {
@@ -11,7 +21,7 @@ export function resolverNcmConfiguracao(c: ClassificacaoFiscal, escolhas: ItemCo
   if (c.receitaFiscalDocumentada && (!receitaFotografada?.documentacaoHash || !tecnicaAtual?.documentacaoHash)) return bloquear("Receita fiscal documentada exige fotografia própria no pedido e comprovação atual; não reconstruir a venda histórica pela CMV vigente.");
   if (receitaFotografada?.comprovacaoParcial && (!cfg || !c.baseSemIngredientesComprovada || !receitaFotografada.comprovacaoParcial.baseSemIngredientes || escolhas.some(e => !receitaFotografada.comprovacaoParcial!.opcaoIdsComComposicao.includes(e.opcaoId)))) return bloquear("Pedido com composição de estoque pendente exige ausência de base documentada e prova física das escolhas; nenhuma receita omitida é presumida vazia.");
   if (!cfg) {
-    if (c.fotografiaTecnica && (!receitaFotografada || !tecnicaAtual || c.fotografiaTecnica.principalHash !== receitaFotografada.principalHash || c.fotografiaTecnica.principalHash !== tecnicaAtual.principalHash || !receitaFotografada.materiais || !tecnicaAtual.materiais || hashTecnico(c.fotografiaTecnica.materiais) !== hashTecnico(receitaFotografada.materiais.principal) || hashTecnico(c.fotografiaTecnica.materiais) !== hashTecnico(tecnicaAtual.materiais.principal))) return bloquear("Receita material/transitiva ou identificação física não corresponde à análise e ao snapshot do pedido; revisar somente esta mercadoria, sem reescrever documentos anteriores.");
+    if (c.fotografiaTecnica && (!receitaFotografada || !tecnicaAtual || c.fotografiaTecnica.principalHash !== receitaFotografada.principalHash || c.fotografiaTecnica.principalHash !== tecnicaAtual.principalHash || !materiaisCorrespondem(c.fotografiaTecnica.materiais, receitaFotografada.materiais?.principal) || !materiaisCorrespondem(c.fotografiaTecnica.materiais, tecnicaAtual.materiais?.principal))) return bloquear("Receita material/transitiva ou identificação física não corresponde à análise e ao snapshot do pedido; revisar somente esta mercadoria, sem reescrever documentos anteriores.");
     if (c.analiseNcm && c.ncmAplicabilidade === "APLICAVEL" && escolhas.some(e => receitaFotografada?.opcaoHashes.find(h => h.opcaoId === e.opcaoId)?.hash !== hashOpcaoTecnica(e.produtoId, []))) return bloquear("Ingrediente incluído ou adicional integrado altera a composição sem cenário NCM fundamentado; analisar esta combinação antes de emitir.");
     return { classificacao: c, cenarioNcm, pendencias, justificativas };
   }
@@ -19,7 +29,7 @@ export function resolverNcmConfiguracao(c: ClassificacaoFiscal, escolhas: ItemCo
   if (!tecnica || tecnica.algoritmo !== "grazing.receita-fiscal.v1") return bloquear("Classificação por configuração sem fotografia técnica registrada pelo servidor; salvar nova versão fundamentada.");
   if (!receitaFotografada || !tecnicaAtual) return bloquear("Composição técnica do pedido ou do cadastro atual não comprovada para resolver o cenário NCM.");
   if (tecnica.principalHash !== receitaFotografada.principalHash || tecnica.principalHash !== tecnicaAtual.principalHash) return bloquear("Composição ou unidade do principal diverge da receita analisada; revisar a classificação deste produto.");
-  if (tecnica.materiais && (!receitaFotografada.materiais || !tecnicaAtual.materiais || hashTecnico(tecnica.materiais.principal) !== hashTecnico(receitaFotografada.materiais.principal) || hashTecnico(tecnica.materiais.principal) !== hashTecnico(tecnicaAtual.materiais.principal))) return bloquear("Receita transitiva do principal ou marca/GTIN material diverge da análise; snapshot histórico sem essa prova exige conferência da operação afetada.");
+  if (tecnica.materiais && (!materiaisCorrespondem(tecnica.materiais.principal, receitaFotografada.materiais?.principal) || !materiaisCorrespondem(tecnica.materiais.principal, tecnicaAtual.materiais?.principal))) return bloquear("Receita transitiva do principal diverge da análise; snapshot histórico sem essa prova exige conferência da operação afetada.");
   if (escolhas.some(e => !e.grupoId)) return bloquear("Identidade do grupo de escolha ausente no snapshot; reprepare a operação para resolver o NCM por configuração.");
   const selecionadas = escolhas.filter(e => cfg.grupoIds.includes(e.grupoId!));
   const ids = selecionadas.map(e => e.opcaoId).sort();
@@ -43,7 +53,7 @@ export function resolverNcmConfiguracao(c: ClassificacaoFiscal, escolhas: ItemCo
     if (!hash || hash !== receitaFotografada.opcaoHashes.find(h => h.opcaoId === id)?.hash || hash !== tecnicaAtual.opcaoHashes.find(h => h.opcaoId === id)?.hash) return bloquear(`Composição ou quantidade da opção ${id} diverge da receita analisada; salvar nova classificação para este ramo.`);
     if (tecnica.materiais) {
       const mat = tecnica.materiais.opcoes.find(m => m.opcaoId === id)?.materiais;
-      if (!mat || hashTecnico(mat) !== hashTecnico(receitaFotografada.materiais?.opcoes.find(m => m.opcaoId === id)?.materiais) || hashTecnico(mat) !== hashTecnico(tecnicaAtual.materiais?.opcoes.find(m => m.opcaoId === id)?.materiais)) return bloquear(`Receita transitiva da opção ${id} diverge da fórmula/identidade material analisada; revisar somente este ramo.`);
+      if (!mat || !materiaisCorrespondem(mat, receitaFotografada.materiais?.opcoes.find(m => m.opcaoId === id)?.materiais) || !materiaisCorrespondem(mat, tecnicaAtual.materiais?.opcoes.find(m => m.opcaoId === id)?.materiais)) return bloquear(`Receita transitiva da opção ${id} diverge da fórmula/identidade material analisada; revisar somente este ramo.`);
     }
   }
   for (const e of escolhas.filter(e => !cfg.grupoIds.includes(e.grupoId!) && !equivalentes.some(g => g.grupoId === e.grupoId))) {
