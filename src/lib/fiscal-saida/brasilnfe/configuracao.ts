@@ -135,9 +135,13 @@ export async function obterConfiguracaoBrasilNfe(sessao: SessaoAtual) {
 }
 /** Uso exclusivamente servidor na execução manual autorizada. Nunca incluir
  * cliente ou segredos em DTO/action, logs, eventos ou mensagens de erro. */
-export async function obterClienteHomologacaoBrasilNfe(sessao: SessaoAtual, ambiente: "HOMOLOGACAO" | "PRODUCAO" = "HOMOLOGACAO") {
+/** `acesso` "operacao": emitir, consultar e cancelar usam o emissor já configurado com a
+ * permissão da própria operação, sem exigir a administração da integração. O padrão
+ * "administracao" continua valendo para homologação e habilitação. Cada operação segue
+ * conferindo sua capacidade, o pedido e a habilitação manual. */
+export async function obterClienteHomologacaoBrasilNfe(sessao: SessaoAtual, ambiente: "HOMOLOGACAO" | "PRODUCAO" = "HOMOLOGACAO", acesso: "administracao" | "operacao" = "administracao") {
   return prisma.$transaction(async tx => {
-    await autor(tx, sessao, "editar");
+    await autor(tx, sessao, "editar", acesso === "operacao" ? RECURSOS_OPERACAO : [recurso]);
     const s = await ler(tx);
     if (!s.config?.tokenCifrado || !s.loja?.cnpj || s.config.ambiente !== "HOMOLOGACAO") throw new ErroConfiguracaoBrasilNfe("Configure a empresa e a credencial protegida de homologação.");
     return { cliente: new ClienteBrasilNfe({ token: decifrar(s.config.tokenCifrado, contextoToken), ...(s.config.userTokenCifrado ? { userToken: decifrar(s.config.userTokenCifrado, contextoUserToken) } : {}) }, { ambienteNota: ambiente === "PRODUCAO" ? 1 : 2 }),

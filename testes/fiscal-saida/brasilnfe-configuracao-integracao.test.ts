@@ -13,7 +13,7 @@ vi.mock("@/lib/fiscal-saida/brasilnfe/cliente", async importOriginal => {
   const original = await importOriginal<typeof import("@/lib/fiscal-saida/brasilnfe/cliente")>();
   return { ...original, ClienteBrasilNfe: class { buscarEmpresa = s.buscar; consultarServicos = s.servicos; } };
 });
-import { obterConfiguracaoBrasilNfe, salvarConfiguracaoBrasilNfe, validarConexaoBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/configuracao";
+import { obterClienteHomologacaoBrasilNfe, obterConfiguracaoBrasilNfe, salvarConfiguracaoBrasilNfe, validarConexaoBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/configuracao";
 import { ErroHttpBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/cliente";
 const schema = `teste_brasilnfe_${randomUUID().replaceAll("-", "")}`;
 let banco: Client | undefined, criado = false, editor: SessaoAtual, leitor: SessaoAtual;
@@ -67,6 +67,25 @@ describe.skipIf(process.env.BRASILNFE_BANCO_TESTE !== "1")("Brasil NFe administr
     await expect(obterConfiguracaoBrasilNfe(editor)).rejects.toThrow("acesso");
     await s.prisma.usuario.update({ where: { id: editor.userId }, data: { ativo: false, sessaoVersao: 0 } });
     await expect(validarConexaoBrasilNfe({ versao: 1 }, editor)).rejects.toThrow("acesso"); expect(s.buscar).not.toHaveBeenCalled();
+  });
+  it("quem só emite ou só cancela usa o emissor na operação, sem poder administrar a integração; sem permissão nenhuma é recusado", async () => {
+    await salvo();
+    const perfis = { emissor: { "financeiro.fiscal.emissao": ["visualizar", "editar"] }, cancelador: { "financeiro.fiscal.cancelamento": ["visualizar", "editar"] }, leitorEmissao: { "financeiro.fiscal.emissao": ["visualizar"] }, semFiscal: { "vendas.pedidos": ["visualizar", "editar"] } };
+    const sessoes: Record<string, SessaoAtual> = {};
+    for (const [nome, permissoes] of Object.entries(perfis)) {
+      const perfil = await s.prisma.perfilAcesso.create({ data: { nome: `Perfil fictício ${nome} ${randomUUID()}`, permissoes } }), id = `operador-${nome}-${randomUUID()}`;
+      await s.prisma.usuario.create({ data: { id, nome: "Pessoa fictícia", email: `${id}@example.invalid`, senhaHash: "inutil", perfilAcessoId: perfil.id } });
+      sessoes[nome] = { ...editor, userId: id };
+    }
+    for (const nome of ["emissor", "cancelador"]) {
+      const contexto = await obterClienteHomologacaoBrasilNfe(sessoes[nome], "PRODUCAO", "operacao");
+      expect(contexto).toMatchObject({ versao: 1, emitenteCnpj: empresa.cnpj }); expect(contexto.emitenteHash).toMatch(/^[a-f0-9]{64}$/);
+      // A administração da integração (padrão) continua exigindo configuracoes.brasilnfe.
+      await expect(obterClienteHomologacaoBrasilNfe(sessoes[nome], "PRODUCAO")).rejects.toThrow("acesso");
+      await expect(salvarConfiguracaoBrasilNfe({ versao: 1, tokenSubstituicao: token }, sessoes[nome])).rejects.toThrow("acesso");
+    }
+    for (const nome of ["leitorEmissao", "semFiscal"]) await expect(obterClienteHomologacaoBrasilNfe(sessoes[nome], "PRODUCAO", "operacao")).rejects.toThrow("acesso");
+    expect(await obterClienteHomologacaoBrasilNfe(editor, "PRODUCAO", "operacao")).toMatchObject({ versao: 1 });
   });
   it("sem UserToken indica exatamente consultas indisponíveis sem alegar autenticação", async () => {
     await salvarConfiguracaoBrasilNfe({ versao: 0, tokenSubstituicao: token }, editor);
