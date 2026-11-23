@@ -34,7 +34,7 @@ async function autor(tx: Tx, sessao: SessaoAtual, acao: "visualizar" | "editar",
   const u = await tx.usuario.findUnique({ where: { id: sessao.userId }, include: { perfilAcesso: true } });
   const admin = u?.perfilAcesso?.sistema === "ADMINISTRADOR";
   const pode = (recurso: string, acao: "visualizar" | "editar") => admin || permissaoEfetiva((u?.perfilAcesso?.permissoes ?? {}) as Permissoes, (u?.permissoesPersonalizadas ?? {}) as Excecoes, recurso, acao);
-  if (!u?.ativo || u.excluidoEm || u.sessaoVersao !== (sessao.versao ?? 0) || !pode(pedido ? "financeiro.fiscal.emissao" : "vendas.fiscal", acao) || (pedido && !pode("vendas.pedidos", "visualizar"))) falhar("acesso", "Seu acesso não permite administrar as decisões tributárias.");
+  if (!u?.ativo || u.excluidoEm || u.sessaoVersao !== (sessao.versao ?? 0) || !(pode(pedido ? "financeiro.fiscal.emissao" : "vendas.fiscal", acao) || (acao === "visualizar" && pode("financeiro.fiscal.emissao", "visualizar"))) || (pedido && !pode("vendas.pedidos", "visualizar"))) falhar("acesso", "Seu acesso não permite administrar as decisões tributárias.");
   return { id: u.id, nome: u.nome.slice(0, 200) };
 }
 async function travar(tx: Tx) { await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('brasilnfe-regras-tributarias'))`; }

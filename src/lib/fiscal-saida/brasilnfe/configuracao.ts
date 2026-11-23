@@ -39,6 +39,8 @@ export { autor as conferirAcessoAdministrativoBrasilNfe };
 /** Quem emite ou cancela notas usa o emissor configurado sem poder administrá-lo. Cada operação confere sua própria capacidade. */
 const RECURSOS_OPERACAO = [recurso, RECURSO_EMISSAO_FISCAL, RECURSO_CANCELAMENTO_FISCAL] as const;
 export const conferirAcessoOperacaoBrasilNfe = (tx: Prisma.TransactionClient, sessao: SessaoAtual, acao: "visualizar" | "editar") => autor(tx, sessao, acao, RECURSOS_OPERACAO);
+/** Conferir os contadores no emissor antes de emitir não altera a numeração. */
+export const conferirAcessoConsultaNumeracaoBrasilNfe = (tx: Prisma.TransactionClient, sessao: SessaoAtual) => autor(tx, sessao, "editar", [RECURSO_NUMERACAO_FISCAL, RECURSO_EMISSAO_FISCAL]);
 export const conferirAcessoNumeracaoBrasilNfe = (tx: Prisma.TransactionClient, sessao: SessaoAtual) => autor(tx, sessao, "editar", [RECURSO_NUMERACAO_FISCAL]);
 async function ler(tx: Prisma.TransactionClient) {
   const config = await tx.configuracaoBrasilNfe.findUnique({ where: { id: "singleton" } });

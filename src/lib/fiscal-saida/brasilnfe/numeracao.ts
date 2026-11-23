@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { decifrar } from "@/lib/crypto";
 import type { SessaoAtual } from "@/lib/session";
 import { permissaoEfetiva, type Permissoes, type Excecoes } from "@/lib/permissoes/catalogo";
-import { conferirAcessoNumeracaoBrasilNfe } from "./configuracao";
+import { conferirAcessoConsultaNumeracaoBrasilNfe, conferirAcessoNumeracaoBrasilNfe } from "./configuracao";
 import { ClienteBrasilNfe, ErroHttpBrasilNfe } from "./cliente";
 import { ErroConfiguracaoBrasilNfe, validarVersaoBrasilNfe } from "./configuracao-dominio";
 import { MOTIVOS_ATUALIZACAO_NUMERACAO_BRASILNFE, type AtualizacaoNumeracaoBrasilNfeDto, type ComandoAtualizacaoNumeracaoBrasilNfe, type NumeracaoFiscalBrasilNfeDto, type RegistroNumeracaoBrasilNfe } from "./numeracao-dto";
@@ -204,7 +204,7 @@ export async function consultarNumeracaoFiscalBrasilNfe(entrada: unknown, sessao
   if (!entrada || typeof entrada !== "object" || Array.isArray(entrada) || Object.keys(entrada).some(k => k !== "versao")) throw new ErroConfiguracaoBrasilNfe("Consulta de numeração inválida.");
   const versao = (entrada as { versao: unknown }).versao; validarVersaoBrasilNfe(versao);
   const inicio = await prisma.$transaction(async tx => {
-    const usuarioId = await conferirAcessoNumeracaoBrasilNfe(tx, sessao);
+    const usuarioId = await conferirAcessoConsultaNumeracaoBrasilNfe(tx, sessao);
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('brasilnfe-config'))`;
     const s = await lerIdentidade(tx);
     if (!s.config || s.config.versao !== versao) throw new ErroConfiguracaoBrasilNfe("Configuração alterada. Reabra a tela antes de consultar.");
@@ -226,7 +226,7 @@ export async function consultarNumeracaoFiscalBrasilNfe(entrada: unknown, sessao
   const seguro = restaurarRegistroNumeracaoBrasilNfe(registro);
   if (!seguro) throw new ErroConfiguracaoBrasilNfe("Resultado da consulta de numeração inválido. Nenhuma resposta externa foi armazenada.");
   return prisma.$transaction(async tx => {
-    await conferirAcessoNumeracaoBrasilNfe(tx, sessao);
+    await conferirAcessoConsultaNumeracaoBrasilNfe(tx, sessao);
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('brasilnfe-config'))`;
     const atual = await lerIdentidade(tx);
     if (atual.config?.versao !== inicio.config!.versao || atual.emitenteHash !== inicio.emitenteHash) throw new ErroConfiguracaoBrasilNfe("Configuração ou emitente alterado durante a consulta. Resultado descartado.");
@@ -267,7 +267,7 @@ export async function atualizarNumeracaoFiscalBrasilNfe(entrada: unknown, sessao
     await gravarAtualizacao(tx, registro, usuarioId, ATUALIZACAO.inicio);
     return { ...s, usuarioId, repetida: false, registro };
   });
-  if (inicio.repetida) return prisma.$transaction(async tx => { await conferirAcessoNumeracaoBrasilNfe(tx, sessao); return projetar(tx, await lerIdentidade(tx)); });
+  if (inicio.repetida) return prisma.$transaction(async tx => { await conferirAcessoConsultaNumeracaoBrasilNfe(tx, sessao); return projetar(tx, await lerIdentidade(tx)); });
   let envioIniciado = false, fase: "PRE" | "ATUALIZACAO" | "POS" = "PRE", leitura: NumeracoesBrasilNfeSanitizadas | null = null;
   let resultado: RegistroAtualizacao = inicio.registro;
   try {
