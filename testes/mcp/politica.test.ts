@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escoposDoUsuario, intersectarEscopos, intersectarRestricoes, registroPermitido, RestricoesSchema } from "@/lib/mcp/politica";
+import { ESCOPO_PERFIL, escoposDoUsuario, escoposSolicitados, intersectarEscopos, intersectarRestricoes, registroPermitido, RestricoesSchema } from "@/lib/mcp/politica";
 import { ESCOPOS_MCP, ESCOPOS_GERENCIAIS } from "@/lib/mcp/catalogo";
 import { retornoOAuthLogin } from "@/lib/mcp/retorno-login";
 import { intersectarAcessos, permissaoEfetiva } from "@/lib/permissoes/catalogo";
@@ -42,6 +42,19 @@ describe("MCP: negação por padrão e limites consentidos", () => {
     const conexao = { admin: false, permissoes: { "vendas.clientes": ["visualizar" as const, "editar" as const] }, excecoes: { "financeiro.dre": { visualizar: true } } };
     expect(intersectarAcessos(pessoaComum, conexao)).toEqual({ admin: false, permissoes: { "vendas.clientes": ["visualizar"] }, excecoes: {} });
     expect(escoposDoUsuario({ ...pessoa, ...intersectarAcessos(pessoaComum, { admin: false, permissoes: {}, excecoes: {} }) })).toEqual(["hub:v2:conexao_contexto"]);
+  });
+  it("escopo curto pede o catálogo atual e continua limitado pelo acesso da conexão", () => {
+    expect(escoposSolicitados(ESCOPO_PERFIL)).toEqual(ESCOPOS_MCP);
+    expect(escoposSolicitados(`financeiro:dre:ler ${ESCOPO_PERFIL}`).sort()).toEqual([...ESCOPOS_MCP].sort());
+    expect(escoposSolicitados("financeiro:dre:ler")).toEqual(["financeiro:dre:ler"]);
+    // Desconhecidos e repetidos seguem recusados, com ou sem o escopo curto.
+    expect(() => escoposSolicitados(`${ESCOPO_PERFIL} financeiro:futuro:ler`)).toThrow();
+    expect(() => escoposSolicitados("hub:tudo")).toThrow();
+    expect(() => escoposSolicitados("financeiro:dre:ler financeiro:dre:ler")).toThrow();
+    // O pedido amplo não concede nada além do que a pessoa e o perfil permitem.
+    const permitidos = escoposDoUsuario({ ...pessoa, permissoes: { "financeiro.dre": ["visualizar"] } });
+    expect(intersectarEscopos(escoposSolicitados(ESCOPO_PERFIL), permitidos)).toEqual(permitidos);
+    expect(ESCOPOS_MCP).not.toContain(ESCOPO_PERFIL);
   });
   it("retorno do login aceita somente o identificador opaco, sem redirecionamento aberto", () => {
     expect(retornoOAuthLogin("https://example.invalid")).toBeUndefined();

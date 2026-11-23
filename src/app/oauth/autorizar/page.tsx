@@ -5,7 +5,7 @@ import { validarPedidoOAuth } from "@/lib/mcp/oauth";
 import { exigirMcpAtivo, escoposParaConsentimento, INCLUIR_AUTORIZACAO, revisaoConsentimento } from "@/lib/mcp/servidor";
 import { retornoOAuthLogin } from "@/lib/mcp/retorno-login";
 import { FUNCOES_MCP } from "@/lib/mcp/catalogo";
-import { RestricoesSchema } from "@/lib/mcp/politica";
+import { ESCOPO_PERFIL, RestricoesSchema, escoposSolicitados } from "@/lib/mcp/politica";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ConsentimentoMcp } from "./consentimento";
 export const dynamic = "force-dynamic";
@@ -26,13 +26,14 @@ export default async function AutorizarMcpPage({ searchParams }: { searchParams:
   if (!solicitacao || solicitacao.consumidaEm || solicitacao.expiraEm <= new Date()) return <main className="p-6"><p role="alert">Solicitação expirada ou já utilizada. Reinicie a conexão no cliente.</p></main>;
   let pedido;
   try { pedido = await validarPedidoOAuth(solicitacao.parametros); } catch { return <main className="p-6"><p role="alert">Aplicação indisponível. Reinicie a conexão.</p></main>; }
-  const solicitados = pedido.parametros.scope.split(" ");
+  const solicitados: string[] = escoposSolicitados(pedido.parametros.scope);
+  const pedeTudoDoPerfil = pedido.parametros.scope.split(" ").includes(ESCOPO_PERFIL);
   const politicas = (await prisma.mcpAutorizacao.findMany({ where: { usuarioId: sessao.userId, clienteId: pedido.cliente.id, situacao: { in: ["PREPARADA", "ATIVA"] }, lojaId: "singleton" }, include: INCLUIR_AUTORIZACAO }))
     .filter(a => escoposParaConsentimento(a).some(s => solicitados.includes(s)))
     .map(a => { const r = RestricoesSchema.parse(a.restricoes); return { id: a.id, nome: a.nome, revisao: revisaoConsentimento(a), escopos: escoposParaConsentimento(a).filter(s => solicitados.includes(s)), detalhe: `Perfil da conexão: ${a.perfilAcessoId ? a.perfilAcesso?.nome ?? "indisponível" : `o seu (${a.usuario.perfilAcesso?.nome ?? "Sem perfil"})`}; ${r.contas === null ? "contas permitidas no HUB" : `${r.contas.length} conta(s)`}; ${r.lancamentos === null ? "registros financeiros permitidos" : `${r.lancamentos.length} lançamento(s)`}` }; });
   return <main className="mx-auto w-full max-w-2xl p-6"><Card><CardHeader><CardTitle>Autorizar acesso ao Grazing HUB</CardTitle><CardDescription>Responsável: {sessao.nome}. Empresa desta instalação do HUB.</CardDescription></CardHeader><CardContent className="space-y-5">
     <div className="space-y-1 text-sm"><p>Aplicação cadastrada: <strong>{pedido.cliente.nome}</strong></p><p className="break-all">Identificador: {pedido.cliente.id}</p><p className="break-all">Destino do retorno: {pedido.parametros.redirect_uri}</p><p className="text-muted-foreground">O nome amigável não comprova a identidade da aplicação. Confira o identificador e o destino.</p></div>
-    <p className="text-sm text-muted-foreground">A aplicação solicita: {FUNCOES_MCP.filter(f => solicitados.includes(f.escopo)).map(f => f.titulo).join(", ")}. Somente as funções permitidas pela política escolhida abaixo serão consentidas.</p>
+    <p className="text-sm text-muted-foreground">A aplicação solicita: {pedeTudoDoPerfil ? "todas as funções que o perfil da conexão permitir" : FUNCOES_MCP.filter(f => solicitados.includes(f.escopo)).map(f => f.titulo).join(", ")}. Somente as funções permitidas pela política escolhida abaixo serão consentidas.</p>
     {!politicas.length && <p role="alert" className="text-sm text-destructive">Nenhuma política preparada para você permite as funções solicitadas. O administrador precisa preparar a política; suas permissões centrais continuam obrigatórias.</p>}
     <ConsentimentoMcp solicitacao={id} politicas={politicas} />
   </CardContent></Card></main>;

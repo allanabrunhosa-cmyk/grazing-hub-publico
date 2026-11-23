@@ -75,6 +75,13 @@ que é o estado das conexões anteriores à migration `20261122120000_mcp_perfil
   revogadas apenas perdem o vínculo histórico.
 - A gestão envia aos administradores do MCP a lista de perfis centrais e suas permissões,
   necessárias para a personalização.
+- Escopo curto `hub:perfil` (`ESCOPO_PERFIL` em `mcp/politica.ts`, desde 23/11/2026): o
+  cliente pede tudo o que o acesso da conexão permitir no momento do consentimento, sem
+  listar as funções. Existe porque o endereço de autorização com todos os escopos passa
+  de 8 mil caracteres e alguns clientes instalados (OpenBot no Windows) não o abrem.
+  `escoposSolicitados` expande o pedido para o catálogo atual; consentimento, código e
+  token guardam os escopos reais, então função criada depois exige nova autorização. Não
+  é publicado em `scopes_supported` nem aceito como escopo de token.
 - Restrições por contas/lançamentos saíram do formulário. Valores já gravados continuam
   aplicados e aparecem no detalhe da conexão; conexões novas nascem sem restrição.
 

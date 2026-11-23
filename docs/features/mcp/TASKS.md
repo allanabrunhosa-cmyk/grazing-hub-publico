@@ -514,3 +514,17 @@ código da `main`: fixtures sem endereço de cobrança e serialização de BigIn
 corrigidas aqui. Prévia Vite isolada em 1440 px claro e 390 px escuro, sem rolagem
 horizontal nem erros de console. Não executados: leitor de tela e OAuth real com um
 cliente externo. Referência visual **Em revisão**.
+
+### Escopo curto que segue o perfil — 23/11/2026
+
+Pedido do responsável: com perfil Administrador, o OpenBot continuava com as quatro
+funções listadas no campo Escopos do cliente. O HUB passa a aceitar `hub:perfil`, que
+pede tudo o que o acesso da conexão permite; regra em [OPERACAO](OPERACAO.md). Sem
+migration. A tela da conexão informa o escopo e o consentimento resume o pedido.
+
+Validação local na branch `claude/mcp-escopo-perfil-20261123`: `npx vitest run
+testes/mcp testes/layout testes/permissoes` (784 aprovados, 90 ignorados por flags de
+banco), `MCP_BANCO_TESTE=1` com o caso do perfil da conexão aprovado e as mesmas 16
+falhas anteriores de `multimodulo.test.ts`, `npx tsc --noEmit`, eslint dos caminhos
+alterados, `npm run lint:design` (0 novos) e `npm run build`. Não executado: OAuth real
+pelo OpenBot com o escopo novo.

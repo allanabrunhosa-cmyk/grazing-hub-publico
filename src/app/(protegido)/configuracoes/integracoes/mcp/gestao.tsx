@@ -18,6 +18,7 @@ import { FiltroPeriodo } from "@/components/filtro-periodo";
 import type { DadosAdministracaoMcp, OperacaoMcp } from "@/lib/mcp/administracao";
 import { FUNCOES_MCP, LIMITES_MCP, exigenciasDaFuncaoMcp } from "@/lib/mcp/catalogo";
 import type { Excecoes } from "@/lib/permissoes/catalogo";
+import { ESCOPO_PERFIL } from "@/lib/mcp/politica";
 import { MatrizPermissoes } from "../../usuarios/matriz-permissoes";
 import { IconeTom, TONS, situacaoDaConexao, type Tom, type VarianteSelo } from "../tons";
 import { diagnosticarMcpAction, salvarMcpAction } from "./actions";
@@ -143,7 +144,7 @@ export function GestaoMcp({ dados, editar, verUsuarios = false, selecao }: { dad
           {a.restricoes.contas !== null && <Dado titulo="Contas bancárias">{a.restricoes.contas.length} informadas</Dado>}
           {a.restricoes.lancamentos !== null && <Dado titulo="Lançamentos">{a.restricoes.lancamentos.length} informados</Dado>}
         </dl>
-        <p className="text-xs text-muted-foreground">O acesso é o do perfil da conexão, limitado às permissões atuais do responsável em Usuários e permissões. Credenciais expiram em uma hora; esta versão exige nova autorização, sem renovação automática.</p>
+        <p className="text-xs text-muted-foreground">O acesso é o do perfil da conexão, limitado às permissões atuais do responsável em Usuários e permissões. Para o assistente pedir tudo o que esse perfil permite, informe nele o escopo <code className="rounded-[var(--ds-controle-raio)] bg-muted px-1">{ESCOPO_PERFIL}</code>. Credenciais expiram em uma hora; esta versão exige nova autorização, sem renovação automática.</p>
       </Secao>
       <Funcionalidades key={a.id} autorizacao={a} />
     </>;
