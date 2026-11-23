@@ -36,6 +36,7 @@ COPY --from=builder /app/scripts/estrutura-fiscal-classificacao-catalogo.ts ./sc
 COPY --from=builder /app/scripts/estrutura-fiscal-parametros.ts ./scripts/estrutura-fiscal-parametros.ts
 COPY --from=builder /app/scripts/estrutura-fiscal-nuts-comercial.ts ./scripts/estrutura-fiscal-nuts-comercial.ts
 COPY --from=builder /app/scripts/processar-ifood.ts ./scripts/processar-ifood.ts
+COPY --from=builder /app/scripts/processar-integracoes.ts ./scripts/processar-integracoes.ts
 COPY --from=builder /app/scripts/historico-importar.ts ./scripts/historico-importar.ts
 COPY --from=builder /app/scripts/clientes-historicos-corrigir.ts ./scripts/clientes-historicos-corrigir.ts
 COPY --from=builder /app/scripts/clientes-historicos-arquivos.ts ./scripts/clientes-historicos-arquivos.ts

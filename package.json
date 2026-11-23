@@ -17,6 +17,7 @@
     "test": "vitest run",
     "ifood:coletor": "node --conditions=react-server --import tsx scripts/processar-ifood.ts --coletor",
     "ifood:processador": "node --conditions=react-server --import tsx scripts/processar-ifood.ts",
+    "integracoes:worker": "node --conditions=react-server --import tsx scripts/processar-integracoes.ts",
     "teste:visual": "vite --config testes/visual/vite.config.mts"
   },
   "dependencies": {

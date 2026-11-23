@@ -679,3 +679,7 @@ vincula membros, hashes, motivo, sobrevivente e complemento final. Requer backup
 manifesto, token, aprovação técnica, versão e estado exatos. Auditoria, idempotência
 e reversão seguem a estrutura de manutenção existente. Unidades físicas distintas
 bloqueiam a união. Pedidos, fontes, cobranças e Principal ficam preservados.
+
+## Asaas e Site
+
+Cobrança do pedido pelo Asaas e recepção de pedidos do WooCommerce: contratos, fronteiras por origem `SITE` e ativação em [Asaas e Site](../features/asaas-site/SPEC.md). Código em `src/lib/asaas` e `src/lib/site`; worker `npm run integracoes:worker`. Cobrança não gera título nem baixa.

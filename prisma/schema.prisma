@@ -193,6 +193,8 @@ model CanalVenda {
 // O pedido é a origem comercial; efeitos financeiros, fiscais e de estoque ficam fora do M1.
 model PedidoVenda {
   ifood PedidoIfood?
+  site PedidoSite?
+  cobrancasAsaas CobrancaAsaas[]
   modoFinanceiro String @default("HUB")
   // Corte de criação: zero preserva contratos anteriores, sem backfill.
   versaoFinanceiro Int @default(0)
@@ -3454,4 +3456,113 @@ model AcaoMerchantIfood {
 model NumeroEntradaAvulsaLegada {
   origem String @id
   numero Int @unique @default(dbgenerated("nextval('\"EntradaAvulsaRegistro_numero_seq\"'::regclass)"))
+}
+
+// Asaas: cobrança externa vinculada ao Pedido. Não é título, receita nem baixa bancária.
+model CobrancaAsaas {
+  id String @id @default(cuid())
+  ambiente String
+  pedidoId String
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  origem String @default("HUB")
+  forma String
+  valor Decimal @db.Decimal(14,2)
+  vencimento DateTime @db.Date
+  // Envio: ENVIANDO, ATIVA, INCERTA, FALHOU. Situação: fato informado pelo Asaas.
+  estado String @default("ENVIANDO")
+  situacao String @default("AGUARDANDO")
+  statusRemoto String?
+  asaasId String?
+  clienteAsaasId String?
+  linkPagamento String?
+  linkBoleto String?
+  valorLiquido Decimal? @db.Decimal(14,2)
+  pagoEm DateTime?
+  creditoPrevisto DateTime? @db.Date
+  ultimoEventoEm DateTime?
+  erro String?
+  chaveOperacao String @unique
+  hashOperacao String
+  criadoPorId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([ambiente, asaasId])
+  @@index([pedidoId, estado])
+}
+
+// Caixa de entrada durável do webhook: persistir antes de responder 200.
+model EventoAsaas {
+  id String @id @default(cuid())
+  ambiente String
+  externoId String
+  tipo String
+  pagamentoId String?
+  ocorridoEm DateTime?
+  recebidoEm DateTime @default(now())
+  payloadCifrado String
+  estado String @default("PENDENTE")
+  tentativas Int @default(0)
+  proximaTentativa DateTime @default(now())
+  erro String?
+  @@unique([ambiente, externoId])
+  @@index([estado, proximaTentativa])
+  @@index([pagamentoId])
+}
+
+// Site (WooCommerce): instalação de loja única; credenciais ficam no servidor.
+model IntegracaoSite {
+  id String @id @default(cuid())
+  contaId String @unique @default("singleton")
+  loja String
+  canalId String
+  ativa Boolean @default(false)
+  cursor DateTime?
+  proximaColeta DateTime @default(now())
+  leaseToken String?
+  leaseAte DateTime?
+  ultimaColeta DateTime?
+  ultimoRecebimento DateTime?
+  ultimoErro String?
+  criadoPorId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  eventos EventoSite[]
+  pedidos PedidoSite[]
+}
+
+// O aviso só aponta o pedido; o conteúdo vem da consulta autenticada ao site.
+model EventoSite {
+  id String @id @default(cuid())
+  integracaoId String
+  integracao IntegracaoSite @relation(fields: [integracaoId], references: [id], onDelete: Restrict)
+  chave String
+  pedidoExternoId String
+  topico String
+  recebidoEm DateTime @default(now())
+  estado String @default("PENDENTE")
+  tentativas Int @default(0)
+  proximaTentativa DateTime @default(now())
+  erro String?
+  @@unique([integracaoId, chave])
+  @@index([estado, proximaTentativa])
+}
+
+model PedidoSite {
+  id String @id @default(cuid())
+  integracaoId String
+  integracao IntegracaoSite @relation(fields: [integracaoId], references: [id], onDelete: Restrict)
+  externoId String
+  numeroExterno String
+  pedidoId String @unique
+  pedido PedidoVenda @relation(fields: [pedidoId], references: [id], onDelete: Restrict)
+  statusRemoto String
+  modificadoEm DateTime?
+  snapshotCifrado String
+  hashSnapshot String
+  pendencia String?
+  asaasPagamentoId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([integracaoId, externoId])
+  @@index([asaasPagamentoId])
 }
