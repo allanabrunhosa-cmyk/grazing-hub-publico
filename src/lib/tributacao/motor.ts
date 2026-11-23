@@ -95,7 +95,9 @@ export function calcularTributacao(contexto: ContextoFiscal, itens: ItemComercia
       const todas = linha.escolhas ?? [], es = todas.filter(e => c.configuracaoNcm!.grupoIds.includes(e.grupoId ?? ""));
       const valorDiscriminado = linha.contextoKit || linha.valorEscolhasDiscriminado;
       if (!es.length || valorDiscriminado && es.length !== 1) { adicionar(`${linha.nome}: unidades separadas exigem opções individualizadas; configuração multissabor exige componentes/rateios documentados separados.`); return; }
-      const valores = es.map(e => valorDiscriminado ? linha.valor : e.valor);
+      // Uma única opção escolhida é a mercadoria inteira da linha: o preço cobrado no
+      // principal pertence a ela, sem rateio. Duas ou mais exigem valor por opção.
+      const valores = es.map(e => valorDiscriminado || es.length === 1 ? linha.valor : e.valor);
       if (!valores.reduce((t,v) => t.plus(valorFiscal(v)), new D(0)).equals(linha.valor)) { adicionar(`${linha.nome}: valores das unidades separadas não fecham com o total comercial; base ou custo não discriminado exige análise, sem rateio presumido.`); return; }
       for (const [n,e] of es.entries()) {
         const quantidade = e.quantidadeEscolhida && composta(linha.quantidade, e.quantidadeEscolhida, linha.nome);
