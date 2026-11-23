@@ -67,7 +67,7 @@ Os centavos rateados devem fechar com o total do pedido.
 Escolhas gratuitas alteram a composição; extras separados seguem o vínculo MERCADORIA.
 Sabores de suco e de torta representam unidades separadas e usam seu cenário individual.
 Fichas fiscais descrevem o conteúdo final por unidade, sem substituir consumo de estoque.
-Se a composição mudar, registrar nova versão fundamentada. Marca ou identificação de insumo
+Se a composição mudar, o sistema mantém o NCM e pede revisão ao administrador (manter ou alterar). Marca ou identificação de insumo
 simples não altera o NCM do produto final ([Fiscal](../../modulos/fiscal.md)).
 No coco, peso bruto e porção comestível ainda exigem conversão operacional documentada;
 não transformar automaticamente 0,4 UN do cadastro em 0,1 KG de estoque.

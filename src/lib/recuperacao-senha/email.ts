@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { decifrar } from "@/lib/crypto";
 import { MINUTOS_VALIDADE } from "./validacao";
 
-async function configuracao() {
+/** Configuração de envio reutilizada por outros avisos do sistema; nunca retorna ao cliente. */
+export async function configuracaoEnvioEmail() {
   const salvo = process.env.EMAIL_SMTP_HOST ? null : await prisma.configuracaoEmail.findUnique({ where: { id: "singleton" } });
   const host = process.env.EMAIL_SMTP_HOST || salvo?.host;
   const user = process.env.EMAIL_SMTP_USUARIO || salvo?.usuario;
@@ -17,11 +18,11 @@ async function configuracao() {
 }
 
 export async function emailConfigurado() {
-  try { return await configuracao() !== null; } catch { return false; }
+  try { return await configuracaoEnvioEmail() !== null; } catch { return false; }
 }
 
 export async function enviarEmailRecuperacao(destinatario: string, token?: string, convite = false) {
-  const config = await configuracao();
+  const config = await configuracaoEnvioEmail();
   if (!config) throw new Error("Envio de e-mail não configurado.");
   // O fragmento fica no navegador e não é enviado em URLs de requisição ou Referer.
   const link = `${config.origem}/login/redefinir#${token ?? ""}`;

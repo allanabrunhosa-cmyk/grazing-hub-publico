@@ -13,6 +13,7 @@ vi.mock("next/navigation", () => ({ redirect: redirecionar, useRouter: vi.fn() }
 vi.mock("@/lib/contexto-interface", () => ({ identidadeDaInterface: identidade }));
 vi.mock("@/lib/vendas/pedidos", () => ({ obterPedido: obter }));
 vi.mock("@/lib/fiscal-saida/servico", () => ({ consultarFiscalSaida: fiscal }));
+vi.mock("@/lib/tributacao/revisao-ncm", () => ({ consultarRevisoesNcmDoPedido: vi.fn(async () => []) }));
 vi.mock("@/app/(protegido)/vendas/pedidos/emissao-actions", () => ({ consultarResultadoEmissaoPedidoBrasilNfeAction: vi.fn(), prepararEmissaoPedidoBrasilNfeAction: vi.fn(), emitirNotaPedidoDiretaBrasilNfeAction: vi.fn(), consultarEmissaoPedidoBrasilNfeAction: vi.fn(), obterDocumentosEmissaoPedidoBrasilNfeAction: vi.fn() }));
 vi.mock("@/app/(protegido)/vendas/pedidos/fiscal-actions", () => ({ previaFiscalSaidaAction: vi.fn() }));
 vi.mock("@/lib/vendas/pedidos-gestao", () => ({ consultarGestaoPedidos: consultar }));
@@ -109,7 +110,7 @@ it("documentos fiscais entram no detalhe com consulta de notas; emitir e cancela
   expect((await ConteudoPedido({ params, retorno })).props.children.props.fiscal).toBeUndefined(); expect(fiscal).not.toHaveBeenCalled();
   permitidos.add("financeiro.fiscal.emissao:visualizar");
   const leitura = await ConteudoPedido({ params, retorno });
-  expect(leitura.props.children.props.fiscal).toEqual({ editar: false, cancelar: false, documentos: [], origemHub: "http://127.0.0.1:4302" });
+  expect(leitura.props.children.props.fiscal).toEqual({ editar: false, cancelar: false, documentos: [], revisoesNcm: [], origemHub: "http://127.0.0.1:4302" });
   expect(fiscal).toHaveBeenCalledExactlyOnceWith("pedido-ficticio", { nome: "Operador fictício" });
   permitidos.add("financeiro.fiscal.emissao:editar");
   const edicao = await ConteudoPedido({ params, retorno });

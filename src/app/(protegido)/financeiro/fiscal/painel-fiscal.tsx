@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDownLeft, ArrowUpRight, BarChart3, Download, Eye, Loader2, Receipt, Settings, ShieldCheck, TrendingUp, TriangleAlert, type LucideIcon } from "lucide-react";
@@ -45,7 +45,7 @@ function CartaoMetrica({ titulo, metrica, apoio, icone: Icon, ativo, selecionar,
     <p className={`font-heading text-stat leading-tight tabular-nums tracking-tight break-words ${metrica.valor !== null ? tinta[tom] : "text-muted-foreground"}`} style={{ fontSize: "max(var(--text-title), min(var(--text-stat), 12cqw))" }}>{formatarMoedaFiscal(metrica.valor)}</p><p className="text-xs leading-relaxed text-muted-foreground">{metrica.motivo ?? (metrica.quantidade === null ? apoio : `${metrica.quantidade} ${apoio}`)}</p>
   </CardContent></Card>;
 }
-export function PainelFiscal({ dados }: { dados: DashboardFiscalDto }) {
+export function PainelFiscal({ dados, revisaoNcm }: { dados: DashboardFiscalDto; revisaoNcm?: ReactNode }) {
   const router = useRouter(), documentos = useRef<HTMLDivElement>(null);
   const [carregando, iniciarTransicao] = useTransition();
   const [periodo, definirPeriodo] = useState(() => ({ base: dados.filtros, ...limitesPeriodoDashboard(dados.filtros) }));
@@ -77,6 +77,7 @@ export function PainelFiscal({ dados }: { dados: DashboardFiscalDto }) {
       <FiltroPeriodo de={periodo.de} ate={periodo.ate} aoAlterar={valor => { definirPeriodo({ base: dados.filtros, ...valor }); if (!valor.de || !valor.ate || valor.de <= valor.ate) filtrar(valor); }} />
       {dados.filtros.ambiente === "HOMOLOGACAO" && <p role="status" className="flex items-center gap-2 text-sm text-warning"><TriangleAlert aria-hidden="true" className="size-4 shrink-0" />Ambiente de testes · valores sem efeito fiscal de produção.</p>}
     </section>
+    {revisaoNcm}
     <div className="@container"><div className="grid grid-cols-1 gap-3 @[18rem]:grid-cols-2 @[40rem]:grid-cols-4">
       <CartaoMetrica tom="faturamento" titulo="Faturamento" metrica={dados.metricas.faturamento} apoio="notas de saída" icone={TrendingUp} ativo={card === "FATURAMENTO"} selecionar={() => selecionarCard("FATURAMENTO")} />
       <CartaoMetrica tom="despesas" titulo="Despesas" metrica={dados.metricas.entradas} apoio="notas de entrada" icone={ArrowDownLeft} ativo={card === "DESPESAS"} selecionar={() => selecionarCard("DESPESAS")} />

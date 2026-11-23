@@ -13,6 +13,7 @@ import { consultarFiscalSaida } from "@/lib/fiscal-saida/servico";
 import { headers } from "next/headers";
 import { contextoDoHost } from "@/lib/hosts";
 import { origemHubFiscalPedido } from "../fiscal-navegacao";
+import { consultarRevisoesNcmDoPedido } from "@/lib/tributacao/revisao-ncm";
 import { ehPedidoHistorico } from "@/lib/vendas/historico-dominio";
 import { DetalheHistoricoPedido } from "../detalhe-historico-pedido";
 
@@ -40,7 +41,7 @@ export async function ConteudoPedido({ params, retorno, abrirCancelamentoInicial
   const capacidades = { rascunho, confirmar, revisar, desconto, preco, cancelar, receber, estornar, condicao: condicao && revisar, editarCliente };
   if (["RASCUNHO", "DECLINADO"].includes(String(pedido.status))) return <ModalPedido titulo={`Pedido #${pedido.numero}`} descricao="Confira e salve o orçamento para confirmar o pedido." retorno={retorno} protegerAlteracoes><EditorPedido emDialogo key={String(pedido.id)} dados={dados} pedido={pedido} capacidades={capacidades} /></ModalPedido>;
   const preparar = revisar || await podeAcessar("vendas.pedidos.producao", "editar");
-  const fiscal = await podeAcessar("financeiro.fiscal.emissao") ? { editar: await podeAcessar("financeiro.fiscal.emissao", "editar"), cancelar: await podeAcessar("financeiro.fiscal.cancelamento", "editar"), documentos: await consultarFiscalSaida(id, sessao), origemHub: origemHubFiscalPedido(contextoDoHost(await headers())) } : undefined;
+  const fiscal = await podeAcessar("financeiro.fiscal.emissao") ? { editar: await podeAcessar("financeiro.fiscal.emissao", "editar"), cancelar: await podeAcessar("financeiro.fiscal.cancelamento", "editar"), documentos: await consultarFiscalSaida(id, sessao), revisoesNcm: await consultarRevisoesNcmDoPedido(id).catch(() => []), origemHub: origemHubFiscalPedido(contextoDoHost(await headers())) } : undefined;
   const p = pedido as unknown as PedidoDetalhado;
   return <ModalPedido detalhe titulo={`Pedido #${pedido.numero}`} descricao="Acompanhe a entrega, o pagamento e os itens do pedido." retorno={retorno} protegerAlteracoes>
     <DetalhePedido key={`${id}:${abrirCancelamentoInicial ? "cancelar" : "detalhe"}`} pedido={p} dados={dados} capacidades={capacidades} responsavel={sessao.nome} preparar={preparar} fiscal={fiscal} abrirCancelamentoInicial={abrirCancelamentoInicial} />

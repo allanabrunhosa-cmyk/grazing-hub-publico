@@ -24,6 +24,7 @@ import { fotografarClassificacaoNormal, fotografarReceitaFiscal, hashReceitaDocu
 import { conferirPoliticaKit } from "@/lib/tributacao/fotografia-kit";
 import { fotografarMateriais } from "@/lib/tributacao/receita-material";
 import { resolverNcmConfiguracao } from "@/lib/tributacao/ncm-configuracao";
+import { consultarRevisoesNcmPendentes, manterNcmRevisado, registrarAlertaRevisoesNcm, revisoesNcmSemAlerta } from "@/lib/tributacao/revisao-ncm";
 import { executarCliClassificacao } from "../../scripts/estrutura-fiscal-classificacao-catalogo";
 
 const schema = `teste_ncm_aplic_${randomUUID().replaceAll("-", "")}`;
@@ -252,7 +253,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Aplicabilidad
     const impacto = await analisarImpactoFiscal(v.id, sessao); await expect(ativarVersaoFiscal(v.id, impacto.hash, randomUUID(), sessao)).rejects.toThrow("não presumir equivalência");
     expect((await sim.prisma.versaoEstruturaFiscal.findUniqueOrThrow({ where: { id: v.id } })).status).toBe("RASCUNHO"); expect((await sim.prisma.produtoVenda.findUniqueOrThrow({ where: { id: alias.id } })).ativo).toBe(false);
   });
-  it("normal preparada sela receita transitiva real e conserva snapshot; renomear/custo não invalidam, troca de ingrediente invalida", async () => {
+  it("normal preparada: renomear/custo/marca não pedem revisão; troca de ingrediente mantém o NCM, avisa e só o responsável confirma", async () => {
     const queijo = await sim.prisma.insumo.create({ data: { nome: "Ingrediente Q fictício", unidade: "KG", custoMedio: "12.90" } });
     const carne = await sim.prisma.insumo.create({ data: { nome: "Ingrediente C fictício", unidade: "KG" } });
     const preparacao = await sim.prisma.insumo.create({ data: { nome: "Preparação intermediária fictícia", tipo: "PRODUTO_INTERMEDIARIO", unidade: "KG", rendimentoQuantidade: "1", rendimentoUnidade: "KG", componentes: { create: { componenteId: queijo.id, quantidade: "1" } } } });
@@ -266,7 +267,17 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Aplicabilidad
     expect((await resolverAtual()).pendencias).toEqual([]);
     await sim.prisma.insumo.update({ where: { id: queijo.id }, data: { nome: "Nome futuro fictício", custoMedio: "45" } }); expect((await resolverAtual()).pendencias).toEqual([]);
     await sim.prisma.composicaoInsumo.deleteMany({ where: { produtoId: preparacao.id } }); await sim.prisma.composicaoInsumo.create({ data: { produtoId: preparacao.id, componenteId: carne.id, quantidade: "1" } });
-    expect((await resolverAtual()).pendencias.join()).toContain("Receita material/transitiva");
+    await sim.prisma.insumo.update({ where: { id: carne.id }, data: { marca: "Marca futura fictícia", marcasHomologadas: ["Marca futura fictícia"] } });
+    const alterada = await resolverAtual(); expect(alterada.pendencias).toEqual([]); expect(alterada.revisoes).toHaveLength(1); expect(alterada.classificacao.ncm).toBe("08061000");
+    const pendentes = await consultarRevisoesNcmPendentes([produtoId]);
+    expect(pendentes).toHaveLength(1); expect(pendentes[0]).toMatchObject({ versaoId: v.id, produtoId, ncms: ["08061000"], mudancas: ["Receita da preparação alterada: Preparação intermediária fictícia"] });
+    expect(await revisoesNcmSemAlerta(pendentes)).toHaveLength(1); await registrarAlertaRevisoesNcm(pendentes, 1); expect(await revisoesNcmSemAlerta(pendentes)).toHaveLength(0);
+    await expect(manterNcmRevisado({ versaoId: v.id, assinatura: "0".repeat(64), chaveOperacao: randomUUID() }, sessao)).rejects.toThrow("mudou de novo");
+    await expect(manterNcmRevisado({ versaoId: v.id, assinatura: pendentes[0].assinatura, chaveOperacao: randomUUID() }, { ...sessao, userId: "inexistente" })).rejects.toThrow();
+    const chaveManter = randomUUID(); await manterNcmRevisado({ versaoId: v.id, assinatura: pendentes[0].assinatura, chaveOperacao: chaveManter }, sessao); await manterNcmRevisado({ versaoId: v.id, assinatura: pendentes[0].assinatura, chaveOperacao: chaveManter }, sessao);
+    const versoesProduto = await sim.prisma.versaoEstruturaFiscal.findMany({ where: { tipo: "CLASSIFICACAO", chave: produtoId }, orderBy: { versao: "desc" } });
+    expect(versoesProduto).toHaveLength(2); expect(versoesProduto[0]).toMatchObject({ status: "ATIVO", criadoPorId: sessao.userId }); expect((versoesProduto[0].dados as unknown as ClassificacaoFiscal).ncm).toBe("08061000"); expect(versoesProduto[0].justificativa).toContain("NCM mantido pelo responsável");
+    expect(await consultarRevisoesNcmPendentes([produtoId])).toEqual([]);
     expect((await sim.prisma.itemPedidoVenda.findUniqueOrThrow({ where: { id: pedido.itens[0].id } })).produtoSnapshot).toEqual(fotoAntes); expect(c.ncm).toBe("08061000");
   });
   it("lote prospectivo sela KIT com referência interna futura na mesma vigência e preserva o cadastro atual", async () => {
@@ -352,7 +363,7 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Aplicabilidad
     expect(await sim.prisma.produtoVenda.findUniqueOrThrow({ where: { id: produtoId }, include: { componentes: true } })).toEqual(antes);
     const legado = { ...p, itens: [{ ...p.itens[0], produtoSnapshot: { nome: "Preparação histórica sem ficha própria" } }] }; expect(resolverNcmConfiguracao(dados, i.escolhas, v.id, itensParaTributacao(legado)[0].receitaFotografada, atual).pendencias.join()).toContain("não reconstruir");
     await sim.prisma.opcaoComplementoVenda.update({ where: { id: opcao.id }, data: { composicao: [{ insumoId: queijo.id, unidade: "KG", quantidade: "0.2" }] } });
-    const mudada = await sim.prisma.$transaction(tx => fotografarReceitaFiscal(tx, dados, false, [opcao.id])); expect(resolverNcmConfiguracao(dados, i.escolhas, v.id, i.receitaFotografada, mudada).pendencias.join()).toContain("diverge da receita analisada");
+    const mudada = await sim.prisma.$transaction(tx => fotografarReceitaFiscal(tx, dados, false, [opcao.id])); { const r = resolverNcmConfiguracao(dados, i.escolhas, v.id, i.receitaFotografada, mudada); expect(r.pendencias).toEqual([]); expect(r.revisoes).toHaveLength(1); }
     expect((await sim.prisma.itemPedidoVenda.findUniqueOrThrow({ where: { id: p.itens[0].id } })).produtoSnapshot).toEqual(p.itens[0].produtoSnapshot);
   });
   it("CLI composto usa serviços reais: dry-run integral, aplicação atômica e replay sem alterar documentos ou estoque", async () => {

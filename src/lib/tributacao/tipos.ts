@@ -164,7 +164,9 @@ export type LinhaFiscalCalculada = {
 };
 export type RevisaoConsolidadaFiscal = { tipo: "PROPOSTAS_PARA_REVISAO"; versao: 1; ambiente: "HOMOLOGACAO" | "PRODUCAO"; aprovacaoInterna: false;
   versoes: { id: string; hash: string; versao: number; tipo: TipoVersaoFiscal; chave: string; statusOriginal: "RASCUNHO" | "ATIVO" }[] };
-export type PreviaTributacao = { apto: boolean; pendencias: string[]; contexto: ContextoFiscal; perfilId: string | null; regime: RegimeFiscal | null; linhas: LinhaFiscalCalculada[]; totalMercadorias: string; justificativas: string[]; revisaoConsolidada?: RevisaoConsolidadaFiscal };
+export type PreviaTributacao = { apto: boolean; pendencias: string[]; contexto: ContextoFiscal; perfilId: string | null; regime: RegimeFiscal | null; linhas: LinhaFiscalCalculada[]; totalMercadorias: string; justificativas: string[]; revisaoConsolidada?: RevisaoConsolidadaFiscal;
+  /** Produtos cuja composição mudou após a análise: NCM mantido, revisão pendente, sem impedir a emissão. */
+  revisoesNcm?: { produtoId: string; nome: string }[] };
 export type PainelFiscal = {
   produtos: { id: string; codigo: string | null; nome: string; tipo: string; papeis: string[]; grupo: string | null; ncm: string | null; status: "APTO" | "PENDENTE" | "CONFIGURACAO"; pendencias: string[]; composicao: unknown; evidencias: unknown; ncmAplicabilidade?: ClassificacaoFiscal["ncmAplicabilidade"]; analiseNcm?: AnaliseNcm; configuracaoNcm?: ConfiguracaoNcm }[];
   versoes: VersaoFiscalDto[]; grupos: { id: string; nome: string; ativo: boolean; codigo?: string | null }[];

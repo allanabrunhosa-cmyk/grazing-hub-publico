@@ -40,6 +40,7 @@ export function calcularTributacao(contexto: ContextoFiscal, itens: ItemComercia
   const perfilV = vs.find(v => v.tipo === "PERFIL" && v.chave === contexto.estabelecimento);
   const perfil = perfilV?.dados as PerfilFiscal | undefined;
   const r: PreviaTributacao = { apto: false, pendencias, contexto, perfilId: perfilV?.id ?? null, regime: perfil?.regime ?? null, linhas: [], totalMercadorias: "0.00", justificativas: [] };
+  const revisoesNcm: NonNullable<PreviaTributacao["revisoesNcm"]> = [];
   if (!perfil) adicionar("Perfil do estabelecimento ausente na vigência da operação.");
   else {
     if (!perfil.confirmado || !perfil.evidenciaEnquadramento) adicionar("Confirmação cadastral do enquadramento ausente.");
@@ -109,7 +110,8 @@ export function calcularTributacao(contexto: ContextoFiscal, itens: ItemComercia
     if (linha.unidade !== c.unidade) adicionar(`${linha.nome}: unidade comercial ${linha.unidade || "ausente"} diverge da unidade fiscal ${c.unidade}; comprovar unidade e conversão antes de emitir.`);
     const resolucao = resolverNcmConfiguracao(c, linha.escolhas ?? [], v!.id, linha.receitaFotografada, tecnicasAtuais.find(t => t.produtoId === linha.produtoId)?.fotografia);
     for (const p of resolucao.pendencias) adicionar(`${linha.nome}: ${p}`);
-    linhas.push({ ...linha, classificacaoResolvida: resolucao.classificacao, cenarioNcm: resolucao.cenarioNcm, justificativas: [...linha.justificativas, ...resolucao.justificativas], versoes: [...linha.versoes, v!.id] });
+    if (resolucao.revisoes.length && !revisoesNcm.some(x => x.produtoId === linha.produtoId)) revisoesNcm.push({ produtoId: linha.produtoId, nome: linha.nome.split(" — ")[0] });
+    linhas.push({ ...linha, classificacaoResolvida: resolucao.classificacao, cenarioNcm: resolucao.cenarioNcm, justificativas: [...linha.justificativas, ...resolucao.justificativas, ...resolucao.revisoes.map(x => `Revisão de NCM pendente: ${x}`)], versoes: [...linha.versoes, v!.id] });
   }
   for (const item of itens) {
     const quantidade = valorFiscal(item.quantidade, true); if (quantidade.lte(0)) throw new ErroEstruturaFiscal("Quantidade fiscal deve ser positiva.");
@@ -238,5 +240,6 @@ export function calcularTributacao(contexto: ContextoFiscal, itens: ItemComercia
   const totalComercial = itens.reduce((a, l) => a.plus(valorFiscal(l.total)), new D(0));
   if (!new D(r.totalMercadorias).equals(totalComercial)) adicionar("A discriminação fiscal ainda não fecha com o total comercial; resolver as linhas pendentes antes de emitir.");
   if (!r.linhas.length) adicionar("Nenhuma mercadoria fiscal válida para esta operação.");
+  if (revisoesNcm.length) r.revisoesNcm = revisoesNcm;
   r.apto = !pendencias.length; return r;
 }

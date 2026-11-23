@@ -69,11 +69,12 @@ describe("Cenários NCM por configuração", () => {
     (vs[0].dados as ClassificacaoFiscal).configuracaoNcm!.cenarios[0].ncm = "19053100";
     expect(r).toEqual(foto); expect(r.linhas[0].ncm).toBe("08061000");
   });
-  it("mudança física no ramo B bloqueia B sem bloquear A, e principal alterado exige revisão", () => {
+  it("mudança física no ramo B pede revisão de NCM só para B, sem bloquear; principal alterado também", () => {
     const atual = foto(); atual.opcaoHashes[1].hash = hashOpcaoTecnica(null, ingrediente("opcao-b", "2"));
     expect(calcularTributacao(contexto, [item()], versoes(), atual).apto).toBe(true);
-    const b = calcularTributacao(contexto, [item([escolha("opcao-b")])], versoes(), atual); expect(b.apto).toBe(false); expect(b.pendencias.join()).toContain("diverge da receita analisada");
-    atual.principalHash = hashPrincipalTecnico("UN", ingrediente("fixo")); expect(calcularTributacao(contexto, [item()], versoes(), atual).pendencias.join()).toContain("principal diverge");
+    const a = calcularTributacao(contexto, [item()], versoes(), atual); expect(a.revisoesNcm).toBeUndefined();
+    const b = calcularTributacao(contexto, [item([escolha("opcao-b")])], versoes(), atual); expect(b.apto).toBe(true); expect(b.revisoesNcm).toEqual([{ produtoId: "principal", nome: "Família fictícia" }]); expect(b.linhas[0].ncm).toBe("19053100"); expect(b.linhas[0].justificativas.join()).toContain("Revisão de NCM pendente");
+    atual.principalHash = hashPrincipalTecnico("UN", ingrediente("fixo")); const p = calcularTributacao(contexto, [item()], versoes(), atual); expect(p.apto).toBe(true); expect(p.revisoesNcm).toEqual([{ produtoId: "principal", nome: "Família fictícia" }]); expect(p.linhas[0].ncm).toBe("08061000");
   });
   it("receita fotografada ignora nome/preço, agrega ingredientes e conserva quantidades exatas", () => {
     const es = [escolha()], a = receitaDoSnapshot("UN", [{ ...ingrediente("opcao-a", "0.4")[0], nome: "Nome antigo", origem: "opcao-a" }, { ...ingrediente("opcao-a", "0.6")[0], nome: "Nome novo", origem: "opcao-a" }], es, true);
@@ -109,7 +110,7 @@ describe("Cenários NCM por configuração", () => {
     const i = item(es); i.receitaFotografada = receitaDoSnapshot("UN", [{ ...ingrediente("opcao-a", "2")[0], origem: "opcao-a" }, { ...ingrediente("opcao-b")[0], origem: "opcao-b" }], es.map(e => ({ ...e, quantidade: e.quantidadeEscolhida })), true);
     const r = calcularTributacao(contexto, [i], versoes(c)); expect(r.apto).toBe(true); expect(r.totalMercadorias).toBe("10.00"); expect(r.linhas).toHaveLength(1); expect(r.linhas[0].ncm).toBe("08061000"); expect(r.linhas[0].cenarioNcm?.opcaoIds).toEqual(["opcao-a", "opcao-b"]);
     es[0].quantidadeEscolhida = "3"; expect(calcularTributacao(contexto, [i], versoes(c)).pendencias.join()).toContain("fora dos limites");
-    es[0].quantidadeEscolhida = "2"; const atual = foto(); atual.opcaoHashes[1].hash = hashOpcaoTecnica(null, ingrediente("opcao-b", "2")); expect(calcularTributacao(contexto, [i], versoes(c), atual).apto).toBe(false);
+    es[0].quantidadeEscolhida = "2"; const atual = foto(); atual.opcaoHashes[1].hash = hashOpcaoTecnica(null, ingrediente("opcao-b", "2")); const alterada = calcularTributacao(contexto, [i], versoes(c), atual); expect(alterada.apto).toBe(true); expect(alterada.revisoesNcm).toEqual([{ produtoId: "principal", nome: "Família fictícia" }]); expect(alterada.linhas[0].ncm).toBe("08061000");
     expect(calcularTributacao(contexto, [item([{ ...escolha("opcao-nova"), quantidadeEscolhida: "1" }])], versoes(c)).pendencias.join()).toContain("sem equivalência");
     expect(calcularTributacao(contexto, [item([])], versoes(c)).apto).toBe(false);
     c.configuracaoNcm.gruposEquivalentes![0].quantidadeMinima = "0"; expect(calcularTributacao(contexto, [item([])], versoes(c)).apto).toBe(true);
@@ -185,7 +186,7 @@ describe("Cenários NCM por configuração", () => {
     const r = calcular(contexto, [i], vs, [], atuais); expect(r.apto).toBe(true); expect(r.linhas.map(l => [l.produtoId,l.quantidade,l.valor])).toEqual([["pai","3.000000","40.00"],["mercadoria","6.000000","20.00"]]);
     delete i.escolhas[0].receitaFotografada; const falta = calcular(contexto, [i], vs, [], atuais); expect(falta.apto).toBe(false); expect(falta.linhas).toHaveLength(1); expect(falta.linhas[0].produtoId).toBe("pai"); expect(falta.pendencias.join()).toContain("Receita material/transitiva");
   });
-  it("nova classificação normal rejeita receita transitiva alterada mantendo preço/nome fora do selo", () => {
+  it("receita transitiva alterada mantém o NCM e pede revisão; prova ausente no pedido continua bloqueando", () => {
     const c = classificacao(); delete c.configuracaoNcm; c.ncm = "08061000"; c.analiseNcm = analise("Descrição A fictícia");
     const materiais = { algoritmo: "grazing.material-fiscal.v1" as const, insumos: [{ insumoId: "preparacao", hash: "a".repeat(64), transitiva: true }] };
     const principalHash = hashPrincipalTecnico("UN", [{ insumoId: "preparacao", unidade: "KG", quantidade: "0.1" }]); c.fotografiaTecnica = { algoritmo: "grazing.classificacao-fiscal.v1", principalHash, materiais };
@@ -193,14 +194,14 @@ describe("Cenários NCM por configuração", () => {
     const atual = { ...foto(), principalHash, materiais: { principal: structuredClone(materiais), opcoes: [] } };
     expect(calcularTributacao(contexto, [i], versoes(c), atual).apto).toBe(true);
     const fotoAnterior = structuredClone(i); i.nome = "Nome futuro fictício"; i.total = "12.00"; expect(calcularTributacao(contexto, [i], versoes(c), atual).apto).toBe(true);
-    atual.materiais.principal.insumos[0].hash = "b".repeat(64); const r = calcularTributacao(contexto, [i], versoes(c), atual); expect(r.apto).toBe(false); expect(r.pendencias.join()).toContain("Receita material/transitiva"); expect(fotoAnterior.receitaFotografada!.materiais!.principal.insumos[0].hash).toBe("a".repeat(64));
+    atual.materiais.principal.insumos[0].hash = "b".repeat(64); const r = calcularTributacao(contexto, [i], versoes(c), atual); expect(r.apto).toBe(true); expect(r.revisoesNcm).toEqual([{ produtoId: "principal", nome: "Nome futuro fictício" }]); expect(r.pendencias).toEqual([]); expect(r.linhas[0].ncm).toBe("08061000"); expect(fotoAnterior.receitaFotografada!.materiais!.principal.insumos[0].hash).toBe("a".repeat(64));
     delete i.receitaFotografada!.materiais; expect(calcularTributacao(contexto, [i], versoes(c), atual).apto).toBe(false);
   });
-  it("receita transitiva do cenário B mudou sem alterar ID/quantidade; A conserva aptidão", () => {
+  it("receita transitiva do cenário B mudou sem alterar ID/quantidade: B pede revisão, A não", () => {
     const c = classificacao(), tecnica = foto(); tecnica.materiais = { principal: { algoritmo: "grazing.material-fiscal.v1", insumos: [] }, opcoes: ["opcao-a","opcao-b"].map(opcaoId => ({ opcaoId, materiais: { algoritmo: "grazing.material-fiscal.v1", insumos: [{ insumoId: `insumo-${opcaoId}`, hash: "a".repeat(64), transitiva: true }] } })) }; c.configuracaoNcm!.fotografiaTecnica = structuredClone(tecnica);
     const a = item(), b = item([escolha("opcao-b")]); a.receitaFotografada!.materiais = structuredClone(tecnica.materiais); b.receitaFotografada!.materiais = structuredClone(tecnica.materiais);
     tecnica.materiais.opcoes[1].materiais.insumos[0].hash = "b".repeat(64);
-    expect(calcularTributacao(contexto, [a], versoes(c), tecnica).apto).toBe(true); const r = calcularTributacao(contexto, [b], versoes(c), tecnica); expect(r.apto).toBe(false); expect(r.pendencias.join()).toContain("Receita transitiva da opção");
+    const ra = calcularTributacao(contexto, [a], versoes(c), tecnica); expect(ra.apto).toBe(true); expect(ra.revisoesNcm).toBeUndefined(); const r = calcularTributacao(contexto, [b], versoes(c), tecnica); expect(r.apto).toBe(true); expect(r.revisoesNcm).toEqual([{ produtoId: "principal", nome: "Família fictícia" }]); expect(r.linhas[0].ncm).toBe("19053100");
   });
   it("unidade separada de sabor único leva o valor inteiro cobrado no principal; dois sabores sem preço próprio seguem bloqueados", () => {
     const c = classificacao(); c.configuracaoNcm!.modoFiscal = "UNIDADES_SEPARADAS";
@@ -210,19 +211,19 @@ describe("Cenários NCM por configuração", () => {
     const dois = { ...item([{ ...escolha(), quantidadeEscolhida: "1", valor: "0.00" }, { ...escolha("opcao-b"), quantidadeEscolhida: "1", valor: "0.00" }]), total: "161.77" };
     const bloqueado = calcularTributacao(contexto, [dois], vs); expect(bloqueado.apto).toBe(false); expect(bloqueado.linhas).toHaveLength(0); expect(bloqueado.pendencias.join()).toContain("base ou custo não discriminado");
   });
-  it("marca ou identificação de insumo simples não bloqueia o NCM; troca de material e preparação alterada bloqueiam", () => {
+  it("marca de insumo simples não gera revisão; troca de material ou preparação alterada mantém o NCM e pede revisão", () => {
     const c = classificacao(); delete c.configuracaoNcm; c.ncm = "08061000"; c.analiseNcm = analise("Descrição A fictícia");
     const materiais = { algoritmo: "grazing.material-fiscal.v1" as const, insumos: [{ insumoId: "insumo-simples", hash: "a".repeat(64), transitiva: false }, { insumoId: "preparacao", hash: "c".repeat(64), transitiva: true }] };
     const principalHash = hashPrincipalTecnico("UN", [{ insumoId: "insumo-simples", unidade: "KG", quantidade: "0.2" }, { insumoId: "preparacao", unidade: "KG", quantidade: "0.1" }]); c.fotografiaTecnica = { algoritmo: "grazing.classificacao-fiscal.v1", principalHash, materiais };
     const marcaNova = structuredClone(materiais); marcaNova.insumos[0].hash = "b".repeat(64);
     const i = item([]); i.receitaFotografada = { principalHash, opcaoHashes: [], materiais: { principal: structuredClone(marcaNova), opcoes: [] } };
     const atual = { ...foto(), principalHash, materiais: { principal: structuredClone(marcaNova), opcoes: [] } };
-    const r = calcularTributacao(contexto, [i], versoes(c), atual); expect(r.pendencias).toEqual([]); expect(r.apto).toBe(true); expect(r.linhas[0].ncm).toBe("08061000");
+    const r = calcularTributacao(contexto, [i], versoes(c), atual); expect(r.pendencias).toEqual([]); expect(r.apto).toBe(true); expect(r.linhas[0].ncm).toBe("08061000"); expect(r.revisoesNcm).toBeUndefined();
     expect(c.fotografiaTecnica.materiais.insumos[0].hash).toBe("a".repeat(64));
-    const trocado = structuredClone(atual); trocado.materiais.principal.insumos[0].insumoId = "outro-insumo"; expect(calcularTributacao(contexto, [i], versoes(c), trocado).pendencias.join()).toContain("Receita material/transitiva");
-    const virouPreparacao = structuredClone(atual); virouPreparacao.materiais.principal.insumos[0].transitiva = true; expect(calcularTributacao(contexto, [i], versoes(c), virouPreparacao).apto).toBe(false);
-    const preparacaoAlterada = structuredClone(atual); preparacaoAlterada.materiais.principal.insumos[1].hash = "d".repeat(64); expect(calcularTributacao(contexto, [i], versoes(c), preparacaoAlterada).pendencias.join()).toContain("Receita material/transitiva");
-    const retirado = structuredClone(atual); retirado.materiais.principal.insumos.pop(); expect(calcularTributacao(contexto, [i], versoes(c), retirado).apto).toBe(false);
+    const trocado = structuredClone(atual); trocado.materiais.principal.insumos[0].insumoId = "outro-insumo"; { const x = calcularTributacao(contexto, [i], versoes(c), trocado); expect(x.apto).toBe(true); expect(x.linhas[0].ncm).toBe("08061000"); expect(x.revisoesNcm).toHaveLength(1); }
+    const virouPreparacao = structuredClone(atual); virouPreparacao.materiais.principal.insumos[0].transitiva = true; { const x = calcularTributacao(contexto, [i], versoes(c), virouPreparacao); expect(x.apto).toBe(true); expect(x.linhas[0].ncm).toBe("08061000"); expect(x.revisoesNcm).toHaveLength(1); }
+    const preparacaoAlterada = structuredClone(atual); preparacaoAlterada.materiais.principal.insumos[1].hash = "d".repeat(64); { const x = calcularTributacao(contexto, [i], versoes(c), preparacaoAlterada); expect(x.apto).toBe(true); expect(x.linhas[0].ncm).toBe("08061000"); expect(x.revisoesNcm).toHaveLength(1); }
+    const retirado = structuredClone(atual); retirado.materiais.principal.insumos.pop(); { const x = calcularTributacao(contexto, [i], versoes(c), retirado); expect(x.apto).toBe(true); expect(x.linhas[0].ncm).toBe("08061000"); expect(x.revisoesNcm).toHaveLength(1); }
   });
   it("marca de insumo simples de uma opção não bloqueia o cenário NCM", () => {
     const c = classificacao(), tecnica = foto(); tecnica.materiais = { principal: { algoritmo: "grazing.material-fiscal.v1", insumos: [] }, opcoes: ["opcao-a","opcao-b"].map(opcaoId => ({ opcaoId, materiais: { algoritmo: "grazing.material-fiscal.v1", insumos: [{ insumoId: `insumo-${opcaoId}`, hash: "a".repeat(64), transitiva: false }] } })) }; c.configuracaoNcm!.fotografiaTecnica = structuredClone(tecnica);

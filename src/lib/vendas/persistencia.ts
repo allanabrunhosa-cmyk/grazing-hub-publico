@@ -11,6 +11,7 @@ import { formatarNomesClienteNovo, preservarNomesNaMudancaTipo } from "./cliente
 import { conferirIdentidadeCliente } from "./clientes-unicidade";
 import { conferirPreparacaoCliente, prepararClienteParaSalvar } from "./cliente-cobranca-servidor";
 import { alocarCodigoProdutoNaTransacao } from "./codigos-produtos";
+import { agendarVerificacaoRevisaoNcm } from "@/lib/tributacao/revisao-ncm-agenda";
 import { ErroCodigoProduto } from "./codigo-produto";
 
 export type Autor = { userId: string; nome: string; versao?: number };
@@ -111,7 +112,9 @@ async function conferirComposicaoComplemento(tx: Banco, componentes: ComposicaoC
   if (componentes.some(c => !insumos.some(i => i.id === c.insumoId && i.ativo && i.unidade === c.unidade))) throw new ErroCadastroVenda("Ingrediente indisponível ou unidade alterada na composição do complemento.");
 }
 export async function salvarGrupo(entrada: unknown, autor: Autor) {
-  return transacao(tx => salvarGrupoNaTransacao(tx, entrada, autor));
+  const r = await transacao(tx => salvarGrupoNaTransacao(tx, entrada, autor));
+  agendarVerificacaoRevisaoNcm();
+  return r;
 }
 /** Transação externa já autorizada: preserva a validação e auditoria do serviço comercial. */
 export async function salvarGrupoNaTransacao(tx: Banco, entrada: unknown, autor: Autor) {
@@ -145,7 +148,7 @@ export async function salvarProduto(entrada: unknown, autor: Autor, dadosFiscais
   if (dadosFiscais && (typeof dadosFiscais.revisado !== "boolean" || (dadosFiscais.grupoFiscalId != null && (typeof dadosFiscais.grupoFiscalId !== "string" || !dadosFiscais.grupoFiscalId || dadosFiscais.grupoFiscalId.length > 100)))) throw new ErroCadastroVenda("Grupo fiscal inválido.");
   const { id, versao, categorias, grupos, componentes, novoVinculoComplemento, pausasComplementos, ...dados } = validarProduto(entrada);
   const fiscal = dadosFiscais ? validarFiscal(dadosFiscais.fiscal, dadosFiscais.revisado) : undefined;
-  return transacao(async tx => {
+  const salvo = await transacao(async tx => {
     const antes = id ? await tx.produtoVenda.findUnique({ where: { id }, include: { categorias: true, grupos: true, componentes: true } }) : null;
     conferirVersao(antes, id, versao);
     const fiscalAntesTexto = id ? await lerFiscalTexto(tx, id) : null;
@@ -233,6 +236,8 @@ export async function salvarProduto(entrada: unknown, autor: Autor, dadosFiscais
     await historicoFiscalJsonb(tx, autor, "PRODUTO", depois.id, antes, await tx.produtoVenda.findUnique({ where: { id: depois.id }, include: { categorias: true, grupos: true, componentes: true } }), fiscalAntesTexto);
     return depois.id;
   }, 20000, Boolean(pausasComplementos?.length));
+  agendarVerificacaoRevisaoNcm();
+  return salvo;
 }
 export async function alterarSituacaoProduto(id: string, versao: number, ativo: boolean, autor: Autor) {
   return alterarStatusCadastroVenda("PRODUTO", id, versao, ativo, autor);
