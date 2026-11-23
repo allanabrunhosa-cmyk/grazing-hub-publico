@@ -13,7 +13,7 @@ export async function prepararDocumentoBrasilNfeLocal(documentoId: string, model
   return prisma.$transaction(async tx => {
     await conferirAcesso(tx, sessao, ["consultar"]);
     const usuario = await tx.usuario.findUniqueOrThrow({ where: { id: sessao.userId }, include: { perfilAcesso: true } });
-    if (usuario.perfilAcesso?.sistema !== "ADMINISTRADOR" && !permissaoEfetiva((usuario.perfilAcesso?.permissoes ?? {}) as Permissoes, usuario.permissoesPersonalizadas as Excecoes, "vendas.fiscal", "editar")) {
+    if (usuario.perfilAcesso?.sistema !== "ADMINISTRADOR" && !permissaoEfetiva((usuario.perfilAcesso?.permissoes ?? {}) as Permissoes, usuario.permissoesPersonalizadas as Excecoes, "financeiro.fiscal.emissao", "editar")) {
       throw new ErroPedidoVenda("Seu acesso não permite preparar documentos fiscais de saída.");
     }
     const documento = await tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id: documentoId }, select: { id: true, hashPayload: true, versaoPedido: true, payload: true } });

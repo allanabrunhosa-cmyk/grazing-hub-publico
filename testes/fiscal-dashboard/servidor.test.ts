@@ -40,7 +40,7 @@ describe("Leitura autorizada e páginas fiscais", () => {
     { fiscal: true, pedidos: true, editar: false, quantidade: 1, recuperar: false },
     { fiscal: true, pedidos: true, editar: true, quantidade: 1, recuperar: true },
   ])("resgate exige acesso à fonte e distingue edição: %j", async acesso => {
-    sim.pode.mockImplementation(async (recurso, acao = "visualizar") => recurso === "vendas.fiscal" ? acao === "editar" ? acesso.editar : acesso.fiscal : recurso === "vendas.pedidos" && acesso.pedidos);
+    sim.pode.mockImplementation(async (recurso, acao = "visualizar") => recurso === "financeiro.fiscal.emissao" ? acao === "editar" ? acesso.editar : acesso.fiscal : recurso === "vendas.pedidos" && acesso.pedidos);
     sim.query.mockImplementation(async consulta => configuracaoOpcionalMock(consulta) ?? (sqlDaConsulta(consulta).includes('"DocumentoFiscalSaida"') ? [saidaDashboard({ xml: null, modeloDocumento: 55 })] : []));
     const dados = await obterDashboardFiscal({ mes: "2026-10" });
     expect(dados.saidasSemArquivos).toHaveLength(acesso.quantidade);
@@ -147,7 +147,7 @@ describe("Leitura autorizada e páginas fiscais", () => {
   it("links de operação exigem permissões próprias, independentemente da permissão do painel", async () => {
     sim.tabelaOpcional = true;
     sim.secoes.push({ id: "configuracoes.brasilnfe", rota: "/configuracoes/integracoes/brasilnfe" });
-    sim.pode.mockImplementation(async recurso => ["vendas.fiscal", "configuracoes.brasilnfe", "vendas.pedidos"].includes(recurso));
+    sim.pode.mockImplementation(async recurso => ["financeiro.fiscal.emissao", "configuracoes.brasilnfe", "vendas.pedidos"].includes(recurso));
     sim.query.mockImplementation(async consulta => configuracaoOpcionalMock(consulta) ?? (sqlDaConsulta(consulta).includes('"DocumentoFiscalSaida"') ? [saidaDashboard()] : []));
     const dados = await obterDashboardFiscal({ mes: "2026-10" });
     expect(dados.links.grupos).toBe("/financeiro/fiscal/grupos"); expect(dados.links.notasRecebidas).toBeNull();

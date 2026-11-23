@@ -11,6 +11,7 @@ import { restaurarPreRequisitosBrasilNfe } from "./pre-requisitos-dominio";
 import { sanitizarMetadadosErroBrasilNfe, type DetalhesDiagnosticoServicosBrasilNfe, type MetadadosErroBrasilNfe } from "./diagnostico-http";
 import { classificarServicosEmissaoBrasilNfe, diagnosticoBrasilNfeVazio, CONSULTAS_EMPRESA_BRASILNFE, ErroConfiguracaoBrasilNfe, validarSubstituicaoBrasilNfe, validarVersaoBrasilNfe, type DiagnosticoBrasilNfe } from "./configuracao-dominio";
 
+import { RECURSO_CANCELAMENTO_FISCAL, RECURSO_EMISSAO_FISCAL, RECURSO_NUMERACAO_FISCAL } from "@/lib/permissoes/fiscal";
 const recurso = "configuracoes.brasilnfe";
 const contextoToken = "grazing-hub-brasilnfe-token-v1";
 const contextoUserToken = "grazing-hub-brasilnfe-usertoken-v1";
@@ -28,13 +29,19 @@ function pendenciasLocais(c: ConfiguracaoBrasilNfe | null, loja: Emitente | null
   return [!c?.tokenCifrado && "Configurar Token da empresa.", !c?.userTokenCifrado && "Configurar UserToken para BuscarEmpresa e ConsultarServicos.", !/^\d{14}$/.test(cnpj(loja?.cnpj)) && "Completar CNPJ do emitente em Dados da empresa.", !loja?.nome?.trim() && "Completar nome do emitente em Dados da empresa.", !enderecoCompleto(loja) && "Completar endereço estruturado do emitente em Dados da empresa."].filter(Boolean) as string[];
 }
 /** Revalida sessão e permissões centrais dentro de cada transação crítica. */
-async function autor(tx: Prisma.TransactionClient, sessao: SessaoAtual, acao: "visualizar" | "editar") {
+async function autor(tx: Prisma.TransactionClient, sessao: SessaoAtual, acao: "visualizar" | "editar", recursos: readonly string[] = [recurso]) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('gestao-acessos'))`;
   const u = await tx.usuario.findUnique({ where: { id: sessao.userId }, include: { perfilAcesso: true } });
-  if (!u?.ativo || u.excluidoEm || u.sessaoVersao !== (sessao.versao ?? 0) || (u.perfilAcesso?.sistema !== "ADMINISTRADOR" && !permissaoEfetiva((u.perfilAcesso?.permissoes ?? {}) as Permissoes, u.permissoesPersonalizadas as Excecoes, recurso, acao))) throw new ErroConfiguracaoBrasilNfe("Seu acesso não permite administrar esta integração.");
+  if (!u?.ativo || u.excluidoEm || u.sessaoVersao !== (sessao.versao ?? 0) || (u.perfilAcesso?.sistema !== "ADMINISTRADOR" && !recursos.some(r => permissaoEfetiva((u.perfilAcesso?.permissoes ?? {}) as Permissoes, u.permissoesPersonalizadas as Excecoes, r, acao)))) throw new ErroConfiguracaoBrasilNfe(recursos.length > 1 ? "Seu acesso não permite operar notas fiscais de venda." : recursos[0] === recurso ? "Seu acesso não permite administrar esta integração." : "Seu acesso não permite administrar a numeração fiscal.");
   return u.id;
 }
 export { autor as conferirAcessoAdministrativoBrasilNfe };
+/** Quem emite ou cancela notas usa o emissor configurado sem poder administrá-lo. Cada operação confere sua própria capacidade. */
+const RECURSOS_OPERACAO = [recurso, RECURSO_EMISSAO_FISCAL, RECURSO_CANCELAMENTO_FISCAL] as const;
+export const conferirAcessoOperacaoBrasilNfe = (tx: Prisma.TransactionClient, sessao: SessaoAtual, acao: "visualizar" | "editar") => autor(tx, sessao, acao, RECURSOS_OPERACAO);
+/** Conferir os contadores no emissor antes de emitir não altera a numeração. */
+export const conferirAcessoConsultaNumeracaoBrasilNfe = (tx: Prisma.TransactionClient, sessao: SessaoAtual) => autor(tx, sessao, "editar", [RECURSO_NUMERACAO_FISCAL, RECURSO_EMISSAO_FISCAL]);
+export const conferirAcessoNumeracaoBrasilNfe = (tx: Prisma.TransactionClient, sessao: SessaoAtual) => autor(tx, sessao, "editar", [RECURSO_NUMERACAO_FISCAL]);
 async function ler(tx: Prisma.TransactionClient) {
   const config = await tx.configuracaoBrasilNfe.findUnique({ where: { id: "singleton" } });
   if (config && config.ambiente !== "HOMOLOGACAO") throw new ErroConfiguracaoBrasilNfe("Produção bloqueada no Marco 1.");

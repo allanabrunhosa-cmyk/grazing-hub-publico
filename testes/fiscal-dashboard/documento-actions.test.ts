@@ -7,7 +7,7 @@ import { consultarDocumentoDashboardAction, recuperarArquivosDocumentoDashboardA
 beforeEach(() => { vi.resetAllMocks(); m.guarda.mockResolvedValue({ userId: "sintetico" }); m.recuperar.mockResolvedValue({ ok: true, documento: { id: "nota", xmlDisponivel: true, xml: "arquivo privado não deve retornar nesta fachada" } }); });
 
 describe("recuperação explícita de arquivos pelo Dashboard", () => {
-  it.each([["financeiro.fiscal.painel", "visualizar"], ["vendas.fiscal", "editar"], ["vendas.pedidos", "visualizar"]])("recusa sem %s/%s antes de recuperar arquivos", async (recurso, acao) => {
+  it.each([["financeiro.fiscal.painel", "visualizar"], ["financeiro.fiscal.emissao", "editar"], ["vendas.pedidos", "visualizar"]])("recusa sem %s/%s antes de recuperar arquivos", async (recurso, acao) => {
     m.guarda.mockImplementation(async (r, a = "visualizar") => { if (r === recurso && a === acao) throw Error("Sem acesso"); return {}; });
     await expect(recuperarArquivosDocumentoDashboardAction("nota")).rejects.toThrow("Sem acesso");
     expect(m.recuperar).not.toHaveBeenCalled(); expect(m.emitir).not.toHaveBeenCalled(); expect(m.cancelar).not.toHaveBeenCalled();
@@ -19,7 +19,7 @@ describe("recuperação explícita de arquivos pelo Dashboard", () => {
   it("delega apenas à obtenção manual existente e não expõe o documento no retorno", async () => {
     expect(await recuperarArquivosDocumentoDashboardAction("nota")).toEqual({ ok: true });
     expect(m.recuperar).toHaveBeenCalledExactlyOnceWith("nota");
-    expect(m.guarda.mock.calls).toEqual([["financeiro.fiscal.painel"], ["vendas.fiscal", "editar"], ["vendas.pedidos"]]);
+    expect(m.guarda.mock.calls).toEqual([["financeiro.fiscal.painel"], ["financeiro.fiscal.emissao", "editar"], ["vendas.pedidos"]]);
     expect(m.emitir).not.toHaveBeenCalled(); expect(m.cancelar).not.toHaveBeenCalled();
   });
   it("preserva a falha segura da ação existente para permitir nova tentativa", async () => {

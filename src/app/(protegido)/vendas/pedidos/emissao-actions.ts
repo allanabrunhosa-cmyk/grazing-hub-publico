@@ -27,7 +27,7 @@ export type ContextoPreparacaoFiscalPedido = {
 };
 /** Preparação local. Não consulta o fornecedor nem transmite a nota. */
 export async function prepararEmissaoPedidoBrasilNfeAction(pedidoId: string, versao: number, modelo: 55 | 65, ambiente: "HOMOLOGACAO" | "PRODUCAO", contexto?: ContextoPreparacaoFiscalPedido) {
-  const sessao = await exigirPermissao("vendas.fiscal", "editar");
+  const sessao = await exigirPermissao("financeiro.fiscal.emissao", "editar");
   try {
     const previa = contexto === undefined ? await prepararEmissaoPedidoBrasilNfe(pedidoId, versao, modelo, ambiente, sessao) : await prepararEmissaoPedidoBrasilNfe(pedidoId, versao, modelo, ambiente, sessao, contexto);
     atualizarPedido();
@@ -35,7 +35,7 @@ export async function prepararEmissaoPedidoBrasilNfeAction(pedidoId: string, ver
   } catch (e) { return { erro: erroSeguro(e) }; }
 }
 export async function emitirNotaPedidoBrasilNfeAction(entrada: unknown) {
-  const sessao = await exigirPermissao("vendas.fiscal", "editar");
+  const sessao = await exigirPermissao("financeiro.fiscal.emissao", "editar");
   try {
     const documento = await emitirNotaPedidoBrasilNfe(entrada, sessao);
     atualizarPedido();
@@ -48,7 +48,7 @@ async function recuperarResultadoLocal(pedidoId: unknown, sessao: SessaoAtual) {
 }
 /** O próprio botão do pedido prepara e transmite uma vez, sem diálogo intermediário. */
 export async function emitirNotaPedidoDiretaBrasilNfeAction(entrada: unknown) {
-  const sessao = await exigirPermissao("vendas.fiscal", "editar");
+  const sessao = await exigirPermissao("financeiro.fiscal.emissao", "editar");
   try {
     const resultado = await emitirNotaPedidoDiretaBrasilNfe(entrada, sessao);
     atualizarPedido();
@@ -63,7 +63,7 @@ export async function emitirNotaPedidoDiretaBrasilNfeAction(entrada: unknown) {
 }
 /** Recupera a tentativa do pedido, mesmo quando o navegador perdeu o documentoId. */
 export async function consultarResultadoEmissaoPedidoBrasilNfeAction(pedidoId: string) {
-  const sessao = await exigirPermissao("vendas.fiscal", "editar");
+  const sessao = await exigirPermissao("financeiro.fiscal.emissao", "editar");
   try {
     const resultado = await consultarResultadoEmissaoPedidoBrasilNfe(pedidoId, sessao);
     atualizarPedido();
@@ -75,17 +75,17 @@ export async function consultarResultadoEmissaoPedidoBrasilNfeAction(pedidoId: s
   }
 }
 export async function consultarEmissaoPedidoBrasilNfeAction(documentoId: string) {
-  const sessao = await exigirPermissao("vendas.fiscal", "editar");
+  const sessao = await exigirPermissao("financeiro.fiscal.emissao", "editar");
   try { const documento = await consultarEmissaoPedidoBrasilNfe(documentoId, sessao); atualizarPedido(); return { ok: true as const, documento }; }
   catch (e) { atualizarPedido(); return { erro: erroSeguro(e) }; }
 }
 export async function obterDocumentosEmissaoPedidoBrasilNfeAction(documentoId: string) {
-  const sessao = await exigirPermissao("vendas.fiscal", "editar");
+  const sessao = await exigirPermissao("financeiro.fiscal.emissao", "editar");
   try { const documento = await obterDocumentosEmissaoPedidoBrasilNfe(documentoId, sessao); atualizarPedido(); return { ok: true as const, documento }; }
   catch (e) { atualizarPedido(); return { erro: erroSeguro(e) }; }
 }
 export async function cancelarNotaPedidoBrasilNfeAction(entrada: unknown) {
-  const sessao = await exigirPermissao("vendas.fiscal", "editar");
+  const sessao = await exigirPermissao("financeiro.fiscal.cancelamento", "editar");
   try { const documento = await cancelarNotaPedidoBrasilNfe(entrada, sessao); atualizarPedido(); return { ok: true as const, documento }; }
   catch (e) { atualizarPedido(); return { erro: erroSeguro(e) }; }
 }

@@ -1,5 +1,30 @@
 # Fiscal
 
+## Permissões das operações de nota de venda — 23/11/2026
+
+Emitir, cancelar e numerar deixaram de depender de `vendas.fiscal`, de
+`configuracoes.brasilnfe/editar` e de `vendas.pedidos.revisar`. Constantes em
+`src/lib/permissoes/fiscal.ts`:
+
+- `financeiro.fiscal.emissao`: Visualizar lista e consulta as notas do pedido e do painel;
+  Editar prepara, emite, consulta no emissor e recupera arquivos. Vincular documento
+  externo ao pedido exige também `vendas.pedidos.revisar/editar`.
+- `financeiro.fiscal.cancelamento/editar`: cancelamento individual e a ação CANCELAR legada.
+- `financeiro.fiscal.numeracao`: Editar consulta e altera séries/contadores.
+- `vendas.fiscal` fica restrito a cadastros (grupos, vínculos, tributação, regime,
+  regras e homologação). `configuracoes.brasilnfe` fica restrito a credenciais, CSC,
+  diagnóstico e habilitação.
+
+Na transação, `conferirAcesso` (`src/lib/vendas/pedidos.ts`) mapeia as capacidades
+`fiscal` → emissão/editar e `cancelarNota` → cancelamento/editar.
+`conferirAcessoOperacaoBrasilNfe` (`brasilnfe/configuracao.ts`) deixa o operador usar o
+emissor configurado sem administrá-lo; sempre acompanha a capacidade específica.
+`conferirAcessoNumeracaoBrasilNfe` protege a numeração. Habilitação de emissão, bloqueio
+de produção, aprovação da revisão consolidada (administrador) e demais gates operacionais
+não mudaram. A migration `20261123120000_fiscal_permissoes_operacionais` materializou em
+perfis e personalizações quem já reunia as três permissões antigas, sem ampliar acesso;
+menções a `vendas.fiscal/editar` para emissão nas seções abaixo são históricas.
+
 ## Correção de notas aceitas — 16/11/2026
 
 O detalhe de NF-e aceita oferece **Editar informações**, com motivo e salvamento

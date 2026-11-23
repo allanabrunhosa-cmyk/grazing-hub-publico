@@ -32,7 +32,7 @@ export async function obterRegimeFiscalEmpresaBrasilNfe(dia = hojeCivilRegraBras
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('gestao-acessos'))`;
       const u = await tx.usuario.findUnique({ where: { id: sessao.userId }, include: { perfilAcesso: true } });
       if (!u?.ativo || u.excluidoEm || u.sessaoVersao !== (sessao.versao ?? 0)
-        || (u.perfilAcesso?.sistema !== "ADMINISTRADOR" && !["vendas.fiscal", "financeiro.fiscal.painel"].some(r => permissaoEfetiva((u.perfilAcesso?.permissoes ?? {}) as Permissoes, (u.permissoesPersonalizadas ?? {}) as Excecoes, r, "visualizar")))) throw new Error("Acesso à configuração fiscal não permitido.");
+        || (u.perfilAcesso?.sistema !== "ADMINISTRADOR" && !["vendas.fiscal", "financeiro.fiscal.painel", "financeiro.fiscal.emissao"].some(r => permissaoEfetiva((u.perfilAcesso?.permissoes ?? {}) as Permissoes, (u.permissoesPersonalizadas ?? {}) as Excecoes, r, "visualizar")))) throw new Error("Acesso à configuração fiscal não permitido.");
     });
   } else await exigirPermissao(await podeAcessar("vendas.fiscal") ? "vendas.fiscal" : "financeiro.fiscal.painel");
   const loja = await prisma.configuracaoLoja.findUnique({ where: { id: "singleton" }, select: { nome: true, cnpj: true, enderecoEstruturado: true } });

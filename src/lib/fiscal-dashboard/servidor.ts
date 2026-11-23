@@ -163,7 +163,7 @@ export async function obterDashboardFiscal(parametros: Record<string, string | s
     lerConfiguracaoOpcionalDashboard(),
     // Somente validade extraída do certificado; sem arquivo ou senha.
     prisma.certificadoDigital.findUnique({ where: { id: "singleton" }, select: { validoAte: true } }).catch(() => null),
-    podeAcessar("vendas.fiscal"), podeAcessar("notas"), recursoIntegracaoDisponivel ? podeAcessar("configuracoes.brasilnfe") : false, podeAcessar("vendas.pedidos"), podeAcessar("vendas.fiscal", "editar"),
+    podeAcessar("financeiro.fiscal.emissao"), podeAcessar("notas"), recursoIntegracaoDisponivel ? podeAcessar("configuracoes.brasilnfe") : false, podeAcessar("vendas.pedidos"), podeAcessar("financeiro.fiscal.emissao", "editar"),
   ]);
   const configuracao = leituraConfiguracao.configuracao;
   const cnpj = loja?.cnpj?.replace(/\D/g, "") ?? null;
@@ -178,7 +178,7 @@ export async function obterDashboardFiscal(parametros: Record<string, string | s
   const acessoServicos = await podeAcessar("financeiro.nfse");
   for (const documento of agregados.ultimosDocumentos) {
     const recurso = recursoDocumentoDashboard(tipoDocumentoDashboard(documento));
-    documento.detalhesDisponiveis = recurso === "vendas.fiscal" ? acessoFiscal && acessoPedidos : recurso === "notas" ? acessoNotas : acessoServicos;
+    documento.detalhesDisponiveis = recurso === "financeiro.fiscal.emissao" ? acessoFiscal && acessoPedidos : recurso === "notas" ? acessoNotas : acessoServicos;
   }
   if (!acessoPedidos) for (const documento of agregados.ultimosDocumentos) {
     documento.pedidoId = null; documento.pedidoNumero = null;

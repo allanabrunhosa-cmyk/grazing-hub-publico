@@ -10,7 +10,7 @@ export async function consultarDocumentoDashboardAction(tipo: TipoDocumentoDashb
 /** Recupera somente arquivos da identidade já autorizada. Não emite nem cancela a nota. */
 export async function recuperarArquivosDocumentoDashboardAction(id: string) {
   await exigirPermissao("financeiro.fiscal.painel");
-  await exigirPermissao("vendas.fiscal", "editar");
+  await exigirPermissao("financeiro.fiscal.emissao", "editar");
   await exigirPermissao("vendas.pedidos");
   if (typeof id !== "string" || !/^[a-zA-Z0-9_-]{1,100}$/.test(id)) return { erro: "Documento inválido." };
   const resultado = await obterDocumentosEmissaoPedidoBrasilNfeAction(id);

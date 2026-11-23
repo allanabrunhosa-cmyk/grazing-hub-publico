@@ -21,12 +21,12 @@ export function hashFiscal(v: unknown): string {
   const ordenar = (x: unknown): unknown => Array.isArray(x) ? x.map(ordenar) : x && typeof x === "object" ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => [k, ordenar(v)])) : x;
   return createHash("sha256").update(JSON.stringify(ordenar(v))).digest("hex");
 }
-export async function conferirAutorFiscal(tx: Prisma.TransactionClient, sessao: SessaoAtual, administrar = false) {
+export async function conferirAutorFiscal(tx: Prisma.TransactionClient, sessao: SessaoAtual, administrar = false, recurso = "vendas.fiscal") {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('gestao-acessos'))`;
   const u = await tx.usuario.findUnique({ where: { id: sessao.userId }, select: { id: true, nome: true, ativo: true, excluidoEm: true, sessaoVersao: true, permissoesPersonalizadas: true, perfilAcesso: { select: { sistema: true, permissoes: true } } } });
   if (!u?.ativo || u.excluidoEm || u.sessaoVersao !== (sessao.versao ?? 0)) throw new ErroEstruturaFiscal("Sua sessão foi encerrada.");
   const administrador = u.perfilAcesso?.sistema === "ADMINISTRADOR";
-  if (administrar && !administrador || !administrador && !permissaoEfetiva((u.perfilAcesso?.permissoes ?? {}) as Permissoes, u.permissoesPersonalizadas as Excecoes, "vendas.fiscal", "visualizar")) throw new ErroEstruturaFiscal("Seu acesso não permite esta operação fiscal.");
+  if (administrar && !administrador || !administrador && !permissaoEfetiva((u.perfilAcesso?.permissoes ?? {}) as Permissoes, u.permissoesPersonalizadas as Excecoes, recurso, "visualizar")) throw new ErroEstruturaFiscal("Seu acesso não permite esta operação fiscal.");
   return { userId: u.id, nome: u.nome, administrador };
 }
 async function conferirAlvoInternoRegra(tx: Prisma.TransactionClient, regra: RegraFiscal) {

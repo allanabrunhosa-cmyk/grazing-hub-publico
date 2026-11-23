@@ -66,7 +66,7 @@ describe("Prévia local prepara fotografia e histórico sem transmissão ou efei
     expect(r.itens).toEqual([expect.objectContaining({ id: "item-ficticio", total: "139.00", fiscal: null })]);
     expect(r.pendencias).toContainEqual(expect.objectContaining({ campo: "tributacao", mensagem: expect.stringContaining("CI não comprovados") }));
     expect(r.pendencias.some(p => p.campo === "csc")).toBe(modelo === 65 && ambiente === "HOMOLOGACAO");
-    expect(s.acesso).toHaveBeenCalledWith(expect.anything(), sessao, ["consultar", "revisar", "fiscal"], "pedido-ficticio");
+    expect(s.acesso).toHaveBeenCalledWith(expect.anything(), sessao, ["consultar", "fiscal"], "pedido-ficticio");
     expect(s.preparar).toHaveBeenCalledExactlyOnceWith("pedido-ficticio", 5, sessao, String(modelo), { ambiente, consumidorFinal: true, indicadorPresenca: 2 });
     expect(s.escrita.mock.calls).toEqual([[{ tipo: "PREPARADO_LOCAL", documentoId: r.documento!.id }]]);
     expect(JSON.stringify(comercial)).toBe(anterior); expect(s.rede).not.toHaveBeenCalled();

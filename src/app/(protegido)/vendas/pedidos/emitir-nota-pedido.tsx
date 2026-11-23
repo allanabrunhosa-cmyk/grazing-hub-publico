@@ -29,7 +29,7 @@ const opcoesPresenca: { valor: IndicadorPresenca; rotulo: string }[] = [
   { valor: 9, rotulo: "Não presencial, outros" },
 ];
 type DocumentoPedido = ResumoFiscalSaida & { modeloDocumento?: number | null; xmlDisponivel?: boolean; cancelamentoPendente?: boolean; cancelamentoSolicitado?: boolean; avisoArquivos?: string };
-export type FiscalDoDetalhePedido = { editar: boolean; documentos: DocumentoPedido[]; origemHub?: string | null };
+export type FiscalDoDetalhePedido = { editar: boolean; cancelar: boolean; documentos: DocumentoPedido[]; origemHub?: string | null };
 const nomesStatus: Record<string, string> = {
   SEM_EMISSOR: "Preparação pendente", PREPARADO: "Preparada", PROCESSANDO: "Em processamento",
   INCERTO: "Em conferência", PENDENTE_CONFERENCIA: "Em conferência", AUTORIZADO: "Autorizada",
@@ -62,7 +62,7 @@ function DadosDocumento({ documento: d, editar, ocupado, consultar, arquivos, ca
         {d.xmlDisponivel !== false && <Button variant="entrada-outline" nativeButton={false} role="link" render={<a href={`/api/fiscal-saida/${d.id}/arquivo?tipo=xml`} />}><FileCode2 aria-hidden="true" />Baixar XML</Button>}
         {d.formatoImpressao && <Button variant="entrada-outline" nativeButton={false} role="link" render={<a href={`/api/fiscal-saida/${d.id}/arquivo?tipo=${d.formatoImpressao === "HTML" ? "html" : "pdf"}&visualizar=1`} target="_blank" rel="noopener noreferrer" />}><FileText aria-hidden="true" />{d.formatoImpressao === "PDF" ? "Abrir PDF" : "Abrir DANFE"}</Button>}
         {editar && (!d.formatoImpressao || d.xmlDisponivel === false) && <Button type="button" variant="outline" disabled={ocupado} onClick={() => arquivos(d.id)}><FileDown aria-hidden="true" />Obter documentos</Button>}
-        {editar && d.status === "AUTORIZADO" && d.provedor === "BRASIL_NFE" && !d.cancelamentoSolicitado && !d.cancelamentoPendente && cancelar && <Button type="button" variant="saida-outline" title="Solicitar cancelamento da nota fiscal" disabled={ocupado || !d.chaveFiscal || !d.protocolo} onClick={() => cancelar(d)}><CircleX aria-hidden="true" />Cancelar NF</Button>}
+        {d.status === "AUTORIZADO" && d.provedor === "BRASIL_NFE" && !d.cancelamentoSolicitado && !d.cancelamentoPendente && cancelar && <Button type="button" variant="saida-outline" title="Solicitar cancelamento da nota fiscal" disabled={ocupado || !d.chaveFiscal || !d.protocolo} onClick={() => cancelar(d)}><CircleX aria-hidden="true" />Cancelar NF</Button>}
       </>}
     </GrupoAcoes>
   </section>;
@@ -171,7 +171,7 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
 
       </>}
       {ocupado && <p role="status" className="text-sm text-muted-foreground">Processando a ação fiscal. Aguarde o resultado…</p>}
-      {atual && <DadosDocumento documento={atual} editar={fiscal.editar} ocupado={ocupado} consultar={consultar} arquivos={arquivos} cancelar={cancelamentosIniciados.includes(atual.id) ? undefined : pedirCancelamento} mostrarIdentificacao={false} />}
+      {atual && <DadosDocumento documento={atual} editar={fiscal.editar} ocupado={ocupado} consultar={consultar} arquivos={arquivos} cancelar={!fiscal.cancelar || cancelamentosIniciados.includes(atual.id) ? undefined : pedirCancelamento} mostrarIdentificacao={false} />}
       {!atual && !ocupado && <p className="text-xs text-muted-foreground">Nenhuma nota fiscal vinculada a este pedido.</p>}
       {erro && !cancelando && <div role="alert" className="pedido-detalhe-fiscal-alerta text-sm text-destructive whitespace-pre-wrap break-words"><CircleAlert aria-hidden="true" className="size-4 shrink-0" /><div className="min-w-0 space-y-2"><p className="font-medium">{conferirAntesDeRepetir ? "Resultado fiscal não confirmado" : "Ação fiscal não concluída"}</p><p>{erro}</p>{pendencias.length > 0 && <ul className="list-disc space-y-2 pl-4">{pendencias.map((p, i) => {
         const href = p.href && podeRota(p.href.split("?")[0]) ? destinoHubFiscalPedido(p.href, fiscal.origemHub) : null;

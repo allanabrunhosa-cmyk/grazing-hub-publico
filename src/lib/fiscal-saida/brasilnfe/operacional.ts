@@ -20,7 +20,7 @@ import { completarArquivosAposAutorizacao } from "./arquivos-autorizados";
 import { conferirTotaisDocumentoXmlBrasilNfe } from "./conferencia-totais-xml";
 import { criarPortaTecnicaBrasilNfe } from "./porta-tecnica";
 import { conferirIdentidadeBrasilNfe, ErroConsultaBrasilNfe } from "./consulta";
-import { obterClienteHomologacaoBrasilNfe, conferirAcessoAdministrativoBrasilNfe } from "./configuracao";
+import { obterClienteHomologacaoBrasilNfe, conferirAcessoOperacaoBrasilNfe } from "./configuracao";
 import { ErroHttpBrasilNfe } from "./cliente";
 import { sanitizarMetadadosErroBrasilNfe } from "./diagnostico-http";
 import { obterPreRequisitosBrasilNfe, obterPreRequisitosEmissaoBrasilNfe } from "./pre-requisitos";
@@ -126,13 +126,13 @@ function possuiProvaConsultaHomologacao(d: { chaveFiscal: string | null; protoco
 }
 export async function obterHabilitacaoEmissaoBrasilNfe(sessao: SessaoAtual): Promise<ControleEmissaoBrasilNfeDto> {
   const contexto = await prisma.$transaction(async tx => {
-    await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "visualizar"); await conferirAcesso(tx, sessao, ["consultar", "fiscal"]);
+    await conferirAcessoOperacaoBrasilNfe(tx, sessao, "visualizar"); await conferirAcesso(tx, sessao, ["consultar", "fiscal"]);
     const config = await tx.configuracaoBrasilNfe.findUnique({ where: { id: "singleton" }, select: { versao: true } });
     const loja = await tx.configuracaoLoja.findUnique({ where: { id: "singleton" }, select: { id: true, nome: true, cnpj: true, enderecoEstruturado: true } });
     return { versao: config?.versao ?? 0, emitenteHash: createHash("sha256").update(JSON.stringify(loja)).digest("hex"), emitenteCnpj: String(loja?.cnpj ?? "").replace(/[.\/-]/g, "") };
   });
   const controle = await prisma.$transaction(async tx => {
-    await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "visualizar");
+    await conferirAcessoOperacaoBrasilNfe(tx, sessao, "visualizar");
     await conferirAcesso(tx, sessao, ["consultar", "fiscal"]);
     const documentos = await tx.documentoFiscalSaida.findMany({ where: { provedor: "BRASIL_NFE", ambiente: "HOMOLOGACAO", modeloDocumento: { in: [55, 65] }, status: "AUTORIZADO", chaveFiscal: { not: null }, protocolo: { not: null }, xml: { not: null }, OR: [{ pdf: { not: null } }, { html: { not: null } }], eventos: { some: { tipo: { in: ["HOMOLOGACAO_CONSULTA_CONFIRMADA", "EMISSAO_MANUAL_CONSULTA_CONFIRMADA"] } } } }, orderBy: [{ updatedAt: "desc" }, { id: "desc" }], take: 50, select: { id: true, modeloDocumento: true, numero: true, serie: true, chaveFiscal: true, protocolo: true, payload: true, planoBrasilNfe: { select: { emitenteHash: true } }, eventos: { where: { tipo: { in: ["ARQUIVOS_PROVEDOR", "HOMOLOGACAO_CONSULTA_CONFIRMADA", "EMISSAO_MANUAL_CONSULTA_CONFIRMADA"] } }, select: { tipo: true, dados: true }, take: 100 } } });
     const documentosHomologados = documentos.filter(d => possuiProvaConsultaHomologacao(d) && objeto(objeto(d.payload).emitente).cnpj === contexto.emitenteCnpj && (d.planoBrasilNfe || objeto(d.payload).versao === 2)).map(d => ({ id: d.id, modelo: d.modeloDocumento as 55 | 65, numero: d.numero, serie: d.serie }));
@@ -167,7 +167,7 @@ export async function configurarHabilitacaoEmissaoBrasilNfe(entrada: unknown, se
     if (pendencias.length) return falhar(`Modelo ${modelo}: ${pendencias.map(p => p.mensagem).join(" ")}`);
   }
   return prisma.$transaction(async tx => {
-    const usuarioId = await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar");
+    const usuarioId = await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar");
     await conferirAcesso(tx, sessao, ["consultar", "fiscal"]);
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('brasilnfe-config'))`;
@@ -228,7 +228,7 @@ function enderecoFiscalFotografado(payload: unknown): ComplementosDocumentoBrasi
 }
 async function selecionarPropostasPedido(pedidoId: string, sessao: SessaoAtual) {
   return prisma.$transaction(async tx => {
-    await conferirAcesso(tx, sessao, ["consultar", "revisar", "fiscal"], pedidoId);
+    await conferirAcesso(tx, sessao, ["consultar", "fiscal"], pedidoId);
     const item = await tx.itemPedidoVenda.findFirst({ where: { pedidoId, vigente: true, produtoId: PRODUTO_DECLARACAO_FCI_GRAZING1 }, select: { id: true } });
     if (!item) return [];
     const dia = hojeCivilRegraBrasilNfe();
@@ -298,7 +298,7 @@ export async function prepararEmissaoPedidoBrasilNfe(pedidoId: string, versaoPed
   if (Object.keys(contextoPreparacao).some(k => !["indicadorPresenca", "pagamentoCartaoNaoIntegrado", "revisaoConsolidada"].includes(k)) || contextoPreparacao.indicadorPresenca !== undefined && ![1, 2, 3, 4, 5, 9].includes(contextoPreparacao.indicadorPresenca)
     || contextoPreparacao.pagamentoCartaoNaoIntegrado !== undefined && (contextoPreparacao.pagamentoCartaoNaoIntegrado !== true || modelo !== 65)
     || contextoPreparacao.revisaoConsolidada?.confirmarAprovacao === true) return falhar("A preparação não aprova regras. Confira a presença e aprove somente no clique final de emissão.");
-  const p = await prisma.$transaction(async tx => { await conferirAcesso(tx, sessao, ["consultar", "revisar", "fiscal"], pedidoId); return tx.pedidoVenda.findUniqueOrThrow({ where: { id: pedidoId } }); });
+  const p = await prisma.$transaction(async tx => { await conferirAcesso(tx, sessao, ["consultar", "fiscal"], pedidoId); return tx.pedidoVenda.findUniqueOrThrow({ where: { id: pedidoId } }); });
   if (p.status !== "CONFIRMADO" || p.versao !== versaoPedido) return falhar("Reabra a revisão vigente de um pedido confirmado.");
   const preservado = await prisma.documentoFiscalSaida.findFirst({ where: { pedidoId, versaoPedido, ambiente, modeloDocumento: modelo }, orderBy: { revisaoFiscal: "desc" } });
   const documentoPreservado = objeto(objeto(objeto(preservado?.payload).tributacao).documento), presencaPreservada = documentoPreservado.IndicadorPresenca;
@@ -414,7 +414,7 @@ export async function obterAdaptadorOperacionalBrasilNfe(sessao: SessaoAtual, do
       const csc = ambiente === "HOMOLOGACAO" ? externo.nfceHomologacao : externo.nfceProducao;
       if (modelo === 65 && (!csc?.cscConfigurado || !csc.idCscConfigurado)) return falhar("CSC e identificador do ambiente não confirmados. Nenhuma NFC-e foi transmitida.");
       await prisma.$transaction(async tx => {
-        await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["revisar", "fiscal"]); await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
+        await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["fiscal"]); await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
         const d = await tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id: documentoId }, include: { pedido: true } });
         const vigente = await habilitacao(tx, ambiente), config = await tx.configuracaoBrasilNfe.findUniqueOrThrow({ where: { id: "singleton" }, select: { versao: true } });
         const autorizacao = await tx.eventoFiscalSaida.findUnique({ where: { chave: `emissao-manual-autorizada:${documentoId}` } }), a = objeto(autorizacao?.dados);
@@ -426,7 +426,7 @@ export async function obterAdaptadorOperacionalBrasilNfe(sessao: SessaoAtual, do
         await tx.eventoFiscalSaida.create({ data: { documentoId, chave: `emissao-manual-consumida:${documentoId}`, tipo: "EMISSAO_MANUAL_EXECUCAO_INICIADA", dados: { usuarioId: sessao.userId, leaseToken: d.leaseToken, hashPayloadFiscal: hashFiscal, ambiente, modelo, ufConferidaPor: externo.endereco.uf ? "RESPOSTA_BRASIL_NFE" : ufIbge ? "CORRESPONDENCIA_IBGE_UNIVOCA" : "EVIDENCIA_PAINEL" } } });
       });
     } else await prisma.$transaction(async tx => {
-      await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["fiscal"]);
+      await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["fiscal"]);
       const d = await tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id: documentoId } });
       // Cancelamento pode usar credencial atual para a mesma autorização fiscal.
       // A consulta do seu evento segue essa confirmação específica, sem exigir
@@ -468,7 +468,7 @@ export async function emitirNotaPedidoBrasilNfe(entrada: unknown, sessao: Sessao
   if (!habilitacaoCorrespondeBrasilNfe(habilitacaoInicial, configuracaoInicial, e.ambiente, e.modelo)) return falhar("Emissão manual suspensa ou não habilitada para este modelo e ambiente.");
   const pendenciasIniciais = await pendenciasAmbiente(sessao, e.modelo, e.ambiente);
   if (pendenciasIniciais.length) return falhar(pendenciasIniciais.map(p => p.mensagem).join(" "));
-  const original = await prisma.$transaction(async tx => { await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["revisar", "fiscal"]); return tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id: e.documentoId } }); });
+  const original = await prisma.$transaction(async tx => { await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["fiscal"]); return tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id: e.documentoId } }); });
   const t = objeto(objeto(original.payload).tributacao), revisao = objeto(t.revisaoConsolidada);
   if (original.hashPayload !== e.hashSnapshot || original.ambiente !== e.ambiente || original.modeloDocumento !== e.modelo || original.tentativas || original.acao || original.leaseToken || !["SEM_EMISSOR", "PREPARADO"].includes(original.status)
     || e.indicadorPresenca !== undefined && objeto(t.documento).IndicadorPresenca !== e.indicadorPresenca) return falhar("Documento, presença, modelo, ambiente ou revisão divergem do resumo confirmado. Atualize; nenhuma aprovação ou transmissão foi realizada.");
@@ -482,13 +482,13 @@ export async function emitirNotaPedidoBrasilNfe(entrada: unknown, sessao: Sessao
     if (e.ambiente === "HOMOLOGACAO") {
       if (e.modelo !== 55 || objeto(t.documento).TipoAmbiente !== 2) return falhar("Esta autorização de teste abrange somente a NF-e modelo 55 em homologação.");
       await prisma.$transaction(async tx => {
-        await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["revisar", "fiscal"]); await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
+        await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["fiscal"]); await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
         const d = await tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id: original.id } });
         if (d.hashPayload !== e.hashSnapshot || d.tentativas || d.acao || !["SEM_EMISSOR", "PREPARADO"].includes(d.status)) return falhar("Teste já processado ou revisão alterada. Não reenviar.");
         await tx.eventoFiscalSaida.upsert({ where: { chave: `emissao-revisao-homologacao:${d.id}` }, create: { documentoId: d.id, chave: `emissao-revisao-homologacao:${d.id}`, tipo: "EMISSAO_MANUAL_REVISAO_HOMOLOGACAO", dados: json({ hashSnapshot: d.hashPayload, hashVersoes: hashFiscal(revisao.versoes), usuarioId: sessao.userId, aprovacaoInterna: false, finalidade: "TESTE_HOMOLOGACAO" }) }, update: {} });
       });
     } else {
-      await prisma.$transaction(async tx => { await conferirAcesso(tx, sessao, ["revisar", "fiscal"]); await aprovarRevisaoConsolidadaNaTransacao(tx, confirmacao.versoes, confirmacao.hash, sessao); }, { timeout: 30000 });
+      await prisma.$transaction(async tx => { await conferirAcesso(tx, sessao, ["fiscal"]); await aprovarRevisaoConsolidadaNaTransacao(tx, confirmacao.versoes, confirmacao.hash, sessao); }, { timeout: 30000 });
       const nova = await prepararEmissaoPedidoBrasilNfe(original.pedidoId, original.versaoPedido, e.modelo, e.ambiente, sessao, e.indicadorPresenca === undefined ? {} : { indicadorPresenca: e.indicadorPresenca });
       if (!nova.documento?.hashPayloadFiscal || nova.pendencias.length) return falhar("Revisão aprovada. Confira a nova prévia antes da transmissão; nenhum envio foi realizado.");
       const final = await obterComplementosAprovadosDocumentoBrasilNfe(nova.documento.id, sessao);
@@ -504,7 +504,7 @@ export async function emitirNotaPedidoBrasilNfe(entrada: unknown, sessao: Sessao
   if (!habilitacaoCorrespondeBrasilNfe(h, contexto, e.ambiente, e.modelo)) return falhar("Ambiente não habilitado para emissão manual. Produção exige homologação comprovada e aprovação específica.");
   const sequenciaConferida = await conferirSequenciaManual(sessao, e.modelo, e.ambiente, contexto.versao);
   const autorizacaoId = await prisma.$transaction(async tx => {
-    await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["revisar", "fiscal"]); await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
+    await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["fiscal"]); await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
     const d = await tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id: e.documentoId }, include: { pedido: true } });
     if (d.acao || d.tentativas || d.leaseToken || d.chaveFiscal || !["SEM_EMISSOR", "PREPARADO"].includes(d.status) || d.hashPayload !== e.hashSnapshot || d.pedido.origem !== "INTERNO" || d.pedido.referenciaOrigem
       || await acompanhamentoDoPedido(tx, d.pedidoId) || await tx.eventoFiscalSaida.count({ where: { documentoId: d.id, tipo: { notIn: ["PREPARADO", "EMISSAO_MANUAL_REVISAO_HOMOLOGACAO"] } } })
@@ -519,7 +519,7 @@ export async function emitirNotaPedidoBrasilNfe(entrada: unknown, sessao: Sessao
   await executarComAutorizacaoManualBrasilNfe({ empresaId: "singleton", emitenteCnpj: contexto.emitenteCnpj, usuarioId: sessao.userId, documentoId: e.documentoId, modelo: e.modelo, ambiente: e.ambiente, hashSnapshot: e.hashSnapshot, hashPayloadFiscal: e.hashPayloadFiscal, versaoConfiguracao: contexto.versao, habilitacaoId: h!.id, autorizacaoId },
     () => executarFiscalSaidaManual(a, e.documentoId, "ENVIAR", "Transmissão única do documento apresentado e especificamente confirmado.", sessao),
     acaoHTTP => prisma.$transaction(async tx => {
-      await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["revisar", "fiscal"]);
+      await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar"); await conferirAcesso(tx, sessao, ["fiscal"]);
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('brasilnfe-config'))`;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('estrutura-fiscal'))`;

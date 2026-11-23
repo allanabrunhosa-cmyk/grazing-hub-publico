@@ -4,7 +4,7 @@ import { exigirPermissao } from "@/lib/permissoes/servidor";
 import { consultarNumeracaoFiscalBrasilNfe, atualizarNumeracaoFiscalBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/numeracao";
 import { ErroConfiguracaoBrasilNfe } from "@/lib/fiscal-saida/brasilnfe/configuracao-dominio";
 export async function consultarNumeracaoFiscalBrasilNfeAction(entrada: unknown) {
-  const sessao = await exigirPermissao("configuracoes.brasilnfe", "editar");
+  const sessao = await exigirPermissao("financeiro.fiscal.numeracao", "editar");
   try {
     const dados = await consultarNumeracaoFiscalBrasilNfe(entrada, sessao);
     revalidatePath("/financeiro/fiscal/numeracao");
@@ -13,7 +13,7 @@ export async function consultarNumeracaoFiscalBrasilNfeAction(entrada: unknown) 
   } catch (erro) { return { erro: erro instanceof ErroConfiguracaoBrasilNfe ? erro.message : "A consulta de numeração não foi concluída. Nenhum contador foi alterado." }; }
 }
 export async function atualizarNumeracaoFiscalBrasilNfeAction(entrada: unknown) {
-  const sessao = await exigirPermissao("configuracoes.brasilnfe", "editar");
+  const sessao = await exigirPermissao("financeiro.fiscal.numeracao", "editar");
   try {
     const dados = await atualizarNumeracaoFiscalBrasilNfe(entrada, sessao);
     revalidatePath("/financeiro/fiscal/numeracao");

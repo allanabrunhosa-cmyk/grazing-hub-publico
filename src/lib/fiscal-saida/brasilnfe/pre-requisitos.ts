@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { decifrar } from "@/lib/crypto";
 import type { SessaoAtual } from "@/lib/session";
 import { conferirAcesso } from "@/lib/vendas/pedidos";
-import { conferirAcessoAdministrativoBrasilNfe } from "./configuracao";
+import { conferirAcessoAdministrativoBrasilNfe, conferirAcessoOperacaoBrasilNfe } from "./configuracao";
 import { ClienteBrasilNfe, ErroHttpBrasilNfe } from "./cliente";
 import { ErroConfiguracaoBrasilNfe, validarVersaoBrasilNfe } from "./configuracao-dominio";
 import { preRequisitosBrasilNfeVazios, restaurarPreRequisitosBrasilNfe, dataCivilCertificadoBrasilNfe, camposEnderecoExternoAusentesBrasilNfe, ufEmitentePainelBrasilNfe, type PreRequisitosBrasilNfe } from "./pre-requisitos-dominio";
@@ -20,7 +20,7 @@ async function ler(tx: Prisma.TransactionClient) {
 }
 function dto(s: Awaited<ReturnType<typeof ler>>) { return restaurarPreRequisitosBrasilNfe(s.config?.preRequisitosEmitenteHash === s.emitenteHash ? s.config?.preRequisitos : null, s.config?.versao ?? 0); }
 export async function obterPreRequisitosBrasilNfe(sessao: SessaoAtual) {
-  return prisma.$transaction(async tx => { await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "visualizar"); return dto(await ler(tx)); });
+  return prisma.$transaction(async tx => { await conferirAcessoOperacaoBrasilNfe(tx, sessao, "visualizar"); return dto(await ler(tx)); });
 }
 /** A prévia do pedido lê somente estados locais. Permissão fiscal não concede
  * acesso à administração da integração, aos segredos ou às consultas externas. */

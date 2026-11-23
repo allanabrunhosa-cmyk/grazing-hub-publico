@@ -9,7 +9,7 @@ import { consultarFiscalSaida, executarFiscalSaidaManual } from "../servico";
 import { AdaptadorBrasilNfeM1 } from "./adaptador";
 import { criarPortaTecnicaBrasilNfe } from "./porta-tecnica";
 import { conferirAutorizacaoBrasilNfe } from "./resposta-fiscal";
-import { obterClienteHomologacaoBrasilNfe, conferirAcessoAdministrativoBrasilNfe } from "./configuracao";
+import { obterClienteHomologacaoBrasilNfe, conferirAcessoOperacaoBrasilNfe } from "./configuracao";
 import { registrarCapacidadeEmissaoManualBrasilNfe } from "./capacidade-operacional";
 import { executarComAutorizacaoManualBrasilNfe, exigirTransmissaoBrasilNfeLiberada } from "./bloqueio-transmissao";
 import { ErroEmissaoPedidoBrasilNfe } from "./operacional-dominio";
@@ -24,8 +24,8 @@ const json = (v: unknown) => JSON.parse(JSON.stringify(v)) as Prisma.InputJsonVa
 export async function cancelarNotaPedidoBrasilNfe(entrada: unknown, sessao: SessaoAtual) {
   const e = validarComandoCancelamentoPedidoBrasilNfe(entrada);
   const ler = async (tx: Prisma.TransactionClient) => {
-    await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar");
-    await conferirAcesso(tx, sessao, ["consultar", "revisar", "fiscal"]);
+    await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar");
+    await conferirAcesso(tx, sessao, ["consultar", "cancelarNota"]);
     const d = await tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id: e.documentoId } });
     await exigirEfeitoOperacional(tx, d.pedidoId);
     if (d.provedor !== "BRASIL_NFE" || d.ambiente !== e.ambiente || d.modeloDocumento !== e.modelo
@@ -41,8 +41,8 @@ export async function cancelarNotaPedidoBrasilNfe(entrada: unknown, sessao: Sess
   conferirAutorizacaoBrasilNfe(identidade, { chave: e.chaveFiscal, protocolo: e.protocolo, numero: original.numero!, serie: original.serie! });
   const hashComando = createHash("sha256").update(JSON.stringify(e)).digest("hex");
   const autorizacao = await prisma.$transaction(async tx => {
-    await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar");
-    await conferirAcesso(tx, sessao, ["consultar", "revisar", "fiscal"]);
+    await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar");
+    await conferirAcesso(tx, sessao, ["consultar", "cancelarNota"]);
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('brasilnfe-config'))`;
     const d = await ler(tx);
@@ -64,8 +64,8 @@ export async function cancelarNotaPedidoBrasilNfe(entrada: unknown, sessao: Sess
         return falhar("A operação não corresponde ao cancelamento confirmado.");
       exigirTransmissaoBrasilNfeLiberada({ documentoId: i.documentoId, ambiente: e.ambiente, modelo: e.modelo, operacao: "CANCELAR", hashSnapshot: original.hashPayload, hashPayloadFiscal: hashComando });
       await prisma.$transaction(async tx => {
-        await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar");
-        await conferirAcesso(tx, sessao, ["consultar", "revisar", "fiscal"]);
+        await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar");
+        await conferirAcesso(tx, sessao, ["consultar", "cancelarNota"]);
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
         const d = await ler(tx);
         if (d.acao !== "CANCELAR" || d.tentativas !== 1 || !d.leaseToken || !d.leaseAte || d.leaseAte <= new Date()
@@ -87,8 +87,8 @@ export async function cancelarNotaPedidoBrasilNfe(entrada: unknown, sessao: Sess
     versaoConfiguracao: contexto.versao, habilitacaoId: autorizacao.id, autorizacaoId: autorizacao.id,
   }, () => executarFiscalSaidaManual(a, original.id, "CANCELAR", e.justificativa, sessao),
   acaoHTTP => prisma.$transaction(async tx => {
-    await conferirAcessoAdministrativoBrasilNfe(tx, sessao, "editar");
-    await conferirAcesso(tx, sessao, ["consultar", "revisar", "fiscal"]);
+    await conferirAcessoOperacaoBrasilNfe(tx, sessao, "editar");
+    await conferirAcesso(tx, sessao, ["consultar", "cancelarNota"]);
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('brasilnfe-config'))`;
     await tx.$queryRaw`SELECT id FROM "ConfiguracaoLoja" WHERE id='singleton' FOR SHARE`;

@@ -25,7 +25,7 @@ export async function previaPedidoSemTransmissaoBrasilNfe(pedidoId: string, vers
   if (typeof pedidoId !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(pedidoId) || !Number.isSafeInteger(versao) || versao < 1
     || ![55, 65].includes(modelo) || !["HOMOLOGACAO", "PRODUCAO"].includes(ambiente)) throw new ErroEmissaoPedidoBrasilNfe("Pedido, revisão, modelo ou ambiente inválidos.");
   const leitura = await prisma.$transaction(async tx => {
-    await conferirAcesso(tx, sessao, ["consultar", "revisar", "fiscal"], pedidoId);
+    await conferirAcesso(tx, sessao, ["consultar", "fiscal"], pedidoId);
     const p = await tx.pedidoVenda.findUniqueOrThrow({ where: { id: pedidoId }, include: { itens: { where: { vigente: true }, orderBy: { ordem: "asc" } } } });
     if (p.status !== "CONFIRMADO" || p.versao !== versao) throw new ErroEmissaoPedidoBrasilNfe("Reabra a revisão vigente de um pedido confirmado.");
     const tributacao = await calcularPreviaPedido(tx, p, String(modelo) as "55" | "65", { ambiente });

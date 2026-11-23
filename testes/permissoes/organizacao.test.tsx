@@ -29,7 +29,7 @@ it("mantém nomes únicos de seção e de tema dentro do mesmo conjunto", () => 
 
 it("a busca localiza o que liberar para baixar nota fiscal, sem depender de acento ou ordem", () => {
   const achados = ids(filtrarMatriz("fiscal BAIXAR nota"));
-  expect(achados).toEqual(expect.arrayContaining(["notas", "financeiro.nfse", "financeiro.fiscal.painel", "vendas.fiscal"]));
+  expect(achados).toEqual(expect.arrayContaining(["notas", "financeiro.nfse", "financeiro.fiscal.painel", "financeiro.fiscal.emissao"]));
   expect(achados).not.toContain("fornecedores");
   expect(ids(filtrarMatriz("servico"))).toContain("financeiro.nfse");
   expect(filtrarMatriz("   ")).toBe(MODULOS_MATRIZ);

@@ -15,7 +15,7 @@ describe("Fronteira administrativa de séries e numeração", () => {
   it("recusa sem a permissão central antes de chamar o domínio", async () => {
     sim.exigir.mockRejectedValue(new Error("NEGADO_SINTETICO"));
     await expect(atualizarNumeracaoFiscalBrasilNfeAction(entrada)).rejects.toThrow("NEGADO_SINTETICO");
-    expect(sim.exigir).toHaveBeenCalledExactlyOnceWith("configuracoes.brasilnfe", "editar");
+    expect(sim.exigir).toHaveBeenCalledExactlyOnceWith("financeiro.fiscal.numeracao", "editar");
     expect(sim.atualizar).not.toHaveBeenCalled(); expect(sim.consultar).not.toHaveBeenCalled(); expect(sim.revalidar).not.toHaveBeenCalled();
   });
 
@@ -23,7 +23,7 @@ describe("Fronteira administrativa de séries e numeração", () => {
     const dados = { versaoConfiguracao: 3, atualizacao: { situacao: "CONFIRMADA" } };
     sim.atualizar.mockResolvedValue(dados);
     expect(await atualizarNumeracaoFiscalBrasilNfeAction(entrada)).toEqual({ ok: true, dados });
-    expect(sim.exigir).toHaveBeenCalledExactlyOnceWith("configuracoes.brasilnfe", "editar");
+    expect(sim.exigir).toHaveBeenCalledExactlyOnceWith("financeiro.fiscal.numeracao", "editar");
     expect(sim.atualizar).toHaveBeenCalledExactlyOnceWith(entrada, sessao);
     expect(sim.consultar).not.toHaveBeenCalled(); expect(sim.revalidar.mock.calls).toEqual([["/financeiro/fiscal/numeracao"], ["/financeiro/fiscal/configuracoes"]]);
   });
@@ -53,7 +53,7 @@ describe("Fronteira administrativa de séries e numeração", () => {
   it("mantém a consulta existente separada da mutação e protegida pela mesma permissão", async () => {
     const dados = { versaoConfiguracao: 3, linhas: [] }; sim.consultar.mockResolvedValue(dados);
     expect(await consultarNumeracaoFiscalBrasilNfeAction({ versao: 3 })).toEqual({ ok: true, dados });
-    expect(sim.exigir).toHaveBeenCalledExactlyOnceWith("configuracoes.brasilnfe", "editar");
+    expect(sim.exigir).toHaveBeenCalledExactlyOnceWith("financeiro.fiscal.numeracao", "editar");
     expect(sim.consultar).toHaveBeenCalledExactlyOnceWith({ versao: 3 }, sessao); expect(sim.atualizar).not.toHaveBeenCalled();
   });
 });

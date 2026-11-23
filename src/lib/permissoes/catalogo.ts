@@ -40,6 +40,9 @@ export const CATALOGO = [
     { id: "financeiro.saldo", nome: "Alterar saldo inicial", rota: "", acoes: ["visualizar", "editar"] },
     { id: "financeiro.plano", nome: "Plano de contas", rota: "/financeiro/plano-de-contas", acoes: ACOES },
     { id: "financeiro.fiscal.painel", nome: "Fiscal: visão geral", rota: "/financeiro/fiscal", acoes: ["visualizar"] },
+    { id: "financeiro.fiscal.emissao", nome: "Fiscal: emitir notas de venda", rota: "", acoes: ["visualizar", "editar"] },
+    { id: "financeiro.fiscal.cancelamento", nome: "Fiscal: cancelar notas emitidas", rota: "", acoes: ["visualizar", "editar"] },
+    { id: "financeiro.fiscal.numeracao", nome: "Fiscal: numeração das notas", rota: "", acoes: ["visualizar", "editar"] },
     // ID histórico mantido: concessões e exceções existentes não são alteradas.
     { id: "vendas.fiscal", nome: "Fiscal: grupos e vínculos dos produtos", rota: "/financeiro/fiscal/grupos", acoes: ["visualizar", "editar", "excluir"] },
   ] },
