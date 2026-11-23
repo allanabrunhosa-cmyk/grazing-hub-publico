@@ -40,7 +40,7 @@ describe("Pedido confirmado simplificado", () => {
   it("mantém cliente, itens, frete e pagamento antes da emissão, sem conferência fiscal separada", () => {
     const p = criarDetalheFixture();
     const fetchOriginal = vi.spyOn(globalThis, "fetch");
-    render(<DetalhePedido pedido={p} dados={dadosDetalhe} capacidades={capacidadesDetalhe} preparar responsavel="Operador Exemplo" fiscal={{ editar: false, documentos: [] }} />);
+    render(<DetalhePedido pedido={p} dados={dadosDetalhe} capacidades={capacidadesDetalhe} preparar responsavel="Operador Exemplo" fiscal={{ editar: false, cancelar: false, documentos: [] }} />);
     const secoes = ["Cliente", "Frete e entrega", "Data e horário", "Itens do pedido (1)", "Observações", "Resumo financeiro", "Pagamento", "Nota fiscal"].map(nome => screen.getByRole("region", { name: nome }));
     for (let i = 0; i < secoes.length - 1; i++) {
       expect(secoes[i].compareDocumentPosition(secoes[i + 1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -62,7 +62,7 @@ describe("Pedido confirmado simplificado", () => {
     const r = tela(p);
     expect(screen.queryByRole("region", { name: "Nota fiscal" })).toBeNull();
     expect(sim.painelFiscal).not.toHaveBeenCalled();
-    r.rerender(<DetalhePedido pedido={{ ...p, status: "CANCELADO" }} dados={dadosDetalhe} capacidades={capacidadesDetalhe} preparar responsavel="Operador Exemplo" fiscal={{ editar: true, documentos: [] }} />);
+    r.rerender(<DetalhePedido pedido={{ ...p, status: "CANCELADO" }} dados={dadosDetalhe} capacidades={capacidadesDetalhe} preparar responsavel="Operador Exemplo" fiscal={{ editar: true, cancelar: true, documentos: [] }} />);
     expect(screen.queryByText("Conferência fiscal local", { exact: true })).toBeNull();
     expect(sim.painelFiscal).toHaveBeenLastCalledWith(expect.objectContaining({ confirmado: false }));
     expect(sim.previaFiscal).not.toHaveBeenCalled(); expect(sim.prepararEmissao).not.toHaveBeenCalled();

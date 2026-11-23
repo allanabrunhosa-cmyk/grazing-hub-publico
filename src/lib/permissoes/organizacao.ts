@@ -69,8 +69,11 @@ export const ORGANIZACAO_PERMISSOES: readonly Modulo[] = [
       { id: "financeiro.custos", descricao: "Mostra custos e margens nas telas que os exibem." },
     ] },
     { id: "fiscal", nome: "Fiscal", temas: [
-      { id: "financeiro.fiscal.painel", nome: "Visão geral das notas", descricao: "Abre o painel fiscal, com as notas emitidas e recebidas. Para consultar e baixar cada tipo de nota, habilite também: notas de compra — Suprimentos › Notas fiscais de compra › Manifesto de notas; notas de serviço — Manifesto de NFS-e; notas emitidas — Grupos e vínculos fiscais e Vendas › Gestor de pedidos.", termos: "baixar download xml pdf danfe nota fiscal nfe contabilidade" },
-      { id: "vendas.fiscal", nome: "Grupos e vínculos fiscais", descricao: "Grupos fiscais, vínculos dos produtos e dados fiscais da empresa. Visualizar também permite consultar e baixar as notas emitidas (XML e DANFE), junto com o Gestor de pedidos.", termos: "baixar download xml pdf danfe nota fiscal de saída emitida nfe nfce tributação ncm" },
+      { id: "financeiro.fiscal.painel", nome: "Visão geral das notas", descricao: "Abre o painel fiscal, com as notas emitidas e recebidas. Para consultar e baixar cada tipo de nota, habilite também: notas de compra — Suprimentos › Notas fiscais de compra › Manifesto de notas; notas de serviço — Manifesto de NFS-e; notas emitidas — Emitir notas de venda e Vendas › Gestor de pedidos.", termos: "baixar download xml pdf danfe nota fiscal nfe contabilidade" },
+      { id: "financeiro.fiscal.emissao", nome: "Emitir notas de venda (NF-e e NFC-e)", descricao: `Visualizar mostra as notas do pedido e permite consultar e baixar XML e DANFE. Editar prepara, emite e consulta a nota do pedido e registra nota emitida fora do HUB (esta última exige também Pedidos › Revisar). Exige Visualizar em Vendas › Gestor de pedidos. Não libera cadastros fiscais nem a configuração do emissor. ${so}`, termos: "emitir emissão nota fiscal nf nfe nfce danfe xml baixar download saída venda atendente transmitir sefaz" },
+      { id: "financeiro.fiscal.cancelamento", nome: "Cancelar notas emitidas", descricao: `Solicita o cancelamento de uma nota de venda autorizada, com justificativa. Para enxergar a nota no pedido, habilite também Visualizar em Emitir notas de venda. ${so}`, termos: "cancelar cancelamento nota fiscal nfe nfce sefaz estornar" },
+      { id: "financeiro.fiscal.numeracao", nome: "Numeração das notas", descricao: `Visualizar consulta série e próximo número das notas. Editar consulta a numeração no emissor e altera os contadores, com a emissão parada. ${so}`, termos: "série numero sequência inutilizar contador nfe nfce" },
+      { id: "vendas.fiscal", nome: "Cadastros fiscais: grupos, vínculos e tributação", descricao: "Grupos fiscais, vínculos e tributação dos produtos, regime da empresa e homologação. Não emite nem cancela notas: use Emitir notas de venda e Cancelar notas emitidas.", termos: "tributação ncm cfop cst csosn grupo fiscal regime simples homologação" },
     ] },
   ] },
   { id: "producao", nome: "Produção", secoes: [
@@ -134,7 +137,7 @@ export const ORGANIZACAO_PERMISSOES: readonly Modulo[] = [
       { id: "configuracoes.loja", termos: "cnpj certificado digital a1" },
     ] },
     { id: "integracoes", nome: "Integrações", temas: [
-      { id: "configuracoes.brasilnfe", nome: "Emissor fiscal Brasil NFe", descricao: "Configuração e diagnóstico do emissor de notas." },
+      { id: "configuracoes.brasilnfe", nome: "Emissor fiscal Brasil NFe", descricao: "Credenciais, CSC, conexão, diagnóstico e habilitação do emissor de notas. Não é necessária para emitir ou cancelar notas." },
       { id: "configuracoes.mcp", nome: "Administrar MCP" },
     ] },
   ] },

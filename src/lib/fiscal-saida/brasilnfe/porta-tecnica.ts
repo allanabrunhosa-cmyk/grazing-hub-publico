@@ -29,7 +29,7 @@ export function criarPortaTecnicaBrasilNfe(sessao: SessaoAtual, ambiente: "HOMOL
       const u = await tx.usuario.findUnique({ where: { id: sessao.userId }, include: { perfilAcesso: true } });
       const admin = u?.perfilAcesso?.sistema === "ADMINISTRADOR";
       const pode = (recurso: string, acao: "visualizar" | "editar") => admin || permissaoEfetiva((u?.perfilAcesso?.permissoes ?? {}) as Permissoes, (u?.permissoesPersonalizadas ?? {}) as Excecoes, recurso, acao);
-      if (!u?.ativo || u.excluidoEm || u.sessaoVersao !== (sessao.versao ?? 0) || !pode("vendas.pedidos", "visualizar") || !pode("vendas.fiscal", editar ? "editar" : "visualizar")) throw new ErroPortaTecnicaBrasilNfe("ACESSO_NEGADO");
+      if (!u?.ativo || u.excluidoEm || u.sessaoVersao !== (sessao.versao ?? 0) || !pode("vendas.pedidos", "visualizar") || !pode("financeiro.fiscal.emissao", editar ? "editar" : "visualizar")) throw new ErroPortaTecnicaBrasilNfe("ACESSO_NEGADO");
       const d = await tx.documentoFiscalSaida.findUnique({ where: { id: i.documentoId }, select: {
         id: true, ambiente: true, provedor: true, modeloDocumento: true, status: true, hashPayload: true, payload: true,
         chaveFiscal: true, numero: true, serie: true, protocolo: true, protocoloCancelamento: true, cancelamentoPendente: true,

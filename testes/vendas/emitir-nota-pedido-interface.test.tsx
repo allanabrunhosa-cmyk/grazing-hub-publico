@@ -10,12 +10,12 @@ import { PedidoPopupContext } from "@/app/(protegido)/vendas/pedidos/modal-pedid
 import { ProvedorAcesso } from "@/components/layout/acesso-contexto";
 const documento = { id: "documento-sintetico", versaoPedido: 2, modeloDocumento: 65, ambiente: "PRODUCAO", status: "PREPARADO", provedor: "BRASIL_NFE", tentativas: 0, ultimoErro: null as string | null, referenciaProvedor: null, chaveFiscal: null as string | null, numero: null as string | null, serie: null as string | null, protocolo: null as string | null, hashSnapshot: "a".repeat(64), hashPayloadFiscal: "b".repeat(64), eventos: [], formatoImpressao: null as "PDF" | "HTML" | null };
 const autorizada = { ...documento, status: "AUTORIZADO", tentativas: 1, chaveFiscal: "1".repeat(44), protocolo: "135260000000001", numero: "10", serie: "1", formatoImpressao: "PDF" as const };
-const base = { pedidoId: "pedido-sintetico", numeroPedido: 101, versao: 2, confirmado: true, fiscal: { editar: true, documentos: [] } };
+const base = { pedidoId: "pedido-sintetico", numeroPedido: 101, versao: 2, confirmado: true, fiscal: { editar: true, cancelar: true, documentos: [] } };
 beforeEach(() => { vi.resetAllMocks(); sim.emitir.mockResolvedValue({ ok: true, documento: autorizada, conferirAntesDeRepetir: true }); sim.consultar.mockResolvedValue({ ok: true, documento: autorizada }); sim.documentos.mockResolvedValue({ ok: true, documento: autorizada }); sim.consultarPedido.mockResolvedValue({ ok: true, documento: null, conferirAntesDeRepetir: false }); });
 afterEach(cleanup);
 const clicarEmitir = () => userEvent.click(screen.getByRole("button", { name: /^Emitir NFC?-e$/ }));
 it.each(["PDF", "HTML"] as const)("impressão %s conserva os links e a mesma cor do XML", formatoImpressao => {
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...autorizada, formatoImpressao }] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...autorizada, formatoImpressao }] }} />);
   const xml = screen.getByRole("link", { name: "Baixar XML" });
   const impressao = screen.getByRole("link", { name: formatoImpressao === "PDF" ? "Abrir PDF" : "Abrir DANFE" });
   expect(impressao.className).toBe(xml.className);
@@ -26,7 +26,7 @@ it.each(["PDF", "HTML"] as const)("impressão %s conserva os links e a mesma cor
   expect(sim.emitir).not.toHaveBeenCalled();
 });
 it("arquivo pendente mantém sucesso e nova obtenção, sem oferecer emissão duplicada", () => {
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...autorizada, formatoImpressao: null, xmlDisponivel: false, avisoArquivos: "A nota está autorizada. Os arquivos ainda não estão disponíveis; use Obter documentos." }] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...autorizada, formatoImpressao: null, xmlDisponivel: false, avisoArquivos: "A nota está autorizada. Os arquivos ainda não estão disponíveis; use Obter documentos." }] }} />);
   expect(screen.getByText("Nota fiscal emitida com sucesso.")).toBeTruthy();
   expect(screen.getByText(/Os arquivos ainda não estão disponíveis/)).toBeTruthy();
   expect(screen.getByRole("button", { name: "Obter documentos" })).toBeTruthy();
@@ -48,7 +48,7 @@ it("emite NFC-e no único clique, sem abrir outra tela nem confirmação", async
   expect(screen.getByRole("link", { name: "Baixar XML" })).toBeTruthy();
 });
 it("troca para NF-e por teclado sem emitir e transmite o modelo escolhido no clique", async () => {
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [documento] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [documento] }} />);
   const seletor = screen.getByRole("combobox", { name: "Modelo da nota" });
   await userEvent.click(seletor); await userEvent.click(await screen.findByRole("option", { name: "NF-e (55)" }));
   expect(sim.emitir).not.toHaveBeenCalled();
@@ -70,7 +70,7 @@ it("impede clique duplicado e bloqueia os controles durante a transmissão", asy
 });
 it.each(["INCERTO", "PENDENTE_CONFERENCIA", "PROCESSANDO", "DENEGADO", "CANCELADO"])("resultado produtivo %s mantém consulta e tentativa segura sem duplicar no navegador", async status => {
   sim.consultar.mockResolvedValue({ ok: true, documento: { ...documento, status, tentativas: 1 } });
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, status, tentativas: 1 }] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...documento, status, tentativas: 1 }] }} />);
   if (["DENEGADO", "CANCELADO"].includes(status)) expect(screen.queryByRole("button", { name: /^Emitir/ })).toBeNull();
   else { expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false); expect(screen.getByRole("combobox", { name: "Modelo da nota" })).toBeTruthy(); }
   await userEvent.click(screen.getByRole("button", { name: "Consultar resultado" }));
@@ -78,15 +78,15 @@ it.each(["INCERTO", "PENDENTE_CONFERENCIA", "PROCESSANDO", "DENEGADO", "CANCELAD
   expect(sim.emitir).not.toHaveBeenCalled(); expect(screen.queryByRole("dialog")).toBeNull();
 });
 it.each([{ referenciaProvedor: "referencia" }, { chaveFiscal: "1".repeat(44) }, { protocolo: "135260000000001" }])("preserva identidade externa e permite clique para reconciliação no servidor (%j)", identidade => {
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, ...identidade }] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...documento, ...identidade }] }} />);
   expect(screen.getByRole("combobox", { name: "Modelo da nota" })).toBeTruthy(); expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false); expect(sim.emitir).not.toHaveBeenCalled();
 });
 it("autorização produtiva anterior prevalece sobre preparação de revisão nova", () => {
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, id: "nova" }, { ...autorizada, versaoPedido: 1 }] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...documento, id: "nova" }, { ...autorizada, versaoPedido: 1 }] }} />);
   expect(screen.getByText("Nota fiscal emitida com sucesso.")).toBeTruthy(); expect(screen.queryByRole("button", { name: /^Emitir/ })).toBeNull();
 });
 it("documento homologado não troca o clique produtivo por nova homologação", async () => {
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...autorizada, ambiente: "HOMOLOGACAO" }] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...autorizada, ambiente: "HOMOLOGACAO" }] }} />);
   await clicarEmitir(); expect(sim.emitir).toHaveBeenCalledExactlyOnceWith({ pedidoId: base.pedidoId, versaoPedido: 2, modelo: 65 });
 });
 it("mostra campo e produto faltantes no pedido e permite corrigir sem diálogo", async () => {
@@ -151,7 +151,7 @@ it("não solicita quitação ou declaração extra de cartão na emissão", asyn
 
 it("mantém seletor na incerteza e libera emissão após consultar rejeição com chave sem protocolo", async () => {
   sim.consultar.mockResolvedValue({ ok: true, documento: { ...documento, status: "REJEITADO", tentativas: 1, chaveFiscal: "1".repeat(44), ultimoErro: "Descrição fiscal inválida (xProd)." } });
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, status: "PENDENTE_CONFERENCIA", tentativas: 1 }] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...documento, status: "PENDENTE_CONFERENCIA", tentativas: 1 }] }} />);
   expect(screen.getByRole("button", { name: "Emitir NFC-e" }).hasAttribute("disabled")).toBe(false);
   await userEvent.click(screen.getByRole("combobox", { name: "Modelo da nota" }));
   await userEvent.click(await screen.findByRole("option", { name: "NF-e (55)" }));
@@ -162,7 +162,7 @@ it("mantém seletor na incerteza e libera emissão após consultar rejeição co
   await clicarEmitir(); expect(sim.emitir).toHaveBeenCalledExactlyOnceWith({ pedidoId: base.pedidoId, versaoPedido: 2, modelo: 55 });
 });
 
-it.each([{ confirmado: false }, { fiscal: { editar: false, documentos: [] } }])("não oferece emitir sem confirmação ou permissão (%j)", restricao => {
+it.each([{ confirmado: false }, { fiscal: { editar: false, cancelar: false, documentos: [] } }])("não oferece emitir sem confirmação ou permissão (%j)", restricao => {
   render(<EmitirNotaPedido {...base} {...restricao} />); expect(screen.queryByRole("button", { name: /^Emitir/ })).toBeNull(); expect(sim.emitir).not.toHaveBeenCalled();
 });
 it("alteração comercial não salva bloqueia emissão antes da action", async () => {
@@ -177,7 +177,7 @@ it("atalhos respeitam permissões e recusam destinos externos", async () => {
 it("exige justificativa e confirmação para cancelar, preserva erro e impede clique duplicado", async () => {
   let concluir!: (r: { erro: string }) => void;
   sim.cancelar.mockImplementation(() => new Promise(resolve => { concluir = resolve; }));
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [autorizada] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [autorizada] }} />);
   await userEvent.click(screen.getByRole("button", { name: "Cancelar NF" }));
   const painel = await screen.findByRole("dialog", { name: "Cancelar nota fiscal" });
   const botao = within(painel).getByRole("button", { name: "Confirmar cancelamento da NF" });
@@ -194,7 +194,7 @@ it("exige justificativa e confirmação para cancelar, preserva erro e impede cl
 });
 it("exibe cancelamento confirmado e retira a ação de cancelar", async () => {
   sim.cancelar.mockResolvedValue({ ok: true, documento: { ...autorizada, status: "CANCELADO", protocoloCancelamento: "135260000000002" } });
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [autorizada] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [autorizada] }} />);
   await userEvent.click(screen.getByRole("button", { name: "Cancelar NF" }));
   const painel = await screen.findByRole("dialog", { name: "Cancelar nota fiscal" });
   await userEvent.type(within(painel).getByRole("textbox"), "Pedido duplicado pelo cliente.");
@@ -206,7 +206,7 @@ it("exibe cancelamento confirmado e retira a ação de cancelar", async () => {
 it.each([false, true])("preserva arquivos e exibe recusa ou pendência de cancelamento (%s) no resultado autorizado", async pendente => {
   const erro = pendente ? "Cancelamento não confirmado. Consulte o resultado." : "SEFAZ 501: Prazo de cancelamento superior ao permitido.";
   sim.cancelar.mockResolvedValue({ ok: true, documento: { ...autorizada, cancelamentoSolicitado: true, cancelamentoPendente: pendente, ultimoErro: erro } });
-  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [autorizada] }} />);
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [autorizada] }} />);
   await userEvent.click(screen.getByRole("button", { name: "Cancelar NF" }));
   const painel = await screen.findByRole("dialog", { name: "Cancelar nota fiscal" });
   await userEvent.type(within(painel).getByRole("textbox"), "Pedido duplicado pelo cliente.");
@@ -219,10 +219,10 @@ it.each([false, true])("preserva arquivos e exibe recusa ou pendência de cancel
 });
 
 it("rejeição com chave permite outra revisão; protocolo impede nova transmissão", async () => {
-  const { rerender } = render(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, status: "REJEITADO", tentativas: 1, referenciaProvedor: "referencia-rejeitada" }] }} />);
+  const { rerender } = render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...documento, status: "REJEITADO", tentativas: 1, referenciaProvedor: "referencia-rejeitada" }] }} />);
   expect(screen.getByRole("button", { name: "Emitir NFC-e" })).toBeTruthy();
-  rerender(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, status: "REJEITADO", tentativas: 1, chaveFiscal: "1".repeat(44) }] }} />);
+  rerender(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...documento, status: "REJEITADO", tentativas: 1, chaveFiscal: "1".repeat(44) }] }} />);
   expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false);
-  rerender(<EmitirNotaPedido {...base} fiscal={{ editar: true, documentos: [{ ...documento, status: "REJEITADO", tentativas: 1, chaveFiscal: "1".repeat(44), protocolo: "123456" }] }} />);
+  rerender(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...documento, status: "REJEITADO", tentativas: 1, chaveFiscal: "1".repeat(44), protocolo: "123456" }] }} />);
   expect(screen.getByRole("button", { name: /^Emitir/ }).hasAttribute("disabled")).toBe(false); expect(sim.emitir).not.toHaveBeenCalled();
 });

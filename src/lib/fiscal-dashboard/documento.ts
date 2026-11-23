@@ -18,7 +18,7 @@ export type DetalheDocumentoDashboard = {
   arquivos?: ArquivosDocumentoDashboard;
 };
 export function recursoDocumentoDashboard(tipo: TipoDocumentoDashboardFiscal) {
-  return tipo === "NF_SAIDA" ? "vendas.fiscal" : tipo === "NFS_ENTRADA" ? "financeiro.nfse" : "notas";
+  return tipo === "NF_SAIDA" ? "financeiro.fiscal.emissao" : tipo === "NFS_ENTRADA" ? "financeiro.nfse" : "notas";
 }
 /** Consulta local sob demanda. Não manifesta, transmite, concilia ou obtém arquivos externos. */
 export async function consultarDocumentoDashboard(tipo: TipoDocumentoDashboardFiscal, id: string): Promise<DetalheDocumentoDashboard | { erro: string }> {

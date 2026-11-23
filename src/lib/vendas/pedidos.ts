@@ -55,12 +55,12 @@ async function conferirJanela(tx: Tx, data: string | null, janela: string | null
   if (data && !janelasDoDia(data, config?.horariosPedidos ? validarHorarios(config.horariosPedidos) : null).includes(janela ?? "")) throw new ErroPedidoVenda("Escolha uma janela nos horários de entrega.");
 }
 
-type Capacidade = "cliente" | "editarCliente" | "horarios" | "operar" | "consultar" | "rascunho" | "confirmar" | "revisar" | "desconto" | "preco" | "cancelar" | "receber" | "estornar" | "condicao" | "estoque" | "fiscal";
+type Capacidade = "cliente" | "editarCliente" | "horarios" | "operar" | "consultar" | "rascunho" | "confirmar" | "revisar" | "desconto" | "preco" | "cancelar" | "receber" | "estornar" | "condicao" | "estoque" | "fiscal" | "consultarNota" | "cancelarNota";
 const recurso: Record<Capacidade, string> = {
   cliente: "vendas.clientes",
   editarCliente: "vendas.clientes",
   horarios: "vendas.horarios", operar: "vendas.pedidos.producao",
-  fiscal: "vendas.fiscal", estoque: "inventario", consultar: "vendas.pedidos", rascunho: "vendas.pedidos", confirmar: "vendas.pedidos.confirmar", revisar: "vendas.pedidos.revisar",
+  fiscal: "financeiro.fiscal.emissao", consultarNota: "financeiro.fiscal.emissao", cancelarNota: "financeiro.fiscal.cancelamento", estoque: "inventario", consultar: "vendas.pedidos", rascunho: "vendas.pedidos", confirmar: "vendas.pedidos.confirmar", revisar: "vendas.pedidos.revisar",
   desconto: "vendas.pedidos.desconto", preco: "vendas.pedidos.preco", cancelar: "vendas.pedidos.cancelar",
   receber: "financeiro.baixas", estornar: "financeiro.estornos", condicao: "financeiro.movimentacoes",
 };
@@ -102,15 +102,15 @@ export async function conferirAcesso(tx: Tx, sessao: SessaoAtual, capacidades: C
   const usuario = await tx.usuario.findUnique({ where: { id: sessao.userId }, select: { id: true, nome: true, ativo: true, excluidoEm: true, sessaoVersao: true, permissoesPersonalizadas: true, perfilAcesso: { select: { sistema: true, permissoes: true } } } });
   if (!usuario?.ativo || usuario.excluidoEm || usuario.sessaoVersao !== (sessao.versao ?? 0)) throw new ErroPedidoVenda("Sua sessão foi encerrada.");
   const administrador = usuario.perfilAcesso?.sistema === "ADMINISTRADOR";
-  if (pedidoId && capacidades.some(c => c !== "consultar")) await exigirEfeitoOperacional(tx, pedidoId);
+  if (pedidoId && capacidades.some(c => c !== "consultar" && c !== "consultarNota")) await exigirEfeitoOperacional(tx, pedidoId);
   const base = (usuario.perfilAcesso?.permissoes ?? {}) as Permissoes;
   const excecoes = usuario.permissoesPersonalizadas as Excecoes;
-  if (!administrador && capacidades.some(c => c === "operar" ? !permissaoOperarPedido(base, excecoes) : !permissaoEfetiva(base, excecoes, recurso[c], c === "consultar" ? "visualizar" : c === "rascunho" || c === "cliente" ? "adicionar" : "editar"))) throw new ErroPedidoVenda("Seu acesso não permite esta operação.");
-  if (pedidoId && capacidades.some(c => !["consultar", "receber", "estornar", "condicao"].includes(c))) {
+  if (!administrador && capacidades.some(c => c === "operar" ? !permissaoOperarPedido(base, excecoes) : !permissaoEfetiva(base, excecoes, recurso[c], c === "consultar" || c === "consultarNota" ? "visualizar" : c === "rascunho" || c === "cliente" ? "adicionar" : "editar"))) throw new ErroPedidoVenda("Seu acesso não permite esta operação.");
+  if (pedidoId && capacidades.some(c => !["consultar", "consultarNota", "receber", "estornar", "condicao"].includes(c))) {
     const origem = await tx.pedidoVenda.findUnique({ where: { id: pedidoId }, select: { origem: true, status: true } });
     if (origem?.origem === "IFOOD" && !(origem.status === "CANCELADO" && capacidades.includes("receber") && capacidades.every(c => ["consultar", "receber", "condicao", "cancelar"].includes(c)))) throw new ErroPedidoVenda("Use as ações iFood nos detalhes do pedido. Edição local e movimentação de estoque estão desabilitadas para este canal.");
   }
-  if (capacidades.some(c => c !== "consultar" && c !== "horarios")) await exigirLiberacaoPedidos(tx, undefined, { pedidoId, novoModo, financeiro: capacidades.some(c => c === "receber" || c === "estornar" || c === "condicao") });
+  if (capacidades.some(c => c !== "consultar" && c !== "consultarNota" && c !== "horarios")) await exigirLiberacaoPedidos(tx, undefined, { pedidoId, novoModo, financeiro: capacidades.some(c => c === "receber" || c === "estornar" || c === "condicao") });
   return { userId: usuario.id, nome: usuario.nome };
 }
 async function travarOperacao(tx: Tx, operacao: string) {

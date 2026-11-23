@@ -12,7 +12,7 @@ describe("Detalhes fiscais do Dashboard: consulta local autorizada", () => {
     await expect(consultarDocumentoDashboard("NF_ENTRADA", "nota")).rejects.toThrow("Sem acesso");
     expect(m.pode).not.toHaveBeenCalled(); expect(m.entrada).not.toHaveBeenCalled();
   });
-  it.each([["NF_SAIDA", "vendas.fiscal"], ["NF_ENTRADA", "notas"], ["NFC_ENTRADA", "notas"], ["NFS_ENTRADA", "financeiro.nfse"]] as const)("revalida permissão específica de %s", async (tipo, recurso) => {
+  it.each([["NF_SAIDA", "financeiro.fiscal.emissao"], ["NF_ENTRADA", "notas"], ["NFC_ENTRADA", "notas"], ["NFS_ENTRADA", "financeiro.nfse"]] as const)("revalida permissão específica de %s", async (tipo, recurso) => {
     m.pode.mockResolvedValue(false);
     expect(await consultarDocumentoDashboard(tipo, "nota")).toHaveProperty("erro");
     expect(m.pode).toHaveBeenCalledWith(recurso); expect(m.saida).not.toHaveBeenCalled(); expect(m.entrada).not.toHaveBeenCalled(); expect(m.servico).not.toHaveBeenCalled();

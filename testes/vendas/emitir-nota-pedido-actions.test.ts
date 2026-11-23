@@ -26,7 +26,7 @@ it.each([
   ["recuperação do resultado", () => consultarResultadoEmissaoPedidoBrasilNfeAction(entradaDireta.pedidoId), sim.consultarPedido],
 ] as const)("%s confere permissão central e retorna o contrato seguro do serviço", async (_nome, agir, servico) => {
   const resultado = { ok: true, documento: { id: "documento-sintetico", status: "AUTORIZADO" }, conferirAntesDeRepetir: true }; servico.mockResolvedValue(resultado);
-  expect(await agir()).toEqual(resultado); expect(sim.guarda).toHaveBeenCalledExactlyOnceWith("vendas.fiscal", "editar"); expect(servico.mock.calls[0].at(-1)).toBe(sessao);
+  expect(await agir()).toEqual(resultado); expect(sim.guarda).toHaveBeenCalledExactlyOnceWith("financeiro.fiscal.emissao", "editar"); expect(servico.mock.calls[0].at(-1)).toBe(sessao);
   expect(sim.revalidar).toHaveBeenCalledWith("/vendas/pedidos", "layout"); expect(sim.revalidar).toHaveBeenCalledWith("/financeiro/fiscal");
 });
 it.each([
@@ -52,7 +52,7 @@ it("recuperação sem resposta preserva documento para nova consulta, nunca reem
 it.each(operacoes)("%s confere permissão central antes do serviço", async (_nome, agir, servico) => {
   servico.mockResolvedValue({ status: "PREPARADO" });
   expect(await agir()).toHaveProperty("ok", true);
-  expect(sim.guarda).toHaveBeenCalledExactlyOnceWith("vendas.fiscal", "editar");
+  expect(sim.guarda).toHaveBeenCalledExactlyOnceWith("financeiro.fiscal.emissao", "editar");
   expect(servico).toHaveBeenCalledTimes(1);
   expect(servico.mock.calls[0].at(-1)).toBe(sessao);
   expect(sim.revalidar).toHaveBeenCalledWith("/vendas/pedidos", "layout");

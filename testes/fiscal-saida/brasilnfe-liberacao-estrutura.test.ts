@@ -38,7 +38,7 @@ describe("Estrutura fiscal: não existe liberação global por cadastro, flag ou
   it("a action mantém permissão central antes de preparar qualquer contexto de transmissão", async () => {
     s.permissao.mockRejectedValueOnce(new Error("Permissão central recusada no teste sintético"));
     await expect(emitirNotaPedidoBrasilNfeAction(comando)).rejects.toThrow("Permissão central recusada");
-    expect(s.permissao).toHaveBeenCalledWith("vendas.fiscal", "editar"); expect(s.transacao).not.toHaveBeenCalled();
+    expect(s.permissao).toHaveBeenCalledWith("financeiro.fiscal.emissao", "editar"); expect(s.transacao).not.toHaveBeenCalled();
   });
   it("factory com habilitação histórica válida conserva leitura e nega envio/cancelamento", async () => {
     const tx = { documentoFiscalSaida: { findUniqueOrThrow: vi.fn().mockResolvedValue({ ambiente: "HOMOLOGACAO", modeloDocumento: 55 }) }, eventoConfiguracaoBrasilNfe: { findMany: vi.fn().mockResolvedValue([{ id: "habilitacao-historica", createdAt: new Date("2026-10-01T12:00:00Z"), dados: { revisao: 1, ambiente: "HOMOLOGACAO", habilitada: true, modelos: [55], emitenteHash: "a".repeat(64), versaoConfiguracao: 1 } }]) } };

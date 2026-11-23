@@ -38,6 +38,20 @@ describe("perfis e exceções", () => {
     }
     expect(permissaoEfetiva({ vendas: ["visualizar"] }, {}, "vendas.bi", "visualizar")).toBe(false);
   });
+  it("emitir, cancelar e numerar notas são permissões próprias, sem herança dos cadastros fiscais ou da integração", () => {
+    const novos = ["financeiro.fiscal.emissao", "financeiro.fiscal.cancelamento", "financeiro.fiscal.numeracao"];
+    const administracao = validarPermissoes({ "vendas.fiscal": ["visualizar", "editar", "excluir"], "configuracoes.brasilnfe": ["visualizar", "editar"], "vendas.pedidos.revisar": ["visualizar", "editar"] });
+    for (const recurso of novos) {
+      expect(permissaoEfetiva(administracao, {}, recurso, "visualizar")).toBe(false);
+      expect(() => validarPermissoes({ [recurso]: ["visualizar", "editar"] })).not.toThrow();
+      expect(() => validarPermissoes({ [recurso]: ["editar"] })).toThrow();
+      expect(todasPermissoes()[recurso]).toEqual(["visualizar", "editar"]);
+    }
+    // Atendente: emite sem cancelar e sem alcançar cadastros fiscais ou credenciais do emissor.
+    const atendente = validarPermissoes({ "vendas.pedidos": ["visualizar"], "financeiro.fiscal.emissao": ["visualizar", "editar"] });
+    expect(permissaoEfetiva(atendente, {}, "financeiro.fiscal.emissao", "editar")).toBe(true);
+    for (const recurso of ["financeiro.fiscal.cancelamento", "financeiro.fiscal.numeracao", "vendas.fiscal", "configuracoes.brasilnfe"]) expect(permissaoEfetiva(atendente, {}, recurso, "editar")).toBe(false);
+  });
   it("reserva a Central de Design para administradores", () => {
     expect(recursoDaRota("/configuracoes/design/componentes")).toBe("configuracoes.design");
     expect(todasPermissoes()).not.toHaveProperty("configuracoes.design");

@@ -101,15 +101,21 @@ it("detalhe mantém exigirPermissao e versão atual sem a área de operação re
   expect(detalhe.props.abrirCancelamentoInicial).toBe(false);
   expect(detalhe.props.fiscal).toBeUndefined(); expect(fiscal).not.toHaveBeenCalled();
 });
-it("documentos fiscais só entram no detalhe com consulta fiscal e edição exige revisão do pedido", async () => {
+it("documentos fiscais entram no detalhe com consulta de notas; emitir e cancelar são permissões próprias", async () => {
   permitidos.add("vendas.pedidos:visualizar"); permitidos.add("vendas.fiscal:visualizar"); permitidos.add("vendas.fiscal:editar");
+  permitidos.add("configuracoes.brasilnfe:editar"); permitidos.add("vendas.pedidos.revisar:editar");
   obter.mockResolvedValue({ id: "pedido-ficticio", numero: 101, versao: 3, modoFinanceiro: "EXTERNO", status: "CONFIRMADO", itens: [] });
+  // Cadastros fiscais, integração e revisão de pedidos não mostram nem operam notas.
+  expect((await ConteudoPedido({ params, retorno })).props.children.props.fiscal).toBeUndefined(); expect(fiscal).not.toHaveBeenCalled();
+  permitidos.add("financeiro.fiscal.emissao:visualizar");
   const leitura = await ConteudoPedido({ params, retorno });
-  expect(leitura.props.children.props.fiscal).toEqual({ editar: false, documentos: [], origemHub: "http://127.0.0.1:4302" });
+  expect(leitura.props.children.props.fiscal).toEqual({ editar: false, cancelar: false, documentos: [], origemHub: "http://127.0.0.1:4302" });
   expect(fiscal).toHaveBeenCalledExactlyOnceWith("pedido-ficticio", { nome: "Operador fictício" });
-  permitidos.add("vendas.pedidos.revisar:editar");
+  permitidos.add("financeiro.fiscal.emissao:editar");
   const edicao = await ConteudoPedido({ params, retorno });
-  expect(edicao.props.children.props.fiscal.editar).toBe(true);
+  expect(edicao.props.children.props.fiscal).toMatchObject({ editar: true, cancelar: false });
+  permitidos.add("financeiro.fiscal.cancelamento:editar");
+  expect((await ConteudoPedido({ params, retorno })).props.children.props.fiscal).toMatchObject({ editar: true, cancelar: true });
 });
 it("solicitação de cancelar identifica o detalhe sem usar a versão como chave nem perder retorno", async () => {
   permitidos.add("vendas.pedidos:visualizar");

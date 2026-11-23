@@ -15,7 +15,7 @@ import { chaveFicticia } from "./brasilnfe-fixtures";
 
 const sessao: SessaoAtual = { userId: "usuario-ficticio", versao: 1, nome: "Usuário fictício", email: "usuario@example.test", admin: false, permissoes: {}, excecoes: {}, perfilNome: "Teste" };
 const identidade = { documentoId: "documento-ficticio", ambiente: "HOMOLOGACAO" as const, chaveIdempotencia: "documento-ficticio", emitenteCnpj: "00000000000000", modeloDocumento: 55 as const, referencia: null };
-const usuario = () => ({ id: sessao.userId, ativo: true, excluidoEm: null, sessaoVersao: 1, perfilAcesso: { sistema: "PERSONALIZADO", permissoes: { "vendas.fiscal": ["visualizar", "editar"], "vendas.pedidos": ["visualizar"] } }, permissoesPersonalizadas: {} });
+const usuario = () => ({ id: sessao.userId, ativo: true, excluidoEm: null, sessaoVersao: 1, perfilAcesso: { sistema: "PERSONALIZADO", permissoes: { "financeiro.fiscal.emissao": ["visualizar", "editar"], "vendas.pedidos": ["visualizar"] } }, permissoesPersonalizadas: {} });
 const documento = () => ({ ...massaPayloadLocal().documento, ambiente: "HOMOLOGACAO", modeloDocumento: 55, provedor: "BRASIL_NFE", status: "AUTORIZADO", chaveFiscal: chaveFicticia(), numero: "123", serie: "1", protocolo: "90071992547409930001", protocoloCancelamento: null, cancelamentoPendente: false, Token: "segredo-ficticio-nao-projetado" });
 beforeEach(() => {
   sim.usuario = usuario(); sim.documento = documento();
@@ -56,18 +56,18 @@ describe("Ponte técnica servidor sem liberação operacional", () => {
     if (caso === "inativo") u.ativo = false;
     if (caso === "excluido") Object.assign(u, { excluidoEm: new Date() });
     if (caso === "pedidos") u.perfilAcesso.permissoes["vendas.pedidos"] = [];
-    if (caso === "fiscal") u.perfilAcesso.permissoes["vendas.fiscal"] = [];
+    if (caso === "fiscal") u.perfilAcesso.permissoes["financeiro.fiscal.emissao"] = [];
     sim.usuario = u;
     await expect(criarPortaTecnicaBrasilNfe({ ...sessao, admin: true }).obterAutorizacao(identidade)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
   });
   it("visualizador fiscal pode ler provas, mas não preparar montagem para operação", async () => {
-    const u = usuario(); u.perfilAcesso.permissoes["vendas.fiscal"] = ["visualizar"]; sim.usuario = u;
+    const u = usuario(); u.perfilAcesso.permissoes["financeiro.fiscal.emissao"] = ["visualizar"]; sim.usuario = u;
     const p = criarPortaTecnicaBrasilNfe(sessao);
     expect(await p.obterAutorizacao(identidade)).toMatchObject({ protocolo: "90071992547409930001" });
     await expect(p.preparar(identidade, massaPayloadLocal().documento.payload)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
   });
   it("somente a regra central do administrador concede leitura, sem liberar transmissão", async () => {
-    const u = usuario(); u.perfilAcesso.sistema = "ADMINISTRADOR"; u.perfilAcesso.permissoes["vendas.fiscal"] = []; sim.usuario = u;
+    const u = usuario(); u.perfilAcesso.sistema = "ADMINISTRADOR"; u.perfilAcesso.permissoes["financeiro.fiscal.emissao"] = []; sim.usuario = u;
     const p = criarPortaTecnicaBrasilNfe(sessao);
     expect(await p.obterAutorizacao(identidade)).toMatchObject({ chave: chaveFicticia() });
     for (const operacao of ["ENVIAR", "CANCELAR", "CONSULTAR", "DOCUMENTOS"] as const) await expect(p.autorizar(operacao, identidade)).rejects.toThrow("bloqueados");

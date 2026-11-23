@@ -49,6 +49,11 @@ registrados em [Atendimento](atendimento.md). Não duplicar cadastros ou autenti
   persistente e resposta não enumerável. SMTP privado, sem credenciais em log.
   Envio via after não é fila durável; não prometer entrega sem comprovação.
 
+- Operação e administração são recursos distintos: ação relevante do dia a dia (emitir
+  ou cancelar nota, numeração) ganha recurso próprio em vez de reutilizar o cadastro ou a
+  integração. Ao separar, materializar por migration quem já podia executar, sem ampliar
+  acesso. Referência: [Fiscal](../modulos/fiscal.md), seção de permissões das notas de venda.
+
 Atividades por autor: [contrato de auditoria](auditoria-atividades.md). A capacidade
 `configuracoes.usuarios.atividades` é somente consulta e negada por padrão.
 Autor e usuário afetado são distintos; login sem identidade confirmada não recebe

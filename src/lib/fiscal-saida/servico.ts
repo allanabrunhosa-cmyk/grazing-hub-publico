@@ -68,7 +68,7 @@ const selectResumo = { id: true, pedidoId: true, versaoPedido: true, status: tru
 async function acessoConsulta(tx: Prisma.TransactionClient, sessao: SessaoAtual) {
   await conferirAcesso(tx, sessao, ["consultar"]);
   const u = await tx.usuario.findUniqueOrThrow({ where: { id: sessao.userId }, include: { perfilAcesso: true } });
-  if (u.perfilAcesso?.sistema !== "ADMINISTRADOR" && !permissaoEfetiva((u.perfilAcesso?.permissoes ?? {}) as Permissoes, u.permissoesPersonalizadas as Excecoes, "vendas.fiscal", "visualizar")) throw new ErroPedidoVenda("Seu acesso não permite consultar documentos fiscais de saída.");
+  if (u.perfilAcesso?.sistema !== "ADMINISTRADOR" && !permissaoEfetiva((u.perfilAcesso?.permissoes ?? {}) as Permissoes, u.permissoesPersonalizadas as Excecoes, "financeiro.fiscal.emissao", "visualizar")) throw new ErroPedidoVenda("Seu acesso não permite consultar documentos fiscais de saída.");
 }
 export async function consultarFiscalSaida(pedidoId: string, sessao: SessaoAtual) {
   return prisma.$transaction(async tx => {
@@ -87,7 +87,7 @@ export async function prepararFiscalSaida(pedidoId: string, versao: number, sess
   const ambiente = opcoes.ambiente ?? "HOMOLOGACAO";
   const { revisaoConsolidada, versoesRevisao, ...operacao } = opcoes;
   return prisma.$transaction(async tx => {
-    const autor = await conferirAcesso(tx, sessao, ["revisar", "fiscal"], pedidoId);
+    const autor = await conferirAcesso(tx, sessao, ["fiscal"], pedidoId);
     await tx.$queryRaw`SELECT id FROM "PedidoVenda" WHERE id=${pedidoId} FOR UPDATE`;
     const ultimaRevisao = await tx.documentoFiscalSaida.findFirst({ where: { pedidoId, versaoPedido: versao }, orderBy: { revisaoFiscal: "desc" }, select: { revisaoFiscal: true } });
     const anterior = await tx.documentoFiscalSaida.findFirst({ where: { pedidoId, versaoPedido: versao, ambiente, modeloDocumento: Number(modelo) }, orderBy: { revisaoFiscal: "desc" } });
@@ -110,7 +110,7 @@ export async function prepararFiscalSaidaLegadoHomologacao(pedidoId: string, ver
   exigirBaseHomologacaoControlada();
   if (!idValido(pedidoId) || !Number.isSafeInteger(versao) || versao < 1) throw new ErroPedidoVenda("Pedido ou revisão inválida.");
   return prisma.$transaction(async tx => {
-    const autor = await conferirAcesso(tx, sessao, ["revisar", "fiscal"], pedidoId);
+    const autor = await conferirAcesso(tx, sessao, ["fiscal"], pedidoId);
     await tx.$queryRaw`SELECT id FROM "PedidoVenda" WHERE id=${pedidoId} FOR UPDATE`;
     const anterior = await tx.documentoFiscalSaida.findFirst({ where: { pedidoId, versaoPedido: versao }, orderBy: { revisaoFiscal: "desc" } });
     if (anterior) return anterior;
@@ -133,7 +133,7 @@ async function solicitarAcaoComAdaptador(id: string, acao: "ENVIAR" | "CONSULTAR
   if (adapter.id === "BRASIL_NFE" && acao !== "CONSULTAR") exigirTransmissaoBrasilNfeLiberada({ documentoId: id, ambiente: adapter.ambiente, operacao: acao });
   conferirAdaptadorOperacional(adapter);
   return prisma.$transaction(async tx => {
-    const autor = await conferirAcesso(tx, sessao, ["revisar", "fiscal"]);
+    const autor = await conferirAcesso(tx, sessao, [acao === "CANCELAR" ? "cancelarNota" : "fiscal"]);
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('fiscal-saida'))`;
     const d = await tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id }, include: { pedido: true } });
     await exigirEfeitoOperacional(tx, d.pedidoId);

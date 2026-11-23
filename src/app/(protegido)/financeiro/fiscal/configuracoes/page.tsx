@@ -16,10 +16,10 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 export default async function ConfiguracoesFiscaisPage() {
   const sessao = await exigirSessao();
   if (!(await Promise.all(RECURSOS_CONFIGURACAO_FISCAL.map(r => podeAcessar(r)))).some(Boolean)) redirect("/sem-acesso");
-  const podeVerNumeracao = (await Promise.all(["vendas.fiscal", "financeiro.fiscal.painel", "configuracoes.brasilnfe"].map(r => podeAcessar(r)))).some(Boolean);
+  const podeVerNumeracao = (await Promise.all(["vendas.fiscal", "financeiro.fiscal.painel", "configuracoes.brasilnfe", "financeiro.fiscal.numeracao", "financeiro.fiscal.emissao"].map(r => podeAcessar(r)))).some(Boolean);
   const podeVerCertificado = await podeAcessar("configuracoes.loja");
   const [dados, podeConsultar, certificado] = await Promise.all([
-    podeVerNumeracao ? obterNumeracaoFiscalBrasilNfe(sessao) : null, podeAcessar("configuracoes.brasilnfe", "editar"),
+    podeVerNumeracao ? obterNumeracaoFiscalBrasilNfe(sessao) : null, podeAcessar("financeiro.fiscal.numeracao", "editar"),
     podeVerCertificado ? prisma.certificadoDigital.findUnique({ where: { id: "singleton" }, select: { arquivoNome: true, titular: true, validoAte: true, updatedAt: true, atualizadoPor: { select: { nome: true } } } }) : null,
   ]);
   const validade = certificado ? resumirCertificadoDashboard(certificado, new Date()) : null;
