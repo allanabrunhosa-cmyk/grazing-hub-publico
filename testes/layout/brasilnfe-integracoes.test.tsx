@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { ProvedorAcesso } from "@/components/layout/acesso-contexto";
 import { ConteudoMenuLateral } from "@/components/layout/sidebar";
 import IntegracoesPage from "@/app/(protegido)/configuracoes/integracoes/page";
@@ -40,12 +40,18 @@ it("perfil somente fiscal entra direto na Brasil NFe", async () => {
 
 const servidorMcp = { endereco: "https://hub.example.invalid/api/mcp", ativo: true, configurado: true, editar: true, conexoes: [{ id: "c-revogada", nome: "Conexão revogada", clienteNome: "Cliente fictício", situacao: "REVOGADA" }, { id: "c-ativa", nome: "Análises fictícias", clienteNome: "Cliente fictício", situacao: "ATIVA" }] };
 
-it("seletor lista todas as conexões autorizadas, com Brasil NFe separada do Certificado A1", () => {
+it("seletor lista as conexões vigentes, sem revogadas, com Nova conexão fora da grade", () => {
   render(<MolduraIntegracoes ativa="mcp:c-ativa" resumo={{ mcp: servidorMcp, brasilnfe: true, certificado: { resumo: "Válido até 01/01/2027", tom: "roxo" } }}><p>Detalhe fictício</p></MolduraIntegracoes>);
   // Iniciais e marca são decorativas (aria-hidden): o texto conferido é o que o leitor de tela anuncia.
-  const nomes = screen.getAllByRole("link").map(l => [...l.children].filter(f => f.getAttribute("aria-hidden") !== "true").map(f => f.textContent).join(""));
-  expect(screen.getAllByRole("link").map(l => l.querySelector("[aria-hidden=true]")?.textContent)).toEqual(["CF", "CF", "", "", "GH", ""]);
-  expect(nomes.map(n => n?.split("Cliente")[0])).toEqual(["Análises fictícias", "Conexão revogada", "Brasil NFeEmissão de NF-e e NFC-e", "Certificado A1Válido até 01/01/2027", "Servidor MCPDiagnóstico, aplicações e histórico", "Nova conexãoConectar um assistente de IA"]);
+  const grade = within(screen.getByRole("navigation", { name: "Conexões" })).getAllByRole("link");
+  const nomes = grade.map(l => [...l.children].filter(f => f.getAttribute("aria-hidden") !== "true").map(f => f.textContent).join(""));
+  expect(grade.map(l => l.querySelector("[aria-hidden=true]")?.textContent)).toEqual(["CF", "", "", "GH"]);
+  expect(nomes.map(n => n?.split("Cliente")[0])).toEqual(["Análises fictícias", "Brasil NFeEmissão de NF-e e NFC-e", "Certificado A1Válido até 01/01/2027", "Servidor MCPDiagnóstico, aplicações e histórico"]);
+  expect(screen.queryByText("Conexão revogada")).toBeNull();
+  // Criar conexão é uma ação separada, acima da grade.
+  const nova = screen.getByRole("link", { name: "Nova conexão" });
+  expect(nova.getAttribute("href")).toBe("/configuracoes/integracoes/mcp?conexao=nova");
+  expect(screen.getByRole("navigation", { name: "Conexões" }).contains(nova)).toBe(false);
   expect(screen.getByRole("link", { name: /Análises fictícias/ }).getAttribute("aria-current")).toBe("page");
   expect(screen.getByRole("link", { name: /Brasil NFe/ }).getAttribute("href")).toBe("/configuracoes/integracoes/brasilnfe");
   expect(screen.getByRole("link", { name: /Certificado A1/ }).getAttribute("href")).toBe("/configuracoes/integracoes/certificado");
@@ -55,7 +61,10 @@ it("seletor lista todas as conexões autorizadas, com Brasil NFe separada do Cer
 
 it("seletor omite o que a pessoa não pode ver e não oferece nova conexão sem edição", () => {
   expect(itensDoSeletor({ mcp: null, brasilnfe: true, certificado: null }).map(i => i.id)).toEqual(["brasilnfe"]);
-  expect(itensDoSeletor({ mcp: { ...servidorMcp, editar: false }, brasilnfe: false, certificado: null }).map(i => i.id)).toEqual(["mcp:c-ativa", "mcp:c-revogada", "mcp:servidor"]);
+  expect(itensDoSeletor({ mcp: { ...servidorMcp, editar: false }, brasilnfe: false, certificado: null }).map(i => i.id)).toEqual(["mcp:c-ativa", "mcp:servidor"]);
+  expect(itensDoSeletor({ mcp: { ...servidorMcp, conexoes: [{ ...servidorMcp.conexoes[0], situacao: "SUSPENSA" }, { ...servidorMcp.conexoes[1], situacao: "PREPARADA" }] }, brasilnfe: false, certificado: null }).map(i => i.id)).toEqual(["mcp:c-revogada", "mcp:c-ativa", "mcp:servidor"]);
+  render(<MolduraIntegracoes ativa="mcp:servidor" resumo={{ mcp: { ...servidorMcp, editar: false }, brasilnfe: false, certificado: null }}><p>Sem edição</p></MolduraIntegracoes>);
+  expect(screen.queryByRole("link", { name: "Nova conexão" })).toBeNull();
   expect(conexaoMcpInicial(servidorMcp)).toBe("c-ativa");
   expect(conexaoMcpInicial({ ...servidorMcp, conexoes: [] })).toBe("nova");
   expect(conexaoMcpInicial({ ...servidorMcp, editar: false, conexoes: [servidorMcp.conexoes[0]] })).toBe("servidor");

@@ -528,3 +528,18 @@ banco), `MCP_BANCO_TESTE=1` com o caso do perfil da conexão aprovado e as mesma
 falhas anteriores de `multimodulo.test.ts`, `npx tsc --noEmit`, eslint dos caminhos
 alterados, `npm run lint:design` (0 novos) e `npm run build`. Não executado: OAuth real
 pelo OpenBot com o escopo novo.
+
+### Grade só com conexões vigentes — 23/11/2026
+
+Pedido do responsável: a grade de Integrações mostra apenas conexões ativas ou aguardando
+autorização, e "Nova conexão" fica separada da lista. `itensDoSeletor`
+(`integracoes/seletor.tsx`) deixa de listar revogadas; suspensas continuam, porque ainda
+podem ser repreparadas. "Nova conexão" virou botão no cabeçalho do cartão, fora da
+navegação. Revogadas seguem no histórico do Servidor MCP e abrem pelo endereço direto.
+Sem mudança de servidor.
+
+Validação local na branch `claude/integracoes-grade-conexoes-20261123`: `npx vitest run
+testes/layout testes/mcp` (400 aprovados, 64 ignorados por flags de banco), `npx tsc
+--noEmit`, eslint dos caminhos alterados, `npm run lint:design` (0 novos) e `npm run
+build`. Prévia Vite isolada em 1440 px claro e 390 px escuro, sem rolagem horizontal.
+Referência visual **Em revisão**.
