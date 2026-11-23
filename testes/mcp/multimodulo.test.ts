@@ -215,6 +215,10 @@ describe.skipIf(process.env.MCP_BANCO_TESTE !== "1")("MCP multimódulo — OAuth
     await expect(chamada("clientes_consultar", {}, access)).resolves.toMatchObject({ estado: "VAZIO" });
     await expect(chamada("clientes_criar", { chave: chave(), dados: cliente }, access)).rejects.toThrow();
     expect(await s.banco.clienteVenda.count()).toBe(0);
+    // Escopo curto: o cliente pede "tudo do perfil" e recebe somente o que a conexão permite.
+    const amplo = await token(["hub:perfil"]);
+    expect((await autenticarMcp(amplo)).escopos.sort()).toEqual([...permitidos].sort());
+    await expect(chamada("clientes_criar", { chave: chave(), dados: cliente }, amplo)).rejects.toThrow();
     // Reduzir o perfil central vale na chamada seguinte, com o mesmo token.
     await s.banco.perfilAcesso.update({ where: { id: "consulta-central" }, data: { permissoes: {} } });
     await expect(chamada("clientes_consultar", {}, access)).rejects.toThrow();

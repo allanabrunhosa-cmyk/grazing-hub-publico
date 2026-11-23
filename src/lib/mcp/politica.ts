@@ -7,6 +7,18 @@ export const RestricoesSchema = z.object({ contas: ids, lancamentos: ids }).stri
 export type RestricoesMcp = z.infer<typeof RestricoesSchema>;
 export const SEM_RESTRICAO: RestricoesMcp = { contas: null, lancamentos: null };
 export const EscoposSchema = z.array(z.enum(ESCOPOS_MCP as [EscopoMcp, ...EscopoMcp[]])).min(1).max(ESCOPOS_MCP.length).refine(v => new Set(v).size === v.length);
+/**
+ * Escopo curto para clientes que não conseguem enviar a lista inteira (o endereço de
+ * autorização com todas as funções passa de 8 mil caracteres). Pede tudo o que o acesso
+ * da conexão permitir **no momento do consentimento**; o token recebe os escopos reais,
+ * então função criada depois continua exigindo nova autorização.
+ */
+export const ESCOPO_PERFIL = "hub:perfil";
+/** Escopos reais de um pedido OAuth, com o escopo curto expandido para o catálogo atual. */
+export function escoposSolicitados(scope: string): EscopoMcp[] {
+  const partes = scope.split(" ");
+  return EscoposSchema.parse(partes.includes(ESCOPO_PERFIL) ? [...new Set([...partes.filter(s => s !== ESCOPO_PERFIL), ...ESCOPOS_MCP])] : partes);
+}
 export type IdentidadeMcp = { ativo: boolean; excluidoEm: Date | null; sessaoVersao: number; admin: boolean; permissoes: Permissoes; excecoes: Excecoes };
 export function permiteFuncaoMcp(usuario: Pick<IdentidadeMcp, "admin" | "permissoes" | "excecoes">, f: typeof FUNCOES_MCP[number]) {
   if ("somenteAdministrador" in f && f.somenteAdministrador && !usuario.admin) return false;

@@ -3,7 +3,7 @@ import OAuth2Server from "@node-oauth/oauth2-server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
-import { EscoposSchema, ErroMcp, RestricoesSchema, intersectarEscopos } from "./politica";
+import { EscoposSchema, ErroMcp, RestricoesSchema, escoposSolicitados, intersectarEscopos } from "./politica";
 import { auditarMcp, enderecosMcp, escoposDaAutorizacao, escoposParaConsentimento, hashCredencial, hashPermissoesUsuario, INCLUIR_AUTORIZACAO, revisaoConsentimento } from "./servidor";
 
 // Preferência de idioma enviada pelo ChatGPT, sem efeito em identidade ou acesso.
@@ -25,7 +25,7 @@ export type PedidoOAuth = z.infer<typeof PedidoOAuthSchema>;
 
 export async function validarPedidoOAuth(entrada: unknown, db: Prisma.TransactionClient = prisma) {
   const p = PedidoOAuthSchema.parse(entrada);
-  EscoposSchema.parse(p.scope.split(" "));
+  escoposSolicitados(p.scope);
   if (p.resource !== enderecosMcp().recurso) throw new ErroMcp("invalid_request", 400, "Destinatário não permitido.");
   const cliente = await db.mcpCliente.findUnique({ where: { id: p.client_id } });
   if (!cliente?.ativo || !cliente.redirectUris.includes(p.redirect_uri)) throw new ErroMcp("invalid_request", 400, "Cliente ou redirecionamento não permitido.");
@@ -99,7 +99,7 @@ export async function consentirOAuth(solicitacaoId: string, autorizacaoId: strin
     const a = await db.mcpAutorizacao.findUnique({ where: { id: autorizacaoId }, include: INCLUIR_AUTORIZACAO });
     if (!a || a.usuarioId !== usuarioId || a.clienteId !== p.client_id || !["PREPARADA", "ATIVA"].includes(a.situacao) || (a.modeloAcesso === 1 && !a.perfil?.ativo) || a.lojaId !== "singleton") throw new ErroMcp("insufficient_scope", 403, "Conexão não disponível para este usuário.");
     if (revisaoConsentimento(a) !== revisaoApresentada) throw new ErroMcp("invalid_request", 409, "A política ou suas permissões mudaram. Atualize a página e confira novamente antes de autorizar.");
-    const solicitados = EscoposSchema.parse(p.scope.split(" "));
+    const solicitados = escoposSolicitados(p.scope);
     const efetivos = escoposParaConsentimento(a);
     const consentidos = intersectarEscopos(solicitados, efetivos);
     if (!consentidos.length) throw new ErroMcp("insufficient_scope", 403, "Nenhuma função solicitada é permitida pela política.");
