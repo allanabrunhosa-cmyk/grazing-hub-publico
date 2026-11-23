@@ -4,7 +4,7 @@ import { useContext, useEffect, useId, useRef, useState, useTransition } from "r
 import Link from "next/link";
 import { rejeicaoFiscalCorrigivel } from "@/lib/fiscal-saida/rejeicao";
 import { useRouter } from "next/navigation";
-import { CircleAlert, CircleCheck, CircleX, FileCode2, FileDown, FileText, RefreshCw } from "lucide-react";
+import { CircleAlert, CircleCheck, CircleX, FileCode2, FileDown, FileText, RefreshCw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,7 +29,7 @@ const opcoesPresenca: { valor: IndicadorPresenca; rotulo: string }[] = [
   { valor: 9, rotulo: "Não presencial, outros" },
 ];
 type DocumentoPedido = ResumoFiscalSaida & { modeloDocumento?: number | null; xmlDisponivel?: boolean; cancelamentoPendente?: boolean; cancelamentoSolicitado?: boolean; avisoArquivos?: string };
-export type FiscalDoDetalhePedido = { editar: boolean; cancelar: boolean; documentos: DocumentoPedido[]; origemHub?: string | null };
+export type FiscalDoDetalhePedido = { editar: boolean; cancelar: boolean; documentos: DocumentoPedido[]; origemHub?: string | null; revisoesNcm?: { produtoId: string; nome: string }[] };
 const nomesStatus: Record<string, string> = {
   SEM_EMISSOR: "Preparação pendente", PREPARADO: "Preparada", PROCESSANDO: "Em processamento",
   INCERTO: "Em conferência", PENDENTE_CONFERENCIA: "Em conferência", AUTORIZADO: "Autorizada",
@@ -91,6 +91,8 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
   const rejeicaoCorrigivel = rejeicaoFiscalCorrigivel(atual);
   const possuiResultadoProdutivo = Boolean(!rejeicaoCorrigivel && atual?.ambiente === "PRODUCAO" && (atual.tentativas > 0 || atual.chaveFiscal || atual.protocolo || atual.referenciaProvedor || incerto(atual) || ["AUTORIZADO", "REJEITADO", "DENEGADO", "CANCELADO"].includes(atual.status)));
   const podeEmitir = fiscal.editar && confirmado;
+  const revisoesNcm = fiscal.revisoesNcm ?? [];
+  const destinoRevisaoNcm = revisoesNcm.length && podeRota("/financeiro/fiscal") ? destinoHubFiscalPedido("/financeiro/fiscal#revisao-ncm", fiscal.origemHub) : null;
   const mostrarControles = fiscal.editar && confirmado && (atual?.ambiente !== "PRODUCAO" || !["AUTORIZADO", "CANCELADO", "DENEGADO"].includes(atual?.status ?? ""));
   function guardarResultado(documento: DocumentoPedido) {
     setResultadoLocal({ documento, base: JSON.stringify(fiscal.documentos.find(d => d.id === documento.id)) });
@@ -162,6 +164,7 @@ export function EmitirNotaPedido({ pedidoId, versao, confirmado, modeloSugerido 
           <Button type="button" variant="entrada" aria-label={`Emitir ${modeloNome(modelo)}`} onClick={emitir} disabled={ocupado || !podeEmitir}><FileText aria-hidden="true" />Emitir</Button>
         </div>
         <p className="text-xs text-muted-foreground">{possuiResultadoProdutivo || conferirAntesDeRepetir ? "Clique em Emitir para tentar novamente. O sistema consulta a tentativa anterior antes de enviar outra nota, para evitar duplicidade." : "Emissão em produção. O botão envia a nota para autorização da SEFAZ."}</p>
+        {revisoesNcm.length > 0 && <p role="status" className="flex items-start gap-2 text-sm text-warning"><TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" /><span className="min-w-0 break-words">Revisão de NCM pendente: {revisoesNcm.map(r => r.nome).join("; ")}. A composição mudou depois da análise fiscal; a nota sai com o NCM atual até a sua decisão.{destinoRevisaoNcm && <Link href={destinoRevisaoNcm} className="ml-1 underline underline-offset-2">Revisar NCM</Link>}</span></p>}
         {exigePresenca && <div className="grid gap-1">
           <Label htmlFor={presencaId}>Como a venda foi realizada?</Label>
           <SelecaoFormulario id={presencaId} value={presenca === null ? "" : String(presenca)} disabled={ocupado} onValueChange={v => setPresenca(opcoesPresenca.find(o => String(o.valor) === v && (modelo === 65 || o.valor !== 4))?.valor ?? null)}>

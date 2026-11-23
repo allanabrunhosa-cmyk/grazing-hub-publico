@@ -4,14 +4,30 @@
     {
       "name": "grazing-hub-dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "mcp-visual",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["vite", "--config", "testes/visual/mcp.vite.config.mts"],
+      "runtimeArgs": [
+        "vite",
+        "--config",
+        "testes/visual/mcp.vite.config.mts"
+      ],
       "port": 4247
+    },
+    {
+      "name": "fiscal-dashboard-visual",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--experimental-strip-types",
+        "testes/visual/iniciar-fiscal-dashboard.mjs"
+      ],
+      "port": 4448
     }
   ]
 }

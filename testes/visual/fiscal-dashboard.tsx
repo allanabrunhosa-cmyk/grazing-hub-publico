@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { PainelFiscal } from "@/app/(protegido)/financeiro/fiscal/painel-fiscal";
 import { criarDashboardFiscalFicticio } from "./fiscal-dashboard-dados";
 import { resumirCertificadoDashboard } from "@/lib/fiscal-dashboard/certificado";
+import { RevisaoNcmPendentePainel, type RevisaoNcmPainel } from "@/app/(protegido)/financeiro/fiscal/revisao-ncm-pendente";
 import "@/app/globals.css";
 
 const parametros = new URLSearchParams(location.search);
@@ -26,4 +27,10 @@ const estadoCertificado = parametros.get("certificado");
 if (estadoCertificado === "ausente" || estadoCertificado === "vigente" || estadoCertificado === "vencido") {
   dados.integracao.certificado = resumirCertificadoDashboard(estadoCertificado === "ausente" ? null : { validoAte: new Date(estadoCertificado === "vencido" ? "2026-10-11T12:00:00Z" : "2026-12-07T12:00:00Z") }, new Date("2026-10-12T12:00:00Z"));
 }
-createRoot(document.getElementById("root")!).render(<FiscalPreviewLayout><PainelFiscal dados={dados} /></FiscalPreviewLayout>);
+// Revisão de NCM: produtos, códigos e resposta exclusivamente fictícios; nenhuma ação real.
+const revisoesFicticias: RevisaoNcmPainel[] = parametros.get("estado")?.startsWith("revisao-ncm") ? [
+  { versaoId: "versao-ficticia-a", produtoId: "produto-ficticio-a", nome: "Tábua fictícia para dez pessoas com nome comercial bastante longo para conferir a quebra", ncms: ["16010000"], mudancas: ["Ingrediente incluído: Insumo fictício A", "Ingrediente retirado: Insumo fictício B", "Receita da preparação alterada: Preparação fictícia de nome longo para conferir quebra de linha"], assinatura: "a".repeat(64) },
+  { versaoId: "versao-ficticia-b", produtoId: "produto-ficticio-b", nome: "Torta fictícia", ncms: ["19059090", "16023230"], mudancas: ["Opção Sabor fictício — Composição ou quantidade da opção alterada"], assinatura: "b".repeat(64) },
+] : [];
+const manterFicticio = async () => { await new Promise(r => setTimeout(r, 400)); return parametros.get("estado") === "revisao-ncm-erro" ? { erro: "A composição mudou de novo depois deste aviso. Atualize a página e confira as alterações antes de manter o NCM." } : { ok: true as const }; };
+createRoot(document.getElementById("root")!).render(<FiscalPreviewLayout><PainelFiscal dados={dados} revisaoNcm={<RevisaoNcmPendentePainel revisoes={revisoesFicticias} podeDecidir={parametros.get("decidir") !== "nao"} manter={manterFicticio} />} /></FiscalPreviewLayout>);

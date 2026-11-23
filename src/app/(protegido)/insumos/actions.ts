@@ -1,4 +1,5 @@
 "use server";
+import { agendarVerificacaoRevisaoNcm } from "@/lib/tributacao/revisao-ncm-agenda";
 import { exigirPermissao } from "@/lib/permissoes/servidor";
 import { permissaoEfetiva } from "@/lib/permissoes/catalogo";
 
@@ -423,6 +424,7 @@ export async function saveInsumoAction(_prevState: FormState, formData: FormData
       fornecedoresHomologados: { select: { fornecedorId: true } },
     },
   }) : null;
+  agendarVerificacaoRevisaoNcm();
   return {
     error: null,
     insumoId: insumoId || undefined,
@@ -468,6 +470,7 @@ export async function deleteInsumoAction(id: string, revisao?: string): Promise<
   revalidatePath("/porcoes");
   revalidatePath("/producao/etiquetas");
   revalidatePath("/notas-fiscais");
+  agendarVerificacaoRevisaoNcm();
   return { error: null };
 }
 

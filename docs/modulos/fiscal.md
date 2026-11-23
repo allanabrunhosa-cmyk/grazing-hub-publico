@@ -1,5 +1,16 @@
 # Fiscal
 
+## Revisão de NCM por alteração de composição — 23/11/2026
+
+O NCM do produto final só muda por decisão do administrador. Alteração de composição
+(ingrediente incluído, retirado ou trocado; quantidade; receita de preparação) **não bloqueia**
+a emissão: a nota sai com o NCM vigente e o produto fica com revisão de NCM pendente, avisada
+no Painel do Fiscal, no bloco Fiscal do pedido e por e-mail aos administradores. No painel,
+**Manter NCM** registra nova versão da classificação com a composição atual e **Alterar NCM**
+abre a ficha fiscal. Prova ausente (fotografia inexistente no pedido ou no cadastro) e
+combinação de opções sem cenário continuam bloqueando. Contrato, caminhos e limites:
+[Revisão de NCM](../features/revisao-ncm/SPEC.md).
+
 ## Permissões das operações de nota de venda — 23/11/2026
 
 Emitir, cancelar e numerar deixaram de depender de `vendas.fiscal`, de
@@ -319,7 +330,7 @@ e números exatos; edição comercial não substitui a metadata gerada pelo serv
 Equivalências documentadas abrangem opções explícitas por grupo e limites de contagem,
 sem enumerar todas as combinações nem calcular classificação por peso. O servidor sela
 composição/unidade/quantidades; a prévia compara receita analisada, pedido fechado e cadastro
-atual. Mudança de ingrediente bloqueia o ramo afetado. Nome, preço e foto não alteram
+atual. Mudança de ingrediente gera revisão de NCM pendente no ramo afetado, sem bloquear. Nome, preço e foto não alteram
 a identidade física. `modoFiscal=UNIDADES_SEPARADAS` exige prova de mercadoria individual
 por opção e discrimina quantidade/valor fotografados; base não discriminada exige revisão.
 Exceção (23/11/2026): com uma única opção escolhida, ela é a mercadoria inteira da linha e
@@ -337,9 +348,9 @@ custos e auditoria do insumo não entram no selo. Desde 23/11/2026 a resolução
 `materiaisCorrespondem` (`ncm-configuracao.ts`): insumo simples, sem composição própria, é
 conferido só pela identidade — trocar marca, marcas homologadas, EAN ou especificação não
 bloqueia a emissão nem exige nova classificação. Incluir/retirar/trocar material e alterar a
-receita de uma preparação continuam bloqueando. Limite conhecido: o selo da preparação embute
-o cadastro dos seus ingredientes, então marca trocada **dentro** de uma preparação ainda
-diverge. O selo gravado, a ativação da classificação e FCI não mudaram. O hash do lote inclui ComposicaoInsumo;
+receita de uma preparação geram revisão de NCM pendente, sem bloquear (ver o topo deste guia).
+Limite conhecido: o selo da preparação embute o cadastro dos seus ingredientes, então marca
+trocada **dentro** de uma preparação também gera revisão pendente. O selo gravado, a ativação da classificação e FCI não mudaram. O hash do lote inclui ComposicaoInsumo;
 manutenção/propagação do grupo fiscal preserva também JSONB exato do grupo e seus cadastros.
 
 A sincronização da classificação mantém as observações anteriores integralmente. Quando a

@@ -482,8 +482,22 @@ model VersaoEstruturaFiscal {
   hashOperacao String
   createdAt DateTime @default(now())
   eventos EventoEstruturaFiscal[]
+  alertasRevisaoNcm AlertaRevisaoNcm[]
   @@unique([tipo, chave, versao])
   @@index([tipo, chave, status, vigenciaInicio])
+}
+
+/// Aviso de revisão de NCM já enviado por e-mail; uma linha por estado de composição avisado.
+model AlertaRevisaoNcm {
+  id String @id @default(cuid())
+  assinatura String @unique
+  versaoId String
+  versao VersaoEstruturaFiscal @relation(fields: [versaoId], references: [id], onDelete: Restrict)
+  produtoId String
+  mudancas Json
+  destinatarios Int
+  createdAt DateTime @default(now())
+  @@index([versaoId])
 }
 
 model EventoEstruturaFiscal {
