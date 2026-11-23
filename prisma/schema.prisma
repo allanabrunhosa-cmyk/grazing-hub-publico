@@ -636,6 +636,10 @@ model McpAutorizacao {
   perfilId String?
   perfil McpPerfil? @relation(fields: [perfilId], references: [id], onDelete: Restrict)
   modeloAcesso Int @default(2)
+  // Perfil central escolhido para a conexão; nulo segue o responsável. Sempre intersectado com ele.
+  perfilAcessoId String?
+  perfilAcesso PerfilAcesso? @relation(fields: [perfilAcessoId], references: [id], onDelete: Restrict)
+  permissoesPersonalizadas Json @default("{}")
   escopos String[]
   restricoes Json
   situacao String @default("PREPARADA")
@@ -647,6 +651,7 @@ model McpAutorizacao {
   codigos McpCodigoOAuth[]
   tokens McpToken[]
   @@index([usuarioId, clienteId, situacao])
+  @@index([perfilAcessoId])
 }
 
 model McpSolicitacaoOAuth {
@@ -3002,6 +3007,7 @@ model PerfilAcesso {
   sistema String? @unique
   permissoes Json @default("{}")
   usuarios Usuario[]
+  conexoesMcp McpAutorizacao[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

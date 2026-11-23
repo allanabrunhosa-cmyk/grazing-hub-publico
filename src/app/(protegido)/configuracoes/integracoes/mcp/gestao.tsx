@@ -1,8 +1,8 @@
 "use client";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Activity, AppWindow, Cable, Check, CircleAlert, Copy, Minus, Plus, Stethoscope, Users, X } from "lucide-react";
+import { Activity, AppWindow, Cable, Check, CircleAlert, Copy, Minus, Plus, RotateCcw, Stethoscope, Users, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "cn";
 import { GrupoAcoes } from "@/components/padroes-operacionais";
@@ -17,6 +17,8 @@ import { CampoBusca } from "@/components/campo-busca";
 import { FiltroPeriodo } from "@/components/filtro-periodo";
 import type { DadosAdministracaoMcp, OperacaoMcp } from "@/lib/mcp/administracao";
 import { FUNCOES_MCP, LIMITES_MCP, exigenciasDaFuncaoMcp } from "@/lib/mcp/catalogo";
+import type { Excecoes } from "@/lib/permissoes/catalogo";
+import { MatrizPermissoes } from "../../usuarios/matriz-permissoes";
 import { IconeTom, TONS, situacaoDaConexao, type Tom, type VarianteSelo } from "../tons";
 import { diagnosticarMcpAction, salvarMcpAction } from "./actions";
 
@@ -37,6 +39,7 @@ const ESTADO_CONEXAO: Record<string, { titulo: string; descricao: string; icone:
   SUSPENSA: { titulo: "Conexão suspensa", descricao: "As credenciais deixaram de funcionar. Para voltar a usar, reprepare e peça nova autorização ao responsável.", icone: <Minus /> },
   REVOGADA: { titulo: "Conexão revogada", descricao: "Revogação definitiva, com histórico preservado. Para reconectar, crie uma nova conexão.", icone: <X /> },
 };
+const numeroExcecoes = (excecoes: Excecoes) => Object.values(excecoes).reduce((n, valores) => n + Object.keys(valores).length, 0);
 const MODULOS = [...new Set(FUNCOES_MCP.map(f => f.modulo as string))].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
 function Campo({ titulo, children }: { titulo: string; children: ReactNode }) { return <label className="block space-y-1.5 text-sm font-medium">{titulo}{children}</label>; }
@@ -54,17 +57,6 @@ function Secao({ rotulo, titulo, descricao, icone, tom = "neutro", acoes, childr
   </CardContent></Card>;
 }
 
-function Restricao({ nome, titulo, inicial }: { nome: string; titulo: string; inicial: string[] | null }) {
-  const [modo, setModo] = useState(inicial === null ? "todas" : inicial.length ? "lista" : "nenhuma");
-  const id = useId();
-  return <div className="space-y-2">
-    <Campo titulo={titulo}><SelecaoFormulario name={`${nome}Modo`} value={modo} onValueChange={setModo}><option value="todas">Todas as permitidas no HUB</option><option value="lista">Somente os identificadores informados</option><option value="nenhuma">Nenhuma</option></SelecaoFormulario></Campo>
-    <label htmlFor={id} className="text-xs text-muted-foreground">Identificadores internos separados por vírgula, até 200</label>
-    <Input id={id} name={nome} defaultValue={inicial?.join(", ") ?? ""} maxLength={24000} disabled={modo !== "lista"} required={modo === "lista"} onInput={e => { e.currentTarget.value = e.currentTarget.value.replace(/[^a-zA-Z0-9:_\-,\s]/g, ""); }} />
-  </div>;
-}
-function lerRestricao(form: FormData, nome: string) { const modo = form.get(`${nome}Modo`); return modo === "todas" ? null : modo === "nenhuma" ? [] : String(form.get(nome) ?? "").split(",").map(s => s.trim()).filter(Boolean); }
-
 /** Funções do servidor. Com uma conexão, mostra o que está liberado para ela; sem conexão, é o catálogo completo. Não concede permissões. */
 function Funcionalidades({ autorizacao }: { autorizacao: Autorizacao | null }) {
   const liberadas = autorizacao ? FUNCOES_MCP.filter(f => autorizacao.efetivos.includes(f.escopo)).length : 0;
@@ -72,7 +64,7 @@ function Funcionalidades({ autorizacao }: { autorizacao: Autorizacao | null }) {
   const [situacao, setSituacao] = useState(liberadas ? "liberadas" : "");
   const estado = (escopo: string): { rotulo: string; variante: VarianteSelo; chave: string } => !autorizacao ? { rotulo: "", variante: "muted", chave: "" }
     : autorizacao.efetivos.includes(escopo) ? { rotulo: "Liberada", variante: "success", chave: "liberadas" }
-    : autorizacao.disponiveis.includes(escopo) ? { rotulo: "Aguardando autorização", variante: "warning", chave: "pendentes" }
+    : autorizacao.permitidos.includes(escopo) ? { rotulo: "Aguardando autorização", variante: "warning", chave: "pendentes" }
     : { rotulo: "Sem permissão no HUB", variante: "muted", chave: "bloqueadas" };
   const filtradas = FUNCOES_MCP.filter(f => (!modulo || f.modulo === modulo) && (!tipo || String(f.escrita) === tipo) && (!situacao || estado(f.escopo).chave === situacao) && normalizarBusca(`${f.titulo} ${f.nome} ${f.modulo} ${f.descricao}`).includes(normalizarBusca(busca)));
   return <Secao rotulo="Funcionalidades" titulo={autorizacao ? "Funções desta conexão" : "Catálogo de funções"}
@@ -103,10 +95,14 @@ export function GestaoMcp({ dados, editar, verUsuarios = false, selecao }: { dad
   const [modal, setModal] = useState<"cliente" | "autorizacao" | null>(null);
   const [autorizacao, setAutorizacao] = useState<Autorizacao | null>(null);
   const [usuarioId, setUsuarioId] = useState("");
+  const [perfilConexaoId, setPerfilConexaoId] = useState(""); const [excecoes, setExcecoes] = useState<Excecoes>({});
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
   const [periodo, setPeriodo] = useState({ de: dados.filtros.de ?? "", ate: dados.filtros.ate ?? "" }); const [ferramenta, setFerramenta] = useState(dados.filtros.ferramenta ?? ""); const [resultado, setResultado] = useState<string>(dados.filtros.resultado ?? "");
 
   const conexao = dados.autorizacoes.find(a => a.id === selecao) ?? null;
+  const perfilConexao = dados.perfis.find(p => p.id === perfilConexaoId) ?? null;
+  const perfilDoResponsavel = autorizacao?.perfilNome ?? dados.usuarios.find(u => u.id === usuarioId)?.perfilAcesso?.nome ?? "";
+  const somenteLeitura = !editar || pendente || autorizacao?.situacao === "REVOGADA";
   const ativas = dados.autorizacoes.filter(a => a.situacao === "ATIVA").length;
   const vigentes = dados.autorizacoes.filter(a => a.situacao !== "REVOGADA").length;
   const ultimoUso = dados.autorizacoes.map(a => a.ultimoUsoEm).filter((s): s is string => !!s).sort().at(-1) ?? null;
@@ -124,7 +120,7 @@ export function GestaoMcp({ dados, editar, verUsuarios = false, selecao }: { dad
     catch { setErro("Não foi possível copiar. Selecione e copie o conteúdo exibido."); }
   }
   function abrirCliente() { setErro(""); setModal("cliente"); }
-  function abrirAutorizacao(a: Autorizacao | null) { setAutorizacao(a); setUsuarioId(a?.usuarioId ?? ""); setErro(""); setModal("autorizacao"); }
+  function abrirAutorizacao(a: Autorizacao | null) { setAutorizacao(a); setUsuarioId(a?.usuarioId ?? ""); setPerfilConexaoId(a?.perfilAcessoId ?? ""); setExcecoes(a?.excecoes ?? {}); setErro(""); setModal("autorizacao"); }
   const filtro = (pagina: number) => { const p = new URLSearchParams({ conexao: "servidor", pagina: String(pagina) }); if (periodo.de) p.set("de", periodo.de); if (periodo.ate) p.set("ate", periodo.ate); if (ferramenta) p.set("ferramenta", ferramenta); if (resultado) p.set("resultado", resultado); return `?${p}`; };
 
   function detalheDaConexao(a: Autorizacao) {
@@ -136,17 +132,18 @@ export function GestaoMcp({ dados, editar, verUsuarios = false, selecao }: { dad
       </>}>
         {!dados.ativo && a.situacao !== "REVOGADA" && <p className={cn("rounded-[var(--ds-controle-raio)] px-3 py-2 text-sm", TONS.ambar)}>O acesso global ao MCP está suspenso. Nenhuma conexão funciona até reativá-lo na faixa do servidor, acima.</p>}
       </Secao>
-      <Secao rotulo="Conexão" titulo={a.nome} icone={<Cable />} tom="azul" acoes={<Button variant="outline" onClick={() => abrirAutorizacao(a)}>{a.situacao === "REVOGADA" ? "Ver restrições" : "Editar restrições"}</Button>}>
+      <Secao rotulo="Conexão" titulo={a.nome} icone={<Cable />} tom="azul" acoes={<Button variant="outline" onClick={() => abrirAutorizacao(a)}>{a.situacao === "REVOGADA" ? "Ver acesso" : "Editar acesso"}</Button>}>
         <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <Dado titulo="Aplicação">{a.clienteNome}</Dado>
           <Dado titulo="Responsável no HUB">{a.usuarioNome}<div className="text-xs text-muted-foreground">{a.perfilNome} · {a.lojaNome}</div></Dado>
           <Dado titulo="Criada em">{dataHora(a.createdAt)}</Dado>
           <Dado titulo="Último uso">{dataHora(a.ultimoUsoEm)}</Dado>
           <Dado titulo="Identificador de cliente" className="sm:col-span-2"><span className="flex flex-wrap items-center gap-2"><code className="min-w-0 rounded-[var(--ds-controle-raio)] bg-muted px-2 py-1 text-xs break-all">{a.clienteId}</code><Button size="sm" variant="outline" aria-label={`Copiar identificador de ${a.clienteNome}`} onClick={() => copiar(a.clienteId, "Identificador copiado.")}><Copy className="size-4" />Copiar</Button></span></Dado>
-          <Dado titulo="Contas bancárias">{a.restricoes.contas === null ? "Todas as permitidas no HUB" : `${a.restricoes.contas.length} informadas`}</Dado>
-          <Dado titulo="Lançamentos">{a.restricoes.lancamentos === null ? "Todos os permitidos no HUB" : `${a.restricoes.lancamentos.length} informados`}</Dado>
+          <Dado titulo="Perfil de acesso da conexão" className="sm:col-span-2">{a.perfilConexaoNome ?? `Mesmo do responsável (${a.perfilNome})`}{numeroExcecoes(a.excecoes) > 0 && <div className="text-xs text-muted-foreground">{numeroExcecoes(a.excecoes)} {numeroExcecoes(a.excecoes) === 1 ? "permissão personalizada" : "permissões personalizadas"}</div>}</Dado>
+          {a.restricoes.contas !== null && <Dado titulo="Contas bancárias">{a.restricoes.contas.length} informadas</Dado>}
+          {a.restricoes.lancamentos !== null && <Dado titulo="Lançamentos">{a.restricoes.lancamentos.length} informados</Dado>}
         </dl>
-        <p className="text-xs text-muted-foreground">Perfil e permissões herdados de Usuários e permissões. Credenciais expiram em uma hora; esta versão exige nova autorização, sem renovação automática.</p>
+        <p className="text-xs text-muted-foreground">O acesso é o do perfil da conexão, limitado às permissões atuais do responsável em Usuários e permissões. Credenciais expiram em uma hora; esta versão exige nova autorização, sem renovação automática.</p>
       </Secao>
       <Funcionalidades key={a.id} autorizacao={a} />
     </>;
@@ -217,16 +214,18 @@ export function GestaoMcp({ dados, editar, verUsuarios = false, selecao }: { dad
     {erro && !modal && !confirmacao && <p role="alert" className="text-sm text-destructive">{erro}</p>}
     {conexao ? detalheDaConexao(conexao) : selecao === "nova" ? novaConexao() : servidor()}
 
-    <Dialog open={modal !== null} onOpenChange={aberto => { if (!aberto && !pendente) setModal(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"><DialogHeader><DialogTitle>{modal === "cliente" ? "Cadastrar aplicação" : "Conexão individual"}</DialogTitle><DialogDescription>{modal === "cliente" ? "Copie o redirecionamento exato da configuração OAuth do cliente: um endereço HTTPS ou, para aplicativo instalado no computador, http://127.0.0.1 com a porta. Nenhuma conexão é autorizada neste cadastro." : "Salvar invalida as credenciais atuais e exige novo consentimento do responsável. Nenhuma permissão do HUB é alterada."}</DialogDescription></DialogHeader>
+    <Dialog open={modal !== null} onOpenChange={aberto => { if (!aberto && !pendente) setModal(null); }}><DialogContent className={cn("max-h-[90vh] overflow-y-auto", modal === "autorizacao" ? "sm:max-w-4xl" : "sm:max-w-2xl")}><DialogHeader><DialogTitle>{modal === "cliente" ? "Cadastrar aplicação" : "Conexão individual"}</DialogTitle><DialogDescription>{modal === "cliente" ? "Copie o redirecionamento exato da configuração OAuth do cliente: um endereço HTTPS ou, para aplicativo instalado no computador, http://127.0.0.1 com a porta. Nenhuma conexão é autorizada neste cadastro." : "Salvar invalida as credenciais atuais e exige novo consentimento do responsável. Nenhuma permissão do HUB é alterada."}</DialogDescription></DialogHeader>
       <form key={`${modal}:${autorizacao?.id ?? ""}`} className="space-y-4" onSubmit={e => { e.preventDefault(); const f = new FormData(e.currentTarget); const nome = String(f.get("nome") ?? ""); let op: unknown;
         if (modal === "cliente") op = { tipo: "cliente", nome, redirectUri: String(f.get("redirectUri") ?? "").trim() };
-        else op = { tipo: "autorizacao", id: autorizacao?.id, versao: autorizacao?.versao, nome, clienteId: autorizacao?.clienteId ?? String(f.get("clienteId") ?? ""), usuarioId: autorizacao?.usuarioId ?? usuarioId, restricoes: { contas: lerRestricao(f, "contas"), lancamentos: lerRestricao(f, "lancamentos") } };
+        else op = { tipo: "autorizacao", id: autorizacao?.id, versao: autorizacao?.versao, nome, clienteId: autorizacao?.clienteId ?? String(f.get("clienteId") ?? ""), usuarioId: autorizacao?.usuarioId ?? usuarioId, perfilAcessoId: perfilConexaoId || null, excecoes: perfilConexaoId ? excecoes : {} };
         void executar(() => salvarMcpAction(op));
       }}><fieldset disabled={!editar || pendente || (modal === "autorizacao" && autorizacao?.situacao === "REVOGADA")} className="space-y-4">
         <Campo titulo="Nome amigável"><Input name="nome" required minLength={3} maxLength={100} defaultValue={modal === "autorizacao" ? autorizacao?.nome : ""} /></Campo>
         {modal === "cliente" && <Campo titulo="Redirecionamento OAuth exato"><Input name="redirectUri" type="url" required maxLength={2048} autoComplete="off" /></Campo>}
-        {modal === "autorizacao" && <><div className="grid gap-4 sm:grid-cols-2"><Campo titulo="Aplicação"><SelecaoFormulario name="clienteId" required disabled={!!autorizacao} defaultValue={autorizacao?.clienteId ?? ""}><option value="">Selecione</option>{dados.clientes.filter(c => c.ativo).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</SelecaoFormulario></Campo><Campo titulo="Responsável no HUB"><SelecaoFormulario name="usuarioId" required disabled={!!autorizacao} value={usuarioId} onValueChange={setUsuarioId}><option value="">Selecione</option>{dados.usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}</SelecaoFormulario></Campo></div><Campo titulo="Perfil do usuário no HUB"><Input readOnly value={autorizacao?.perfilNome ?? dados.usuarios.find(u => u.id === usuarioId)?.perfilAcesso?.nome ?? "Selecione o responsável"} /></Campo><p className="text-sm text-muted-foreground">Perfil e permissões herdados de Usuários e permissões.</p><Restricao nome="contas" titulo="Contas bancárias" inicial={autorizacao?.restricoes.contas ?? null} /><Restricao nome="lancamentos" titulo="Lançamentos" inicial={autorizacao?.restricoes.lancamentos ?? null} /><p className="text-xs text-muted-foreground">IDs inexistentes não concedem acesso. Restrições são aplicadas aos registros, contagens e totais. O escopo do token pode ser menor que a política.</p></>}
-      </fieldset>{erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}<GrupoAcoes><Button variant="outline" type="button" disabled={pendente} onClick={() => setModal(null)}>Fechar</Button><Button type="submit" disabled={!editar || pendente || (modal === "autorizacao" && autorizacao?.situacao === "REVOGADA")}>{pendente ? "Salvando..." : "Salvar"}</Button></GrupoAcoes></form>
+        {modal === "autorizacao" && <><div className="grid gap-4 sm:grid-cols-2"><Campo titulo="Aplicação"><SelecaoFormulario name="clienteId" required disabled={!!autorizacao} defaultValue={autorizacao?.clienteId ?? ""}><option value="">Selecione</option>{dados.clientes.filter(c => c.ativo).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</SelecaoFormulario></Campo><Campo titulo="Responsável no HUB"><SelecaoFormulario name="usuarioId" required disabled={!!autorizacao} value={usuarioId} onValueChange={setUsuarioId}><option value="">Selecione</option>{dados.usuarios.map(u => <option key={u.id} value={u.id}>{u.nome}</option>)}</SelecaoFormulario></Campo></div><Campo titulo="Perfil de acesso da conexão"><SelecaoFormulario name="perfilAcessoId" value={perfilConexaoId} onValueChange={valor => { setPerfilConexaoId(valor); setExcecoes({}); }}><option value="">Mesmo acesso do responsável{perfilDoResponsavel ? ` (${perfilDoResponsavel})` : ""}</option>{dados.perfis.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}</SelecaoFormulario></Campo><p className="text-sm text-muted-foreground">A conexão usa o perfil escolhido, sempre limitado ao que o responsável pode fazer no HUB: ela nunca tem mais acesso do que a pessoa.</p></>}
+      </fieldset>
+      {modal === "autorizacao" && perfilConexao && <><div className="flex flex-wrap items-center gap-2 border-t pt-4"><h3 className="mr-auto font-semibold">Permissões desta conexão</h3>{numeroExcecoes(excecoes) ? <><Badge variant="warning">{numeroExcecoes(excecoes)} {numeroExcecoes(excecoes) === 1 ? "personalizada" : "personalizadas"}</Badge>{!somenteLeitura && <Button type="button" variant="ghost" disabled={pendente} onClick={() => setExcecoes({})}><RotateCcw className="size-3.5" />Restaurar perfil</Button>}</> : <Badge variant="muted"><Check className="size-3" />Herdadas de {perfilConexao.nome}</Badge>}</div><MatrizPermissoes base={perfilConexao.permissoes} excecoes={excecoes} alvo="esta conexão" bloqueada={somenteLeitura || perfilConexao.sistema === "ADMINISTRADOR"} aoPersonalizar={setExcecoes} /></>}
+      {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}<GrupoAcoes><Button variant="outline" type="button" disabled={pendente} onClick={() => setModal(null)}>Fechar</Button><Button type="submit" disabled={!editar || pendente || (modal === "autorizacao" && autorizacao?.situacao === "REVOGADA")}>{pendente ? "Salvando..." : "Salvar"}</Button></GrupoAcoes></form>
     </DialogContent></Dialog>
     <Dialog open={!!confirmacao} onOpenChange={aberto => { if (!aberto && !pendente) setConfirmacao(null); }}><DialogContent><DialogHeader><DialogTitle>{confirmacao?.titulo}</DialogTitle><DialogDescription>{confirmacao?.descricao}</DialogDescription></DialogHeader>{erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}<GrupoAcoes><Button variant="outline" disabled={pendente} onClick={() => setConfirmacao(null)}>Cancelar</Button><Button variant={confirmacao?.destrutiva ? "saida" : "entrada"} disabled={pendente} onClick={() => confirmacao && executar(() => salvarMcpAction(confirmacao.operacao))}>{pendente ? "Confirmando..." : "Confirmar"}</Button></GrupoAcoes></DialogContent></Dialog>
   </div>;

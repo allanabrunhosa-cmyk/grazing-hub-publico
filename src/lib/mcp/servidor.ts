@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { contextoDoHost } from "@/lib/hosts";
 import type { Prisma } from "@/generated/prisma/client";
-import type { Permissoes, Excecoes } from "@/lib/permissoes/catalogo";
+import { intersectarAcessos, type Acesso, type Permissoes, type Excecoes } from "@/lib/permissoes/catalogo";
 import { LIMITES_MCP } from "./catalogo";
 import { ErroMcp, escoposDoUsuario, intersectarEscopos, intersectarRestricoes, RestricoesSchema } from "./politica";
 
@@ -21,11 +21,24 @@ export function enderecosMcp() {
 
 export const INCLUIR_AUTORIZACAO = {
   cliente: true, perfil: true,
+  perfilAcesso: { select: { id: true, nome: true, sistema: true, permissoes: true, updatedAt: true } },
   usuario: { select: { id: true, nome: true, ativo: true, excluidoEm: true, sessaoVersao: true, updatedAt: true, permissoesPersonalizadas: true, perfilAcesso: { select: { nome: true, sistema: true, permissoes: true, updatedAt: true } } } },
 } satisfies Prisma.McpAutorizacaoInclude;
 export type AutorizacaoMcp = Prisma.McpAutorizacaoGetPayload<{ include: typeof INCLUIR_AUTORIZACAO }>;
+type PerfilDaConexao = { perfilAcessoId: string | null; permissoesPersonalizadas: unknown; perfilAcesso: { sistema: string | null; permissoes: unknown } | null };
+/** Perfil próprio da conexão; nulo quando ela segue o responsável. Perfil indicado e ausente nega tudo. */
+export function acessoDaConexao(a: PerfilDaConexao): Acesso | null {
+  if (!a.perfilAcessoId) return null;
+  if (!a.perfilAcesso) return { admin: false, permissoes: {}, excecoes: {} };
+  return { admin: a.perfilAcesso.sistema === "ADMINISTRADOR", permissoes: a.perfilAcesso.permissoes as Permissoes, excecoes: a.permissoesPersonalizadas as Excecoes };
+}
+/** Acesso do responsável limitado pelo perfil da conexão: a conexão nunca excede a pessoa. */
+export function limitarPelaConexao(responsavel: Acesso, conexao: PerfilDaConexao): Acesso {
+  const limite = acessoDaConexao(conexao);
+  return limite ? intersectarAcessos(responsavel, limite) : responsavel;
+}
 export function identidadeDaAutorizacao(a: AutorizacaoMcp) {
-  return { ...a.usuario, admin: a.usuario.perfilAcesso?.sistema === "ADMINISTRADOR", permissoes: (a.usuario.perfilAcesso?.permissoes ?? {}) as Permissoes, excecoes: a.usuario.permissoesPersonalizadas as Excecoes };
+  return { ...a.usuario, ...limitarPelaConexao({ admin: a.usuario.perfilAcesso?.sistema === "ADMINISTRADOR", permissoes: (a.usuario.perfilAcesso?.permissoes ?? {}) as Permissoes, excecoes: a.usuario.permissoesPersonalizadas as Excecoes }, a) };
 }
 export function escoposDaAutorizacao(a: AutorizacaoMcp) {
   // v1 só existe durante implantação gradual; v2 usa o teto congelado pela migration.
@@ -35,7 +48,7 @@ export function escoposParaConsentimento(a: AutorizacaoMcp) {
   return a.modeloAcesso === 2 ? escoposDoUsuario(identidadeDaAutorizacao(a)) : escoposDaAutorizacao(a);
 }
 export function hashPermissoesUsuario(a: AutorizacaoMcp) {
-  return hashCredencial(JSON.stringify([a.usuario.updatedAt.toISOString(), a.usuario.perfilAcesso?.updatedAt.toISOString(), escoposDoUsuario(identidadeDaAutorizacao(a))]));
+  return hashCredencial(JSON.stringify([a.usuario.updatedAt.toISOString(), a.usuario.perfilAcesso?.updatedAt.toISOString(), a.perfilAcessoId, a.perfilAcesso?.updatedAt.toISOString(), escoposDoUsuario(identidadeDaAutorizacao(a))]));
 }
 export function revisaoConsentimento(a: AutorizacaoMcp) {
   return hashCredencial(JSON.stringify([a.versao, a.updatedAt.toISOString(), a.modeloAcesso === 1 ? a.perfil?.updatedAt.toISOString() : null, hashPermissoesUsuario(a)]));

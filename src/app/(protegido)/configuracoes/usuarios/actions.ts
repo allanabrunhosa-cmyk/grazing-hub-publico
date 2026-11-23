@@ -80,6 +80,10 @@ export async function excluirPerfilAcesso(id: string, versao: string): Promise<R
     if (perfil.sistema === "ADMINISTRADOR") throw new ErroGestaoAcessos("O perfil Administrador é protegido.");
     if (perfil._count.usuarios) throw new ErroGestaoAcessos("Este perfil tem usuários vinculados. Transfira-os para outro perfil antes de excluir.");
     exigirAlcance(ator, perfil.permissoes as Permissoes);
+    // Conexão MCP vigente com este perfil impede a exclusão: sem ele, ela passaria a seguir o responsável.
+    if (await tx.mcpAutorizacao.count({ where: { perfilAcessoId: id, situacao: { not: "REVOGADA" } } })) throw new ErroGestaoAcessos("Este perfil é usado por uma conexão MCP. Troque o perfil da conexão em Integrações antes de excluir.");
+    // Revogadas não autenticam mais; só o vínculo histórico é desfeito.
+    await tx.mcpAutorizacao.updateMany({ where: { perfilAcessoId: id, situacao: "REVOGADA" }, data: { perfilAcessoId: null, permissoesPersonalizadas: {} } });
     await tx.perfilAcesso.delete({ where: { id } });
     await historico(tx, ator, "Perfil", id, "Perfil excluído", { nome: perfil.nome, permissoes: perfil.permissoes }, null);
   });

@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { limparIntegracaoHubIsolada, prepararMigrationHubIsolada } from "../login/migrations-hub-isoladas";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client as PgClient } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -57,13 +57,13 @@ describe.skipIf(process.env.MCP_BANCO_TESTE !== "1")("MCP/OAuth: PostgreSQL loca
     process.env.MCP_ORIGEM = origem;
     pg = new PgClient({ connectionString: url.toString() }); await pg.connect();
     await pg.query(`CREATE SCHEMA "${schema}"`); criado = true; await pg.query(`SET search_path TO "${schema}"`);
-    for (const p of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a,b) => a.name.localeCompare(b.name))) await pg.query(prepararSqlMigrationFiscal(p.name, await readFile(`prisma/migrations/${p.name}/migration.sql`, "utf8")));
+    for (const p of (await readdir("prisma/migrations", { withFileTypes: true })).filter(p => p.isDirectory()).sort((a,b) => a.name.localeCompare(b.name))) await pg.query(await prepararMigrationHubIsolada(pg, schema, p.name, await readFile(`prisma/migrations/${p.name}/migration.sql`, "utf8")));
     s.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url.toString(), options: `-c search_path=${schema}` }, { schema }) });
     expect(await s.prisma.$queryRaw`SELECT current_schema() AS schema`).toEqual([{ schema }]);
   }, 60000);
   afterAll(async () => {
     await s.prisma?.$disconnect();
-    if (pg) { if (criado && /^teste_mcp_[a-f0-9]{32}$/.test(schema)) await pg.query(`DROP SCHEMA "${schema}" CASCADE`); await pg.end(); }
+    if (pg) { if (criado && /^teste_mcp_[a-f0-9]{32}$/.test(schema)) { await limparIntegracaoHubIsolada(pg, schema); await pg.query(`DROP SCHEMA "${schema}" CASCADE`); } await pg.end(); }
     delete process.env.MCP_ORIGEM;
   });
   beforeEach(async () => {

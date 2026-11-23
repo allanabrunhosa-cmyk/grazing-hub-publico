@@ -482,3 +482,35 @@ testes/mcp testes/layout` (397 aprovados, 63 ignorados por flags de banco não
 ativadas), `npx tsc --noEmit`, `npm run lint:design` (0 novos, 0 resolvidos), eslint
 dos caminhos alterados e `npm run build`. Prévia Vite isolada com
 `?aplicacoes=OpenBot,ChatGPT`: as três imagens carregaram. Referência visual **Em revisão**.
+
+### Perfil de acesso da conexão — 22/11/2026
+
+Pedido do responsável: a conexão deve escolher o perfil de usuário que terá, com edição
+de acessos como no cadastro de usuário, em vez de perfil travado e restrições por
+identificador de contas/lançamentos. Regra e cuidados em [OPERACAO](OPERACAO.md).
+
+- Migration aditiva `20261122120000_mcp_perfil_da_conexao`: `perfilAcessoId` e
+  `permissoesPersonalizadas` em `McpAutorizacao`. Nenhuma linha alterada; conexões
+  existentes seguem o responsável.
+- Servidor: `intersectarAcessos` (`permissoes/catalogo.ts`), `acessoDaConexao` e
+  `limitarPelaConexao` (`mcp/servidor.ts`), sessão limitada em `session.ts` pelo
+  `autorizacaoId` do contexto de execução, gravação e validação em `administracao.ts`,
+  proteção na exclusão de perfil em `usuarios/actions.ts`.
+- Tela: formulário da conexão com seletor de perfil e `MatrizPermissoes` (consumidor de
+  referência: cadastro de usuário); detalhe mostra o perfil da conexão. A lista de
+  funções passa a mostrar "Aguardando autorização" para o que o acesso permite e ainda
+  não foi consentido.
+- Suítes com banco do MCP passaram a usar `prepararMigrationHubIsolada`; sem isso a
+  preparação parava na migration de hierarquia do Atendimento em banco vazio.
+
+Validação local na branch `claude/mcp-perfil-da-conexao-20261122`: `npx vitest run`
+geral (7.337 aprovados, 1.130 ignorados por flags de banco; um teste de
+`notas-fiscais/dialog` excedeu o tempo junto do build e passou isolado), `npx tsc
+--noEmit`, eslint dos caminhos alterados, `npm run lint:design` (0 novos, 0 resolvidos),
+`npx prisma validate` e `npm run build`. Com `MCP_BANCO_TESTE=1` em banco local vazio
+`_teste`: `testes/mcp/integracao.test.ts` aprovado e `testes/mcp/multimodulo.test.ts`
+com o caso novo aprovado e 16 falhas **anteriores a esta entrega** (mesma lista com o
+código da `main`: fixtures sem endereço de cobrança e serialização de BigInt), não
+corrigidas aqui. Prévia Vite isolada em 1440 px claro e 390 px escuro, sem rolagem
+horizontal nem erros de console. Não executados: leitor de tela e OAuth real com um
+cliente externo. Referência visual **Em revisão**.
