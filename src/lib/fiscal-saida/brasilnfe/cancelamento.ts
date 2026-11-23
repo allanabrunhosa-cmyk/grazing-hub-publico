@@ -36,7 +36,7 @@ export async function cancelarNotaPedidoBrasilNfe(entrada: unknown, sessao: Sess
     return d;
   };
   const original = await prisma.$transaction(ler);
-  const contexto = await obterClienteHomologacaoBrasilNfe(sessao, e.ambiente);
+  const contexto = await obterClienteHomologacaoBrasilNfe(sessao, e.ambiente, "operacao");
   const identidade = { documentoId: original.id, ambiente: e.ambiente, modeloDocumento: e.modelo, emitenteCnpj: contexto.emitenteCnpj, chaveIdempotencia: original.id, referencia: original.referenciaProvedor, ultimaSequencia: original.ultimaSequencia };
   conferirAutorizacaoBrasilNfe(identidade, { chave: e.chaveFiscal, protocolo: e.protocolo, numero: original.numero!, serie: original.serie! });
   const hashComando = createHash("sha256").update(JSON.stringify(e)).digest("hex");

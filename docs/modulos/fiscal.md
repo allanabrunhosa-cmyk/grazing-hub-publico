@@ -17,6 +17,11 @@ Emitir, cancelar e numerar deixaram de depender de `vendas.fiscal`, de
 `configuracoes.brasilnfe/editar` e de `vendas.pedidos.revisar`. Constantes em
 `src/lib/permissoes/fiscal.ts`:
 
+Correção de 23/11/2026: o acesso ao emissor nas operações (`obterClienteHomologacaoBrasilNfe(..., "operacao")`
+em `operacional.ts` e `cancelamento.ts`) aceita a permissão da própria operação. Antes, quem só
+emitia recebia "Emissão manual não habilitada para este modelo e ambiente" sem que a
+habilitação estivesse de fato desligada. Homologação e habilitação seguem administrativas.
+
 - `financeiro.fiscal.emissao`: Visualizar lista e consulta as notas do pedido e do painel;
   Editar prepara, emite, consulta no emissor e recupera arquivos. Vincular documento
   externo ao pedido exige também `vendas.pedidos.revisar/editar`.

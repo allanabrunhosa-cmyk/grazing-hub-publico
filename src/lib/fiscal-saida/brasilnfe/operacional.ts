@@ -331,7 +331,7 @@ export async function prepararEmissaoPedidoBrasilNfe(pedidoId: string, versaoPed
   pendencias.push(...await pendenciasAmbiente(sessao, modelo, ambiente));
   let habilitada = false;
   try {
-    const contexto = await obterClienteHomologacaoBrasilNfe(sessao, ambiente);
+    const contexto = await obterClienteHomologacaoBrasilNfe(sessao, ambiente, "operacao");
     habilitada = habilitacaoCorrespondeBrasilNfe(h, contexto, ambiente, modelo);
     if (!habilitada) pendencias.push({ campo: "habilitacao", mensagem: ambiente === "PRODUCAO" ? "Produção bloqueada: concluir homologação e aprovar a habilitação manual deste modelo e emitente." : "Habilitar o ambiente para emissão manual, com aprovação administrativa específica. Salvar credenciais não habilita emissão.", href: linkIntegracao });
   } catch {
@@ -380,7 +380,7 @@ export async function obterAdaptadorOperacionalBrasilNfe(sessao: SessaoAtual, do
   identidadeRegraBrasilNfe(documentoId);
   const doc = await prisma.$transaction(async tx => { await conferirAcesso(tx, sessao, ["fiscal"]); return tx.documentoFiscalSaida.findUniqueOrThrow({ where: { id: documentoId }, select: { ambiente: true, modeloDocumento: true } }); });
   if (!["HOMOLOGACAO", "PRODUCAO"].includes(doc.ambiente) || ![55, 65].includes(doc.modeloDocumento ?? 0)) return null;
-  const ambiente = doc.ambiente as AmbienteEmissaoBrasilNfe, modelo = doc.modeloDocumento as 55 | 65, contexto = await obterClienteHomologacaoBrasilNfe(sessao, ambiente);
+  const ambiente = doc.ambiente as AmbienteEmissaoBrasilNfe, modelo = doc.modeloDocumento as 55 | 65, contexto = await obterClienteHomologacaoBrasilNfe(sessao, ambiente, "operacao");
   const h = await prisma.$transaction(tx => habilitacao(tx, ambiente));
   const autorizacaoAnterior = await prisma.eventoFiscalSaida.findUnique({ where: { chave: `emissao-manual-autorizada:${documentoId}` }, select: { id: true } });
   if (!habilitacaoCorrespondeBrasilNfe(h, contexto, ambiente, modelo) && !autorizacaoAnterior) return null;
@@ -394,7 +394,7 @@ export async function obterAdaptadorOperacionalBrasilNfe(sessao: SessaoAtual, do
   }, async autorizar(operacao, identidade) {
     const i = conferirIdentidadeBrasilNfe(identidade);
     if (i.documentoId !== documentoId || i.ambiente !== ambiente || i.modeloDocumento !== modelo || i.emitenteCnpj !== contexto.emitenteCnpj) return falhar("Identidade fora da habilitação manual.");
-    const atual = await obterClienteHomologacaoBrasilNfe(sessao, ambiente), habilitada = await prisma.$transaction(tx => habilitacao(tx, ambiente));
+    const atual = await obterClienteHomologacaoBrasilNfe(sessao, ambiente, "operacao"), habilitada = await prisma.$transaction(tx => habilitacao(tx, ambiente));
     if (operacao === "ENVIAR" && (!habilitacaoCorrespondeBrasilNfe(habilitada, atual, ambiente, modelo) || habilitada?.id !== h?.id)) return falhar("Habilitação ou emitente alterado durante a ação. Conferir antes de continuar.");
     if (operacao === "CANCELAR") return falhar("Cancelamento exige aprovação específica e não está habilitado neste fluxo de emissão.");
     if (operacao === "ENVIAR") {
@@ -464,7 +464,7 @@ export async function obterAdaptadorOperacionalBrasilNfe(sessao: SessaoAtual, do
 }
 export async function emitirNotaPedidoBrasilNfe(entrada: unknown, sessao: SessaoAtual) {
   let e = validarComandoEmissaoPedidoBrasilNfe(entrada);
-  const configuracaoInicial = await obterClienteHomologacaoBrasilNfe(sessao, e.ambiente), habilitacaoInicial = await prisma.$transaction(tx => habilitacao(tx, e.ambiente));
+  const configuracaoInicial = await obterClienteHomologacaoBrasilNfe(sessao, e.ambiente, "operacao"), habilitacaoInicial = await prisma.$transaction(tx => habilitacao(tx, e.ambiente));
   if (!habilitacaoCorrespondeBrasilNfe(habilitacaoInicial, configuracaoInicial, e.ambiente, e.modelo)) return falhar("Emissão manual suspensa ou não habilitada para este modelo e ambiente.");
   const pendenciasIniciais = await pendenciasAmbiente(sessao, e.modelo, e.ambiente);
   if (pendenciasIniciais.length) return falhar(pendenciasIniciais.map(p => p.mensagem).join(" "));
@@ -500,7 +500,7 @@ export async function emitirNotaPedidoBrasilNfe(entrada: unknown, sessao: Sessao
   const plano = await obterComplementosAprovadosDocumentoBrasilNfe(e.documentoId, sessao);
   if (!plano?.resultado.payload || !plano.evidencia.primeiraEmissaoPendente || plano.modelo !== e.modelo || plano.ambiente !== e.ambiente || plano.resultado.hashPayload !== e.hashSnapshot
     || createHash("sha256").update(serializarPayloadLocalBrasilNfe(plano.resultado)).digest("hex") !== e.hashPayloadFiscal || plano.resultado.payload.ValorTotal !== e.total) return falhar("A confirmação não corresponde à primeira emissão desta revisão. Preserve o resultado anterior; não reenviar.");
-  const contexto = await obterClienteHomologacaoBrasilNfe(sessao, e.ambiente), h = await prisma.$transaction(tx => habilitacao(tx, e.ambiente));
+  const contexto = await obterClienteHomologacaoBrasilNfe(sessao, e.ambiente, "operacao"), h = await prisma.$transaction(tx => habilitacao(tx, e.ambiente));
   if (!habilitacaoCorrespondeBrasilNfe(h, contexto, e.ambiente, e.modelo)) return falhar("Ambiente não habilitado para emissão manual. Produção exige homologação comprovada e aprovação específica.");
   const sequenciaConferida = await conferirSequenciaManual(sessao, e.modelo, e.ambiente, contexto.versao);
   const autorizacaoId = await prisma.$transaction(async tx => {
