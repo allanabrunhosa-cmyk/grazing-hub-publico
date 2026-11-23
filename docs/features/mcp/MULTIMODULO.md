@@ -18,6 +18,11 @@ históricas permanecem. Escopos financeiros v1 conservam exatamente sua semânti
 Novos módulos/escritas exigem consentimento expresso; administrar MCP não autoriza
 negócio. Nenhuma alteração de perfil de funcionário é permitida para testes.
 
+Revisão de 22/11/2026, a pedido do responsável: a conexão passa a escolher um perfil
+**central** e personalizações, sempre intersectados com o responsável. Continua
+rejeitado um catálogo de perfis paralelo do MCP. Regra em
+[OPERACAO](OPERACAO.md), seção "Perfil de acesso da conexão".
+
 Consultas e ações devem reutilizar serviços/validações das interfaces. Escritas
 sensíveis precisam de proposta, revisão humana autenticada no HUB, vínculo ao
 conteúdo/identidade/versão/prazo e execução única. A IA não aprova propostas.

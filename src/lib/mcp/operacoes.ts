@@ -183,7 +183,7 @@ export async function executarNegocioMcp(nome: NomeNegocioMcp, entrada: unknown,
   if (!parsed.success) throw new ErroMcp("invalid_request", 400, "Confira os campos e limites desta função.");
   const pedido = parsed.data as Record<string, unknown>;
   const acesso = await autenticarMcp(bearer); exigirFuncao(f, acesso);
-  return bancoPrincipal.$transaction(async tx => comContextoExecucao({ usuarioId: acesso.usuarioId, sessaoVersao: acesso.sessaoVersao, banco: tx }, async () => {
+  return bancoPrincipal.$transaction(async tx => comContextoExecucao({ usuarioId: acesso.usuarioId, sessaoVersao: acesso.sessaoVersao, banco: tx, autorizacaoId: acesso.autorizacaoId }, async () => {
     if (!f.escrita) await tx.$executeRawUnsafe("SET TRANSACTION READ ONLY");
     else await definirContextoAtividade(tx, "MCP");
     await tx.$executeRawUnsafe("SET LOCAL statement_timeout = '15000'");
@@ -274,7 +274,8 @@ export async function aprovarRevisaoMcp(id: string, conteudoHash: string) {
     const config = await tx.mcpConfiguracao.findUnique({ where: { id: "singleton" } });
     if (!f || !a || !config?.ativo || a.situacao !== "ATIVA" || !a.cliente.ativo || a.lojaId !== "singleton" || !a.usuario.ativo || a.usuario.excluidoEm || a.usuario.sessaoVersao !== (sessao.versao ?? 0) || !escoposDaAutorizacao(a).includes(f.escopo)) throw new ErroMcp("insufficient_scope", 403, "Conexão ou permissão não disponível.");
     // Leitura de referências deve utilizar a mesma transação de autorização.
-    await comContextoExecucao({ usuarioId: sessao.userId, sessaoVersao: sessao.versao ?? 0, banco: tx }, async () => {
+    // Mesma conexão da proposta: a simulação usa o acesso limitado pelo perfil dela.
+    await comContextoExecucao({ usuarioId: sessao.userId, sessaoVersao: sessao.versao ?? 0, banco: tx, autorizacaoId: a.id }, async () => {
       const refs = await exigirReferencias(p.referencias, { versao: a.versao, sessaoVersao: a.usuario.sessaoVersao });
       const atual = await identidadeNegocio();
       const acesso: ContextoMcp = { autorizacaoId: a.id, usuarioId: a.usuarioId, clienteId: a.clienteId, lojaId: a.lojaId, versao: a.versao, sessaoVersao: a.usuario.sessaoVersao, escopos: escoposDaAutorizacao(a), restricoes: RestricoesSchema.parse(a.restricoes) };

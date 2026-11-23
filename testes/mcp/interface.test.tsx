@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 const s = vi.hoisted(() => ({ salvar: vi.fn(), diagnostico: vi.fn(), refresh: vi.fn() }));
 vi.mock("@/app/(protegido)/configuracoes/integracoes/mcp/actions", () => ({ salvarMcpAction: s.salvar, diagnosticarMcpAction: s.diagnostico }));
@@ -72,6 +72,23 @@ it("revogação explica bloqueio definitivo e preservação de histórico antes 
   expect(screen.getByText(/revogação é definitiva/)).toBeTruthy(); expect(s.salvar).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole("button", { name: "Confirmar" }));
   await waitFor(() => expect(s.salvar).toHaveBeenCalledWith(expect.objectContaining({ id: ativa, situacao: "REVOGADA" })));
+});
+
+it("conexão escolhe um perfil do HUB e personaliza acessos; restrições por identificador saem do formulário", async () => {
+  render(<GestaoMcp dados={dadosMcpFicticios} editar selecao={preparada} />);
+  expect(screen.getByText("Mesmo do responsável (Atendimento)")).toBeTruthy();
+  await userEvent.click(screen.getByRole("button", { name: "Editar acesso" }));
+  const dialogo = screen.getByRole("dialog");
+  expect(within(dialogo).queryByText("Contas bancárias")).toBeNull(); expect(within(dialogo).queryByText("Lançamentos")).toBeNull();
+  expect(within(dialogo).queryByText("Permissões desta conexão")).toBeNull();
+  await userEvent.click(within(dialogo).getByRole("combobox", { name: "Perfil de acesso da conexão" }));
+  await userEvent.click(await screen.findByRole("option", { name: "Financeiro gerencial" }));
+  expect(within(dialogo).getByText("Herdadas de Financeiro gerencial")).toBeTruthy();
+  await userEvent.type(within(dialogo).getByLabelText("Buscar permissão"), "DRE");
+  fireEvent.click(within(dialogo).getByRole("checkbox", { name: "Consultar a DRE: Visualizar", hidden: true }));
+  expect(within(dialogo).getByText("1 personalizada")).toBeTruthy();
+  await userEvent.click(within(dialogo).getByRole("button", { name: "Salvar" }));
+  await waitFor(() => expect(s.salvar).toHaveBeenCalledWith({ tipo: "autorizacao", id: preparada, versao: 0, nome: "Análises financeiras", clienteId: dadosMcpFicticios.autorizacoes[0].clienteId, usuarioId: "pessoa-ficticia", perfilAcessoId: "perfil-financeiro", excecoes: { "financeiro.dre": { visualizar: false } } }));
 });
 
 it("ações seguem a situação: suspensa repreparar, revogada sem ações e consulta sem edição", async () => {

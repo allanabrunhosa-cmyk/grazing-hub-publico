@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE_NAME, verifySessionToken, type SessionPayload } from "@/lib/session-token";
-import type { Permissoes, Excecoes } from "@/lib/permissoes/catalogo";
+import { intersectarAcessos, type Acesso, type Permissoes, type Excecoes } from "@/lib/permissoes/catalogo";
 import { contextoExecucao } from "@/lib/contexto-execucao";
 
 export type SessaoAtual = SessionPayload & { permissoes: Permissoes; excecoes: Excecoes; perfilNome: string };
@@ -36,9 +36,16 @@ export async function getSession(): Promise<SessaoAtual | null> {
     permissoesPersonalizadas: true, perfilAcesso: { select: { nome: true, sistema: true, permissoes: true } },
   } });
   if (!usuario?.ativo || !usuario.senhaDefinida || usuario.excluidoEm || usuario.sessaoVersao !== contexto.sessaoVersao) return null;
-  return { userId: usuario.id, nome: usuario.nome, email: usuario.email,
-    admin: usuario.perfilAcesso?.sistema === "ADMINISTRADOR", versao: usuario.sessaoVersao,
-    perfilNome: usuario.perfilAcesso?.nome ?? "Sem perfil",
-    permissoes: (usuario.perfilAcesso?.permissoes ?? {}) as Permissoes,
-    excecoes: usuario.permissoesPersonalizadas as Excecoes };
+  let acesso: Acesso = { admin: usuario.perfilAcesso?.sistema === "ADMINISTRADOR",
+    permissoes: (usuario.perfilAcesso?.permissoes ?? {}) as Permissoes, excecoes: usuario.permissoesPersonalizadas as Excecoes };
+  if (contexto.autorizacaoId) {
+    // Conexão MCP com perfil próprio: relida a cada uso e sempre intersectada com a pessoa.
+    const conexao = await prisma.mcpAutorizacao.findUnique({ where: { id: contexto.autorizacaoId }, select: {
+      usuarioId: true, perfilAcessoId: true, permissoesPersonalizadas: true, perfilAcesso: { select: { sistema: true, permissoes: true } } } });
+    if (!conexao || conexao.usuarioId !== usuario.id) return null;
+    if (conexao.perfilAcessoId) acesso = intersectarAcessos(acesso, !conexao.perfilAcesso ? { admin: false, permissoes: {}, excecoes: {} }
+      : { admin: conexao.perfilAcesso.sistema === "ADMINISTRADOR", permissoes: conexao.perfilAcesso.permissoes as Permissoes, excecoes: conexao.permissoesPersonalizadas as Excecoes });
+  }
+  return { userId: usuario.id, nome: usuario.nome, email: usuario.email, versao: usuario.sessaoVersao,
+    perfilNome: usuario.perfilAcesso?.nome ?? "Sem perfil", ...acesso };
 }

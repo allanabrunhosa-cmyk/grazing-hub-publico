@@ -4,7 +4,8 @@ import type { Prisma } from "@/generated/prisma/client";
 
 // Contexto interno, criado exclusivamente após validação OAuth pelo servidor.
 // Não é uma credencial, Server Action ou parâmetro aceito do cliente.
-type ContextoExecucao = { usuarioId: string; sessaoVersao: number; banco: Prisma.TransactionClient };
+// `autorizacaoId` identifica a conexão MCP: a sessão é limitada pelo perfil dela.
+type ContextoExecucao = { usuarioId: string; sessaoVersao: number; banco: Prisma.TransactionClient; autorizacaoId?: string };
 const armazenamento = new AsyncLocalStorage<ContextoExecucao>();
 export function contextoExecucao() { return armazenamento.getStore(); }
 export function comContextoExecucao<T>(contexto: ContextoExecucao, executar: () => Promise<T>) {

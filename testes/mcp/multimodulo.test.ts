@@ -1,4 +1,4 @@
-import { prepararSqlMigrationFiscal } from "../../scripts/lib/reconciliacao-migrations-fiscais.mjs";
+import { limparIntegracaoHubIsolada, prepararMigrationHubIsolada } from "../login/migrations-hub-isoladas";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client as Pg } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -20,7 +20,7 @@ vi.mock("@/lib/session", async original => {
   return { ...real, getSession: () => contextoExecucao() ? real.getSession() : Promise.resolve(s.navegador) };
 });
 import { executarNegocioMcp, aprovarRevisaoMcp, carregarRevisaoMcp } from "@/lib/mcp/operacoes";
-import { autenticarMcp, revisaoConsentimento, INCLUIR_AUTORIZACAO } from "@/lib/mcp/servidor";
+import { autenticarMcp, escoposParaConsentimento, revisaoConsentimento, INCLUIR_AUTORIZACAO } from "@/lib/mcp/servidor";
 import { consentirOAuth, trocarCodigoOAuth } from "@/lib/mcp/oauth";
 import { FUNCOES_NEGOCIO_MCP } from "@/lib/mcp/registro-negocio";
 import { ESCOPOS_FINANCEIROS_V1 } from "@/lib/mcp/catalogo";
@@ -111,7 +111,7 @@ describe.skipIf(process.env.MCP_BANCO_TESTE !== "1")("MCP multimódulo — OAuth
           await pg.query(`INSERT INTO "McpToken" ("hash","autorizacaoId","versao","sessaoVersao","escopos","restricoes","emissor","destinatario","expiraEm","permissoesHash") VALUES ($1,$2,7,0,$3,'{"contas":["banco-restrito"],"lancamentos":["titulo-restrito"]}',$4,$5,now()+interval '1 hour','historico-ficticio')`,[id,id,ESCOPOS_FINANCEIROS_V1,origem,recurso]);
         }
       }
-      await pg.query(prepararSqlMigrationFiscal(p.name, await readFile(`prisma/migrations/${p.name}/migration.sql`, "utf8")));
+      await pg.query(await prepararMigrationHubIsolada(pg, schema, p.name, await readFile(`prisma/migrations/${p.name}/migration.sql`, "utf8")));
       if (p.name === "20261008010000_mcp_permissoes_centrais") {
         const a = (await pg.query('SELECT * FROM "McpAutorizacao" ORDER BY "id"')).rows;
         expect(a.find(x=>x.id==="gerencial-legado")).toMatchObject({ modeloAcesso: 2, versao: 7, situacao: "ATIVA", perfilId: "financeiro-gerencial", escopos: ESCOPOS_FINANCEIROS_V1.slice(0,3), restricoes: { contas: ["banco-restrito"], lancamentos: ["titulo-restrito"] } });
@@ -139,7 +139,7 @@ describe.skipIf(process.env.MCP_BANCO_TESTE !== "1")("MCP multimódulo — OAuth
     });
     await new Promise<void>((resolve, reject) => { servidorHttp.once("error", reject); servidorHttp.listen(45447, "127.0.0.1", resolve); });
   }, 60000);
-  afterAll(async () => { if (servidorHttp) { servidorHttp.closeAllConnections(); await new Promise<void>(resolve => servidorHttp.close(() => resolve())); } await writeFile(".tmp-mcp/cobertura-sucessos.json", JSON.stringify({ aprovadas: [...sucessos].sort(), pendentes: FUNCOES_NEGOCIO_MCP.map(f=>f.nome).filter(n=>!sucessos.has(n)).sort() },null,2)); await s.banco?.$disconnect(); if (pg) { if (criado && /^teste_mcp_multi_[a-f0-9]{32}$/.test(schema)) await pg.query(`DROP SCHEMA "${schema}" CASCADE`); await pg.end(); } delete process.env.MCP_ORIGEM; });
+  afterAll(async () => { if (servidorHttp) { servidorHttp.closeAllConnections(); await new Promise<void>(resolve => servidorHttp.close(() => resolve())); } await writeFile(".tmp-mcp/cobertura-sucessos.json", JSON.stringify({ aprovadas: [...sucessos].sort(), pendentes: FUNCOES_NEGOCIO_MCP.map(f=>f.nome).filter(n=>!sucessos.has(n)).sort() },null,2)); await s.banco?.$disconnect(); if (pg) { if (criado && /^teste_mcp_multi_[a-f0-9]{32}$/.test(schema)) { await limparIntegracaoHubIsolada(pg, schema); await pg.query(`DROP SCHEMA "${schema}" CASCADE`); } await pg.end(); } delete process.env.MCP_ORIGEM; });
   beforeEach(async () => {
     await pg.query('TRUNCATE "McpEvento", "McpLimite", "McpSolicitacaoOAuth", "McpCliente", "Usuario", "ClienteVenda", "ContaBancaria", "CategoriaFinanceira" CASCADE');
     s.navegador = null;
@@ -199,6 +199,34 @@ describe.skipIf(process.env.MCP_BANCO_TESTE !== "1")("MCP multimódulo — OAuth
     const a = await token([escopo("conexao_contexto")]); const b = await token([escopo("conexao_contexto")], "consulta", outro.id);
     expect((await chamada("conexao_contexto", {}, a)).dados).toMatchObject({ usuario: { id: "administrador" } });
     expect((await chamada("conexao_contexto", {}, b)).dados).toMatchObject({ usuario: { id: "consulta", perfil: "Consulta isolada" } });
+  });
+  it("perfil próprio da conexão limita o responsável em escopos, consentimento e execução", async () => {
+    // Administrador conecta com o perfil central de consulta, personalizado para vetar a DRE.
+    const base = { tipo: "autorizacao" as const, id: autorizacaoId, nome: "Conexão fictícia", clienteId, usuarioId: "administrador" };
+    await alterarAdministracaoMcp({ ...base, versao: 0, perfilAcessoId: "consulta-central", excecoes: { "financeiro.dre": { visualizar: false } } }, "administrador");
+    const a = await s.banco.mcpAutorizacao.findUniqueOrThrow({ where: { id: autorizacaoId }, include: INCLUIR_AUTORIZACAO });
+    expect(a).toMatchObject({ perfilAcessoId: "consulta-central", situacao: "PREPARADA", permissoesPersonalizadas: { "financeiro.dre": { visualizar: false } } });
+    const permitidos = escoposParaConsentimento(a);
+    expect(permitidos).toContain(escopo("clientes_consultar"));
+    expect(permitidos).not.toContain(escopo("clientes_criar")); expect(permitidos).not.toContain("financeiro:dre:ler");
+    // Pedido maior que o perfil: só a interseção é consentida e executada.
+    const access = await token([escopo("conexao_contexto"), escopo("clientes_consultar"), escopo("clientes_criar"), "financeiro:dre:ler"]);
+    expect((await autenticarMcp(access)).escopos.sort()).toEqual([escopo("conexao_contexto"), escopo("clientes_consultar")].sort());
+    await expect(chamada("clientes_consultar", {}, access)).resolves.toMatchObject({ estado: "VAZIO" });
+    await expect(chamada("clientes_criar", { chave: chave(), dados: cliente }, access)).rejects.toThrow();
+    expect(await s.banco.clienteVenda.count()).toBe(0);
+    // Reduzir o perfil central vale na chamada seguinte, com o mesmo token.
+    await s.banco.perfilAcesso.update({ where: { id: "consulta-central" }, data: { permissoes: {} } });
+    await expect(chamada("clientes_consultar", {}, access)).rejects.toThrow();
+    // Perfil inexistente e personalização fora do catálogo são recusados sem alterar a conexão.
+    const atual = await s.banco.mcpAutorizacao.findUniqueOrThrow({ where: { id: autorizacaoId } });
+    await expect(alterarAdministracaoMcp({ ...base, versao: atual.versao, perfilAcessoId: "perfil-inexistente", excecoes: {} }, "administrador")).rejects.toThrow("Perfil de acesso não encontrado");
+    await expect(alterarAdministracaoMcp({ ...base, versao: atual.versao, perfilAcessoId: "consulta-central", excecoes: { "recurso.inexistente": { visualizar: true } } }, "administrador")).rejects.toThrow();
+    expect(await s.banco.mcpAutorizacao.findUniqueOrThrow({ where: { id: autorizacaoId } })).toMatchObject({ versao: atual.versao, perfilAcessoId: "consulta-central" });
+    // Voltar a seguir o responsável exige novo consentimento e limpa as personalizações.
+    await alterarAdministracaoMcp({ ...base, versao: atual.versao, perfilAcessoId: null, excecoes: { "financeiro.dre": { visualizar: false } } }, "administrador");
+    expect(await s.banco.mcpAutorizacao.findUniqueOrThrow({ where: { id: autorizacaoId } })).toMatchObject({ perfilAcessoId: null, permissoesPersonalizadas: {}, situacao: "PREPARADA" });
+    await expect(chamada("clientes_consultar", {}, access)).rejects.toThrow();
   });
   it("cadastro real é idempotente e vinculado a identidade, operação e conteúdo", async () => {
     const access = await token([escopo("clientes_criar")]); const pedido = { chave: chave(), dados: cliente };

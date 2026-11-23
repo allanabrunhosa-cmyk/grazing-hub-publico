@@ -138,3 +138,23 @@ export function validarExcecoes(entrada: unknown, base: Permissoes): Excecoes {
   }
   return saida;
 }
+
+export type Acesso = { admin: boolean; permissoes: Permissoes; excecoes: Excecoes };
+/**
+ * Interseção de dois acessos: só permanece o que ambos permitem. Usada quando um
+ * acesso delegado (conexão MCP) tem perfil próprio e nunca pode exceder o responsável.
+ * O resultado já vem resolvido em `permissoes`, sem exceções pendentes.
+ */
+export function intersectarAcessos(a: Acesso, b: Acesso): Acesso {
+  if (a.admin && b.admin) return { admin: true, permissoes: a.permissoes, excecoes: a.excecoes };
+  if (a.admin) return { admin: false, permissoes: b.permissoes, excecoes: b.excecoes };
+  if (b.admin) return { admin: false, permissoes: a.permissoes, excecoes: a.excecoes };
+  const valor = (x: Acesso, recurso: string, acao: Acao) => x.excecoes[recurso]?.[acao] ?? x.permissoes[recurso]?.includes(acao) ?? false;
+  const recursos = new Set([...SECOES.map(s => s.id), ...[a, b].flatMap(x => [...Object.keys(x.permissoes), ...Object.keys(x.excecoes)])]);
+  const permissoes: Permissoes = {};
+  for (const recurso of recursos) {
+    const acoes = ACOES.filter(acao => valor(a, recurso, acao) && valor(b, recurso, acao));
+    if (acoes.length) permissoes[recurso] = acoes;
+  }
+  return { admin: false, permissoes, excecoes: {} };
+}

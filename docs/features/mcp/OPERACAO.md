@@ -54,6 +54,30 @@ uma política que mudou enquanto a tela estava aberta. Suspender uma autorizaç�
 invalida tokens; repreparar exige novo OAuth. Revogar é definitivo, preserva
 histórico; reconexão requer outra autorização. Suspensão global bloqueia só MCP.
 
+### Perfil de acesso da conexão — desde 22/11/2026
+
+Cada conexão escolhe um **perfil central** (`PerfilAcesso`, os mesmos de Usuários e
+permissões) e pode personalizá-lo com permissões extras ou vetos, como no cadastro de
+usuário (`McpAutorizacao.perfilAcessoId` e `permissoesPersonalizadas`). Não existe
+catálogo de perfis próprio do MCP. Perfil nulo significa "mesmo acesso do responsável",
+que é o estado das conexões anteriores à migration `20261122120000_mcp_perfil_da_conexao`.
+
+- O acesso efetivo é a **interseção** entre o responsável e o perfil da conexão
+  (`intersectarAcessos` em `permissoes/catalogo.ts`): a conexão nunca excede a pessoa,
+  nem com perfil Administrador ou permissão extra.
+- A interseção vale nos escopos (`identidadeDaAutorizacao` em `mcp/servidor.ts`) e na
+  sessão usada pelos serviços durante a execução (`getSession` com `autorizacaoId` no
+  contexto de execução). Perfil e personalizações são relidos a cada chamada: reduzir o
+  perfil central vale no token já emitido; ampliar não devolve o que não foi consentido.
+- Salvar o perfil da conexão volta a situação para PREPARADA e exige novo consentimento.
+  Perfil Administrador não aceita personalização; voltar a "mesmo do responsável" limpa-as.
+- Um perfil central usado por conexão não revogada não pode ser excluído. Conexões
+  revogadas apenas perdem o vínculo histórico.
+- A gestão envia aos administradores do MCP a lista de perfis centrais e suas permissões,
+  necessárias para a personalização.
+- Restrições por contas/lançamentos saíram do formulário. Valores já gravados continuam
+  aplicados e aparecem no detalhe da conexão; conexões novas nascem sem restrição.
+
 Restrições por contas/lançamentos: `null` permite o conjunto do HUB; `[]` não
 permite nenhum registro; lista permite somente IDs indicados (até 200 por lista).
 Aplicam-se a detalhes, contagens e totais. Saldos bancários ficam indisponíveis sob

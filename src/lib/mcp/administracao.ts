@@ -1,16 +1,18 @@
 import "server-only";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { permissaoEfetiva, type Permissoes, type Excecoes } from "@/lib/permissoes/catalogo";
-import { RestricoesSchema, ErroMcp, intersectarEscopos } from "./politica";
-import { auditarMcp, enderecosMcp, escoposDaAutorizacao, INCLUIR_AUTORIZACAO, lerCorpoLimitado, limparRegistrosMcp } from "./servidor";
+import { ErroValidacaoPermissoes, permissaoEfetiva, todasPermissoes, validarExcecoes, type Permissoes, type Excecoes } from "@/lib/permissoes/catalogo";
+import { RestricoesSchema, SEM_RESTRICAO, ErroMcp, intersectarEscopos } from "./politica";
+import { auditarMcp, enderecosMcp, escoposDaAutorizacao, escoposParaConsentimento, INCLUIR_AUTORIZACAO, lerCorpoLimitado, limparRegistrosMcp } from "./servidor";
 import { metadadosAutorizacao, metadadosRecurso } from "./metadados";
 
 const nome = z.string().trim().min(3).max(100).regex(/^[^\u0000-\u001f\u007f]+$/);
 const id = z.string().min(1).max(120);
 export const OperacaoMcpSchema = z.discriminatedUnion("tipo", [
   z.object({ tipo: z.literal("cliente"), nome, redirectUri: z.string().url().max(2048) }).strict(),
-  z.object({ tipo: z.literal("autorizacao"), id: z.string().uuid().optional(), versao: z.number().int().optional(), nome, clienteId: z.string().uuid(), usuarioId: id, restricoes: RestricoesSchema }).strict(),
+  z.object({ tipo: z.literal("autorizacao"), id: z.string().uuid().optional(), versao: z.number().int().optional(), nome, clienteId: z.string().uuid(), usuarioId: id,
+    // Perfil central da conexão (nulo: segue o responsável) e personalizações sobre ele, como no cadastro de usuário.
+    perfilAcessoId: id.nullable(), excecoes: z.record(z.string().max(120), z.record(z.string().max(20), z.boolean())) }).strict(),
   z.object({ tipo: z.literal("situacao"), id: z.string().uuid(), versao: z.number().int(), situacao: z.enum(["SUSPENSA", "PREPARADA", "REVOGADA"]) }).strict(),
   z.object({ tipo: z.literal("global"), ativo: z.boolean() }).strict(),
 ]);
@@ -52,20 +54,25 @@ export async function alterarAdministracaoMcp(entrada: unknown, autorId: string)
       clienteId = p.clienteId;
       const [cliente, usuario, loja] = await Promise.all([db.mcpCliente.findUnique({ where: { id: p.clienteId } }), db.usuario.findUnique({ where: { id: p.usuarioId }, select: { ativo: true, excluidoEm: true } }), db.configuracaoLoja.findUnique({ where: { id: "singleton" }, select: { id: true } })]);
       if (!cliente?.ativo || !usuario?.ativo || usuario.excluidoEm || !loja) throw new ErroMcp("invalid_request", 400, "Confira a empresa, o responsável, a aplicação ativos.");
-      const dados = { nome: p.nome, restricoes: p.restricoes, situacao: "PREPARADA", consentidaEm: null };
+      const perfil = p.perfilAcessoId ? await db.perfilAcesso.findUnique({ where: { id: p.perfilAcessoId }, select: { sistema: true, permissoes: true } }) : null;
+      if (p.perfilAcessoId && !perfil) throw new ErroMcp("invalid_request", 400, "Perfil de acesso não encontrado. Atualize a página.");
+      // Administrador não aceita personalização; sem perfil próprio, a conexão segue o responsável.
+      let excecoes: Excecoes = {};
+      try { if (perfil && perfil.sistema !== "ADMINISTRADOR") excecoes = validarExcecoes(p.excecoes, perfil.permissoes as Permissoes); }
+      catch (e) { if (e instanceof ErroValidacaoPermissoes) throw new ErroMcp("invalid_request", 400, e.message); throw e; }
+      const dados = { nome: p.nome, perfilAcessoId: p.perfilAcessoId, permissoesPersonalizadas: excecoes, situacao: "PREPARADA", consentidaEm: null };
       if (p.id) {
         if (p.versao === undefined) throw new ErroMcp("invalid_request", 409, "Atualize a página.");
         const atual = await db.mcpAutorizacao.findUnique({ where: { id: p.id } });
         if (!atual || atual.usuarioId !== p.usuarioId || atual.clienteId !== p.clienteId || atual.situacao === "REVOGADA") throw new ErroMcp("invalid_request", 409, "Conexão não disponível.");
-        const anteriores = RestricoesSchema.parse(atual.restricoes);
-        for (const campo of ["contas", "lancamentos"] as const) if (anteriores[campo] !== null && (p.restricoes[campo] === null || p.restricoes[campo]!.some(id => !anteriores[campo]!.includes(id)))) throw new ErroMcp("invalid_request", 409, "Ampliação de restrições exige novo consentimento individual.");
+        // Restrições de registros anteriores (contas/lançamentos) são preservadas; o formulário não as amplia.
         const atualizada = await db.mcpAutorizacao.updateMany({ where: { id: p.id, versao: p.versao, clienteId: p.clienteId, usuarioId: p.usuarioId, situacao: { not: "REVOGADA" } }, data: { ...dados, versao: { increment: 1 } } });
         if (atualizada.count !== 1) throw new ErroMcp("invalid_request", 409, "A autorização mudou ou foi revogada. Atualize a página.");
         autorizacaoId = p.id;
       } else {
         if (await db.mcpAutorizacao.count({ where: { usuarioId: p.usuarioId, clienteId: p.clienteId, situacao: { not: "REVOGADA" } } })) throw new ErroMcp("invalid_request", 409, "Já existe uma conexão desta aplicação para o usuário. Abra a conexão existente.");
         if (await db.mcpAutorizacao.count() >= 1000) throw new ErroMcp("invalid_request", 400, "Limite de autorizações atingido.");
-        const criada = await db.mcpAutorizacao.create({ data: { ...dados, clienteId: p.clienteId, usuarioId: p.usuarioId, lojaId: "singleton", modeloAcesso: 2, escopos: [] } }); autorizacaoId = criada.id;
+        const criada = await db.mcpAutorizacao.create({ data: { ...dados, restricoes: SEM_RESTRICAO, clienteId: p.clienteId, usuarioId: p.usuarioId, lojaId: "singleton", modeloAcesso: 2, escopos: [] } }); autorizacaoId = criada.id;
       }
     } else if (p.tipo === "situacao") {
       const atualizada = await db.mcpAutorizacao.updateMany({ where: { id: p.id, versao: p.versao, situacao: { not: "REVOGADA" } }, data: { situacao: p.situacao, versao: { increment: 1 }, consentidaEm: null } });
@@ -83,22 +90,28 @@ export const FiltroHistoricoSchema = z.object({ de: z.string().date().optional()
 export async function carregarAdministracaoMcp(entrada: unknown = {}) {
   const f = FiltroHistoricoSchema.parse(entrada);
   const where = { ...(f.de || f.ate ? { createdAt: { ...(f.de ? { gte: new Date(`${f.de}T00:00:00Z`) } : {}), ...(f.ate ? { lte: new Date(`${f.ate}T23:59:59.999Z`) } : {}) } } : {}), resultado: f.resultado, ferramenta: f.ferramenta };
-  const [config, clientes, autorizacoes, usuarios, eventos, totalEventos, tokens, loja] = await Promise.all([
+  const [config, clientes, autorizacoes, usuarios, eventos, totalEventos, tokens, loja, perfis] = await Promise.all([
     prisma.mcpConfiguracao.findUnique({ where: { id: "singleton" } }), prisma.mcpCliente.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.mcpAutorizacao.findMany({ include: INCLUIR_AUTORIZACAO, orderBy: { createdAt: "desc" } }),
     prisma.usuario.findMany({ where: { ativo: true, excluidoEm: null }, select: { id: true, nome: true, perfilAcesso: { select: { nome: true } } }, orderBy: { nome: "asc" } }),
     prisma.mcpEvento.findMany({ where, orderBy: [{ createdAt: "desc" }, { id: "asc" }], take: 50, skip: (f.pagina - 1) * 50 }), prisma.mcpEvento.count({ where }),
     prisma.mcpToken.findMany({ where: { expiraEm: { gt: new Date() }, emissor: enderecosMcp().emissor, destinatario: enderecosMcp().recurso }, select: { autorizacaoId: true, versao: true, sessaoVersao: true, permissoesHash: true, escopos: true } }),
     prisma.configuracaoLoja.findUnique({ where: { id: "singleton" }, select: { nome: true } }),
+    prisma.perfilAcesso.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true, sistema: true, permissoes: true } }),
   ]);
   return { endereco: enderecosMcp().recurso, ambiente: process.env.NODE_ENV === "production" ? "Produção" : "Desenvolvimento / teste",
     ativo: config?.ativo ?? false, configurado: !!config, diagnostico: config?.diagnostico ?? null, diagnosticadoEm: config?.diagnosticadoEm?.toISOString() ?? null,
     clientes: clientes.map(c => ({ id: c.id, nome: c.nome, redirectUris: c.redirectUris, ativo: c.ativo })),
     usuarios,
+    // Perfis centrais para escolher o acesso da conexão; Administrador é exibido com todas as permissões.
+    perfis: perfis.map(p => ({ id: p.id, nome: p.nome, sistema: p.sistema, permissoes: p.sistema === "ADMINISTRADOR" ? todasPermissoes() : p.permissoes as Permissoes })),
     autorizacoes: autorizacoes.map(a => {
       const disponiveis = escoposDaAutorizacao(a);
       const consentidos = tokens.filter(t => t.autorizacaoId === a.id && t.versao === a.versao && t.sessaoVersao === a.usuario.sessaoVersao).flatMap(t => t.escopos);
-      return { id: a.id, nome: a.nome, clienteId: a.clienteId, clienteNome: a.cliente.nome, usuarioId: a.usuarioId, usuarioNome: a.usuario.nome, perfilNome: a.usuario.perfilAcesso?.nome ?? "Sem perfil", lojaId: a.lojaId, lojaNome: loja?.nome ?? "Empresa do HUB", escopos: a.escopos, disponiveis,
+      return { id: a.id, nome: a.nome, clienteId: a.clienteId, clienteNome: a.cliente.nome, usuarioId: a.usuarioId, usuarioNome: a.usuario.nome, perfilNome: a.usuario.perfilAcesso?.nome ?? "Sem perfil", lojaId: a.lojaId, lojaNome: loja?.nome ?? "Empresa do HUB",
+        perfilAcessoId: a.perfilAcessoId, perfilConexaoNome: a.perfilAcesso?.nome ?? null, excecoes: a.permissoesPersonalizadas as Excecoes,
+        // `permitidos`: o que o responsável e o perfil da conexão permitem hoje, mesmo antes do consentimento.
+        escopos: a.escopos, disponiveis, permitidos: escoposParaConsentimento(a),
         efetivos: config?.ativo && a.situacao === "ATIVA" && a.cliente.ativo ? intersectarEscopos(disponiveis, consentidos) : [],
         restricoes: RestricoesSchema.parse(a.restricoes), situacao: a.situacao, versao: a.versao, createdAt: a.createdAt.toISOString(), ultimoUsoEm: a.ultimoUsoEm?.toISOString() ?? null };
     }),

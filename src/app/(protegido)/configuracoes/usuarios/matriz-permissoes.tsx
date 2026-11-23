@@ -13,8 +13,10 @@ const grade = "grid grid-cols-4 items-center gap-y-2 px-3 sm:px-4 md:grid-cols-[
 const alternar = (lista: string[], id: string) => lista.includes(id) ? lista.filter(item => item !== id) : [...lista, id];
 
 /** Matriz em três níveis: módulo → seção → tema. As ações valem somente para o tema da linha. */
-export function MatrizPermissoes({ base, excecoes, aoMudar, aoPersonalizar, bloqueada = false }: {
+export function MatrizPermissoes({ base, excecoes, aoMudar, aoPersonalizar, bloqueada = false, alvo = "este usuário" }: {
   base: Permissoes; excecoes?: Excecoes; aoMudar?: (valor: Permissoes) => void; aoPersonalizar?: (valor: Excecoes) => void; bloqueada?: boolean;
+  /** A quem a personalização se aplica, no texto de ajuda: usuário (padrão) ou conexão. */
+  alvo?: string;
 }) {
   const personalizada = !!aoPersonalizar;
   const idDescricao = useId();
@@ -109,7 +111,7 @@ export function MatrizPermissoes({ base, excecoes, aoMudar, aoPersonalizar, bloq
 
   return <div className="space-y-3">
     <div className="rounded-xl bg-primary/5 p-3 text-sm text-muted-foreground">
-      {personalizada ? "As permissões do perfil são herdadas. Ajuste as ações para personalizar somente este usuário." : "Visualizar é necessário para editar, adicionar ou excluir. Sem ações, o tema fica bloqueado."}
+      {personalizada ? `As permissões do perfil são herdadas. Ajuste as ações para personalizar somente ${alvo}.` : "Visualizar é necessário para editar, adicionar ou excluir. Sem ações, o tema fica bloqueado."}
       <span className="mt-1 block">Módulo → seção → tema. Abra a seção para ver os temas; as ações valem somente para o tema da linha e o traço (—) indica uma operação que não existe nele. O título de uma coluna marca ou desmarca a ação em todo o conjunto.</span>
       {personalizada && <span className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
         <span id={`${idDescricao}-permitida`} className="inline-flex items-center gap-2"><span aria-hidden="true" className="flex size-4 items-center justify-center rounded border-2 border-yellow-500 bg-yellow-400 text-slate-950"><Check className="size-3" strokeWidth={3} /></span>Permissão extra</span>
