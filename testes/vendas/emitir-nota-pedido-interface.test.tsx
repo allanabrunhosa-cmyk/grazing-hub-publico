@@ -203,6 +203,25 @@ it("exibe cancelamento confirmado e retira a ação de cancelar", async () => {
   expect(screen.queryByRole("button", { name: "Cancelar NF" })).toBeNull();
   expect(screen.getByRole("link", { name: "Baixar XML" })).toBeTruthy();
 });
+it("destaca a nota cancelada com o protocolo e o momento do cancelamento", () => {
+  const cancelada = { ...autorizada, status: "CANCELADO", protocoloCancelamento: "135260000000002", eventos: [{ id: "e2", tipo: "RETORNO", createdAt: "2026-11-24T20:28:48.000Z" }, { id: "e1", tipo: "CANCELAR", createdAt: "2026-11-24T20:28:47.000Z" }] };
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [cancelada] }} />);
+  const destaque = screen.getByText("Nota fiscal cancelada").closest("[role=status]")!;
+  expect(destaque.className).toContain("pedido-detalhe-fiscal-alerta");
+  expect(within(destaque as HTMLElement).getByText("135260000000002")).toBeTruthy();
+  expect(destaque.textContent).toContain("Protocolo de cancelamento: 135260000000002");
+  expect(destaque.textContent).toContain("Cancelamento solicitado em 24/11/2026, 17:28.");
+  expect(screen.getByText(`Protocolo de autorização: ${autorizada.protocolo}`)).toBeTruthy();
+  expect(screen.getByRole("region", { name: "Nota fiscal" }).getAttribute("data-fiscal-status")).toBe("CANCELADO");
+  expect(screen.queryByRole("button", { name: "Cancelar NF" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Emitir/ })).toBeNull();
+});
+it("nota cancelada sem protocolo ou evento registrado mostra somente o que está comprovado", () => {
+  render(<EmitirNotaPedido {...base} fiscal={{ editar: true, cancelar: true, documentos: [{ ...autorizada, status: "CANCELADO" }] }} />);
+  const destaque = screen.getByText("Nota fiscal cancelada").closest("[role=status]")!;
+  expect(destaque.textContent).not.toContain("Protocolo de cancelamento");
+  expect(destaque.textContent).not.toContain("solicitado em");
+});
 it.each([false, true])("preserva arquivos e exibe recusa ou pendência de cancelamento (%s) no resultado autorizado", async pendente => {
   const erro = pendente ? "Cancelamento não confirmado. Consulte o resultado." : "SEFAZ 501: Prazo de cancelamento superior ao permitido.";
   sim.cancelar.mockResolvedValue({ ok: true, documento: { ...autorizada, cancelamentoSolicitado: true, cancelamentoPendente: pendente, ultimoErro: erro } });

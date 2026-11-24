@@ -28,6 +28,15 @@
         "testes/visual/iniciar-fiscal-dashboard.mjs"
       ],
       "port": 4448
+    },
+    {
+      "name": "pedido-detalhe-visual",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "--experimental-strip-types",
+        "testes/visual/iniciar-pedido-detalhe.mjs"
+      ],
+      "port": 4258
     }
   ]
 }
