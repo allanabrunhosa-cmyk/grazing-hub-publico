@@ -9,6 +9,8 @@ import { montarExportacaoDre, montarExportacaoFluxo } from "@/lib/financeiro/exp
 import { criarXlsxFinanceiro } from "@/lib/financeiro/exportacao-xlsx";
 import { criarPdfFinanceiro } from "@/lib/financeiro/exportacao-pdf";
 import { lancamentoTeste } from "./dados-movimentacoes";
+import { fixarHojeDoFluxo } from "./relogio-fluxo";
+fixarHojeDoFluxo("2026-01-01");
 
 const periodo = { de: "2026-09-01", ate: "2026-09-30" };
 const plano = [
@@ -42,7 +44,7 @@ describe("exportação dos resultados financeiros", () => {
     expect(r.linhas.at(-1)?.valores.at(-1)).toBeCloseTo(-34.70);
     expect(r.colunas.at(-1)).toBe("Total do período");
     expect(r.detalhes?.map(l => l.valor).sort()).toEqual([-11.25, -23.45].sort());
-    expect(r.detalhes?.every(l => l.status === "Pendente (projeção)")).toBe(true);
+    expect(r.detalhes?.every(l => l.status === "Provisão *")).toBe(true);
     expect(r.linhas.find(l => l.nome === plano[2].nome)?.pendentes?.at(-1)).toBe(true);
   });
 
@@ -77,7 +79,7 @@ describe("exportação dos resultados financeiros", () => {
       ["2026-09-13", 110.55], ["2026-10-07", 20.35], ["2026-09-10", -11.25], ["2026-10-02", -23.45],
     ]));
     expect(r.detalhes).toHaveLength(4);
-    expect(r.detalhes?.find(l => l.valor === -11.25)?.status).toBe("Pendente (projeção)");
+    expect(r.detalhes?.find(l => l.valor === -11.25)?.status).toBe("Provisão *");
     expect(r.detalhes?.find(l => l.valor === 110.55)?.status).toBe("Baixado");
     expect(montarExportacaoFluxo(diario, dados, limites.de, limites.ate, "diario"))
       .toEqual(montarExportacaoFluxo(diario, dados, limites.de, limites.ate));
@@ -178,11 +180,35 @@ describe("exportação dos resultados financeiros", () => {
       expect(text).toContain("30/09/2026");
       expect(text).toContain("Alimentação");
       expect(text).toContain("34,70");
-      expect(text).toContain("Pendente (projeção)");
+      expect(text).toContain("Provisão *");
       expect(text).toContain("HYPERLINK");
       expect(text).toContain("Resumo diário");
       expect(text).toContain("Total do período");
       expect(text).toContain("Resultado do Dia");
     } finally { await leitor.destroy(); }
+  });
+});
+
+describe("provisões e pagamentos não realizados na exportação", () => {
+  const dados = [
+    lancamentoTeste({ id: "pago", valor: 100, status: "BAIXADO", dataPagamento: "2026-09-05", dataVencimento: "2026-09-05" }),
+    lancamentoTeste({ id: "vencido", valor: 40, dataVencimento: "2026-09-08" }),
+    lancamentoTeste({ id: "provisao", valor: 25, dataVencimento: "2026-09-20" }),
+  ];
+  it("marca provisão no lançamento e no saldo e deixa o vencido fora dos totais", () => {
+    const p = calcularPlanilhaFluxoCaixa(1000, dados, periodo, undefined, [], "2026-09-10");
+    const r = montarExportacaoFluxo(p, dados, periodo.de, periodo.ate, "diario", "2026-09-10");
+    const saldo = r.linhas.find(l => l.nome === "Saldo do Dia")!;
+    expect(saldo.valores[18]).toBe(900);
+    expect(saldo.pendentes?.[18]).toBe(false);
+    expect(saldo.valores[19]).toBe(875);
+    expect(saldo.pendentes?.slice(19).every(Boolean)).toBe(true);
+    expect(r.linhas.find(l => l.nome === "Total de Despesas")?.valores.at(-1)).toBe(-125);
+    expect(Object.fromEntries(r.detalhes!.map(l => [l.valor, l.status]))).toEqual({
+      [-100]: "Baixado", [-40]: "Pagamento não realizado", [-25]: "Provisão *",
+    });
+    const texto = XLSX.utils.sheet_to_json<string[]>(criarXlsxFinanceiro(r).Sheets["Fluxo de Caixa"], { header: 1 })[2][0];
+    expect(texto).toContain("provisão");
+    expect(texto).toContain("pagamento não realizado");
   });
 });

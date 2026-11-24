@@ -46,6 +46,11 @@ const despesas = Array.from({ length: 16 }, (_, indice) => {
     dataPagamento: indice % 2 ? null : `${dia}T12:00:00Z`,
   });
 });
+// Pendente já vencido: aparece riscado como pagamento não realizado, fora do saldo.
+despesas.push(lancamentoTeste({
+  id: "despesa-vencida", categoriaId: "neto", categoriaNome: plano[3].nome, descricao: "Alimentação fictícia não paga",
+  valor: 88.8, status: "PENDENTE", dataCompetencia: `${mesAtual}-02T12:00:00Z`, dataVencimento: `${mesAtual}-02T12:00:00Z`, dataPagamento: null,
+}));
 const vazio = parametros.has("vazio");
 const caso = parametros.get("caso");
 const receitasDoCenario = caso === "negativo"

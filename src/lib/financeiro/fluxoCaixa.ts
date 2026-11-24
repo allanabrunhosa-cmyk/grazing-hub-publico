@@ -2,6 +2,7 @@ import { dataParaIso } from "@/lib/financeiro/recorrencia";
 import { GRUPOS_RECEITA, ORDEM_GRUPOS_DRE, grupoDreLabels } from "@/lib/labels";
 import type { GrupoDre, StatusLancamento, TipoLancamento } from "@/generated/prisma/client";
 import { calcularBasesSaldo, type SaldoInicialConta } from "@/lib/financeiro/saldos-iniciais";
+import { periodoMesAteHoje } from "@/lib/financeiro/periodos";
 
 export type LancamentoParaPlanilha = {
   semClassificacao?: boolean;
@@ -18,7 +19,22 @@ export type LancamentoParaPlanilha = {
   pedidoQuitadoCredito?: boolean;
 };
 
-export type CelulaPlanilha = { valor: number; lancamentoIds: string[]; temPendente: boolean };
+/**
+ * `valor` soma somente o que conta no caixa: realizado e provisão (pendente a vencer).
+ * `naoRealizado` guarda os pendentes vencidos, exibidos mas fora de totais e saldo.
+ */
+export type CelulaPlanilha = { valor: number; lancamentoIds: string[]; temProvisao: boolean; naoRealizado: number };
+
+export type SituacaoFluxoCaixa = "REALIZADO" | "PROVISAO" | "NAO_REALIZADO";
+
+/**
+ * Baixado é realizado. Pendente com vencimento hoje ou futuro é provisão; depois que a
+ * data passa sem baixa, é pagamento não realizado e deixa de compor o saldo.
+ */
+export function situacaoNoFluxoCaixa(l: { status: StatusLancamento; dataVencimento: string }, hoje: string): SituacaoFluxoCaixa {
+  if (l.status === "BAIXADO") return "REALIZADO";
+  return l.dataVencimento.slice(0, 10) >= hoje ? "PROVISAO" : "NAO_REALIZADO";
+}
 
 export type LinhaCategoriaPlanilha = {
   categoriaId: string;
@@ -45,9 +61,11 @@ export type PlanilhaFluxoCaixa = {
   totalReceitasPorDia: Record<string, number>;
   totalDespesasPorDia: Record<string, number>;
   saldoPorDia: Record<string, number>; // saldo acumulado ao final de cada dia
+  saldoComProvisao: Record<string, boolean>; // o saldo do dia inclui alguma provisão
   totalReceitasGeral: number;
   totalDespesasGeral: number;
   saldoFinal: number;
+  saldoFinalComProvisao: boolean;
 };
 
 /** Resultado do período, sem incluir saldos iniciais ou somar saldos acumulados. */
@@ -56,32 +74,36 @@ export function calcularResultadoFluxoCaixa(receitas: number, despesas: number):
 }
 
 // A data que "conta" pro fluxo de caixa: lançamento baixado usa a data em que o
-// dinheiro de fato entrou/saiu (dataPagamento); pendente usa o vencimento (projeção).
+// dinheiro de fato entrou/saiu (dataPagamento); pendente usa o vencimento (provisão
+// enquanto a data não passou; depois disso, pagamento não realizado).
 function dataEfetiva(l: LancamentoParaPlanilha): string {
   return (l.status === "BAIXADO" ? l.dataPagamento : null) ?? l.dataVencimento;
 }
 
 function celulaVazia(): CelulaPlanilha {
-  return { valor: 0, lancamentoIds: [], temPendente: false };
+  return { valor: 0, lancamentoIds: [], temProvisao: false, naoRealizado: 0 };
 }
 
-function somarNaCelula(celula: CelulaPlanilha, l: LancamentoParaPlanilha) {
-  celula.valor += l.valor;
-  celula.lancamentoIds.push(l.id);
-  if (l.status === "PENDENTE") celula.temPendente = true;
+function agregarCelula(destino: CelulaPlanilha, origem: CelulaPlanilha) {
+  destino.valor += origem.valor;
+  destino.naoRealizado += origem.naoRealizado;
+  destino.lancamentoIds.push(...origem.lancamentoIds);
+  destino.temProvisao ||= origem.temProvisao;
 }
 
 // Lógica pura de agregação — monta a planilha em duas camadas (grupo do plano de
 // contas > categoria) a partir dos lançamentos do período, com total por linha, por
-// coluna e saldo acumulado ao final de cada dia (mistura realizado + projetado sem
-// distinção visual de valor, só de estilo — quem chamou decide como destacar pendente
-// vs baixado).
+// coluna e saldo acumulado ao final de cada dia. O saldo conta o realizado e, do dia
+// de referência em diante, as provisões (pendentes a vencer), sinalizadas em
+// `temProvisao`/`saldoComProvisao`. Pendente vencido aparece em `naoRealizado` e não
+// entra em totais nem no saldo.
 export function calcularPlanilhaFluxoCaixa(
   saldoInicialTotal: number,
   lancamentos: LancamentoParaPlanilha[],
   periodo: { de: string; ate: string },
   saldosIniciais?: SaldoInicialConta[],
-  planoContas: { id: string; nome: string; grupo: GrupoDre; paiId?: string | null }[] = []
+  planoContas: { id: string; nome: string; grupo: GrupoDre; paiId?: string | null }[] = [],
+  hoje: string = periodoMesAteHoje().ate
 ): PlanilhaFluxoCaixa {
   const diaChave = (iso: string) => iso.slice(0, 10);
 
@@ -99,8 +121,9 @@ export function calcularPlanilhaFluxoCaixa(
     return dia >= periodo.de && dia <= periodo.ate;
   });
 
-  const antesDoPeriodo = lancamentos.filter((l) => diaChave(dataEfetiva(l)) < periodo.de);
-  const bases = saldosIniciais ? calcularBasesSaldo(saldosIniciais, lancamentos.map((l) => ({
+  const contados = lancamentos.filter((l) => situacaoNoFluxoCaixa(l, hoje) !== "NAO_REALIZADO");
+  const antesDoPeriodo = contados.filter((l) => diaChave(dataEfetiva(l)) < periodo.de);
+  const bases = saldosIniciais ? calcularBasesSaldo(saldosIniciais, contados.map((l) => ({
     contaBancariaId: l.contaBancariaId, data: dataEfetiva(l), valor: l.tipo === "DESPESA" ? -l.valor : l.valor,
   }))) : { semData: Math.round(saldoInicialTotal * 100), porData: {} as Record<string, number> };
   const saldoAntes =
@@ -130,9 +153,15 @@ export function calcularPlanilhaFluxoCaixa(
       }
       const dia = diaChave(dataEfetiva(l));
       const celula = linha.porDia[dia] ?? celulaVazia();
-      somarNaCelula(celula, l);
+      const situacao = situacaoNoFluxoCaixa(l, hoje);
+      celula.lancamentoIds.push(l.id);
+      if (situacao === "NAO_REALIZADO") celula.naoRealizado += l.valor;
+      else {
+        celula.valor += l.valor;
+        linha.total += l.valor;
+        if (situacao === "PROVISAO") celula.temProvisao = true;
+      }
       linha.porDia[dia] = celula;
-      linha.total += l.valor;
     }
 
     const grupos: LinhaGrupoPlanilha[] = [];
@@ -145,9 +174,7 @@ export function calcularPlanilhaFluxoCaixa(
       for (const categoria of categorias) {
         for (const [dia, celula] of Object.entries(categoria.porDia)) {
           const celulaGrupo = porDia[dia] ?? celulaVazia();
-          celulaGrupo.valor += celula.valor;
-          celulaGrupo.lancamentoIds.push(...celula.lancamentoIds);
-          celulaGrupo.temPendente = celulaGrupo.temPendente || celula.temPendente;
+          agregarCelula(celulaGrupo, celula);
           porDia[dia] = celulaGrupo;
         }
         total += categoria.total;
@@ -164,8 +191,12 @@ export function calcularPlanilhaFluxoCaixa(
   const totalDespesasPorDia: Record<string, number> = {};
   const saldoPorDia: Record<string, number> = {};
 
+  const saldoComProvisao: Record<string, boolean> = {};
   let saldoAcumulado = saldoAntes;
+  let provisaoAcumulada = antesDoPeriodo.some((l) => l.status === "PENDENTE");
   for (const dia of dias) {
+    provisaoAcumulada ||= [...receitas, ...despesas].some((grupo) => grupo.porDia[dia]?.temProvisao);
+    saldoComProvisao[dia] = provisaoAcumulada;
     const totalReceita = receitas.reduce((soma, grupo) => soma + (grupo.porDia[dia]?.valor ?? 0), 0);
     const totalDespesa = despesas.reduce((soma, grupo) => soma + (grupo.porDia[dia]?.valor ?? 0), 0);
     totalReceitasPorDia[dia] = totalReceita;
@@ -184,9 +215,11 @@ export function calcularPlanilhaFluxoCaixa(
     totalReceitasPorDia,
     totalDespesasPorDia,
     saldoPorDia,
+    saldoComProvisao,
     totalReceitasGeral,
     totalDespesasGeral,
     saldoFinal: saldoAcumulado,
+    saldoFinalComProvisao: provisaoAcumulada,
   };
 }
 
@@ -218,9 +251,7 @@ export function montarArvoreFluxoCaixa(linhas: LinhaCategoriaPlanilha[]): NoCate
       no.total += filho.total;
       for (const [dia, celula] of Object.entries(filho.porDia)) {
         const atual = no.porDia[dia] ?? celulaVazia();
-        atual.valor += celula.valor;
-        atual.lancamentoIds.push(...celula.lancamentoIds);
-        atual.temPendente ||= celula.temPendente;
+        agregarCelula(atual, celula);
         no.porDia[dia] = atual;
       }
     }

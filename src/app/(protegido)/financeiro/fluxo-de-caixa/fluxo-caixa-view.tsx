@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { tipoLancamentoLabels } from "@/lib/labels";
 import { formatarMoeda } from "@/lib/financeiro/formatarMoeda";
-import { calcularPlanilhaFluxoCaixa, calcularResultadoFluxoCaixa, montarArvoreFluxoCaixa, type NoCategoriaFluxo, type LinhaGrupoPlanilha } from "@/lib/financeiro/fluxoCaixa";
+import { calcularPlanilhaFluxoCaixa, calcularResultadoFluxoCaixa, montarArvoreFluxoCaixa, situacaoNoFluxoCaixa, type CelulaPlanilha, type NoCategoriaFluxo, type LinhaGrupoPlanilha } from "@/lib/financeiro/fluxoCaixa";
 import { completarMesesFluxoCaixa, consolidarPlanilhaFluxoCaixaPorMes } from "@/lib/financeiro/fluxoCaixaMensal";
 import type { SaldoInicialConta } from "@/lib/financeiro/saldos-iniciais";
 
@@ -50,16 +50,33 @@ function hojeIso(): string {
   return periodoMesAteHoje().ate;
 }
 
-function celulaClasse(comValor: boolean, temPendente: boolean, tipo: "RECEITA" | "DESPESA") {
+// Provisão (pendente a vencer) conta no valor e leva asterisco. Pendente vencido é
+// pagamento não realizado: aparece riscado e fica fora de totais e saldo.
+function celulaClasse(celula: CelulaPlanilha | undefined, tipo: "RECEITA" | "DESPESA") {
+  const comValor = !!celula && celula.valor > 0;
+  const abre = !!celula && celula.lancamentoIds.length > 0;
   return [
     "text-right tabular-nums",
-    comValor && "cursor-pointer underline decoration-dotted underline-offset-2 hover:bg-accent/50",
+    abre && "cursor-pointer hover:bg-accent/50",
+    comValor && "underline decoration-dotted underline-offset-2",
     comValor && (tipo === "RECEITA" ? "text-success" : "text-destructive"),
-    comValor && temPendente && "italic opacity-70",
+    comValor && celula.temProvisao && "italic opacity-70",
     !comValor && "text-muted-foreground",
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+function ValorCelula({ celula, sinal }: { celula: CelulaPlanilha | undefined; sinal: number }) {
+  if (celula && celula.valor > 0) return <>{formatarMoeda(sinal * celula.valor)}{celula.temProvisao ? " *" : ""}</>;
+  if (celula && celula.naoRealizado > 0) return <span className="line-through" title="Pagamento não realizado">
+    <span className="sr-only">Pagamento não realizado: </span>{formatarMoeda(sinal * celula.naoRealizado)}
+  </span>;
+  return <>—</>;
+}
+
+function temProvisaoNaLinha(porDia: Record<string, CelulaPlanilha>) {
+  return Object.values(porDia).some(celula => celula.temProvisao);
 }
 
 function CelulaResultado({ receitas, despesas }: { receitas: number; despesas: number }) {
@@ -105,18 +122,18 @@ function LinhaCategoria({
       </TableCell>
       {dias.map((dia) => {
         const celula = linha.porDia[dia];
-        const temValor = !!celula && celula.valor > 0;
+        const abre = !!celula && celula.lancamentoIds.length > 0;
         return (
           <TableCell
             key={dia}
-            className={celulaClasse(temValor, celula?.temPendente ?? false, linha.tipo) + (dia === hoje ? " bg-accent/20" : "")}
-            onClick={() => temValor && onAbrirCelula(linha.categoriaNome, dia, celula.lancamentoIds)}
+            className={celulaClasse(celula, linha.tipo) + (dia === hoje ? " bg-accent/20" : "")}
+            onClick={() => abre && onAbrirCelula(linha.categoriaNome, dia, celula.lancamentoIds)}
           >
-            {temValor ? formatarMoeda(sinal * celula.valor) : "—"}
+            <ValorCelula celula={celula} sinal={sinal} />
           </TableCell>
         );
       })}
-      {mostrarTotal && <TableCell className="text-right tabular-nums text-muted-foreground">{formatarMoeda(sinal * linha.total)}</TableCell>}
+      {mostrarTotal && <TableCell className="text-right tabular-nums text-muted-foreground">{formatarMoeda(sinal * linha.total)}{temProvisaoNaLinha(linha.porDia) ? " *" : ""}</TableCell>}
     </TableRow>
     {expandida && linha.filhos.map(filho => <LinhaCategoria key={filho.categoriaId} linha={filho} dias={dias} hoje={hoje}
       nivel={nivel + 1} chave={`${chave}/${filho.categoriaId}`} expandidas={expandidas} onAlternar={onAlternar}
@@ -158,21 +175,21 @@ function LinhaGrupo({
         </TableCell>
         {dias.map((dia) => {
           const celula = grupoLinha.porDia[dia];
-          const temValor = !!celula && celula.valor > 0;
+          const abre = !!celula && celula.lancamentoIds.length > 0;
           return (
             <TableCell
               key={dia}
-              className={celulaClasse(temValor, celula?.temPendente ?? false, grupoLinha.tipo) + (dia === hoje ? " bg-accent/20" : "")}
+              className={celulaClasse(celula, grupoLinha.tipo) + (dia === hoje ? " bg-accent/20" : "")}
               onClick={(e) => {
                 e.stopPropagation();
-                if (temValor) onAbrirCelula(grupoLinha.grupoLabel, dia, celula.lancamentoIds);
+                if (abre) onAbrirCelula(grupoLinha.grupoLabel, dia, celula.lancamentoIds);
               }}
             >
-              {temValor ? formatarMoeda(sinal * celula.valor) : "—"}
+              <ValorCelula celula={celula} sinal={sinal} />
             </TableCell>
           );
         })}
-        {mostrarTotal && <TableCell className="text-right font-semibold tabular-nums">{formatarMoeda(sinal * grupoLinha.total)}</TableCell>}
+        {mostrarTotal && <TableCell className="text-right font-semibold tabular-nums">{formatarMoeda(sinal * grupoLinha.total)}{temProvisaoNaLinha(grupoLinha.porDia) ? " *" : ""}</TableCell>}
       </TableRow>
       {expandido &&
         montarArvoreFluxoCaixa(grupoLinha.categorias).map((categoria) => (
@@ -233,7 +250,7 @@ export function FluxoCaixaView({
     return mensal ? completarMesesFluxoCaixa(periodo) : periodo;
   }, [de, ate, lancamentos, saldosIniciais, mensal]);
   const planilha = useMemo(() => {
-    const diaria = calcularPlanilhaFluxoCaixa(saldoInicialTotal, lancamentos, periodoConsulta, saldosIniciais, planoContas);
+    const diaria = calcularPlanilhaFluxoCaixa(saldoInicialTotal, lancamentos, periodoConsulta, saldosIniciais, planoContas, hojeIso());
     return mensal ? consolidarPlanilhaFluxoCaixaPorMes(diaria) : diaria;
   }, [saldoInicialTotal, lancamentos, periodoConsulta, saldosIniciais, planoContas, mensal]);
 
@@ -296,12 +313,14 @@ export function FluxoCaixaView({
             <SelectItem value="mensal">Mensal</SelectItem>
           </SelectContent>
         </Select>}
-        acoesDireita={<ExportarRelatorioButton obterRelatorio={() => montarExportacaoFluxo(planilha, lancamentos, mensal ? periodoConsulta.de : de, mensal ? periodoConsulta.ate : ate, agrupamento)} />}
+        acoesDireita={<ExportarRelatorioButton obterRelatorio={() => montarExportacaoFluxo(planilha, lancamentos, mensal ? periodoConsulta.de : de, mensal ? periodoConsulta.ate : ate, agrupamento, hojeIso())} />}
       />
       <p className="text-xs text-muted-foreground">
         {mensal ? "Cada coluna consolida um mês completo. O saldo corresponde ao fim do mês. " : "Cada coluna mostra um dia. "}
         Clique em um grupo para abrir suas categorias ou em uma célula para ver os lançamentos {mensal ? "do mês" : "do dia"}.
-        Células em <span className="italic opacity-70">itálico</span> incluem valores pendentes (projeção).
+        O saldo conta somente o que foi realizado. Valores com <span className="italic opacity-70">asterisco (*)</span> incluem
+        provisão: pendências que ainda vão vencer. Pendência vencida aparece <span className="line-through">riscada</span> como
+        pagamento não realizado e não entra nos totais nem no saldo.
       </p>
 
       <Card className="mx-auto w-fit max-w-full">
@@ -379,10 +398,10 @@ export function FluxoCaixaView({
                 <TableCell className={`${STICKY} bg-foreground font-semibold text-background`}>{mensal ? "Saldo do Mês" : "Saldo do Dia"}</TableCell>
                 {planilha.dias.map((dia) => (
                   <TableCell key={dia} className="text-right font-semibold tabular-nums text-background">
-                    {formatarMoeda(planilha.saldoPorDia[dia])}
+                    {formatarMoeda(planilha.saldoPorDia[dia])}{planilha.saldoComProvisao[dia] ? " *" : ""}
                   </TableCell>
                 ))}
-                {!mensal && <TableCell className="text-right font-semibold tabular-nums text-background">{formatarMoeda(planilha.saldoFinal)}</TableCell>}
+                {!mensal && <TableCell className="text-right font-semibold tabular-nums text-background">{formatarMoeda(planilha.saldoFinal)}{planilha.saldoFinalComProvisao ? " *" : ""}</TableCell>}
               </TableRow>
               <TableRow>
                 <TableCell className={`${STICKY} bg-background py-1.5 text-xs font-normal text-muted-foreground`}>{mensal ? "Resultado do Mês" : "Resultado do Dia"}</TableCell>
@@ -403,17 +422,17 @@ export function FluxoCaixaView({
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 space-y-1.5 overflow-y-auto overscroll-contain">
-            {lancamentosDaCelula.map((l) => (
+            {lancamentosDaCelula.map((l) => { const situacao = situacaoNoFluxoCaixa(l, hojeIso()); return (
               <div key={l.id} className="flex min-w-0 flex-col gap-2 rounded-md border px-3 py-2 text-sm sm:flex-row sm:items-center">
                 <div className="flex min-w-0 flex-1 items-start gap-2">
                   <Badge className="shrink-0" variant={l.tipo === "RECEITA" ? "success" : "destructive"}>{tipoLancamentoLabels[l.tipo]}</Badge>
                   <div className="min-w-0 flex-1">
                     <p className="break-words font-medium [overflow-wrap:anywhere]">{l.descricao}</p>
-                    <p className="text-xs text-muted-foreground">{l.status === "BAIXADO" ? "Baixado" : "Pendente"}</p>
+                    <p className="text-xs text-muted-foreground">{situacao === "REALIZADO" ? "Baixado" : situacao === "PROVISAO" ? "Provisão *" : "Pagamento não realizado"}</p>
                   </div>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                  <span className={`whitespace-nowrap font-medium tabular-nums ${l.tipo === "RECEITA" ? "text-success" : "text-destructive"}`}>{formatarMoeda(l.valor)}</span>
+                  <span className={`whitespace-nowrap font-medium tabular-nums ${situacao === "NAO_REALIZADO" ? "text-muted-foreground line-through" : l.tipo === "RECEITA" ? "text-success" : "text-destructive"}`}>{formatarMoeda(l.valor)}{situacao === "PROVISAO" ? " *" : ""}</span>
                   {l.faturaId && <Link className="text-primary underline" href={`/financeiro/cartoes/faturas/${l.faturaId}`}>Abrir fatura</Link>}
                   {l.pedidoVendaId && <Link className="text-primary underline" href={`/vendas/pedidos/${l.pedidoVendaId}`}>Abrir pedido</Link>}
                   {!l.faturaId && !l.pedidoVendaId && l.status === "PENDENTE" && (
@@ -451,7 +470,7 @@ export function FluxoCaixaView({
                   )}
                 </div>
               </div>
-            ))}
+            ); })}
           </div>
           <DialogFooter className="shrink-0">
             <DialogClose render={<Button type="button" variant="outline" />}>Fechar</DialogClose>
