@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Bot, FileText, Plug, Plus, Server, ShieldCheck } from "lucide-react";
+import { Bot, FileText, Plug, Plus, Server, ShieldCheck, ShoppingBag, Wallet } from "lucide-react";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,9 @@ export type ResumoIntegracoes = {
   mcp: { endereco: string; ativo: boolean; configurado: boolean; editar: boolean; conexoes: { id: string; nome: string; clienteNome: string; situacao: string }[] } | null;
   brasilnfe: boolean;
   certificado: { resumo: string; tom: Tom } | null;
+  /** Cobrança pelo Asaas e pedidos do site: visíveis a quem acessa as configurações da loja. */
+  asaas?: { resumo: string; tom: Tom } | null;
+  site?: { resumo: string; tom: Tom } | null;
 };
 type Item = { id: string; nome: string; resumo: string; href: string; tom: Tom; icone: typeof Bot;
   /** Identificação visual no lugar do ícone genérico: a marca do HUB ou as iniciais da aplicação. */
@@ -52,6 +55,8 @@ export function itensDoSeletor(resumo: ResumoIntegracoes): Item[] {
     for (const c of resumo.mcp.conexoes.filter(c => c.situacao !== "REVOGADA")) { const s = situacaoDaConexao(c.situacao); itens.push({ id: `mcp:${c.id}`, nome: c.nome, resumo: `${c.clienteNome} · ${s.rotulo}`, href: rotaConexaoMcp(c.id), tom: s.tom, icone: Bot, monograma: monogramaDaAplicacao(c.clienteNome), logo: logoDaAplicacao(c.clienteNome) }); }
   }
   if (resumo.brasilnfe) itens.push({ id: "brasilnfe", nome: "Brasil NFe", resumo: "Emissão de NF-e e NFC-e", href: "/configuracoes/integracoes/brasilnfe", tom: "verde", icone: FileText, logo: caminhoDoLogo("brasilnfe") });
+  if (resumo.asaas) itens.push({ id: "asaas", nome: "Asaas", resumo: resumo.asaas.resumo, href: "/configuracoes/integracoes/asaas", tom: resumo.asaas.tom, icone: Wallet });
+  if (resumo.site) itens.push({ id: "site", nome: "Site", resumo: resumo.site.resumo, href: "/configuracoes/integracoes/site", tom: resumo.site.tom, icone: ShoppingBag });
   if (resumo.certificado) itens.push({ id: "certificado", nome: "Certificado A1", resumo: resumo.certificado.resumo, href: "/configuracoes/integracoes/certificado", tom: resumo.certificado.tom, icone: ShieldCheck });
   if (resumo.mcp) itens.push({ id: "mcp:servidor", nome: "Servidor MCP", resumo: "Diagnóstico, aplicações e histórico", href: rotaConexaoMcp("servidor"), tom: "roxo", icone: Server, marca: "hub" });
   return itens;

@@ -4,6 +4,8 @@ import { podeAcessar } from "@/lib/permissoes/servidor";
 import { resumirServidorMcp, type DadosAdministracaoMcp } from "@/lib/mcp/administracao";
 import { resumirCertificadoDashboard } from "@/lib/fiscal-dashboard/certificado";
 import type { ResumoIntegracoes } from "./seletor";
+import { estadoConfiguracaoAsaas } from "@/lib/asaas/configuracao";
+import { siteAtivo, siteConfigurado } from "@/lib/site/cliente";
 
 /**
  * Conexões visíveis no seletor de Integrações, conforme as permissões centrais de quem consulta.
@@ -26,5 +28,13 @@ export async function carregarResumoIntegracoes(dadosMcp?: DadosAdministracaoMcp
       : validade?.situacao === "VIGENTE" ? { resumo: `Válido até ${data}`, tom: "roxo" }
       : { resumo: "Validade não verificada", tom: "neutro" };
   }
-  return { mcp: servidor ? { ...servidor, editar: editarMcp } : null, brasilnfe, certificado };
+  let asaas: ResumoIntegracoes["asaas"] = null, site: ResumoIntegracoes["site"] = null;
+  if (loja) {
+    const a = estadoConfiguracaoAsaas();
+    asaas = a.ativo ? { resumo: a.ambiente === "PRODUCAO" ? "Cobranças ativas" : "Ativo em ambiente de testes", tom: a.ambiente === "PRODUCAO" ? "verde" : "ambar" } : { resumo: "Desativado no servidor", tom: "neutro" };
+    const integracao = await prisma.integracaoSite.findUnique({ where: { contaId: "singleton" }, select: { ativa: true, ultimoErro: true } });
+    site = !siteConfigurado() ? { resumo: "Sem chave de acesso", tom: "neutro" } : !siteAtivo() ? { resumo: "Desativado no servidor", tom: "neutro" }
+      : !integracao?.ativa ? { resumo: "Recepção pausada", tom: "ambar" } : integracao.ultimoErro ? { resumo: "Recebendo, com alerta", tom: "ambar" } : { resumo: "Recebendo pedidos", tom: "verde" };
+  }
+  return { mcp: servidor ? { ...servidor, editar: editarMcp } : null, brasilnfe, certificado, asaas, site };
 }

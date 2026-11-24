@@ -648,6 +648,8 @@ async function editarInformacoesPedidoInterna(pedidoId: unknown, versaoAtual: un
   const id = identificador(pedidoId), versaoPedido = versao(versaoAtual), chaveOperacao = chave(operacao), resumo = hash({ tipo: contexto.tipo, id, versaoPedido, d, entradaComercial: contexto.entradaComercial, usuarioId: sessao.userId });
   return prisma.$transaction(async tx => {
     const autor = await conferirAcesso(tx, sessao, ["consultar", "revisar"], id);
+    // O site é a autoridade comercial dos pedidos que envia: itens e valores mudam lá.
+    if (contexto.entradaComercial && (await tx.pedidoVenda.findUnique({ where: { id }, select: { origem: true } }))?.origem === "SITE") throw new ErroPedidoVenda("Pedido recebido do site: itens e valores são alterados no site. Data, destinatário e cobrança podem ser ajustados aqui.");
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('vendas-cadastros'))`;
     await travarOperacao(tx, chaveOperacao);
     const existente = await repetida(tx, chaveOperacao, resumo); if (existente) return tx.pedidoVenda.findUniqueOrThrow({ where: { id: existente.id }, select: { id: true, numero: true, versao: true, status: true, statusOperacional: true } });

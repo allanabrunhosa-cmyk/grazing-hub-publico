@@ -19,6 +19,13 @@ export async function middleware(request: NextRequest) {
     resposta.headers.set("X-Robots-Tag", "noindex, nofollow");
     return resposta;
   }
+  // Webhooks do Asaas e do site: cada rota autentica token/assinatura sobre o corpo original.
+  if (contexto.identidade === "hub" && request.method === "POST" && ["/api/integracoes/asaas/webhook", "/api/integracoes/site/webhook"].includes(pathname)) {
+    const resposta = NextResponse.next();
+    resposta.headers.set("Cache-Control", "no-store");
+    resposta.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return resposta;
+  }
   // Somente no HUB; não abre sessão de pessoas nem acesso aos arquivos.
   if (contexto.identidade === "hub" && pathname === "/api/fiscal-saida/retorno") {
     const resposta = NextResponse.next();

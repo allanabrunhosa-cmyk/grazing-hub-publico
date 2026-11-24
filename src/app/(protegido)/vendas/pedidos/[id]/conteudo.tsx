@@ -16,6 +16,10 @@ import { origemHubFiscalPedido } from "../fiscal-navegacao";
 import { consultarRevisoesNcmDoPedido } from "@/lib/tributacao/revisao-ncm";
 import { ehPedidoHistorico } from "@/lib/vendas/historico-dominio";
 import { DetalheHistoricoPedido } from "../detalhe-historico-pedido";
+import { consultarCobrancaExternaPedido } from "@/lib/asaas/cobrancas";
+import { diaNoFuso } from "@/lib/vendas/pedidos-agenda-dominio";
+import { CobrancaAsaasPedido } from "../cobranca-asaas";
+import { cancelarCobrancaAsaasAction, gerarCobrancaAsaasAction, pixCobrancaAsaasAction } from "../asaas-actions";
 
 export async function ConteudoPedido({ params, retorno, abrirCancelamentoInicial = false }: { params: Promise<{ id: string }>; retorno?: string; abrirCancelamentoInicial?: boolean }) {
   if (!await podeAcessar("vendas.pedidos")) return <MensagemPopupPedido titulo="Acesso ao pedido" mensagem="Seu perfil não possui permissão para consultar pedidos." retorno={retorno} />;
@@ -43,7 +47,13 @@ export async function ConteudoPedido({ params, retorno, abrirCancelamentoInicial
   const preparar = revisar || await podeAcessar("vendas.pedidos.producao", "editar");
   const fiscal = await podeAcessar("financeiro.fiscal.emissao") ? { editar: await podeAcessar("financeiro.fiscal.emissao", "editar"), cancelar: await podeAcessar("financeiro.fiscal.cancelamento", "editar"), documentos: await consultarFiscalSaida(id, sessao), revisoesNcm: await consultarRevisoesNcmDoPedido(id).catch(() => []), origemHub: origemHubFiscalPedido(contextoDoHost(await headers())) } : undefined;
   const p = pedido as unknown as PedidoDetalhado;
+  const { ativo: asaas, cobrancas, site } = await consultarCobrancaExternaPedido(id);
+  const interno = String(pedido.origem) === "INTERNO";
+  const podeCobrar = asaas && confirmar && interno && String(pedido.status) === "CONFIRMADO" && Number(pedido.total) > 0;
+  const cobrancaExterna = asaas && interno || cobrancas.length > 0 || site ? <CobrancaAsaasPedido pedidoId={id} total={String(pedido.total)} hoje={diaNoFuso(new Date(), String(pedido.fusoHorario ?? "America/Sao_Paulo"))} cobrancas={cobrancas} podeCobrar={podeCobrar}
+    motivoBloqueio={!confirmar ? "Seu perfil não gera cobranças no Asaas." : String(pedido.status) !== "CONFIRMADO" ? "A cobrança no Asaas fica disponível com o pedido confirmado." : undefined}
+    site={site} acoes={{ gerar: gerarCobrancaAsaasAction, cancelar: cancelarCobrancaAsaasAction, pix: pixCobrancaAsaasAction }} /> : undefined;
   return <ModalPedido detalhe titulo={`Pedido #${pedido.numero}`} descricao="Acompanhe a entrega, o pagamento e os itens do pedido." retorno={retorno} protegerAlteracoes>
-    <DetalhePedido key={`${id}:${abrirCancelamentoInicial ? "cancelar" : "detalhe"}`} pedido={p} dados={dados} capacidades={capacidades} responsavel={sessao.nome} preparar={preparar} fiscal={fiscal} abrirCancelamentoInicial={abrirCancelamentoInicial} />
+    <DetalhePedido key={`${id}:${abrirCancelamentoInicial ? "cancelar" : "detalhe"}`} pedido={p} dados={dados} capacidades={capacidades} responsavel={sessao.nome} preparar={preparar} fiscal={fiscal} cobrancaExterna={cobrancaExterna} abrirCancelamentoInicial={abrirCancelamentoInicial} />
   </ModalPedido>;
 }

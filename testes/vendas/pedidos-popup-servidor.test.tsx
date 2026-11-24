@@ -8,6 +8,7 @@ const { permitidos, pode, exigir, obter, dados, consultar, comanda, prontidao, i
 vi.mock("next/headers", () => ({ headers: vi.fn(async () => new Headers({ host: "pedidos.localhost:4302" })) }));
 vi.mock("@/lib/ifood/acoes", () => ({ consultarPedidoIfood: vi.fn(async () => null) }));
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/asaas/cobrancas", () => ({ consultarCobrancaExternaPedido: vi.fn(async () => ({ ativo: false, cobrancas: [], site: null })) }));
 vi.mock("@/lib/permissoes/servidor", () => ({ podeAcessar: pode, exigirPermissao: exigir }));
 vi.mock("next/navigation", () => ({ redirect: redirecionar, useRouter: vi.fn() }));
 vi.mock("@/lib/contexto-interface", () => ({ identidadeDaInterface: identidade }));
