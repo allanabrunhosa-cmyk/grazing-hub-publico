@@ -4,7 +4,7 @@ const simulados = vi.hoisted(() => ({ consultar: vi.fn(), contar: vi.fn(), atual
 vi.mock("next/cache", () => ({ revalidatePath: simulados.revalidar }));
 vi.mock("@/lib/session", () => ({ getSession: simulados.sessao }));
 vi.mock("@/lib/prisma", () => {
-  const tx = { historicoAcesso: { create: simulados.auditar }, atividadeUsuario: { create: simulados.atividade }, $executeRaw: vi.fn(), lancamentoFinanceiro: { findUnique: simulados.consultar, findUniqueOrThrow: simulados.consultar, count: simulados.contar, updateMany: simulados.atualizar }, movimentacaoBancaria: { create: simulados.criarMovimento } };
+  const tx = { historicoAcesso: { create: simulados.auditar }, atividadeUsuario: { create: simulados.atividade }, $executeRaw: vi.fn(), fechamentoCaixa: { findFirst: vi.fn().mockResolvedValue(null) }, lancamentoFinanceiro: { findUnique: simulados.consultar, findUniqueOrThrow: simulados.consultar, count: simulados.contar, updateMany: simulados.atualizar }, movimentacaoBancaria: { create: simulados.criarMovimento } };
   return { prisma: { ...tx, $transaction: async (executar: (cliente: typeof tx) => Promise<unknown>) => executar(tx) } };
 });
 import { excluirLancamentoAction, obterResumoExclusaoLancamentoAction } from "@/app/(protegido)/financeiro/lancamentos/actions";

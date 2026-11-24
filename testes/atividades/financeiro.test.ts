@@ -14,7 +14,7 @@ import { Prisma } from "@/generated/prisma/client";
 
 const autor = { userId: "autor-validado", nome: "Autora fictícia", admin: false, permissoes: {}, excecoes: {}, perfilNome: "Equipe", email: "autor@example.invalid" };
 const lancamento = () => ({ id: "lancamento-ficticio", tipo: "DESPESA", valor: new Prisma.Decimal("120.50"), descricao: "Descrição fictícia", categoriaId: "categoria", dataCompetencia: new Date("2026-10-01T12:00:00Z"), dataVencimento: new Date("2026-10-10T12:00:00Z"), dataPagamento: null, status: "PENDENTE", itemFaturaId: null, pedidoVendaId: null, vinculoExtrato: null });
-const tx = { $queryRaw: sim.trava, $executeRaw: sim.trava, lancamentoFinanceiro: { create: sim.criar, findUniqueOrThrow: sim.consultarTx, updateMany: sim.atualizar, update: sim.atualizarUm }, movimentacaoBancaria: { create: sim.movimento, deleteMany: sim.apagarMovimentos }, vinculoExtrato: { findUnique: sim.vinculo } };
+const tx = { $queryRaw: sim.trava, $executeRaw: sim.trava, fechamentoCaixa: { findFirst: async () => null }, lancamentoFinanceiro: { create: sim.criar, findUniqueOrThrow: sim.consultarTx, updateMany: sim.atualizar, update: sim.atualizarUm }, movimentacaoBancaria: { create: sim.movimento, deleteMany: sim.apagarMovimentos }, vinculoExtrato: { findUnique: sim.vinculo } };
 function formulario() {
   const f = new FormData();
   for (const [campo, valor] of Object.entries({ tipo: "DESPESA", descricao: "Compra fictícia", valor: "120,50", categoriaId: "categoria", dataCompetencia: "2026-10-01", dataVencimento: "2026-10-10", userId: "id-enviado-pelo-navegador", observacoes: "Observação que não deve entrar no evento" })) f.set(campo, valor);

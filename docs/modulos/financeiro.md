@@ -37,6 +37,43 @@ conservam a regra anterior; não há backfill ou regravação de recebimentos.
 O modo EXTERNO conserva seu controle financeiro externo.
 [Contrato, limites e evidências](../features/pedidos/CADASTRO-COMPRA-20261020.md).
 
+## Fechamento do mês do fluxo de caixa — 24/11/2026
+
+`FechamentoCaixa` (migration aditiva `20261124120000_fechamento_caixa`) guarda um registro
+por fechamento; o bloqueio vale até o último dia do maior mês vigente, ou seja, o mês
+fechado e todos os anteriores. `src/lib/financeiro/fechamento-caixa.ts` concentra a regra:
+`exigirCaixaAberto` recusa movimento **realizado** com data no período (baixa e estorno em
+`baixarLancamento.ts`, pagamento e desconciliação de fatura em `faturas/servico.ts`,
+correção de recebimento em `vendas/pedidos.ts`) e compartilha trava consultiva com o
+fechamento. Pendências não são bloqueadas: no período fechado elas já são pagamento não
+realizado e podem ser pagas com data atual. Somente administrador fecha (mês já encerrado e
+posterior ao último fechamento) e reabre (apenas o último mês, com motivo de 5 a 500
+caracteres); a checagem é refeita no servidor e ambos geram AtividadeUsuario crítica.
+A tela mostra a situação e o histórico em `fluxo-de-caixa/fechamento-controle.tsx`; as
+ações chegam por props a partir de `page.tsx` (`actions.ts`). O cabeçalho de datas da
+tabela fica fixo: a rolagem vertical é interna ao contêiner, limitado pela altura da viewport.
+Regressão: `fechamento-caixa-interface.test.tsx` e `fechamento-caixa-banco.test.ts`
+(`FECHAMENTO_BANCO_TESTE`); prévia `testes/visual/fluxo-mensal.html?fechado`.
+
+## Títulos e taxas de Pedidos em Movimentações — 24/11/2026
+
+Esta seção substitui as regras anteriores deste guia sobre baixa de títulos de Pedido.
+Receita pendente de Pedido tem o botão Realizar em Movimentações: `baixarLancamentoAction`
+chama `registrarRecebimentoPedido` pelo valor integral, com os mesmos efeitos e travas do
+recebimento feito no Pedido (que continua disponível, inclusive para recebimento parcial).
+Formas com confirmação externa (cartão, boleto) seguem recusadas pelo próprio domínio.
+A taxa do Pix e a taxa de repasse de cartão **nascem pendentes**, com vencimento no dia
+do recebimento/repasse, e são despesas comuns (`ehTaxaDePedido` em
+`src/lib/financeiro/titulo-pedido.ts`): baixa, estorno e conciliação manuais. O caixa mostra
+o bruto até a baixa da taxa. Quando a baixa parte de Movimentações, a categoria da taxa
+repete a última usada em taxas de pedidos ou, na falta, a categoria ativa de Despesas
+financeiras que cite "taxa"; sem categoria, o recebimento deve ser feito no Pedido.
+`corrigirRecebimentoPedido` cancela a taxa pendente ou baixada do recebimento corrigido.
+Cancelamentos de pedido (HUB e iFood) cancelam somente receitas pendentes, nunca taxas.
+Estorno da receita baixada, edição e exclusão de títulos de Pedido continuam no Pedido.
+Regressão: `baixa-action.test.ts`, `movimentacoes-view.test.tsx`,
+`conciliacao/interface.test.tsx` e `testes/vendas/pedidos-financeiro-integracao.test.ts`.
+
 ## Fluxo de caixa: realizado, provisão e pagamento não realizado — 24/11/2026
 
 O saldo do Fluxo de Caixa conta somente o realizado (baixado, na data do pagamento).
@@ -104,8 +141,8 @@ Base: `src/app/(protegido)/financeiro`. Nomes relativos abaixo pertencem a essa 
   Versão zero/EXTERNO conserva história. Esta política foi aprovada pelo usuário na
   missão de fechamento; não estabelece categorias de despesas ou retenções.
 - Movimentações, conciliação e caixa preservam `pedidoVendaId` e oferecem Abrir
-  pedido para receber, revisar ou corrigir o registro na origem. Título pendente
-  de pedido não é candidato a baixa pela conciliação; títulos já recebidos e taxas
+  pedido para receber, revisar ou corrigir o registro na origem. Receita pendente
+  de pedido não é candidata a baixa pela conciliação (taxas pendentes são); títulos já recebidos e taxas
   continuam conciliáveis pelo líquido, sem nova receita/baixa. Canal identifica somente a origem e os relatórios. Mudar o canal ou seu cadastro conserva categoria, competência, valores, pagamentos e vínculos dos títulos.
 - `extrato.ts` exclui títulos quitados com crédito da carteira antes de calcular
   entradas/saldo e de agrupar candidatos à conciliação. O título permanece na

@@ -6,6 +6,7 @@ import { valoresCompetenciaPedidos } from "./competencia-pedidos";
 import type { LancamentoParaDre } from "./calcularDre";
 import type { LancamentoRow } from "@/app/(protegido)/financeiro/types";
 import { descricaoTituloEntradaAvulsa, incluirTituloEntradaAvulsa } from "./titulo-entrada-avulsa";
+import { ehTaxaDePedido } from "./titulo-pedido";
 
 export async function carregarFonteDre(db: Pick<Prisma.TransactionClient, "lancamentoFinanceiro"> = prisma, take?: number) {
   const lancamentos = await db.lancamentoFinanceiro.findMany({ where: { status: { not: "CANCELADO" } }, take,
@@ -35,7 +36,7 @@ export async function carregarFonteFluxo(db: Pick<Prisma.TransactionClient, "lan
   return lancamentos.map(l => ({ id: l.id, tipo: l.tipo, descricao: descricaoTituloEntradaAvulsa(l), valor: Number(l.valor), categoriaId: l.categoriaId,
     categoriaNome: caminhoCategoria(l.categoria), categoriaGrupo: l.categoria.grupo, dataCompetencia: l.dataCompetencia.toISOString(),
     dataVencimento: l.dataVencimento.toISOString(), status: l.status, dataPagamento: l.dataPagamento?.toISOString() ?? null,
-    pedidoQuitadoCredito: l.pedidoQuitadoCredito, pedidoVendaId: l.pedidoVendaId, contaBancariaId: l.contaBancariaId,
+    pedidoQuitadoCredito: l.pedidoQuitadoCredito, pedidoVendaId: l.pedidoVendaId, taxaPedido: ehTaxaDePedido(l), contaBancariaId: l.contaBancariaId,
     contaBancariaNome: l.contaBancaria?.nome ?? null, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedor?.nome ?? null,
     formaPagamentoId: l.formaPagamentoId, formaPagamentoNome: l.formaPagamento?.nome ?? null, contraparteNome: l.contraparteNome, observacoes: l.observacoes }));
 }

@@ -11,6 +11,7 @@ import { LancamentoDialog } from "@/app/(protegido)/financeiro/lancamentos/lanca
 import type { LancamentoRow } from "@/app/(protegido)/financeiro/types";
 import { entidadeInicial } from "@/lib/atividades/entidade-inicial";
 import { descricaoTituloEntradaAvulsa, incluirTituloEntradaAvulsa } from "@/lib/financeiro/titulo-entrada-avulsa";
+import { ehTaxaDePedido } from "@/lib/financeiro/titulo-pedido";
 
 export default async function MovimentacoesPage({ searchParams }: { searchParams: Promise<{ entidade?: string | string[] }> }) {
   const sessao = await exigirPermissao("financeiro.movimentacoes");
@@ -59,6 +60,7 @@ export default async function MovimentacoesPage({ searchParams }: { searchParams
     dataPagamento: l.dataPagamento ? l.dataPagamento.toISOString() : null,
     pedidoQuitadoCredito: l.pedidoQuitadoCredito,
     pedidoVendaId: l.pedidoVendaId,
+    taxaPedido: ehTaxaDePedido(l),
     contaBancariaId: l.contaBancariaId,
     contaBancariaNome: l.contaBancaria?.nome ?? null,
     fornecedorId: l.fornecedorId,

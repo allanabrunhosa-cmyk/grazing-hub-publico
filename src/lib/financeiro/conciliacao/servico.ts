@@ -12,6 +12,7 @@ import type { EntradaConciliacao, PreviaExtrato } from "./types";
 import { paraCaixaAlta, paraCaixaAltaOpcional } from "@/lib/caixa-alta";
 import { compararImportacao, identificarLinhas } from "./identidade";
 import { parecePagamentoCartao } from "../faturas/dominio";
+import { ehTaxaDePedido } from "../titulo-pedido";
 
 const hash = (texto: string | Buffer) => createHash("sha256").update(texto).digest("hex");
 const dataBanco = (dia: string) => new Date(`${dia}T12:00:00-03:00`);
@@ -131,7 +132,7 @@ export async function conciliarExtrato(input: EntradaConciliacao, sessao: Sessao
     } });
     if (lancamentos.length !== ids.length || lancamentos.some(l => l.status === "CANCELADO" || l.vinculoExtrato)) throw new ErroExtrato("Há lançamentos indisponíveis ou já conciliados.");
     if (lancamentos.some(l => l.itemFaturaId)) throw new ErroExtrato("Há despesas vinculadas a faturas. Concilie o pagamento em Cartões e Faturas.");
-    if (lancamentos.some(l => l.pedidoVendaId && l.status === "PENDENTE")) throw new ErroExtrato("Registre primeiro o recebimento no Pedido; a conciliação reconhecerá a baixa existente.");
+    if (lancamentos.some(l => l.pedidoVendaId && l.status === "PENDENTE" && !ehTaxaDePedido(l))) throw new ErroExtrato("Realize primeiro o recebimento do pedido (em Movimentações ou no Pedido); a conciliação reconhecerá a baixa existente.");
     if (input.lancamentos && lancamentos.some(l => input.lancamentos!.find(i => i.id === l.id)?.versao !== l.updatedAt.toISOString())) throw new ErroExtrato("Um lançamento foi alterado. Atualize a tela e confira novamente.");
     const duplicatas = new Map(lancamentos.flatMap(l => l.notaFiscalItemLancamento
       ? [[l.notaFiscalItemLancamento.notaFiscalDuplicata.id, l.notaFiscalItemLancamento.notaFiscalDuplicata.valor] as const]

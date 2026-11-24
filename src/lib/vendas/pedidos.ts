@@ -48,6 +48,7 @@ import { validarMotivoCancelamento, validarResponsavelCancelamento } from "./can
 import { ajusteDevolucaoExecucao, materialDestinado, quantidadeExecucao } from "./pedidos-execucao-dominio";
 import { abrirDestinosCancelamento, prepararDevolucaoFisica, validarResolucaoDestino } from "./pedidos-destino";
 import type { DestinoFisicoPedido } from "./pedidos-operacao-dominio";
+import { exigirCaixaAberto } from "@/lib/financeiro/fechamento-caixa";
 type Tx = Prisma.TransactionClient;
 async function conferirJanela(tx: Tx, data: string | null, janela: string | null) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('pedidos-horarios'))`;
@@ -732,7 +733,7 @@ export async function cancelarPedido(pedidoId: unknown, versaoAtual: unknown, mo
     const atualizado = await tx.pedidoVenda.updateMany({ where: { id, versao: versaoPedido, status: "CONFIRMADO", statusOperacional: { not: "ENTREGUE" } }, data: { status: "CANCELADO", statusOperacional: "INTERROMPIDO", canceladoEm: new Date(), versao: { increment: 1 } } });
     exigirAtualizado(atualizado.count);
     if (titulos.length) {
-      await tx.lancamentoFinanceiro.updateMany({ where: { pedidoVendaId: id, status: "PENDENTE", pedidoParcelaRaiz: { notIn: [...raizesCapturadas] } }, data: { status: "CANCELADO" } });
+      await tx.lancamentoFinanceiro.updateMany({ where: { pedidoVendaId: id, tipo: "RECEITA", status: "PENDENTE", pedidoParcelaRaiz: { notIn: [...raizesCapturadas] } }, data: { status: "CANCELADO" } });
       await historicoFinanceiro(tx, id, chaveOperacao, resumo, "SALDO_CANCELADO", autor, { valor: titulos.filter(t => t.status === "PENDENTE" && !raizesCapturadas.has(t.pedidoParcelaRaiz ?? "")).reduce((s, t) => s.plus(t.valor), dinheiro("0")).toString(), pagamentosPreservados: titulos.filter(t => t.status === "BAIXADO" && !t.pedidoQuitadoCredito).reduce((s, t) => s.plus(t.valor), dinheiro("0")).plus(capturas.reduce((s, c) => s.plus(c.valorBruto), dinheiro("0"))).toString(), motivo });
     }
     const fontes = await origensElegiveis(tx, id);
@@ -1048,8 +1049,8 @@ export async function registrarRecebimentoPedido(pedidoValor: unknown, tituloVal
         dataCompetencia: data, dataVencimento: data, contraparteNome: typeof nomeForma === "string" ? nomeForma : null,
         criadoPorId: autor.userId, pedidoVendaId: id, pedidoEfeitoChave: `taxa-recebimento:${tituloId}:${chaveOperacao}`,
       } });
+      // A taxa nasce pendente (provisão no dia do recebimento); a baixa é manual em Movimentações.
       taxaLancamentoId = taxaLancamento.id;
-      await baixarLancamento({ lancamentoId: taxaLancamento.id, contaBancariaId: contaId, dataPagamento: data, tx, origemPedido: true });
     }
     await historicoFinanceiro(tx, id, chaveOperacao, resumo, "RECEBIMENTO", autor, { tituloId, parcelaRaiz: titulo.pedidoParcelaRaiz, valorOriginal: titulo.pedidoValorOriginal.toString(), valorAnterior: titulo.valor.toString(), recebido: quantia.toString(), saldo: saldo.toString(), contaId, data: data.toISOString(), ...(taxaLancamentoId ? { taxa: taxa.toString(), taxaLancamentoId, categoriaTaxaId } : {}) });
     return resumoFinanceiro(tx, id);
@@ -1079,10 +1080,11 @@ export async function corrigirRecebimentoPedido(pedidoValor: unknown, tituloValo
     const movimento = await tx.movimentacaoBancaria.findUnique({ where: { lancamentoId: tituloId } });
     if (!movimento || !movimento.valor.eq(titulo.valor)) throw new ErroPedidoVenda("Entrada bancária inconsistente; nenhuma correção foi aplicada.");
     // Taxas do Pix lançadas por este recebimento acompanham a correção do registro.
-    const taxas = titulos.filter(t => t.tipo === "DESPESA" && t.status === "BAIXADO" && t.pedidoEfeitoChave?.startsWith(`taxa-recebimento:${tituloId}:`));
+    const taxas = titulos.filter(t => t.tipo === "DESPESA" && t.status !== "CANCELADO" && t.pedidoEfeitoChave?.startsWith(`taxa-recebimento:${tituloId}:`));
     if (taxas.length && await tx.vinculoExtrato.count({ where: { lancamentoId: { in: taxas.map(t => t.id) } } })) throw new ErroPedidoVenda("Desfaça a conciliação da taxa do Pix no Financeiro antes de corrigir o recebimento.");
     // Correção de registro, conforme contrato da baixa existente. A fotografia
     // integral permanece na auditoria; não registrar saída financeira fictícia.
+    await exigirCaixaAberto(tx, [movimento.data, ...taxas.map(t => t.dataPagamento)], ErroPedidoVenda);
     await tx.movimentacaoBancaria.delete({ where: { id: movimento.id } });
     for (const taxa of taxas) {
       await tx.movimentacaoBancaria.deleteMany({ where: { lancamentoId: taxa.id } });
@@ -1289,8 +1291,8 @@ export async function registrarRepasseCartaoPedido(pedidoValor: unknown, pagamen
     let taxaLancamentoId: string | null = null;
     if (taxa.greaterThan(0)) {
       const taxaLancamento = await tx.lancamentoFinanceiro.create({ data: { tipo: "DESPESA", descricao: `Taxa de repasse do pedido #${(await tx.pedidoVenda.findUniqueOrThrow({ where: { id }, select: { numero: true } })).numero}`, valor: taxa, categoriaId: categoriaTaxaId!, dataCompetencia: competenciaTaxa!, dataVencimento: data, contraparteNome: pagamento.referenciaExterna, criadoPorId: autor.userId, pedidoVendaId: id, pedidoEfeitoChave: `taxa-repasse:${chaveOperacao}` } });
+      // A taxa nasce pendente (provisão no dia do repasse); a baixa é manual em Movimentações.
       taxaLancamentoId = taxaLancamento.id;
-      await baixarLancamento({ lancamentoId: taxaLancamento.id, contaBancariaId: contaId, dataPagamento: data, tx, origemPedido: true });
     }
     await tx.repassePagamentoPedido.create({ data: { pagamentoId, valorBruto: bruto, taxa, valorLiquido: liquido, data, contaBancariaId: contaId, lancamentoId: titulo.id, taxaLancamentoId, evidencia, chaveOperacao, hashOperacao: resumo, criadoPorId: autor.userId } });
     if (jaRepassado.plus(bruto).equals(pagamento.valorBruto)) await tx.pagamentoExternoPedido.update({ where: { id: pagamentoId }, data: { repassadoEm: data } });

@@ -39,7 +39,7 @@ export function sugerirConciliacoes(grupos: GrupoConciliacao[], transacoes: Extr
         l.transacaoExtratoId || l.status === "CANCELADO" ||
         (l.status === "BAIXADO" && l.contaBancariaId !== transacao.contaBancariaId) ||
         (l.contaBancariaId && l.contaBancariaId !== transacao.contaBancariaId) ||
-        (l.status === "PENDENTE" && (!podeBaixar || !!l.pedidoVendaId)))) return [];
+        (l.status === "PENDENTE" && (!podeBaixar || (!!l.pedidoVendaId && !l.taxaPedido))))) return [];
       const data = grupo.linhas[0].data;
       const dias = Math.abs(Date.parse(transacao.data) - Date.parse(data)) / 86_400_000;
       if (!Number.isFinite(dias) || dias > TOLERANCIA_VENCIMENTO_CONCILIACAO_DIAS || (grupo.status === "BAIXADO" && dias !== 0)) return [];

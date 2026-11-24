@@ -7,9 +7,12 @@ import { FluxoCaixaView } from "@/app/(protegido)/financeiro/fluxo-de-caixa/flux
 import { projetarRelatorioFaturas } from "@/lib/financeiro/faturas/relatorios";
 import { AvisoFaturas } from "../cartoes/aviso";
 import { carregarFonteFluxo } from "@/lib/financeiro/fontes-relatorios";
+import { consultarFechamentoCaixa } from "@/lib/financeiro/fechamento-caixa";
+import { fecharMesCaixaAction, reabrirMesCaixaAction } from "./actions";
 
 export default async function FluxoDeCaixaPage() {
-  await exigirPermissao("financeiro.fluxo");
+  const sessao = await exigirPermissao("financeiro.fluxo");
+  const fechamento = await consultarFechamentoCaixa(prisma);
   const [contas, lancamentos, categorias, fornecedores, formasPagamento, contasBancarias] = await Promise.all([
     prisma.contaBancaria.findMany({ select: { id: true, saldoInicial: true, dataSaldoInicial: true } }),
     carregarFonteFluxo(),
@@ -37,6 +40,7 @@ export default async function FluxoDeCaixaPage() {
         fornecedores={fornecedores}
         formasPagamento={formasPagamento}
         contasBancarias={contasBancarias}
+        fechamento={{ ...fechamento, podeGerir: sessao.admin, fechar: fecharMesCaixaAction, reabrir: reabrirMesCaixaAction }}
       />
     </div>
   );

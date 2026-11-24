@@ -27,7 +27,7 @@ it("explica o recebimento na origem e bloqueia seleção de pedido pendente", ()
   render(<ConciliacaoView {...props} linhas={[{ ...linha, pedidoVendaId: "pedido-ficticio" }]} />);
   fireEvent.click(screen.getByRole("button", { name: "Conferir PIX recebido do banco" }));
   expect((screen.getByRole("checkbox", { name: "Selecionar Aluguel da cozinha" }) as HTMLInputElement).disabled).toBe(true);
-  expect(screen.getByText(/Registre o recebimento no pedido antes de conciliar/)).toBeTruthy();
+  expect(screen.getByText(/Realize o recebimento do pedido antes de conciliar/)).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Ver detalhes de Aluguel da cozinha" }));
   const detalhe = screen.getByRole("dialog");
   expect(within(detalhe).getByRole("button", { name: "Abrir pedido" })).toBeTruthy();

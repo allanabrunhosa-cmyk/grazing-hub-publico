@@ -104,7 +104,7 @@ export function ConciliacaoView({ linhas, transacoes, contasBancarias, acesso, p
   function impedimento(l: LancamentoRow) {
     if (!selecionada || selecionada.conciliadaEm) return "Escolha uma transação pendente no extrato.";
     if (l.transacaoExtratoId) return "Este lançamento já está conciliado.";
-    if (l.status === "PENDENTE" && l.pedidoVendaId) return "Registre o recebimento no pedido antes de conciliar. Abra os detalhes para acessar o pedido.";
+    if (l.status === "PENDENTE" && l.pedidoVendaId && !l.taxaPedido) return "Realize o recebimento do pedido antes de conciliar, em Movimentações ou no próprio pedido.";
     if (l.status === "BAIXADO" && l.contaBancariaId !== selecionada.contaBancariaId) return "Conta da baixa diferente do extrato.";
     if (l.status === "BAIXADO" && l.dataPagamento?.slice(0, 10) !== selecionada.data) return "Data da baixa diferente do extrato.";
     if (l.status === "PENDENTE" && !acesso.baixar) return "Seu acesso não permite realizar a baixa.";

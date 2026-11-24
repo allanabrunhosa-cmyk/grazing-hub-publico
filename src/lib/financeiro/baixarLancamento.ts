@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import type { SessaoAtual } from "@/lib/session";
 import { permissaoEfetiva, type Excecoes, type Permissoes } from "@/lib/permissoes/catalogo";
+import { exigirCaixaAberto } from "@/lib/financeiro/fechamento-caixa";
+import { ErroPedidoVenda } from "@/lib/vendas/pedidos-dominio";
+import { ehTaxaDePedido } from "@/lib/financeiro/titulo-pedido";
 
 export type BaixarLancamentoInput = {
   lancamentoId: string;
@@ -24,12 +27,15 @@ export async function baixarLancamento(input: BaixarLancamentoInput): Promise<vo
   const executar = async (tx: Prisma.TransactionClient) => {
     const lancamento = await tx.lancamentoFinanceiro.findUniqueOrThrow({ where: { id: input.lancamentoId } });
     if (lancamento.pedidoVendaId) await exigirEfeitoOperacional(tx, lancamento.pedidoVendaId);
-    if (lancamento.pedidoVendaId && !input.origemPedido) throw new Error("Recebimentos de Pedidos devem ser registrados no próprio pedido.");
+    // A taxa do pedido é uma despesa comum; a receita passa pelo recebimento do pedido,
+    // inclusive quando a baixa começa em Movimentações (contas/actions.ts).
+    if (lancamento.pedidoVendaId && !input.origemPedido && !ehTaxaDePedido(lancamento)) throw new Error("Recebimentos de Pedidos devem ser registrados no próprio pedido.");
     if (lancamento.status === "BAIXADO") throw new Error("Este lançamento já foi baixado.");
     if (lancamento.status === "CANCELADO") throw new Error("Este lançamento foi cancelado e não pode ser baixado.");
     if (lancamento.itemFaturaId) throw new Error("Liquide esta despesa em Cartões e Faturas para não duplicar o pagamento.");
 
     const dataPagamento = input.dataPagamento ?? new Date();
+    await exigirCaixaAberto(tx, [dataPagamento], input.origemPedido ? ErroPedidoVenda : undefined);
 
     const atualizacao = await tx.lancamentoFinanceiro.updateMany({
       where: { id: input.lancamentoId, status: "PENDENTE", itemFaturaId: null },
@@ -118,8 +124,9 @@ export async function estornarBaixaLancamento(input: EstornarBaixaInput): Promis
       where: { id: input.lancamentoId },
       include: { vinculoExtrato: true },
     });
-    if (lancamento.pedidoVendaId) throw new Error("Baixa vinculada a Pedido exige correção financeira específica.");
+    if (lancamento.pedidoVendaId && !ehTaxaDePedido(lancamento)) throw new Error("Baixa vinculada a Pedido exige correção financeira específica.");
     if (lancamento.status !== "BAIXADO") throw new Error("Este lançamento não está baixado.");
+    await exigirCaixaAberto(tx, [lancamento.dataPagamento]);
     if (lancamento.itemFaturaId) throw new Error("Desfaça o pagamento em Cartões e Faturas; a baixa pertence à fatura.");
     if (lancamento.vinculoExtrato) {
       if (!input.desconciliacao || lancamento.vinculoExtrato.transacaoId !== vinculoInicial?.transacaoId) {

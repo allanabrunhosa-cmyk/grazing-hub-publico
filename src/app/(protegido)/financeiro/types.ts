@@ -28,6 +28,8 @@ export type LancamentoRow = {
   dataPagamento: string | null;
   pedidoQuitadoCredito?: boolean;
   pedidoVendaId?: string | null;
+  /** Taxa de recebimento/repasse do pedido: despesa comum, com baixa manual. */
+  taxaPedido?: boolean;
   contaBancariaId: string | null;
   contaBancariaNome: string | null;
   fornecedorId: string | null;
