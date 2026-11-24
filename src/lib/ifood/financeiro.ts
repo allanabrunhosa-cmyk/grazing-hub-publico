@@ -28,7 +28,7 @@ export async function projetarFinanceiro(tx: Prisma.TransactionClient, pedidoId:
   const titulos = await tx.lancamentoFinanceiro.findMany({ where: { pedidoVendaId: pedidoId } });
   if (cancelado) {
     // Preservar baixas, conciliações e capturas. Excedentes exigem ajuste evidenciado no HUB.
-    await tx.lancamentoFinanceiro.updateMany({ where: { pedidoVendaId: pedidoId, status: "PENDENTE" }, data: { status: "CANCELADO" } });
+    await tx.lancamentoFinanceiro.updateMany({ where: { pedidoVendaId: pedidoId, tipo: "RECEITA", status: "PENDENTE" }, data: { status: "CANCELADO" } });
     const recebido = titulos.some(t => t.status === "BAIXADO") || await tx.repassePagamentoPedido.count({ where: { pagamento: { pedidoId } } }) > 0;
     await tx.pagamentoExternoPedido.updateMany({ where: { pedidoId, status: "CAPTURADO", repassadoEm: null, repasses: { none: {} } }, data: { status: "CANCELADO_EXTERNAMENTE" } });
     if (recebido) {

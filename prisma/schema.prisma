@@ -3469,3 +3469,18 @@ model NumeroEntradaAvulsaLegada {
   origem String @id
   numero Int @unique @default(dbgenerated("nextval('\"EntradaAvulsaRegistro_numero_seq\"'::regclass)"))
 }
+
+// Fechamento mensal do fluxo de caixa. O bloqueio vale até o fim do maior mês vigente;
+// reaberturas conservam o registro como histórico.
+model FechamentoCaixa {
+  id String @id @default(cuid())
+  mes String
+  fechadoEm DateTime @default(now())
+  fechadoPorId String
+  fechadoPorNome String
+  reabertoEm DateTime?
+  reabertoPorId String?
+  reabertoPorNome String?
+  motivoReabertura String?
+  @@index([mes])
+}

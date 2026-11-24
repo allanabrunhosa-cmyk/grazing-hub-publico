@@ -84,7 +84,6 @@ export function MovimentacoesView({ conciliacao, linhas, avulsas, saldoInicial, 
   const corDiferenca = diferencaSaldo > 0 ? entrada.texto : diferencaSaldo < 0 ? saida.texto : "text-muted-foreground";
 
   function abrirBaixa(linha: LinhaExtrato & { idsAgrupados?: string[] }) {
-    if (linha.lancamento?.pedidoVendaId) { router.push(`/vendas/pedidos/${linha.lancamento.pedidoVendaId}`); return; }
     if (linha.lancamento?.faturaId) { router.push(`/financeiro/cartoes/faturas/${linha.lancamento.faturaId}`); return; }
     definirSelecionadaId(null);
     definirGrupoId(null);
@@ -204,7 +203,7 @@ export function MovimentacoesView({ conciliacao, linhas, avulsas, saldoInicial, 
                 <TableCell className="col-start-1 row-start-2 block whitespace-normal break-words p-0 pt-3 text-xs @[48rem]:table-cell @[48rem]:px-3 @[48rem]:py-5 @[48rem]:text-sm"><p>{grupo.categoria}</p><p className="mt-1 text-xs text-muted-foreground">{grupo.conta ?? "Conta definida na baixa"}</p></TableCell>
                 <TableCell className="col-start-2 row-start-2 block p-0 pt-3 text-right @[48rem]:table-cell @[48rem]:px-3 @[48rem]:py-5 @[48rem]:text-center"><Badge variant={grupo.status === "PENDENTE" ? "warning" : "success"}>{grupo.status === "PENDENTE" ? "Pendente" : "Realizado"}</Badge></TableCell>
                 <TableCell className={`col-start-2 row-start-1 block p-0 text-right font-medium tabular-nums @[48rem]:table-cell @[48rem]:px-3 @[48rem]:py-5 ${estilosNaturezaFinanceira[naturezaFinanceiraDoValor(grupo.valor)].texto}`}>{grupo.valor > 0 ? "+ " : ""}{formatarMoeda(grupo.valor)}</TableCell>
-                <TableCell className="col-start-2 row-start-3 block p-0 pt-2 text-right @[48rem]:table-cell @[48rem]:px-3 @[48rem]:py-5">{grupo.status === "PENDENTE" ? <Button size="sm" variant={estilosNaturezaFinanceira[naturezaFinanceiraDoValor(grupo.valor)].varianteBotaoContorno} className="w-24" aria-label={`${grupo.linhas[0]?.lancamento?.pedidoVendaId ? "Abrir pedido de" : "Realizar"} ${grupo.titulo}`} onClick={(evento) => { evento.stopPropagation(); baixarGrupo(grupo); }}>{grupo.linhas[0]?.lancamento?.pedidoVendaId ? "Abrir pedido" : <><Check className="size-3.5" />Realizar</>}</Button> : <span className="inline-flex h-8 w-24 items-center justify-center text-xs text-muted-foreground">Ver detalhes</span>}</TableCell>
+                <TableCell className="col-start-2 row-start-3 block p-0 pt-2 text-right @[48rem]:table-cell @[48rem]:px-3 @[48rem]:py-5">{grupo.status === "PENDENTE" ? <Button size="sm" variant={estilosNaturezaFinanceira[naturezaFinanceiraDoValor(grupo.valor)].varianteBotaoContorno} className="w-24" aria-label={`Realizar ${grupo.titulo}`} onClick={(evento) => { evento.stopPropagation(); baixarGrupo(grupo); }}><Check className="size-3.5" />Realizar</Button> : <span className="inline-flex h-8 w-24 items-center justify-center text-xs text-muted-foreground">Ver detalhes</span>}</TableCell>
               </TableRow>)}</TableBody>
             </Table>}
             </CardContent></Card>}
@@ -241,7 +240,11 @@ export function MovimentacoesView({ conciliacao, linhas, avulsas, saldoInicial, 
         </dl>
         {selecionada.lancamento?.observacoes && <div className="text-sm"><p className="text-muted-foreground">Observações</p><p className="mt-1 whitespace-pre-wrap break-words">{selecionada.lancamento.observacoes}</p></div>}
         {selecionada.lancamento && !leituraInicial && <DialogFooter className="flex-wrap">
-          {selecionada.lancamento.pedidoVendaId ? <Button variant="outline" onClick={() => router.push(`/vendas/pedidos/${selecionada.lancamento!.pedidoVendaId}`)}>Abrir pedido</Button> : selecionada.status === "PENDENTE" ? <>
+          {selecionada.lancamento.pedidoVendaId && <Button variant="outline" onClick={() => router.push(`/vendas/pedidos/${selecionada.lancamento!.pedidoVendaId}`)}>Abrir pedido</Button>}
+          {selecionada.lancamento.pedidoVendaId ? (selecionada.status === "PENDENTE"
+            ? <Button variant={estilosNaturezaFinanceira[naturezaFinanceiraDoValor(selecionada.valor)].varianteBotao} onClick={() => abrirBaixa(selecionada)}><Check className="size-4" />Realizar movimentação</Button>
+            : selecionada.lancamento.taxaPedido && <Button variant="outline" onClick={() => { definirErro(""); definirConfirmacao({ linha: selecionada, acao: "ESTORNAR" }); definirSelecionadaId(null); }}>Cancelar baixa</Button>)
+          : selecionada.status === "PENDENTE" ? <>
             <Button variant="ghost" onClick={() => { definirExcluindoId(selecionada.id); definirSelecionadaId(null); }}>Excluir</Button>
             <LancamentoDialog key={selecionada.id} lancamento={selecionada.lancamento} {...{ categorias, fornecedores, formasPagamento, contasBancarias }} aoSalvar={() => definirSelecionadaId(null)} trigger={<Button aria-label="Editar" variant="editar" size="icon-sm" />} />
             <Button variant={estilosNaturezaFinanceira[naturezaFinanceiraDoValor(selecionada.valor)].varianteBotao} onClick={() => abrirBaixa(selecionada)}><Check className="size-4" />Realizar movimentação</Button>
@@ -253,6 +256,7 @@ export function MovimentacoesView({ conciliacao, linhas, avulsas, saldoInicial, 
     <Dialog open={!!baixa} onOpenChange={(aberto) => !aberto && !salvando && definirBaixa(null)}><DialogContent className="sm:max-w-md" showCloseButton={!salvando}>
       <DialogHeader><DialogTitle>Realizar movimentação</DialogTitle><DialogDescription>Confirme a conta e a data em que o dinheiro entrou ou saiu.</DialogDescription></DialogHeader>
       <div className="rounded-md bg-muted p-3 text-sm"><p className="font-medium">{baixa?.descricao}</p><p>{formatarMoeda(baixa?.valor ?? 0)} · Vencimento previsto: {baixa && formatarData(baixa.data)}</p></div>
+      {baixa?.lancamento?.pedidoVendaId && !baixa.lancamento.taxaPedido && <p className="text-sm text-muted-foreground">O recebimento também fica registrado no pedido. Se a forma de pagamento tiver taxa, ela é lançada como despesa pendente para você baixar.</p>}
       {baixa?.idsAgrupados && <p className="text-sm text-muted-foreground">Esta confirmação realiza os {baixa.idsAgrupados.length} lançamentos que compõem o valor exibido desta nota, na mesma conta e data.</p>}
       <div className="space-y-1.5"><Label htmlFor="conta-baixa">Conta bancária</Label><Select value={contaId} onValueChange={(valor) => definirContaId(valor ?? "")} disabled={salvando}><SelectTrigger id="conta-baixa" className="w-full"><SelectValue placeholder="Escolha a conta">{() => contasBancarias.find((c) => c.id === contaId)?.nome ?? "Escolha a conta"}</SelectValue></SelectTrigger><SelectContent>{contasBancarias.map((conta) => <SelectItem key={conta.id} value={conta.id}>{conta.nome}</SelectItem>)}</SelectContent></Select></div>
       {contasBancarias.length === 0 && <p className="text-sm text-destructive">Cadastre uma conta ativa em Conta Bancária e Cartões para realizar a movimentação.</p>}

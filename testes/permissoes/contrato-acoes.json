@@ -365,6 +365,18 @@
     "acao": "editar"
   },
   {
+    "arquivo": "src/app/(protegido)/financeiro/fluxo-de-caixa/actions.ts",
+    "funcao": "fecharMesCaixaAction",
+    "recurso": "financeiro.fluxo",
+    "acao": "visualizar"
+  },
+  {
+    "arquivo": "src/app/(protegido)/financeiro/fluxo-de-caixa/actions.ts",
+    "funcao": "reabrirMesCaixaAction",
+    "recurso": "financeiro.fluxo",
+    "acao": "visualizar"
+  },
+  {
     "arquivo": "src/app/(protegido)/financeiro/lancamentos/actions.ts",
     "funcao": "criarLancamentoAction",
     "recurso": "financeiro.movimentacoes",

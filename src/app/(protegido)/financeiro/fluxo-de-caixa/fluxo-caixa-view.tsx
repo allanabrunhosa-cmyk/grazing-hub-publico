@@ -39,6 +39,7 @@ import type {
 import type { GrupoDre } from "@/generated/prisma/client";
 import { ExportarRelatorioButton } from "../exportar-relatorio-button";
 import { montarExportacaoFluxo } from "@/lib/financeiro/exportacao-relatorios";
+import { FechamentoCaixaControle, type FechamentoCaixaProps } from "./fechamento-controle";
 
 const STICKY = "sticky left-0 z-10";
 
@@ -217,7 +218,9 @@ export function FluxoCaixaView({
   fornecedores,
   formasPagamento,
   contasBancarias,
+  fechamento,
 }: {
+  fechamento?: FechamentoCaixaProps;
   saldoInicialTotal: number;
   saldosIniciais?: SaldoInicialConta[];
   lancamentos: LancamentoRow[];
@@ -323,18 +326,20 @@ export function FluxoCaixaView({
         pagamento não realizado e não entra nos totais nem no saldo.
       </p>
 
+      {fechamento && <FechamentoCaixaControle {...fechamento} />}
+
       <Card className="mx-auto w-fit max-w-full">
-        <CardContent className="min-w-0 p-0">
+        <CardContent className="min-w-0 p-0 [&>[data-slot=table-container]]:max-h-[calc(100dvh-9rem)]">
           <Table className="w-auto" aria-label="Fluxo de caixa">
             <TableHeader>
               <TableRow>
-                <TableHead className={`${STICKY} max-w-72 bg-background`}>Categoria</TableHead>
+                <TableHead className="sticky top-0 left-0 z-30 max-w-72 bg-background">Categoria</TableHead>
                 {planilha.dias.map((dia) => (
-                  <TableHead key={dia} className={"text-right" + (dia === hoje ? " bg-accent/20 text-foreground" : "")}>
+                  <TableHead key={dia} className={"sticky top-0 z-20 bg-background text-right" + (dia === hoje ? " text-foreground" : "")}>
                     {new Date(`${dia}T12:00:00`).toLocaleDateString("pt-BR", mensal ? { month: "short", year: "numeric" } : { weekday: "short", day: "2-digit", month: "2-digit" })}
                   </TableHead>
                 ))}
-                {!mensal && <TableHead className="text-right">Total</TableHead>}
+                {!mensal && <TableHead className="sticky top-0 z-20 bg-background text-right">Total</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>

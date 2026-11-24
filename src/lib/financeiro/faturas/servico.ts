@@ -12,6 +12,7 @@ import { chaveParcelamento, dataBanco, dataFinanceira, decimal, dinheiro, ErroFa
 import { itensCompensados, parCompensavel } from "./compensacao";
 import { agruparLancamentosInteirosFatura, validarSelecaoIntegralDeNotasFatura, type CandidatoFaturaBase } from "./lancamentos-inteiros";
 import { descricaoTituloEntradaAvulsa, incluirTituloEntradaAvulsa } from "../titulo-entrada-avulsa";
+import { exigirCaixaAberto } from "../fechamento-caixa";
 
 const opcoes = { timeout: 60000, maxWait: 15000 };
 const centavos = (d: Prisma.Decimal) => dinheiro(d.toFixed(2));
@@ -475,6 +476,7 @@ export async function conciliarFatura(faturaId:string,versao:number,transacaoId:
       await auditarFatura(tx,autor,"DESPESA_CRIADA",item.id,faturaId,null,{origem:"FINALIZACAO"});
     }
     if(resumir(await tx.faturaCartao.findUniqueOrThrow({where:{id:faturaId},include:incluirFatura})).pendencias)throw new ErroFatura("Revise os vínculos dos itens antes de finalizar.");
+    await exigirCaixaAberto(tx,[t.data],ErroFatura);
     const movimento=await tx.movimentacaoBancaria.create({data:{contaBancariaId:t.contaBancariaId,tipo:"SAIDA",valor:decimal(valor),data:dataFinanceira(t.data.toISOString().slice(0,10)),descricao:`PAGAMENTO FATURA ${f.cartao.nome} ${f.competencia}`}});
     const pagamento=await tx.pagamentoFaturaCartao.create({data:{faturaId,transacaoId:t.id,movimentoId:movimento.id,valor:decimal(valor),data:t.data,contaIdOriginal:t.contaBancariaId,transacaoIdOriginal:t.id,autorId:autor.id,autorNome:autor.nome}});
     await tx.transacaoExtrato.update({where:{id:t.id},data:{conciliadaEm:new Date(),conciliadaPorNome:autor.nome}});
@@ -494,6 +496,7 @@ export async function desconciliarFatura(faturaId:string,versao:number,pagamento
     if(!p?.transacaoId||!p.movimentoId)throw new ErroFatura("Pagamento ausente ou já revertido.");
     await tx.$queryRaw`SELECT id FROM "TransacaoExtrato" WHERE id = ${p.transacaoId} FOR UPDATE`;
     // Conserva pagamento/alocações históricas; exclui somente o movimento gerado por esta baixa.
+    await exigirCaixaAberto(tx,[p.data],ErroFatura);
     await tx.pagamentoFaturaCartao.update({where:{id:p.id},data:{revertidoEm:new Date(),transacaoId:null,movimentoId:null}});
     await tx.movimentacaoBancaria.delete({where:{id:p.movimentoId}});
     await tx.transacaoExtrato.update({where:{id:p.transacaoId},data:{conciliadaEm:null,conciliadaPorNome:null}});

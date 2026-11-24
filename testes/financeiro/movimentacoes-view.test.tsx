@@ -40,17 +40,18 @@ it("link ausente, cancelado ou quitado por crédito não abre detalhe inexistent
     unmount();
   }
 });
-it("título de pedido encaminha à origem e não oferece baixa, edição ou exclusão genérica", () => {
+it("título de pedido é realizado em Movimentações como qualquer conta e mantém o acesso ao pedido", async () => {
   render(<MovimentacoesView {...props} linhas={[{ ...pendente, pedidoVendaId: "pedido-ficticio" }]} />);
-  fireEvent.click(screen.getByRole("button", { name: "Abrir pedido de Aluguel da cozinha" }));
-  expect(simulados.navegar).toHaveBeenCalledWith("/vendas/pedidos/pedido-ficticio");
-  expect(screen.queryByText("Realizar movimentação")).toBeNull();
   fireEvent.click(screen.getByText("Ocupação"));
   const detalhe = screen.getByRole("dialog");
-  expect(within(detalhe).getByRole("button", { name: "Abrir pedido" })).toBeTruthy();
+  fireEvent.click(within(detalhe).getByRole("button", { name: "Abrir pedido" }));
+  expect(simulados.navegar).toHaveBeenCalledWith("/vendas/pedidos/pedido-ficticio");
   expect(within(detalhe).queryByRole("button", { name: "Excluir" })).toBeNull();
   expect(within(detalhe).queryByRole("button", { name: "Editar" })).toBeNull();
-  expect(simulados.baixar).not.toHaveBeenCalled();
+  fireEvent.click(within(detalhe).getByRole("button", { name: "Realizar movimentação" }));
+  expect(screen.getByText(/também fica registrado no pedido/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Confirmar baixa" }));
+  await waitFor(() => expect(simulados.baixar).toHaveBeenCalledWith("aluguel", "banco", expect.any(String)));
 });
 
 it("abre detalhes pela célula de categoria e baixa pela data escolhida", async () => {

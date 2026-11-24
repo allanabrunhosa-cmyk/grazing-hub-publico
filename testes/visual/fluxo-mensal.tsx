@@ -60,12 +60,18 @@ const receitasDoCenario = caso === "negativo"
       .map(receita => receita.id === "receita-inicio" ? { ...receita, valor: 2524 } : receita)
     : receitas;
 
+const fechamentoFicticio = parametros.has("fechado")
+  ? { fechadoAte: periodoAnterior.ate, historico: [{ id: "f1", mes: mesAnterior, fechadoEm: `${mesAtual}-03T12:00:00Z`, fechadoPorNome: "Administradora fictícia", reabertoEm: null, reabertoPorNome: null, motivoReabertura: null }] }
+  : { fechadoAte: null, historico: [] };
+
 createRoot(document.getElementById("root")!).render(
   <main className="mx-auto max-w-6xl space-y-4 p-4 sm:p-6">
     <p className="text-sm text-muted-foreground">Prévia isolada com dados fictícios. Sem acesso ao banco.</p>
     <h1 className="text-2xl font-semibold">Fluxo de Caixa</h1>
     <FluxoCaixaView saldoInicialTotal={500} lancamentos={vazio ? [] : [...receitasDoCenario, ...despesas]}
-      planoContas={vazio ? [] : plano} categorias={[]} fornecedores={[]} formasPagamento={[]} contasBancarias={[]} />
+      planoContas={vazio ? [] : plano} categorias={[]} fornecedores={[]} formasPagamento={[]} contasBancarias={[]}
+      fechamento={{ ...fechamentoFicticio, podeGerir: !parametros.has("sem-gestao"),
+        fechar: async () => ({ ok: true as const, fechadoAte: periodoAnterior.ate }), reabrir: async () => ({ ok: true as const, fechadoAte: null }) }} />
     <Toaster />
   </main>,
 );

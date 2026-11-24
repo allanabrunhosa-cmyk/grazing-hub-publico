@@ -331,9 +331,17 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M2 financeiro 
     const [taxa, ...repetidas] = await taxas();
     expect(repetidas).toHaveLength(0);
     // 1% de R$ 100,00 + R$ 0,75 fixos; a receita permanece bruta.
-    expect(taxa).toMatchObject({ status: "BAIXADO", categoriaId: categoriaTaxaId, contaBancariaId: contaId, pedidoEfeitoChave: `taxa-recebimento:${t.id}:${op}` });
+    // A taxa nasce pendente no dia do recebimento; a baixa é manual, como qualquer despesa.
+    expect(taxa).toMatchObject({ status: "PENDENTE", categoriaId: categoriaTaxaId, contaBancariaId: null, dataPagamento: null, movimentacaoBancaria: null, pedidoEfeitoChave: `taxa-recebimento:${t.id}:${op}` });
     expect(taxa.valor.toFixed(2)).toBe("1.75");
-    expect(taxa.movimentacaoBancaria?.valor.toFixed(2)).toBe("1.75");
+    expect(taxa.dataVencimento.toISOString().slice(0, 10)).toBe("2026-10-02");
+    await baixarLancamento({ lancamentoId: taxa.id, contaBancariaId: contaId, dataPagamento: new Date("2026-10-03T12:00:00"), atorAtividade: { tipo: "SISTEMA", referencia: "Teste de baixa manual" } });
+    const taxaBaixada = (await taxas())[0];
+    expect(taxaBaixada).toMatchObject({ status: "BAIXADO", contaBancariaId: contaId });
+    expect(taxaBaixada.movimentacaoBancaria?.valor.toFixed(2)).toBe("1.75");
+    await estornarBaixaLancamento({ lancamentoId: taxa.id, atorAtividade: { tipo: "SISTEMA", referencia: "Teste de estorno manual" } });
+    expect((await taxas())[0]).toMatchObject({ status: "PENDENTE", movimentacaoBancaria: null });
+    await baixarLancamento({ lancamentoId: taxa.id, contaBancariaId: contaId, dataPagamento: new Date("2026-10-03T12:00:00"), atorAtividade: { tipo: "SISTEMA", referencia: "Teste de baixa manual" } });
     expect(taxa.dataCompetencia.toISOString().slice(0, 10)).toBe("2026-10-02");
     expect((await obterPedido(p.id)).financeiro).toMatchObject({ recebido: "100.00", saldoCliente: "200.00" });
     const recebimento = await sim.prisma.historicoFinanceiroPedido.findUniqueOrThrow({ where: { chaveOperacao: op } });
@@ -352,7 +360,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M2 financeiro 
     const reaberto = await sim.prisma.lancamentoFinanceiro.findUniqueOrThrow({ where: { id: t.id } });
     await registrarRecebimentoPedido(p.id, t.id, reaberto.valor.toFixed(2), contaId, "2026-11-01", chave(), admin, categoriaTaxaId);
     const finais = await taxas();
-    expect(finais.map(l => l.status)).toEqual(["CANCELADO", "BAIXADO"]);
+    expect(finais.map(l => l.status)).toEqual(["CANCELADO", "PENDENTE"]);
     expect(finais[1].valor.toFixed(2)).toBe(reaberto.valor.mul("0.01").plus("0.75").toFixed(2));
   });
 
@@ -399,7 +407,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M2 financeiro 
     expect(titulos.every(t => t.dataCompetencia.toISOString().slice(0, 10) === "2026-09-20")).toBe(true);
     const importacao = await sim.prisma.importacaoExtrato.create({ data: { contaBancariaId: contaId, nomeArquivo: "sintetico.ofx", hashArquivo: chave(), formato: "OFX", autorId: admin.userId, autorNome: admin.nome } });
     const transacao = await sim.prisma.transacaoExtrato.create({ data: { contaBancariaId: contaId, importacaoId: importacao.id, chave: chave(), impressao: chave(), data: new Date("2026-09-24T00:00:00Z"), descricao: "Entrada sintética", valor: "90.00" } });
-    await expect(conciliarExtrato({ transacaoId: transacao.id, lancamentos: [{ id: titulos[0].id, versao: titulos[0].updatedAt.toISOString() }] }, admin)).rejects.toThrow("Registre primeiro o recebimento no Pedido");
+    await expect(conciliarExtrato({ transacaoId: transacao.id, lancamentos: [{ id: titulos[0].id, versao: titulos[0].updatedAt.toISOString() }] }, admin)).rejects.toThrow("Realize primeiro o recebimento do pedido");
     expect(await sim.prisma.movimentacaoBancaria.count({ where: { lancamentoId: titulos[0].id } })).toBe(0);
     const operacaoReceber = chave();
     const recebido = await registrarRecebimentoPedido(pedido.id, titulos[0].id, "90.00", contaId, "2026-09-24", operacaoReceber, admin);
@@ -427,7 +435,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M2 financeiro 
     const periodo = { de: new Date("2026-09-01T00:00:00Z"), ate: new Date("2026-10-31T23:59:59Z") };
     expect(calcularDre(paraDre, periodo, "COMPETENCIA").faturamentoBruto).toBe(300);
     expect(calcularDre(paraDre, periodo, "CAIXA").faturamentoBruto).toBe(90);
-    const fluxo = calcularPlanilhaFluxoCaixa(0, lancamentos.map(l => ({ id: l.id, tipo: l.tipo, status: l.status, valor: Number(l.valor), categoriaId: l.categoriaId, categoriaNome: l.categoria.nome, categoriaGrupo: l.categoria.grupo, dataVencimento: l.dataVencimento.toISOString(), dataPagamento: l.dataPagamento?.toISOString() ?? null, contaBancariaId: l.contaBancariaId })), { de: "2026-09-01", ate: "2026-10-31" });
+    const fluxo = calcularPlanilhaFluxoCaixa(0, lancamentos.map(l => ({ id: l.id, tipo: l.tipo, status: l.status, valor: Number(l.valor), categoriaId: l.categoriaId, categoriaNome: l.categoria.nome, categoriaGrupo: l.categoria.grupo, dataVencimento: l.dataVencimento.toISOString(), dataPagamento: l.dataPagamento?.toISOString() ?? null, contaBancariaId: l.contaBancariaId })), { de: "2026-09-01", ate: "2026-10-31" }, undefined, [], "2026-09-01");
     expect(fluxo.totalReceitasGeral).toBe(300);
   });
 
@@ -492,7 +500,13 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M2 financeiro 
     expect(titulosFinais.filter(t => t.tipo === "RECEITA").map(t => t.valor.toFixed(2))).toEqual(["400.00"]);
     expect(titulosFinais.filter(t => t.tipo === "DESPESA").map(t => t.valor.toFixed(2))).toEqual(["12.00"]);
     const caixa = await sim.prisma.movimentacaoBancaria.findMany({ where: { lancamento: { pedidoVendaId: em4x.id } } });
-    expect(caixa.reduce((s, m) => s + (m.tipo === "ENTRADA" ? Number(m.valor) : -Number(m.valor)), 0)).toBe(388);
+    // A taxa do repasse nasce pendente: o caixa mostra o bruto até a baixa manual da taxa.
+    expect(caixa.reduce((s, m) => s + (m.tipo === "ENTRADA" ? Number(m.valor) : -Number(m.valor)), 0)).toBe(400);
+    const taxaRepasse = titulosFinais.find(t => t.tipo === "DESPESA")!;
+    expect(taxaRepasse).toMatchObject({ status: "PENDENTE", contaBancariaId: null });
+    await baixarLancamento({ lancamentoId: taxaRepasse.id, contaBancariaId: contaId, dataPagamento: new Date("2026-09-27T12:00:00"), atorAtividade: { tipo: "SISTEMA", referencia: "Teste de baixa manual" } });
+    const caixaFinal = await sim.prisma.movimentacaoBancaria.findMany({ where: { lancamento: { pedidoVendaId: em4x.id } } });
+    expect(caixaFinal.reduce((s, m) => s + (m.tipo === "ENTRADA" ? Number(m.valor) : -Number(m.valor)), 0)).toBe(388);
   });
 
   it("boleto mantém vencimento externo e interno separados e só baixa com pagamento evidenciado", async () => {
@@ -616,7 +630,7 @@ describe.skipIf(process.env.PEDIDOS_BANCO_TESTE !== "1")("Pedidos M2 financeiro 
     const periodo = { de: new Date("2026-09-01T00:00:00Z"), ate: new Date("2026-09-30T23:59:59Z") };
     expect(calcularDre(paraDre, periodo, "COMPETENCIA").faturamentoBruto).toBe(450);
     expect(calcularDre(paraDre, periodo, "CAIXA").faturamentoBruto).toBe(150);
-    const fluxo = calcularPlanilhaFluxoCaixa(0, paraDre.map((l, i) => ({ ...l, id: String(i), tipo: "RECEITA" as const, dataVencimento: "2026-09-24", contaBancariaId: contaId })), { de: "2026-09-24", ate: "2026-09-24" });
+    const fluxo = calcularPlanilhaFluxoCaixa(0, paraDre.map((l, i) => ({ ...l, id: String(i), tipo: "RECEITA" as const, dataVencimento: "2026-09-24", contaBancariaId: contaId })), { de: "2026-09-24", ate: "2026-09-24" }, undefined, [], "2026-09-01");
     expect(fluxo.totalReceitasPorDia["2026-09-24"]).toBe(150);
   });
 
