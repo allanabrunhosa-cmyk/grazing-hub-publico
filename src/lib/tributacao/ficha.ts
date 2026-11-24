@@ -1,17 +1,23 @@
 import type { ClassificacaoFiscal, ContextoFiscal, PerfilFiscal, RegraFiscal, VersaoFiscalDto } from "./tipos";
 
-/** Usado tanto pela ficha visível quanto pelo motor. Não resolve empates. */
+/** Usado tanto pela ficha visível quanto pelo motor. Não resolve empates.
+ * A configuração do produto vale para qualquer destinatário: sem regra própria
+ * para o destinatário da operação, aplica-se a regra cadastrada para o outro.
+ * Havendo regra própria, somente ela concorre. Contribuinte, CPF/CNPJ e IE são
+ * dados do documento, resolvidos fora daqui. */
 export function regrasDaOperacao(versoes: VersaoFiscalDto[], c: ClassificacaoFiscal, produtoId: string, contexto: ContextoFiscal, perfil: PerfilFiscal) {
   const peso = (v: VersaoFiscalDto) => {
     const r = v.dados as RegraFiscal;
     return (r.produtoId ? 8 : 0) + (r.ncm ? 4 : 0) + (r.grupoFiscalId ? 3.5 : r.grupo ? 2 : 0) + (r.natureza ? 1 : 0) + (r.modelo ? 0.25 : 0);
   };
-  const candidatas = versoes.filter(v => {
+  const aplicaveis = versoes.filter(v => {
     if (v.tipo !== "REGRA") return false;
     const r = v.dados as RegraFiscal;
-    return r.habilitada !== false && r.estabelecimento === contexto.estabelecimento && r.regime === perfil.regime && r.operacao === contexto.operacao && r.ufDestino === contexto.ufDestino && r.destinatario === contexto.destinatario
+    return r.habilitada !== false && r.estabelecimento === contexto.estabelecimento && r.regime === perfil.regime && r.operacao === contexto.operacao && r.ufDestino === contexto.ufDestino
       && (!r.produtoId || r.produtoId === produtoId) && (!r.ncm || r.ncm === c.ncm) && (!r.grupo || r.grupo === c.grupo) && (!r.grupoFiscalId || r.grupoFiscalId === c.grupoFiscalId) && (!r.natureza || r.natureza === c.natureza) && (!r.modelo || r.modelo === contexto.modelo);
-  }).sort((a, b) => peso(b) - peso(a));
+  });
+  const proprias = aplicaveis.filter(v => (v.dados as RegraFiscal).destinatario === contexto.destinatario);
+  const candidatas = (proprias.length ? proprias : aplicaveis).sort((a, b) => peso(b) - peso(a));
   const conflito = !!candidatas[1] && peso(candidatas[0]) === peso(candidatas[1]);
   return { candidatas, conflito, efetiva: conflito ? undefined : candidatas[0] };
 }
