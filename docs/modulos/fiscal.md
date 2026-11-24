@@ -1,5 +1,21 @@
 # Fiscal
 
+## Regra do produto vale para qualquer destinatário — 24/11/2026
+
+A configuração fiscal do produto (NCM, CFOP, CSOSN/CST, PIS/COFINS) não depende do
+cliente. `regrasDaOperacao` (`src/lib/tributacao/ficha.ts`), usada pelo motor e pela ficha,
+procura primeiro regras do destinatário da operação (`CONSUMIDOR_FINAL` ou `CONTRIBUINTE`);
+não havendo nenhuma, aplica as regras cadastradas para o outro destinatário. Havendo regra
+própria, somente ela concorre, mesmo que menos específica. UF de destino, regime, modelo e
+demais critérios continuam exatos: venda para outra UF segue exigindo regra própria.
+
+O que muda por cliente é dado do documento, resolvido em `brasil-nfe-destinatario.ts` a
+partir da fotografia do comprador: CPF/CNPJ, razão social, endereço, IE e indicador de IE.
+Antes, pedido de empresa com IE (contribuinte) ficava com "regra tributária vigente
+ausente", porque todas as regras estavam em consumidor final. Na ficha, a operação
+"NF-e · contribuinte ICMS" passa a mostrar e editar a mesma regra enquanto não existir
+uma específica. Teste: `testes/tributacao/motor.test.ts`.
+
 ## Revisão de NCM por alteração de composição — 23/11/2026
 
 O NCM do produto final só muda por decisão do administrador. Alteração de composição

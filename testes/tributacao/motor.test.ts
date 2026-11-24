@@ -277,6 +277,22 @@ describe("motor tributário com catálogo e regras exclusivamente sintéticos", 
     const especifica = [...base(), v("REGRA", "regra-especifica", regra({ produtoId: "produto", segregacaoReceita: "PREPARADO_ESPECIFICO" }))];
     expect(calcularTributacao(contexto, [item()], especifica).linhas[0].segregacaoReceita).toBe("PREPARADO_ESPECIFICO");
   });
+  it("a configuração do produto vale para contribuinte e consumidor final, nos dois modelos; regra própria do destinatário prevalece", () => {
+    const contribuinte: ContextoFiscal = { ...contexto, destinatario: "CONTRIBUINTE", consumidorFinal: true };
+    for (const c of [contexto, { ...contexto, modelo: "65" as const }, contribuinte]) {
+      const r = calcularTributacao(c, [item()], base());
+      expect(r.apto).toBe(true); expect(r.pendencias).toEqual([]);
+      expect(r.linhas[0]).toMatchObject({ cfop: "5101", csosn: "102", valor: "100.00" });
+      expect(r.linhas[0].versoes).toContain("REGRA-regra-preparado-v1");
+    }
+    // Uma regra genérica do contribuinte vence a exceção de produto cadastrada para o outro destinatário.
+    const propria = [...base(), v("REGRA", "produto-consumo", regra({ produtoId: "produto" })), v("REGRA", "regra-contribuinte", regra({ destinatario: "CONTRIBUINTE", segregacaoReceita: "CONTRIBUINTE_SINTETICO" }))];
+    expect(calcularTributacao(contribuinte, [item()], propria).linhas[0].versoes).toContain("REGRA-regra-contribuinte-v1");
+    expect(calcularTributacao(contexto, [item()], propria).linhas[0].versoes).toContain("REGRA-produto-consumo-v1");
+    // Sem regra em nenhum destinatário, a pendência continua; outra UF não é reaproveitada.
+    expect(calcularTributacao(contribuinte, [item()], base().filter(x => x.tipo !== "REGRA")).pendencias.join(" ")).toContain("regra tributária vigente ausente");
+    expect(calcularTributacao({ ...contribuinte, ufDestino: "RJ" }, [item()], base()).pendencias.join(" ")).toContain("regra tributária vigente ausente");
+  });
   it("tabela ausente ou incompatível bloqueia SKU; opção de configuração não ganha NCM artificial", () => {
     const semTabela = base().filter(x => x.chave !== "NCM"); expect(calcularTributacao(contexto, [item()], semTabela).apto).toBe(false);
     const incompat = base().map(x => x.chave === "CFOP" ? tabela("CFOP", ["5101"], { modelos: ["65"] }) : x); expect(calcularTributacao(contexto, [item()], incompat).apto).toBe(false);
