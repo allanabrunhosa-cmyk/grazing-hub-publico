@@ -37,6 +37,22 @@ conservam a regra anterior; não há backfill ou regravação de recebimentos.
 O modo EXTERNO conserva seu controle financeiro externo.
 [Contrato, limites e evidências](../features/pedidos/CADASTRO-COMPRA-20261020.md).
 
+## Fluxo de caixa: realizado, provisão e pagamento não realizado — 24/11/2026
+
+O saldo do Fluxo de Caixa conta somente o realizado (baixado, na data do pagamento).
+Pendente com vencimento hoje ou futuro é **provisão**: entra em células, totais e no
+saldo a partir do vencimento e leva `*` na movimentação e em todo saldo que a inclui
+(`temProvisao`, `saldoComProvisao`, `saldoFinalComProvisao`). Depois que a data passa
+sem baixa, o pendente vira **pagamento não realizado**: continua visível (riscado na
+célula e no detalhe, em `naoRealizado`), mas sai de totais, resultado e saldo, inclusive
+da base anterior ao período. A regra vale para receitas e despesas e está em
+`situacaoNoFluxoCaixa` (`src/lib/financeiro/fluxoCaixa.ts`); "hoje" é o dia de Brasília
+e pode ser informado a `calcularPlanilhaFluxoCaixa`/`montarExportacaoFluxo`. Tela,
+visão mensal, PDF/XLSX e a consulta MCP `financeiro_fluxo_caixa` usam o mesmo cálculo.
+DRE, extrato e Movimentações não mudam. Testes com datas fixas declaram o dia com
+`testes/financeiro/relogio-fluxo.ts`. Regressão: `testes/financeiro/fluxo-caixa-provisoes.test.ts`,
+`fluxo-caixa-mensal-interface.test.tsx` e `exportacao-relatorios.test.ts`.
+
 ## Fluxo de caixa mensal
 
 `/financeiro/fluxo-de-caixa` oferece as visualizações Diário e Mensal. A diária
@@ -151,7 +167,7 @@ base de um bloco que contém mensagens de apoio.
 de lançamentos do Fluxo. `exportacao-pdf.ts` mostra todos os níveis, separa os dias
 em blocos de até seis colunas e inclui os lançamentos em páginas próprias. Os
 totais são os calculados na tela; não somar subtotais dos diferentes níveis. `*`
-identifica células com projeções. As bibliotecas são carregadas somente ao exportar.
+identifica células e saldos com provisão. As bibliotecas são carregadas somente ao exportar.
 
 Regressão: `testes/financeiro/exportacao-relatorios.test.ts` (inclusive leitura dos
 arquivos reais) e `exportacao-interface.test.tsx`; prévia sintética em

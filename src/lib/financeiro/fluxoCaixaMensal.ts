@@ -37,13 +37,14 @@ export function consolidarPlanilhaFluxoCaixaPorMes(planilha: PlanilhaFluxoCaixa)
     for (const [dia, celula] of Object.entries(porDia)) {
       const fechamento = fechamentoPorDia.get(dia);
       if (!fechamento) continue;
-      const atual = porMes[fechamento] ?? { valor: 0, lancamentoIds: [], temPendente: false };
+      const atual = porMes[fechamento] ?? { valor: 0, lancamentoIds: [], temProvisao: false, naoRealizado: 0 };
       atual.valor += Math.round(celula.valor * 100);
+      atual.naoRealizado += Math.round(celula.naoRealizado * 100);
       atual.lancamentoIds.push(...celula.lancamentoIds);
-      atual.temPendente ||= celula.temPendente;
+      atual.temProvisao ||= celula.temProvisao;
       porMes[fechamento] = atual;
     }
-    for (const celula of Object.values(porMes)) celula.valor /= 100;
+    for (const celula of Object.values(porMes)) { celula.valor /= 100; celula.naoRealizado /= 100; }
     return porMes;
   }
 
@@ -62,10 +63,11 @@ export function consolidarPlanilhaFluxoCaixaPorMes(planilha: PlanilhaFluxoCaixa)
     ]));
   }
 
-  const saldoPorDia = Object.fromEntries(Array.from(diasPorMes, ([fechamento, dias]) => {
-    const ultimoDia = dias.reduce((ultimo, dia) => dia > ultimo ? dia : ultimo);
-    return [fechamento, planilha.saldoPorDia[ultimoDia]];
-  }));
+  const ultimoDiaDoMes = (dias: string[]) => dias.reduce((ultimo, dia) => dia > ultimo ? dia : ultimo);
+  const saldoPorDia = Object.fromEntries(Array.from(diasPorMes, ([fechamento, dias]) =>
+    [fechamento, planilha.saldoPorDia[ultimoDiaDoMes(dias)]]));
+  const saldoComProvisao = Object.fromEntries(Array.from(diasPorMes, ([fechamento, dias]) =>
+    [fechamento, planilha.saldoComProvisao[ultimoDiaDoMes(dias)] ?? false]));
 
   return {
     ...planilha,
@@ -75,5 +77,6 @@ export function consolidarPlanilhaFluxoCaixaPorMes(planilha: PlanilhaFluxoCaixa)
     totalReceitasPorDia: consolidarTotais(planilha.totalReceitasPorDia),
     totalDespesasPorDia: consolidarTotais(planilha.totalDespesasPorDia),
     saldoPorDia,
+    saldoComProvisao,
   };
 }

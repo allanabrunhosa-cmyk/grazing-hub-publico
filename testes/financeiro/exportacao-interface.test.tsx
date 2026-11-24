@@ -5,6 +5,8 @@ import userEvent from "@testing-library/user-event";
 import { DreView } from "@/app/(protegido)/financeiro/dre-view";
 import { FluxoCaixaView } from "@/app/(protegido)/financeiro/fluxo-de-caixa/fluxo-caixa-view";
 import { lancamentoTeste } from "./dados-movimentacoes";
+import { fixarHojeDoFluxo } from "./relogio-fluxo";
+fixarHojeDoFluxo("2026-09-01");
 const exportar = vi.hoisted(() => ({ pdf: vi.fn(), xlsx: vi.fn() }));
 vi.mock("@/lib/financeiro/exportacao-pdf", () => ({ baixarPdfFinanceiro: exportar.pdf }));
 vi.mock("@/lib/financeiro/exportacao-xlsx", () => ({ baixarXlsxFinanceiro: exportar.xlsx }));

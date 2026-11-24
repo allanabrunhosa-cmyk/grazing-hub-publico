@@ -2,7 +2,7 @@ import * as XLSX from "xlsx";
 import { dataRelatorio, type RelatorioFinanceiro } from "./exportacao-relatorios";
 
 const MOEDA = '#,##0.00;[Red]-#,##0.00';
-export const NOTA_EXPORTACAO = "Valores em R$. * Inclui pendências (projeção). Grupos e categorias contêm subtotais: não some novamente os níveis.";
+export const NOTA_EXPORTACAO = "Valores em R$. * Inclui provisão (pendente a vencer). Pendente vencido é pagamento não realizado e não entra em totais nem no saldo. Grupos e categorias contêm subtotais: não some novamente os níveis.";
 
 export function criarXlsxFinanceiro(relatorio: RelatorioFinanceiro) {
   if (relatorio.colunas.length > 16383) throw new Error("O período excede o limite de colunas do Excel. Reduza o intervalo.");

@@ -3,6 +3,8 @@ import { calcularPlanilhaFluxoCaixa, montarArvoreFluxoCaixa } from "@/lib/financ
 import { completarMesesFluxoCaixa, consolidarPlanilhaFluxoCaixaPorMes } from "@/lib/financeiro/fluxoCaixaMensal";
 import { projetarCaixaFatura } from "@/lib/financeiro/faturas/projecoes";
 import { lancamentoTeste } from "./dados-movimentacoes";
+import { fixarHojeDoFluxo } from "./relogio-fluxo";
+fixarHojeDoFluxo("2026-09-01");
 
 describe("limites do fluxo mensal", () => {
   it.each([
@@ -64,16 +66,16 @@ describe("consolidação do fluxo de caixa por mês", () => {
   it("preserva IDs, projeções e hierarquia sem duplicar totais dos ramos", () => {
     const mensal = consolidarPlanilhaFluxoCaixaPorMes(calcularOrigem());
     expect(mensal.receitas[0].porDia["2026-09-30"]).toEqual({
-      valor: 0.3, lancamentoIds: ["receita-centavos-1", "receita-centavos-2"], temPendente: true,
+      valor: 0.3, lancamentoIds: ["receita-centavos-1", "receita-centavos-2"], temProvisao: true, naoRealizado: 0,
     });
-    expect(mensal.receitas[0].porDia["2026-10-31"].temPendente).toBe(false);
+    expect(mensal.receitas[0].porDia["2026-10-31"].temProvisao).toBe(false);
     const grupo = mensal.despesas[0];
     expect(grupo.categorias.find(categoria => categoria.categoriaId === "vazio")).toMatchObject({ total: 0, porDia: {} });
     expect(grupo.categorias.find(categoria => categoria.categoriaId === "filho")?.paiId).toBe("pai");
     expect(grupo.categorias.find(categoria => categoria.categoriaId === "pai")?.total).toBe(10);
     const pai = montarArvoreFluxoCaixa(grupo.categorias).find(categoria => categoria.categoriaId === "pai")!;
     expect(pai.total).toBe(35);
-    expect(pai.porDia["2026-09-30"]).toEqual({ valor: 35, lancamentoIds: ["direto", "descendente"], temPendente: true });
+    expect(pai.porDia["2026-09-30"]).toEqual({ valor: 35, lancamentoIds: ["direto", "descendente"], temProvisao: true, naoRealizado: 0 });
     expect(mensal.totalDespesasGeral).toBe(35);
   });
 

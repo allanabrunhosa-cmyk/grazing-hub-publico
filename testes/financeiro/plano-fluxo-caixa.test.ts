@@ -1,6 +1,8 @@
 import { expect, it } from "vitest";
 import { calcularPlanilhaFluxoCaixa, montarArvoreFluxoCaixa } from "@/lib/financeiro/fluxoCaixa";
 import { lancamentoTeste } from "./dados-movimentacoes";
+import { fixarHojeDoFluxo } from "./relogio-fluxo";
+fixarHojeDoFluxo("2026-09-01");
 const periodo = { de: "2026-09-01", ate: "2026-09-30" };
 const plano = [
   { id: "sem-receita", nome: "Receitas financeiras", grupo: "RECEITAS_NAO_OPERACIONAIS" as const },

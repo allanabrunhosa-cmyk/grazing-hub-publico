@@ -8,6 +8,8 @@ vi.mock("server-only",()=>({}));
 const banco=vi.hoisted(()=>({faturas:vi.fn()}));
 vi.mock("@/lib/prisma",()=>({prisma:{faturaCartao:{findMany:banco.faturas}}}));
 import { projetarRelatorioFaturas } from "@/lib/financeiro/faturas/relatorios";
+import { fixarHojeDoFluxo } from "../relogio-fluxo";
+fixarHojeDoFluxo("2026-09-01");
 const data=new Date("2026-09-20T12:00:00Z");
 const linha=lancamentoTeste({id:"despesa",valor:300,dataVencimento:data.toISOString()});
 const pagamento={id:"p",data,valor:100,movimentoId:"movimento",contaIdOriginal:"banco",revertidoEm:null};

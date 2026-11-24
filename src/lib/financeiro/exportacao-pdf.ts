@@ -17,8 +17,8 @@ export function criarPdfFinanceiro(relatorio: RelatorioFinanceiro) {
     pdf.text(relatorio.filtros, 12, 22);
     pdf.text(secao, 12, 28);
     pdf.setFontSize(8).setTextColor(80);
-    pdf.text("Valores em R$. * Inclui pendências (projeção). Todos os níveis estão abertos.", 12, 34);
-    pdf.text("Grupos e categorias contêm subtotais: não some novamente os níveis.", 12, 39);
+    pdf.text(fluxo ? "Valores em R$. * Inclui provisão (pendente a vencer). Pendente vencido é pagamento não realizado e não entra em totais nem no saldo." : "Valores em R$. Todos os níveis estão abertos.", 12, 34);
+    pdf.text(`${fluxo ? "Todos os níveis estão abertos. " : ""}Grupos e categorias contêm subtotais: não some novamente os níveis.`, 12, 39);
   }
   // Divide os períodos em blocos legíveis. Apenas o diário repete o total do período.
   const blocos: number[][] = [];

@@ -4,6 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import userEvent from "@testing-library/user-event";
 import { FluxoCaixaView } from "@/app/(protegido)/financeiro/fluxo-de-caixa/fluxo-caixa-view";
 import { lancamentoTeste } from "./dados-movimentacoes";
+import { fixarHojeDoFluxo } from "./relogio-fluxo";
+fixarHojeDoFluxo("2026-09-01");
 
 vi.mock("@/app/(protegido)/financeiro/contas/actions", () => ({ estornarBaixaLancamentoAction: vi.fn() }));
 vi.mock("@/app/(protegido)/financeiro/lancamentos/actions", () => ({ obterResumoExclusaoLancamentoAction: vi.fn(), excluirLancamentoAction: vi.fn() }));
@@ -32,7 +34,7 @@ it("consolida meses inteiros, mantém detalhes na origem e permite voltar ao di�
   expect((screen.getByLabelText("até") as HTMLInputElement).value).toBe("2026-10-31");
   expect(screen.getAllByRole("columnheader").map(c => c.textContent)).toEqual(["Categoria", "set. de 2026", "out. de 2026"]);
   const saldo = screen.getByText("Saldo do Mês").closest("tr")!;
-  expect(within(saldo).getAllByRole("cell").slice(1).map(c => c.textContent)).toEqual(["R$ 700,00", "R$ 650,00"]);
+  expect(within(saldo).getAllByRole("cell").slice(1).map(c => c.textContent)).toEqual(["R$ 700,00 *", "R$ 650,00 *"]);
   const resultado = screen.getByText("Resultado do Mês").closest("tr")!;
   expect(within(resultado).getAllByRole("cell").slice(1).map(c => c.textContent)).toEqual(["-R$ 300,00", "-R$ 50,00"]);
   await usuario.click(screen.getByRole("button", { name: /Expandir Despesas Operacionais/ }));
@@ -87,7 +89,7 @@ it("mostra o resultado diário com sinal e cor sem incluir a base do saldo", () 
   expect(valores.every(c => c.className.includes("text-xs"))).toBe(true);
   const saldo = screen.getByText("Saldo do Dia").closest("tr")!;
   expect(saldo.nextElementSibling).toBe(linha);
-  expect(within(saldo).getAllByRole("cell").at(-1)?.textContent).toBe("R$ 9.050,00");
+  expect(within(saldo).getAllByRole("cell").at(-1)?.textContent).toBe("R$ 9.050,00 *");
   expect(screen.getAllByRole("columnheader").at(-1)?.textContent).toBe("Total");
 });
 
@@ -115,4 +117,35 @@ it("retira Total de todos os níveis mensais e preserva expansão até o neto", 
   }
   const resultado = screen.getByText("Resultado do Mês").closest("tr")!;
   expect(within(resultado).getAllByRole("cell")[1].textContent).toBe("-R$ 77,00");
+});
+
+it("conta só o realizado no saldo, marca provisão com asterisco e risca o pagamento não realizado", async () => {
+  const usuario = userEvent.setup();
+  vi.setSystemTime(new Date("2026-09-10T15:00:00Z"));
+  try {
+    render(<FluxoCaixaView saldoInicialTotal={1000} categorias={[]} fornecedores={[]} formasPagamento={[]} contasBancarias={[]}
+      lancamentos={[
+        lancamentoTeste({ id: "pago", descricao: "Conta paga", valor: 100, status: "BAIXADO", dataPagamento: "2026-09-08", dataVencimento: "2026-09-08" }),
+        lancamentoTeste({ id: "vencido", descricao: "Conta vencida", valor: 40, dataVencimento: "2026-09-09" }),
+        lancamentoTeste({ id: "provisao", descricao: "Conta a vencer", valor: 25, dataVencimento: "2026-09-11" }),
+      ]} />);
+    definirData("De", "2026-09-08"); definirData("até", "2026-09-11");
+    const saldo = screen.getByText("Saldo do Dia").closest("tr")!;
+    expect(within(saldo).getAllByRole("cell").slice(1).map(c => c.textContent))
+      .toEqual(["R$ 900,00", "R$ 900,00", "R$ 900,00", "R$ 875,00 *", "R$ 875,00 *"]);
+    const total = screen.getByText("Total de Despesas").closest("tr")!;
+    expect(within(total).getAllByRole("cell").slice(1).map(c => c.textContent))
+      .toEqual(["-R$ 100,00", "-R$ 0,00", "-R$ 0,00", "-R$ 25,00", "-R$ 125,00"]);
+    const grupo = screen.getByRole("button", { name: /Expandir Despesas Operacionais/ }).closest("tr")!;
+    const celulas = within(grupo).getAllByRole("cell").slice(1);
+    expect(celulas.map(c => c.textContent)).toEqual(["-R$ 100,00", "Pagamento não realizado: -R$ 40,00", "—", "-R$ 25,00 *", "-R$ 125,00 *"]);
+    expect(celulas[1].querySelector(".line-through")).toBeTruthy();
+    await usuario.click(celulas[1]);
+    expect(within(screen.getByRole("dialog")).getByText("Pagamento não realizado")).toBeTruthy();
+    await usuario.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await usuario.click(celulas[3]);
+    expect(within(screen.getByRole("dialog")).getByText("Provisão *")).toBeTruthy();
+    expect(within(screen.getByRole("dialog")).getByText(/25,00 \*$/)).toBeTruthy();
+  } finally { vi.setSystemTime(new Date("2026-09-01T15:00:00Z")); }
 });
