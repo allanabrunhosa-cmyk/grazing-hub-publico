@@ -15,12 +15,14 @@ export function materiaisCorrespondem(analisados: MateriaisFiscaisFotografados |
 /** Aviso não impeditivo: a composição mudou depois da análise. O NCM vigente é mantido e
  * só muda por nova versão da classificação, ato explícito do responsável fiscal. */
 export const REVISAO_NCM_PENDENTE = "composição alterada desde a análise fiscal; NCM atual mantido até a revisão do responsável.";
+/** Aviso não impeditivo: sabor ou opção que a análise não conhecia. Vale o NCM do produto. */
+export const OPCAO_NCM_PENDENTE = "sabor ou opção ainda sem decisão de NCM; aplicado o NCM do produto até a revisão do responsável.";
 
 /** Seleção exata por identidade comercial fotografada; não há prioridade, regex ou código padrão implícito. */
 export function resolverNcmConfiguracao(c: ClassificacaoFiscal, escolhas: ItemComercialFiscal["escolhas"], versaoId: string, receitaFotografada?: ItemComercialFiscal["receitaFotografada"], tecnicaAtual?: FotografiaReceitaFiscal) {
   const cfg = c.configuracaoNcm;
   const pendencias: string[] = [], justificativas: string[] = [], revisoes: string[] = [];
-  const revisar = () => { if (!revisoes.length) revisoes.push(REVISAO_NCM_PENDENTE); };
+  const revisar = (motivo = REVISAO_NCM_PENDENTE) => { if (!revisoes.includes(motivo)) revisoes.push(motivo); };
   let cenarioNcm: CenarioNcmCalculado | undefined;
   const bloquear = (motivo: string) => ({ classificacao: { ...c, ncm: null }, cenarioNcm, pendencias: [motivo], justificativas, revisoes: [] as string[] });
   if (c.receitaFiscalDocumentada && (!receitaFotografada?.documentacaoHash || !tecnicaAtual?.documentacaoHash)) return bloquear("Receita fiscal documentada exige fotografia própria no pedido e comprovação atual; não reconstruir a venda histórica pela CMV vigente.");
@@ -29,7 +31,9 @@ export function resolverNcmConfiguracao(c: ClassificacaoFiscal, escolhas: ItemCo
     // Prova ausente continua impeditiva; prova presente e diferente vira revisão pendente.
     if (c.fotografiaTecnica && receitaFotografada?.materiais && tecnicaAtual?.materiais && (c.fotografiaTecnica.principalHash !== receitaFotografada.principalHash || c.fotografiaTecnica.principalHash !== tecnicaAtual.principalHash || !materiaisCorrespondem(c.fotografiaTecnica.materiais, receitaFotografada.materiais.principal) || !materiaisCorrespondem(c.fotografiaTecnica.materiais, tecnicaAtual.materiais.principal))) revisar();
     else if (c.fotografiaTecnica && (!receitaFotografada?.materiais || !tecnicaAtual?.materiais)) return bloquear("Receita material/transitiva ou identificação física não corresponde à análise e ao snapshot do pedido; revisar somente esta mercadoria, sem reescrever documentos anteriores.");
-    if (c.analiseNcm && c.ncmAplicabilidade === "APLICAVEL" && escolhas.some(e => receitaFotografada?.opcaoHashes.find(h => h.opcaoId === e.opcaoId)?.hash !== hashOpcaoTecnica(e.produtoId, []))) return bloquear("Ingrediente incluído ou adicional integrado altera a composição sem cenário NCM fundamentado; analisar esta combinação antes de emitir.");
+    // Sabor ou adicional integrado não troca o NCM por conta própria: o NCM do produto vale
+    // para qualquer escolha e a decisão de alterá-lo fica com o responsável (revisão pendente).
+    if (c.analiseNcm && c.ncmAplicabilidade === "APLICAVEL" && escolhas.some(e => receitaFotografada?.opcaoHashes.find(h => h.opcaoId === e.opcaoId)?.hash !== hashOpcaoTecnica(e.produtoId, []))) { if (!c.ncm) return bloquear("Ingrediente incluído ou adicional integrado sem NCM do produto para manter; informar o NCM antes de emitir."); revisar(OPCAO_NCM_PENDENTE); }
     return { classificacao: c, cenarioNcm, pendencias, justificativas, revisoes };
   }
   const tecnica = cfg.fotografiaTecnica;
@@ -43,10 +47,13 @@ export function resolverNcmConfiguracao(c: ClassificacaoFiscal, escolhas: ItemCo
   const ids = selecionadas.map(e => e.opcaoId).sort();
   if (new Set(ids).size !== ids.length) return bloquear("Escolhas discriminantes repetidas; configuração fiscal ambígua.");
   const equivalentes = cfg.gruposEquivalentes ?? [];
-  const idsEquivalentes: string[] = [];
+  const idsEquivalentes: string[] = [], idsNovos: string[] = [];
   for (const g of equivalentes) {
     const es = escolhas.filter(e => e.grupoId === g.grupoId);
-    if (es.some(e => !g.opcaoIds.includes(e.opcaoId)) || g.analiseNcm.confianca === "BAIXA" || g.analiseNcm.pendenciasNcm.length || !g.analiseNcm.fontes.length || !g.analiseNcm.descricaoNcm) return bloquear("Escolha sem equivalência NCM comprovada para este grupo.");
+    // Opção nova no grupo (sabor criado depois da análise) herda o NCM do grupo e pede revisão.
+    const novas = es.filter(e => !g.opcaoIds.includes(e.opcaoId)).map(e => e.opcaoId);
+    if (novas.length) { revisar(OPCAO_NCM_PENDENTE); idsNovos.push(...novas); }
+    if (g.analiseNcm.confianca === "BAIXA" || g.analiseNcm.pendenciasNcm.length || !g.analiseNcm.fontes.length || !g.analiseNcm.descricaoNcm) return bloquear("Escolha sem equivalência NCM comprovada para este grupo.");
     let total = new Prisma.Decimal(0);
     for (const e of es) {
       if (!e.quantidadeEscolhida || !/^\d{1,12}(\.\d{1,6})?$/.test(e.quantidadeEscolhida) || new Prisma.Decimal(e.quantidadeEscolhida).lte(0)) return bloquear("Quantidade escolhida ausente ou inválida para conferir limites da equivalência NCM.");
@@ -60,6 +67,7 @@ export function resolverNcmConfiguracao(c: ClassificacaoFiscal, escolhas: ItemCo
     justificativas.push(`Equivalência NCM documentada do grupo ${g.grupoId}; quantidade ${total.toString()} ${foraDosLimites ? "fora" : "dentro"} de ${g.quantidadeMinima}–${g.quantidadeMaxima}${foraDosLimites ? ", NCM mantido com revisão pendente" : ""}.`, g.analiseNcm.justificativa, ...g.analiseNcm.fontes.map(f => `Fonte da equivalência NCM: ${f}`));
   }
   for (const id of [...ids, ...idsEquivalentes]) {
+    if (idsNovos.includes(id)) continue; // sem análise própria: já sinalizada como revisão
     const hash = tecnica.opcaoHashes.find(h => h.opcaoId === id)?.hash;
     const hashPedido = receitaFotografada.opcaoHashes.find(h => h.opcaoId === id)?.hash, hashAtual = tecnicaAtual.opcaoHashes.find(h => h.opcaoId === id)?.hash;
     if (!hash || !hashPedido || !hashAtual) return bloquear(`Composição da opção ${id} não comprovada na análise, no pedido ou no cadastro atual; salvar nova classificação para este ramo.`);
@@ -73,7 +81,7 @@ export function resolverNcmConfiguracao(c: ClassificacaoFiscal, escolhas: ItemCo
   }
   for (const e of escolhas.filter(e => !cfg.grupoIds.includes(e.grupoId!) && !equivalentes.some(g => g.grupoId === e.grupoId))) {
     const foto = receitaFotografada.opcaoHashes.find(h => h.opcaoId === e.opcaoId);
-    if (!foto || foto.hash !== hashOpcaoTecnica(e.produtoId, [])) return bloquear("Ingrediente adicional fora dos cenários de composição analisados; classificar esta combinação antes de emitir.");
+    if (!foto || foto.hash !== hashOpcaoTecnica(e.produtoId, [])) revisar(OPCAO_NCM_PENDENTE);
   }
   if (!ids.length) {
     if (!cfg.padraoSemEscolhasAutorizado || !c.ncm || !c.analiseNcm || c.analiseNcm.confianca === "BAIXA" || c.analiseNcm.pendenciasNcm.length) return bloquear("Ausência de escolha discriminante sem NCM padrão expressamente autorizado e fundamentado.");

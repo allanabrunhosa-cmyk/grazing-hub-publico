@@ -6,7 +6,7 @@ import type { SessaoAtual } from "@/lib/session";
 import { analisarImpactoFiscalNaTransacao, ativarVersaoFiscalNaTransacao, conferirAutorFiscal, consultarVersoesFiscais, dtoVersaoFiscal, salvarVersaoFiscalNaTransacao } from "./servico";
 import { fotografarClassificacaoNormal, fotografarReceitaFiscal, hashTecnico } from "./fotografia-tecnica";
 import { ampliarLimitesDocumentados, descreverLimites, diferencasMateriais, limitesForaDaAnalise, type DiferencasMateriais } from "./revisao-ncm-dominio";
-import { limitesEfetivosGrupo } from "./revisao-ncm-limites";
+import { limitesEfetivosGrupo, opcoesAtivasGrupo } from "./revisao-ncm-limites";
 import { ErroEstruturaFiscal, hojeFiscal, textoFiscal } from "./validacao";
 import { versoesVigentes } from "./vigencia";
 import type { ClassificacaoFiscal, MateriaisFiscaisFotografados } from "./tipos";
@@ -77,7 +77,16 @@ export async function listarRevisoesNcmPendentes(tx: Prisma.TransactionClient, f
           mudancas.push(`Grupo ${cardapio.nome}: o cardápio permite escolher ${descreverLimites(cardapio.limites)}; a análise fiscal cobre ${descreverLimites({ minimo: Number(g.quantidadeMinima), maximo: Number(g.quantidadeMaxima) })}`);
           limites.push({ grupoId: g.grupoId, ...cardapio.limites });
         }
-        estado = { principal: atual.principalHash, materiais: r.d.assinatura, ramos, ...(limites.length ? { limites } : {}) };
+        // Sabor criado no cardápio depois da análise: herda o NCM do grupo até a decisão.
+        const novas: unknown[] = [];
+        for (const g of c.configuracaoNcm?.gruposEquivalentes ?? []) {
+          const fora = (await opcoesAtivasGrupo(tx, c.produtoId, g.grupoId)).filter(o => !g.opcaoIds.includes(o.id));
+          if (!fora.length) continue;
+          const cardapio = await limitesEfetivosGrupo(tx, c.produtoId, g.grupoId);
+          mudancas.push(`Grupo ${cardapio?.nome ?? "de opções"}: ${fora.length === 1 ? "opção nova" : "opções novas"} sem decisão de NCM (${fora.map(o => o.nome).join(", ")}); vale o NCM do produto`);
+          novas.push({ grupoId: g.grupoId, opcaoIds: fora.map(o => o.id).sort() });
+        }
+        estado = { principal: atual.principalHash, materiais: r.d.assinatura, ramos, ...(limites.length ? { limites } : {}), ...(novas.length ? { novas } : {}) };
       }
     } catch (erro) {
       mudancas.push(`Composição atual não pôde ser conferida: ${erro instanceof ErroEstruturaFiscal ? erro.message : "falha ao ler o cadastro"}`);
@@ -132,6 +141,13 @@ export async function manterNcmRevisado(entrada: { versaoId: string; assinatura:
       const faixa = ampliarLimitesDocumentados(g, cardapio.limites);
       if (!faixa) throw new ErroEstruturaFiscal(`O grupo ${cardapio.nome} não tem máximo de escolhas no cardápio. Defina um máximo no cardápio ou ajuste a faixa na ficha fiscal do produto.`);
       Object.assign(g, faixa);
+    }
+    // E os sabores criados depois da análise: passam a constar como equivalentes do grupo.
+    for (const g of dados.configuracaoNcm?.gruposEquivalentes ?? []) {
+      const fora = (await opcoesAtivasGrupo(tx, base.chave, g.grupoId)).filter(o => !g.opcaoIds.includes(o.id));
+      if (!fora.length) continue;
+      if (dados.receitaFiscalDocumentada) throw new ErroEstruturaFiscal(`Este produto tem receita fiscal documentada por opção. Informe a porção de ${fora.map(o => o.nome).join(", ")} na ficha fiscal do produto; até lá a nota continua saindo com o NCM atual.`);
+      g.opcaoIds = [...g.opcaoIds, ...fora.map(o => o.id)].sort();
     }
     const nova = await salvarVersaoFiscalNaTransacao(tx, { tipo: "CLASSIFICACAO", chave: base.chave, dados, versaoBase: base.versao, vigenciaInicio: hojeFiscal(), justificativa, fontes: ["Revisão de NCM confirmada pelo responsável no painel fiscal.", `Classificação anterior ${base.id}`], chaveOperacao: `${chave}-manter-ncm` }, sessao);
     const impacto = await analisarImpactoFiscalNaTransacao(tx, nova.id, sessao);
