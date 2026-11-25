@@ -79,6 +79,18 @@ A versão combinada permite revisão auditável apenas dos pedidos afetados.
 O menu existente oferece Pedidos históricos em lista. A busca usa o número original
 e a criação. O detalhe identifica itens recuperados e só oferece consulta.
 
+## Extensão a outubro de 2026 — 25/11/2026
+
+O usuário pediu incluir outubro, último mês operado fora do HUB, com o mesmo contrato:
+pedidos `HISTORICO`, financeiro `EXTERNO`, sem títulos, estoque, fiscal ou mensagens.
+`FIM_PERIODO_HISTORICO` em `historico-dominio.ts` passou a `2026-11-01` (limite exclusivo)
+para criação e pagamento informado. Outubro segue a regra de setembro: consumo não reaplicado.
+
+O perfil de exportação do site hoje gera 60 colunas (nome e endereço de entrega em H/I).
+`scripts/historico/derivar_59_colunas.py` remove H e repete C em H, reproduzindo o layout
+contratado de 59 colunas, em que C e H eram a mesma coluna de cobrança. A exportação
+original de 60 colunas permanece preservada ao lado, com hash, na área privada.
+
 ## Ajuste cadastral posterior — 15/10/2026
 
 O usuário solicitou separar PF/PJ, comprovar CNPJ, conservar nomes pessoais e
