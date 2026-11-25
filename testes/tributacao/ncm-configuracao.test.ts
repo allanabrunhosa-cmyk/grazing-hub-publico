@@ -109,11 +109,11 @@ describe("Cenários NCM por configuração", () => {
     const es = [{ ...escolha(), quantidadeEscolhida: "2", quantidade: "2" }, { ...escolha("opcao-b"), quantidadeEscolhida: "1" }];
     const i = item(es); i.receitaFotografada = receitaDoSnapshot("UN", [{ ...ingrediente("opcao-a", "2")[0], origem: "opcao-a" }, { ...ingrediente("opcao-b")[0], origem: "opcao-b" }], es.map(e => ({ ...e, quantidade: e.quantidadeEscolhida })), true);
     const r = calcularTributacao(contexto, [i], versoes(c)); expect(r.apto).toBe(true); expect(r.totalMercadorias).toBe("10.00"); expect(r.linhas).toHaveLength(1); expect(r.linhas[0].ncm).toBe("08061000"); expect(r.linhas[0].cenarioNcm?.opcaoIds).toEqual(["opcao-a", "opcao-b"]);
-    es[0].quantidadeEscolhida = "3"; expect(calcularTributacao(contexto, [i], versoes(c)).pendencias.join()).toContain("fora dos limites");
+    es[0].quantidadeEscolhida = "3"; { const fora = calcularTributacao(contexto, [i], versoes(c)); expect(fora.pendencias).toEqual([]); expect(fora.apto).toBe(true); expect(fora.linhas[0].ncm).toBe("08061000"); expect(fora.revisoesNcm).toHaveLength(1); expect(fora.linhas[0].justificativas.join()).toContain("quantidade 4 fora de 1–3, NCM mantido com revisão pendente"); }
     es[0].quantidadeEscolhida = "2"; const atual = foto(); atual.opcaoHashes[1].hash = hashOpcaoTecnica(null, ingrediente("opcao-b", "2")); const alterada = calcularTributacao(contexto, [i], versoes(c), atual); expect(alterada.apto).toBe(true); expect(alterada.revisoesNcm).toEqual([{ produtoId: "principal", nome: "Família fictícia" }]); expect(alterada.linhas[0].ncm).toBe("08061000");
     expect(calcularTributacao(contexto, [item([{ ...escolha("opcao-nova"), quantidadeEscolhida: "1" }])], versoes(c)).pendencias.join()).toContain("sem equivalência");
-    expect(calcularTributacao(contexto, [item([])], versoes(c)).apto).toBe(false);
-    c.configuracaoNcm.gruposEquivalentes![0].quantidadeMinima = "0"; expect(calcularTributacao(contexto, [item([])], versoes(c)).apto).toBe(true);
+    { const semEscolha = calcularTributacao(contexto, [item([])], versoes(c)); expect(semEscolha.apto).toBe(true); expect(semEscolha.revisoesNcm).toHaveLength(1); }
+    c.configuracaoNcm.gruposEquivalentes![0].quantidadeMinima = "0"; { const coberto = calcularTributacao(contexto, [item([])], versoes(c)); expect(coberto.apto).toBe(true); expect(coberto.revisoesNcm).toBeUndefined(); }
   });
   it("equivalências recusam prova baixa, grupos em conflito e padrão implícito", () => {
     const c = classificacao(); c.ncm = "08061000"; c.analiseNcm = analise("Descrição A fictícia"); c.configuracaoNcm!.padraoSemEscolhasAutorizado = true;

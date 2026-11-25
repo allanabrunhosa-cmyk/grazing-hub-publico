@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { diferencasMateriais } from "@/lib/tributacao/revisao-ncm-dominio";
+import { ampliarLimitesDocumentados, descreverLimites, diferencasMateriais, limitesForaDaAnalise } from "@/lib/tributacao/revisao-ncm-dominio";
 import type { MateriaisFiscaisFotografados } from "@/lib/tributacao/tipos";
 
 vi.mock("server-only", () => ({}));
@@ -23,6 +23,25 @@ describe("Revisão de NCM: diferenças de composição", () => {
   it("fotografia ausente de um lado aparece como inclusão ou retirada integral", () => {
     expect(diferencasMateriais(undefined, materiais(["queijo", "a", false]))).toMatchObject({ diverge: true, incluidos: ["queijo"] });
     expect(diferencasMateriais(materiais(["queijo", "a", false]), undefined)).toMatchObject({ diverge: true, retirados: ["queijo"] });
+  });
+});
+
+describe("Revisão de NCM: limite de escolhas do cardápio", () => {
+  const analise = { quantidadeMinima: "1", quantidadeMaxima: "1" };
+  it("cardápio dentro da faixa analisada não pede revisão; fora dela pede", () => {
+    expect(limitesForaDaAnalise(analise, { minimo: 1, maximo: 1 })).toBe(false);
+    expect(limitesForaDaAnalise({ quantidadeMinima: "0", quantidadeMaxima: "3" }, { minimo: 1, maximo: 2 })).toBe(false);
+    expect(limitesForaDaAnalise(analise, { minimo: 2, maximo: 2 })).toBe(true);
+    expect(limitesForaDaAnalise(analise, { minimo: 0, maximo: 1 })).toBe(true);
+    expect(limitesForaDaAnalise(analise, { minimo: 1, maximo: null })).toBe(true);
+  });
+  it("manter o NCM amplia a faixa para cobrir a análise e o cardápio; sem máximo não há faixa a registrar", () => {
+    expect(ampliarLimitesDocumentados(analise, { minimo: 2, maximo: 2 })).toEqual({ quantidadeMinima: "1", quantidadeMaxima: "2" });
+    expect(ampliarLimitesDocumentados({ quantidadeMinima: "1", quantidadeMaxima: "4" }, { minimo: 0, maximo: 2 })).toEqual({ quantidadeMinima: "0", quantidadeMaxima: "4" });
+    expect(ampliarLimitesDocumentados(analise, { minimo: 1, maximo: null })).toBeNull();
+  });
+  it("descreve a faixa em linguagem do cardápio", () => {
+    expect(descreverLimites({ minimo: 2, maximo: 2 })).toBe("exatamente 2"); expect(descreverLimites({ minimo: 1, maximo: 3 })).toBe("de 1 a 3"); expect(descreverLimites({ minimo: 0, maximo: null })).toBe("a partir de 0, sem máximo");
   });
 });
 
