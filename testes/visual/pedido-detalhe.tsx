@@ -9,10 +9,11 @@ import "@/app/globals.css";
 // A identidade fica no body, como no RootLayout real, abaixo do tema no html.
 document.body.dataset.identidade = "pedidos";
 const parametros = new URLSearchParams(location.search);
-const documentos = ["autorizada", "sem-xml", "pendente", "incerta"].includes(parametros.get("fiscal") ?? "") ? [{
-  id: "documento-exclusivamente-sintetico", versaoPedido: 1, modeloDocumento: 65, status: parametros.get("fiscal") === "incerta" ? "PENDENTE_CONFERENCIA" : "AUTORIZADO",
+const documentos = ["autorizada", "sem-xml", "pendente", "incerta", "cancelada"].includes(parametros.get("fiscal") ?? "") ? [{
+  id: "documento-exclusivamente-sintetico", versaoPedido: 1, modeloDocumento: 65, status: parametros.get("fiscal") === "incerta" ? "PENDENTE_CONFERENCIA" : parametros.get("fiscal") === "cancelada" ? "CANCELADO" : "AUTORIZADO",
   ambiente: "PRODUCAO", provedor: "BRASIL_NFE", tentativas: 1, ultimoErro: parametros.get("fiscal") === "incerta" ? "Consulta não comprova um único resultado fiscal seguro; consulte a tentativa antes de reenviar." : parametros.get("fiscal") === "pendente" ? "SEFAZ retornou o código 155. Cancelamento não confirmado. Consulte o evento sem repetir a solicitação." : null,
   cancelamentoPendente: parametros.get("fiscal") === "pendente", cancelamentoSolicitado: parametros.get("fiscal") === "pendente",
+  ...(parametros.get("fiscal") === "cancelada" ? { protocoloCancelamento: "000000000000001", eventos: [{ id: "evento-sintetico", tipo: "CANCELAR", createdAt: "2026-11-24T20:28:47.000Z" }] } : {}),
   referenciaProvedor: null, chaveFiscal: "0".repeat(44), numero: "101", serie: "1",
   protocolo: parametros.get("fiscal") === "incerta" ? null : "000000000000000", formatoImpressao: ["incerta", "sem-xml"].includes(parametros.get("fiscal") ?? "") ? null : "PDF" as const, xmlDisponivel: !["incerta", "sem-xml"].includes(parametros.get("fiscal") ?? ""),
 }] : [];

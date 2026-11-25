@@ -40,18 +40,26 @@ const ambienteNome = (ambiente: string) => ambiente === "PRODUCAO" ? "Produção
 const incerto = (d: DocumentoPedido) => ["INCERTO", "PENDENTE_CONFERENCIA", "PROCESSANDO"].includes(d.status);
 
 function IdentificacaoDocumento({ documento: d }: { documento: DocumentoPedido }) {
-  return <div className="flex flex-wrap items-center gap-2"><Badge variant={d.status === "AUTORIZADO" ? "success" : incerto(d) ? "warning" : d.status === "REJEITADO" ? "destructive" : "outline"}>{nomesStatus[d.status] ?? "Conferência necessária"}</Badge><span className="text-xs text-muted-foreground">{d.modeloDocumento ? `${modeloNome(d.modeloDocumento)} · ` : ""}{ambienteNome(d.ambiente)}</span></div>;
+  return <div className="flex flex-wrap items-center gap-2"><Badge variant={d.status === "AUTORIZADO" ? "success" : incerto(d) ? "warning" : ["REJEITADO", "CANCELADO"].includes(d.status) ? "destructive" : "outline"}>{nomesStatus[d.status] ?? "Conferência necessária"}</Badge><span className="text-xs text-muted-foreground">{d.modeloDocumento ? `${modeloNome(d.modeloDocumento)} · ` : ""}{ambienteNome(d.ambiente)}</span></div>;
 }
 
 function DadosDocumento({ documento: d, editar, ocupado, consultar, arquivos, cancelar, mostrarIdentificacao = true }: { documento: DocumentoPedido; editar: boolean; ocupado: boolean; consultar: (id: string) => void; arquivos: (id: string) => void; cancelar?: (documento: DocumentoPedido) => void; mostrarIdentificacao?: boolean }) {
   const autorizado = ["AUTORIZADO", "CANCELADO"].includes(d.status);
+  // Momento do pedido de cancelamento registrado na auditoria; a prova fiscal é o protocolo.
+  const pedidoCancelamento = d.status === "CANCELADO" ? d.eventos?.find(e => e.tipo === "CANCELAR")?.createdAt : undefined;
+  const canceladaEm = pedidoCancelamento ? new Date(pedidoCancelamento).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : null;
   return <section aria-label="Resultado fiscal" className="space-y-3">
     {mostrarIdentificacao && <IdentificacaoDocumento documento={d} />}
     {d.status === "AUTORIZADO" && <p role="status" className="flex items-center gap-2 text-sm font-medium text-success"><CircleCheck aria-hidden className="size-4 shrink-0" />Nota fiscal emitida com sucesso{d.ambiente === "HOMOLOGACAO" ? " em homologação, sem valor fiscal." : "."}</p>}
-    {d.status === "CANCELADO" && <p role="status" className="text-sm">Cancelamento da nota fiscal confirmado.</p>}
+    {d.status === "CANCELADO" && <div role="status" className="pedido-detalhe-fiscal-alerta text-sm text-destructive break-words"><CircleX aria-hidden="true" className="size-4 shrink-0" /><div className="min-w-0 space-y-1">
+      <p className="font-semibold">Nota fiscal cancelada</p>
+      <p>Cancelamento da nota fiscal confirmado.</p>
+      {d.protocoloCancelamento && <p className="break-all">Protocolo de cancelamento: <span className="font-semibold">{d.protocoloCancelamento}</span></p>}
+      {canceladaEm && <p>Cancelamento solicitado em {canceladaEm}.</p>}
+    </div></div>}
     {d.status === "AUTORIZADO" && (d.avisoArquivos || !d.formatoImpressao || d.xmlDisponivel === false) && <p role="status" className="text-sm text-muted-foreground">{d.avisoArquivos ?? (d.xmlDisponivel === false ? "O XML da nota autorizada ainda não está disponível no HUB. Use Obter documentos para baixar os arquivos; não emita outra nota." : "A impressão da nota autorizada ainda não está disponível. Use Obter documentos para tentar novamente.")}</p>}
     {d.numero && <p className="text-sm break-words">Número {d.numero} · Série {d.serie ?? "Não informada"}</p>}
-    {d.protocolo && <p className="text-xs break-all">Protocolo: {d.protocolo}</p>}
+    {d.protocolo && <p className="text-xs break-all">{d.status === "CANCELADO" ? "Protocolo de autorização" : "Protocolo"}: {d.protocolo}</p>}
     {d.chaveFiscal && <p className="text-xs break-all">Chave: {d.chaveFiscal}</p>}
     {d.ultimoErro && <p role="alert" className="pedido-detalhe-fiscal-alerta text-sm text-destructive whitespace-pre-wrap break-words"><CircleAlert aria-hidden="true" className="size-4 shrink-0" /><span>{d.ultimoErro}</span></p>}
     {incerto(d) && <p className="text-xs text-muted-foreground">A tentativa anterior será consultada ao tentar novamente. Nenhuma nota será reenviada enquanto o resultado estiver incerto.</p>}

@@ -1,5 +1,14 @@
 # Fiscal
 
+## Destaque da nota cancelada no pedido — 24/11/2026
+
+No bloco Fiscal do pedido (`emitir-nota-pedido.tsx`), nota `CANCELADO` mostra selo vermelho
+e um quadro de destaque (`pedido-detalhe-fiscal-alerta`, mesmo padrão das pendências) com
+o protocolo de cancelamento e o momento do pedido de cancelamento (evento `CANCELAR` da
+auditoria). O protocolo da nota passa a ser rotulado "Protocolo de autorização". Sem
+protocolo ou evento registrado, o quadro mostra somente a confirmação. Prévia isolada:
+`testes/visual/pedido-detalhe.html?fiscal=cancelada`.
+
 ## Regra do produto vale para qualquer destinatário — 24/11/2026
 
 A configuração fiscal do produto (NCM, CFOP, CSOSN/CST, PIS/COFINS) não depende do
