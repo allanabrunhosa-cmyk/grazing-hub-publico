@@ -16,6 +16,11 @@ Contrato: [SPEC](SPEC.md).
   (Enter abre, Escape fecha e devolve o foco). Capturas consultivas, não são referência aprovada.
   O aviso no pedido foi validado só por teste de componente, sem captura.
 - [x] Documentação — este diretório e [Fiscal](../../modulos/fiscal.md).
-- [ ] Deploy e smoke — registrar aqui após a publicação.
+- [x] Deploy e smoke — 23/11/2026, PR 46: backup verificado, migration aplicada pelo plano aprovado,
+  contêiner estável, banco em dia, login e bloqueio sem sessão conferidos. Envio real de e-mail e
+  tela em produção dependem de sessão do responsável e não foram exercitados pelo agente.
+- [x] Faixa de escolhas da equivalência NCM — 25/11/2026, PR 54: contagem fora da faixa mantém o NCM e
+  pede revisão; Manter NCM amplia a faixa. Evidência: `testes/tributacao` com banco local (34 na
+  integração) e ensaio somente leitura dos pedidos afetados, aptos e com totais conferidos.
 
-Próximo passo exato: publicar com o ritual de migration e conferir o painel em produção.
+Próximo passo exato: nenhum pendente nesta feature; evoluções do modelo de variações ficam em proposta própria.
