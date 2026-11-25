@@ -52,9 +52,12 @@ export function resolverNcmConfiguracao(c: ClassificacaoFiscal, escolhas: ItemCo
       if (!e.quantidadeEscolhida || !/^\d{1,12}(\.\d{1,6})?$/.test(e.quantidadeEscolhida) || new Prisma.Decimal(e.quantidadeEscolhida).lte(0)) return bloquear("Quantidade escolhida ausente ou inválida para conferir limites da equivalência NCM.");
       total = total.plus(e.quantidadeEscolhida); idsEquivalentes.push(e.opcaoId);
     }
-    if (total.lt(g.quantidadeMinima) || total.gt(g.quantidadeMaxima)) return bloquear("Quantidade escolhida fora dos limites documentados da equivalência NCM.");
+    // Todas as opções do grupo têm o mesmo NCM documentado: escolher mais ou menos sabores do
+    // que a análise previu não troca o NCM. A nota segue e a revisão fica para o responsável.
+    const foraDosLimites = total.lt(g.quantidadeMinima) || total.gt(g.quantidadeMaxima);
+    if (foraDosLimites) revisar();
     if (new Set(es.map(e => e.opcaoId)).size !== es.length) return bloquear("Escolhas equivalentes repetidas no snapshot; conferir a configuração.");
-    justificativas.push(`Equivalência NCM documentada do grupo ${g.grupoId}; quantidade ${total.toString()} dentro de ${g.quantidadeMinima}–${g.quantidadeMaxima}.`, g.analiseNcm.justificativa, ...g.analiseNcm.fontes.map(f => `Fonte da equivalência NCM: ${f}`));
+    justificativas.push(`Equivalência NCM documentada do grupo ${g.grupoId}; quantidade ${total.toString()} ${foraDosLimites ? "fora" : "dentro"} de ${g.quantidadeMinima}–${g.quantidadeMaxima}${foraDosLimites ? ", NCM mantido com revisão pendente" : ""}.`, g.analiseNcm.justificativa, ...g.analiseNcm.fontes.map(f => `Fonte da equivalência NCM: ${f}`));
   }
   for (const id of [...ids, ...idsEquivalentes]) {
     const hash = tecnica.opcaoHashes.find(h => h.opcaoId === id)?.hash;
