@@ -200,6 +200,26 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Aplicabilidad
     const fotos = (await banco!.query(`SELECT antes#>>'{fiscal,ncm}' AS antes,depois#>>'{fiscal,ncm}' AS depois,depois#>>'{fiscal,legadoInteiro}' AS inteiro FROM "HistoricoCadastroVenda" WHERE entidade='FISCAL' AND "registroId"=$1`, [produtoId])).rows;
     expect(fotos).toEqual([{ antes: legado.ncm, depois: "08061000", inteiro: "9007199254740993" }]);
   });
+  it("cardápio passa a permitir mais sabores do que a equivalência analisou: avisa, não bloqueia, e manter o NCM amplia a faixa", async () => {
+    const grupo = await sim.prisma.grupoComplementoVenda.create({ data: { nome: `Sabores fictícios ${randomUUID()}`, tipo: "COMPOSICAO", minimo: 1, maximo: 1, produtos: { create: { produtoId } }, opcoes: { create: [{ nome: "Sabor fictício A", preco: "0" }, { nome: "Sabor fictício B", preco: "0" }] } }, include: { opcoes: true } });
+    for (const o of grupo.opcoes) await integrarOpcao(o.id);
+    const c = classificacao();
+    c.configuracaoNcm = { grupoIds: [], padraoSemEscolhasAutorizado: true, cenarios: [], gruposEquivalentes: [{ grupoId: grupo.id, opcaoIds: grupo.opcoes.map(o => o.id), quantidadeMinima: "1", quantidadeMaxima: "1", analiseNcm: c.analiseNcm! }] };
+    const v = await ativar(entrada(c));
+    expect(await consultarRevisoesNcmPendentes([produtoId])).toEqual([]);
+    await sim.prisma.grupoComplementoVenda.update({ where: { id: grupo.id }, data: { minimo: 2, maximo: 2 } });
+    const pendentes = await consultarRevisoesNcmPendentes([produtoId]);
+    expect(pendentes).toHaveLength(1); expect(pendentes[0].versaoId).toBe(v.id);
+    expect(pendentes[0].mudancas).toEqual([`Grupo ${grupo.nome}: o cardápio permite escolher exatamente 2; a análise fiscal cobre exatamente 1`]);
+    await manterNcmRevisado({ versaoId: v.id, assinatura: pendentes[0].assinatura, chaveOperacao: randomUUID() }, sessao);
+    const nova = await sim.prisma.versaoEstruturaFiscal.findFirstOrThrow({ where: { tipo: "CLASSIFICACAO", chave: produtoId }, orderBy: { versao: "desc" } }), dados = nova.dados as unknown as ClassificacaoFiscal;
+    expect(nova.id).not.toBe(v.id); expect(dados.ncm).toBe("08061000"); expect(dados.configuracaoNcm!.gruposEquivalentes![0]).toMatchObject({ quantidadeMinima: "1", quantidadeMaxima: "2", opcaoIds: grupo.opcoes.map(o => o.id).sort() });
+    expect(await consultarRevisoesNcmPendentes([produtoId])).toEqual([]);
+    // Sem máximo no cardápio não há faixa a registrar: a decisão vai para a ficha fiscal.
+    await sim.prisma.grupoComplementoVenda.update({ where: { id: grupo.id }, data: { maximo: null } });
+    const semMaximo = await consultarRevisoesNcmPendentes([produtoId]); expect(semMaximo[0].mudancas[0]).toContain("a partir de 2, sem máximo");
+    await expect(manterNcmRevisado({ versaoId: nova.id, assinatura: semMaximo[0].assinatura, chaveOperacao: randomUUID() }, sessao)).rejects.toThrow("não tem máximo de escolhas");
+  });
   it("edições comerciais não removem/forjam metadata nem arredondam JSONB desconhecido", async () => {
     await ativar(); await banco!.query(`UPDATE "ProdutoVenda" SET fiscal=fiscal || '{"legado":9007199254740993}'::jsonb WHERE id=$1`, [produtoId]);
     const anterior = JSON.parse((await fiscalTexto()).fiscal);

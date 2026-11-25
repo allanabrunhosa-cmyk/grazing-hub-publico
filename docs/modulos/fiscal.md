@@ -35,6 +35,9 @@ no Painel do Fiscal, no bloco Fiscal do pedido e por e-mail aos administradores.
 abre a ficha fiscal. Prova ausente (fotografia inexistente no pedido ou no cadastro) e
 combinação de opções sem cenário continuam bloqueando. Contrato, caminhos e limites:
 [Revisão de NCM](../features/revisao-ncm/SPEC.md).
+Desde 25/11/2026 o mesmo vale para a contagem de escolhas de um grupo com equivalência NCM:
+escolher mais ou menos sabores do que a análise previu mantém o NCM e gera revisão pendente,
+em vez de "Quantidade escolhida fora dos limites documentados".
 
 ## Permissões das operações de nota de venda — 23/11/2026
 

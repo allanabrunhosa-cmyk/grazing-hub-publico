@@ -19,12 +19,16 @@ Regras do domínio: [Fiscal](../../modulos/fiscal.md). Andamento: [TASKS](TASKS.
 | Marca, marcas homologadas, EAN ou especificação de insumo simples | segue | não |
 | Ingrediente incluído, retirado ou trocado; quantidade/unidade/modo de preparo | segue, NCM mantido | sim |
 | Receita de preparação alterada (inclui marca de ingrediente dentro dela) | segue, NCM mantido | sim |
+| Quantidade de escolhas fora da faixa da equivalência NCM (ex.: análise com 1 sabor, cardápio vendendo 2) — 25/11/2026 | segue, NCM mantido | sim |
 | Prova ausente no pedido ou no cadastro (fotografia inexistente) | bloqueia, como antes | — |
 | Combinação de opções sem cenário NCM | bloqueia, como antes | — |
 
 - **Manter NCM**: confirmação explícita no painel. Registra nova versão da classificação com
   os mesmos dados e a composição atual, pelo caminho normal salvar → impacto → ativar, com
   autor, justificativa e mudanças. Exige administrador, conferido no servidor.
+- Quando o motivo é a faixa de escolhas, **Manter NCM** também amplia a faixa documentada da
+  equivalência para cobrir o limite atual do cardápio (`revisao-ncm-limites.ts`, mesma regra
+  `limitesEfetivos` do pedido). Grupo sem máximo no cardápio exige decisão na ficha fiscal.
 - **Alterar NCM**: abre a ficha fiscal do produto (`/financeiro/fiscal/vinculos?produto=`).
 - E-mail: enviado uma vez por estado de composição (assinatura). Só é registrado como
   avisado depois de aceito pelo servidor de e-mail; sem e-mail configurado, tenta de novo.

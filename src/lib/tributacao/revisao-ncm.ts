@@ -5,7 +5,8 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { SessaoAtual } from "@/lib/session";
 import { analisarImpactoFiscalNaTransacao, ativarVersaoFiscalNaTransacao, conferirAutorFiscal, consultarVersoesFiscais, dtoVersaoFiscal, salvarVersaoFiscalNaTransacao } from "./servico";
 import { fotografarClassificacaoNormal, fotografarReceitaFiscal, hashTecnico } from "./fotografia-tecnica";
-import { diferencasMateriais, type DiferencasMateriais } from "./revisao-ncm-dominio";
+import { ampliarLimitesDocumentados, descreverLimites, diferencasMateriais, limitesForaDaAnalise, type DiferencasMateriais } from "./revisao-ncm-dominio";
+import { limitesEfetivosGrupo } from "./revisao-ncm-limites";
 import { ErroEstruturaFiscal, hojeFiscal, textoFiscal } from "./validacao";
 import { versoesVigentes } from "./vigencia";
 import type { ClassificacaoFiscal, MateriaisFiscaisFotografados } from "./tipos";
@@ -68,7 +69,15 @@ export async function listarRevisoesNcmPendentes(tx: Prisma.TransactionClient, f
           if (hashAtual !== o.hash && !m.d.incluidos.length && !m.d.retirados.length) mudancas.push(`\u0000${o.opcaoId}\u0000Composição ou quantidade da opção alterada`);
           ramos.push({ opcaoId: o.opcaoId, hash: hashAtual ?? null, materiais: m.d.assinatura });
         }
-        estado = { principal: atual.principalHash, materiais: r.d.assinatura, ramos };
+        // Limite de escolhas do cardápio fora da faixa que a equivalência NCM documenta.
+        const limites: unknown[] = [];
+        for (const g of c.configuracaoNcm?.gruposEquivalentes ?? []) {
+          const cardapio = await limitesEfetivosGrupo(tx, c.produtoId, g.grupoId);
+          if (!cardapio || !limitesForaDaAnalise(g, cardapio.limites)) continue;
+          mudancas.push(`Grupo ${cardapio.nome}: o cardápio permite escolher ${descreverLimites(cardapio.limites)}; a análise fiscal cobre ${descreverLimites({ minimo: Number(g.quantidadeMinima), maximo: Number(g.quantidadeMaxima) })}`);
+          limites.push({ grupoId: g.grupoId, ...cardapio.limites });
+        }
+        estado = { principal: atual.principalHash, materiais: r.d.assinatura, ramos, ...(limites.length ? { limites } : {}) };
       }
     } catch (erro) {
       mudancas.push(`Composição atual não pôde ser conferida: ${erro instanceof ErroEstruturaFiscal ? erro.message : "falha ao ler o cadastro"}`);
@@ -114,7 +123,17 @@ export async function manterNcmRevisado(entrada: { versaoId: string; assinatura:
     if (!pendente) return { ok: true as const };
     if (pendente.assinatura !== assinatura) throw new ErroEstruturaFiscal("A composição mudou de novo depois deste aviso. Atualize a página e confira as alterações antes de manter o NCM.");
     const justificativa = `NCM mantido pelo responsável após alteração de composição. ${pendente.mudancas.join("; ")}`.slice(0, 1900);
-    const nova = await salvarVersaoFiscalNaTransacao(tx, { tipo: "CLASSIFICACAO", chave: base.chave, dados: base.dados, versaoBase: base.versao, vigenciaInicio: hojeFiscal(), justificativa, fontes: ["Revisão de NCM confirmada pelo responsável no painel fiscal.", `Classificação anterior ${base.id}`], chaveOperacao: `${chave}-manter-ncm` }, sessao);
+    // A decisão cobre também a contagem de escolhas que o cardápio permite hoje: a faixa
+    // documentada é ampliada para ela, sem alterar NCM, análise ou opções equivalentes.
+    const dados = structuredClone(base.dados) as unknown as ClassificacaoFiscal;
+    for (const g of dados.configuracaoNcm?.gruposEquivalentes ?? []) {
+      const cardapio = await limitesEfetivosGrupo(tx, base.chave, g.grupoId);
+      if (!cardapio || !limitesForaDaAnalise(g, cardapio.limites)) continue;
+      const faixa = ampliarLimitesDocumentados(g, cardapio.limites);
+      if (!faixa) throw new ErroEstruturaFiscal(`O grupo ${cardapio.nome} não tem máximo de escolhas no cardápio. Defina um máximo no cardápio ou ajuste a faixa na ficha fiscal do produto.`);
+      Object.assign(g, faixa);
+    }
+    const nova = await salvarVersaoFiscalNaTransacao(tx, { tipo: "CLASSIFICACAO", chave: base.chave, dados, versaoBase: base.versao, vigenciaInicio: hojeFiscal(), justificativa, fontes: ["Revisão de NCM confirmada pelo responsável no painel fiscal.", `Classificação anterior ${base.id}`], chaveOperacao: `${chave}-manter-ncm` }, sessao);
     const impacto = await analisarImpactoFiscalNaTransacao(tx, nova.id, sessao);
     await ativarVersaoFiscalNaTransacao(tx, nova.id, impacto.hash, randomUUID(), sessao);
     return { ok: true as const };
