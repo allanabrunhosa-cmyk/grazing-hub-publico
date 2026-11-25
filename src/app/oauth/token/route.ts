@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { trocarCodigoOAuth } from "@/lib/mcp/oauth";
+import { renovarTokenOAuth, trocarCodigoOAuth } from "@/lib/mcp/oauth";
 import { auditarMcp, lerCorpoLimitado, limitarMcp, limparRegistrosMcp, validarTransporteMcp } from "@/lib/mcp/servidor";
 import { ErroMcp } from "@/lib/mcp/politica";
 export const runtime = "nodejs";
@@ -12,7 +12,8 @@ export async function POST(request: Request) {
     if (!request.headers.get("content-type")?.startsWith("application/x-www-form-urlencoded")) throw new ErroMcp("invalid_request", 415, "Formato inválido.");
     const params = new URLSearchParams(await lerCorpoLimitado(request));
     if ([...params.keys()].some(k => params.getAll(k).length !== 1)) throw new ErroMcp("invalid_request", 400, "Parâmetro repetido.");
-    const resposta = await trocarCodigoOAuth(Object.fromEntries(params));
+    const corpo = Object.fromEntries(params);
+    const resposta = corpo.grant_type === "refresh_token" ? await renovarTokenOAuth(corpo) : await trocarCodigoOAuth(corpo);
     return Response.json(resposta.body, { status: resposta.status ?? 200, headers: { "Cache-Control": "no-store", Pragma: "no-cache", "X-Correlation-ID": correlacao } });
   } catch (error) {
     if (!(error instanceof ErroMcp && error.codigo === "rate_limit")) await auditarMcp({ correlacao, acao: "TOKEN_RECUSADO", resultado: "NEGADO" });

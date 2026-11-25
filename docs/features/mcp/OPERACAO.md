@@ -21,6 +21,8 @@ O contrato aprovado está em [SPEC](SPEC.md). Este documento não autoriza deplo
   padrão `https://grazinghub.com.br`. A origem precisa corresponder à allowlist
   HUB de `src/lib/hosts.ts`. HTTP local só fora de produção. Não usar host de
   pedidos/validades. Nunca versionar valores de credenciais.
+- Renovação: migration aditiva `20261125130000_mcp_refresh_token` cria `McpRefreshToken` e a
+  coluna opcional `McpToken.familia`. Tokens emitidos antes dela seguem até vencer, sem renovação.
 - Duas migrations aditivas: `20261007120000_mcp_financeiro` cria tabelas, perfis e
   configuração **inativa**; `20261007121000_mcp_versao_identidade` vincula tokens
   à revisão de permissões. Ritual de backup/deploy em
@@ -31,7 +33,7 @@ O contrato aprovado está em [SPEC](SPEC.md). Este documento não autoriza deplo
 `McpCliente` identifica aplicação pública pré-cadastrada; `Usuario` continua sendo
 a pessoa responsável. `McpPerfil` limita funções; `McpAutorizacao` vincula cliente,
 usuário, perfil, loja singleton, escopos e restrições. `McpSolicitacaoOAuth`,
-`McpCodigoOAuth` e `McpToken` representam etapas distintas, não uma chave global.
+`McpCodigoOAuth`, `McpToken` e `McpRefreshToken` representam etapas distintas, não uma chave global.
 `McpEvento` e `McpLimite` guardam apenas metadados técnicos e limites.
 
 Administração exige `configuracoes.mcp` (`visualizar`/`editar`). Isso não concede
@@ -102,9 +104,40 @@ separadas. Esta entrega exige pessoa válida em `Usuario`, não habilita
 Authorization Code + PKCE S256 obrigatório; a biblioteca gera códigos/tokens e
 valida PKCE. Armazenamento somente de hashes SHA-256 de credenciais aleatórias.
 Códigos são de uso único, válidos por 2 minutos; pedido de consentimento dura
-10 minutos; access token dura 1 hora. **Sem refresh token**: reconectar/autorizar
-novamente após expiração. Password grant, chave global e token em URL são recusados.
-Emissor, `resource`/destinatário, prazo, escopos e autorização são validados.
+10 minutos; access token dura 1 hora. Password grant, chave global e token em URL são
+recusados. Emissor, `resource`/destinatário, prazo, escopos e autorização são validados.
+
+### Renovação sem novo consentimento — desde 25/11/2026
+
+Motivo: clientes instalados (OpenBot) caíam a cada hora, quando o access token vencia.
+A troca do código passa a devolver também um **refresh token** (`PRAZOS_OAUTH` em
+`mcp/oauth.ts`); `/oauth/token` aceita `grant_type=refresh_token` (`renovarTokenOAuth`)
+e os metadados anunciam o grant.
+
+- Validade de 30 dias **contados do último uso**: cada renovação emite novo par e novo
+  prazo. A conexão só pede autorização de novo após 30 dias sem uso, ou nos casos abaixo.
+- Uso único com rotação. `familia` liga os tokens nascidos do mesmo consentimento. Um
+  refresh já trocado que reaparece depois de 60 s encerra a cadeia inteira (refresh e
+  access tokens da família), registra `TOKEN_REUTILIZADO` e exige novo OAuth. Dentro dos
+  60 s a repetição é tratada como reenvio do cliente (resposta perdida) e atendida; é a
+  concessão consciente desta entrega, para não derrubar a conexão por falha de rede.
+- A renovação repete a regra da chamada MCP (`credencialVigente` em `mcp/servidor.ts`):
+  conexão ATIVA, mesma versão da autorização, mesma `sessaoVersao`, cliente e responsável
+  ativos, MCP ligado, emissor e destinatário deste servidor. Suspender, revogar, salvar o
+  perfil/política da conexão, novo consentimento, troca de senha ou desativação do
+  responsável invalidam os refresh existentes sem etapa adicional.
+- Nunca amplia: o token renovado carrega exatamente os escopos e restrições consentidos.
+  `scope` na renovação é aceito por compatibilidade (clientes repetem o pedido original,
+  inclusive `hub:perfil`) e ignorado. Reduções de permissão continuam valendo a cada
+  chamada; função nova continua exigindo nova autorização.
+- `resource` é opcional na renovação (o destinatário já está preso ao refresh); se vier,
+  precisa ser o deste servidor. Outros parâmetros são recusados.
+- Diferente do código de autorização, a renovação **não** compara `permissoesHash`: ele
+  muda com qualquer edição do cadastro do responsável e derrubaria a conexão sem ganho,
+  pois o acesso efetivo já é relido em toda chamada.
+- Somente o hash SHA-256 é guardado. Refresh vencidos saem na limpeza oportunista.
+  Auditoria: `TOKEN_EMITIDO` (consentimento), `TOKEN_RENOVADO`, `TOKEN_REUTILIZADO`.
+- Conexões autorizadas antes desta entrega não têm refresh: autorizar mais uma vez.
 
 A solicitação também aceita `ui_locales` opcional, preferência de idioma enviada
 pelo ChatGPT. Tags BCP 47 são validadas pelo `Intl.getCanonicalLocales` do Node,

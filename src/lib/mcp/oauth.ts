@@ -1,10 +1,11 @@
 import "server-only";
 import OAuth2Server from "@node-oauth/oauth2-server";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@/generated/prisma/client";
 import { EscoposSchema, ErroMcp, RestricoesSchema, escoposSolicitados, intersectarEscopos } from "./politica";
-import { auditarMcp, enderecosMcp, escoposDaAutorizacao, escoposParaConsentimento, hashCredencial, hashPermissoesUsuario, INCLUIR_AUTORIZACAO, revisaoConsentimento } from "./servidor";
+import { auditarMcp, credencialVigente, enderecosMcp, escoposDaAutorizacao, escoposParaConsentimento, hashCredencial, hashPermissoesUsuario, INCLUIR_AUTORIZACAO, revisaoConsentimento } from "./servidor";
 
 // Preferência de idioma enviada pelo ChatGPT, sem efeito em identidade ou acesso.
 // Validar tags BCP 47 pelo runtime; a interface atual continua em português.
@@ -32,20 +33,28 @@ export async function validarPedidoOAuth(entrada: unknown, db: Prisma.Transactio
   return { parametros: p, cliente };
 }
 
-type Vinculo = { autorizacaoId: string; versao: number; sessaoVersao: number; permissoesHash: string; restricoes: Prisma.InputJsonValue; escopos: string[] };
+// `familia` só existe na renovação: identifica a cadeia nascida de um mesmo consentimento.
+type Vinculo = { autorizacaoId: string; versao: number; sessaoVersao: number; permissoesHash: string; restricoes: Prisma.InputJsonValue; escopos: string[]; familia?: string };
 function vinculo(usuario: OAuth2Server.User): Vinculo {
-  const parsed = z.object({ autorizacaoId: z.string().uuid(), versao: z.number().int(), sessaoVersao: z.number().int(), permissoesHash: z.string().length(64), restricoes: RestricoesSchema, escopos: EscoposSchema }).parse(usuario);
+  const parsed = z.object({ autorizacaoId: z.string().uuid(), versao: z.number().int(), sessaoVersao: z.number().int(), permissoesHash: z.string().length(64), restricoes: RestricoesSchema, escopos: EscoposSchema, familia: z.string().uuid().optional() }).parse(usuario);
   return parsed;
 }
+
+/** Prazos em segundos. O refresh é renovado a cada uso; a conexão só cai por inatividade maior que o prazo. */
+export const PRAZOS_OAUTH = { acesso: 3600, refresh: 30 * 86_400, codigo: 120,
+  // Repetição do mesmo refresh logo após o uso é tratada como reenvio do cliente (resposta perdida), não como vazamento.
+  toleranciaReenvio: 60 } as const;
+const FORMATO_CREDENCIAL = /^[A-Za-z0-9._~-]{20,256}$/;
 
 // A biblioteca gera códigos/tokens e verifica o PKCE. Somente hashes são persistidos.
 export function criarServidorOAuth(db: Prisma.TransactionClient = prisma, recurso = enderecosMcp().recurso) {
   const { emissor } = enderecosMcp();
-  const model: OAuth2Server.AuthorizationCodeModel = {
+  const GRANTS = ["authorization_code", "refresh_token"];
+  const model: OAuth2Server.AuthorizationCodeModel & OAuth2Server.RefreshTokenModel = {
     async getClient(id, segredo) {
       if (segredo) return false; // Esta versão admite clientes públicos pré-cadastrados.
       const c = await db.mcpCliente.findUnique({ where: { id } });
-      return c?.ativo ? { id: c.id, redirectUris: c.redirectUris, grants: ["authorization_code"] } : false;
+      return c?.ativo ? { id: c.id, redirectUris: c.redirectUris, grants: GRANTS } : false;
     },
     async validateScope(user, client, scope) {
       const v = vinculo(user);
@@ -75,20 +84,48 @@ export function criarServidorOAuth(db: Prisma.TransactionClient = prisma, recurs
       const result = await db.mcpCodigoOAuth.updateMany({ where: { hash: hashCredencial(code.authorizationCode), consumidoEm: null, expiraEm: { gt: new Date() } }, data: { consumidoEm: new Date() } });
       return result.count === 1;
     },
-    async generateRefreshToken() { return ""; },
+    // A renovação repete as conferências da chamada MCP: conexão ativa, mesma versão e mesma sessão.
+    // Suspender, revogar, repreparar a conexão ou trocar a senha encerram a cadeia sem etapa extra.
+    async getRefreshToken(valor) {
+      if (!FORMATO_CREDENCIAL.test(valor)) return false;
+      const r = await db.mcpRefreshToken.findUnique({ where: { hash: hashCredencial(valor) }, include: { autorizacao: { include: INCLUIR_AUTORIZACAO } } });
+      if (!r || r.emissor !== emissor || r.destinatario !== recurso || recurso !== enderecosMcp().recurso) return false;
+      const a = r.autorizacao;
+      if (r.consumidoEm && r.consumidoEm.getTime() < Date.now() - PRAZOS_OAUTH.toleranciaReenvio * 1000) {
+        // Refresh já trocado reapareceu: cópia em outro lugar. Encerra a cadeia inteira; a pessoa autoriza de novo.
+        // Data antiga de propósito: os demais refresh da cadeia ficam fora da tolerância de reenvio.
+        await db.mcpRefreshToken.updateMany({ where: { familia: r.familia }, data: { consumidoEm: new Date(0) } });
+        await db.mcpToken.deleteMany({ where: { familia: r.familia } });
+        await auditarMcp({ usuarioId: a.usuarioId, clienteId: a.clienteId, autorizacaoId: a.id, acao: "TOKEN_REUTILIZADO", resultado: "NEGADO" }, db);
+        return false;
+      }
+      const config = await db.mcpConfiguracao.findUnique({ where: { id: "singleton" } });
+      if (!config?.ativo || !credencialVigente(a, r)) return false;
+      return { refreshToken: valor, refreshTokenExpiresAt: r.expiraEm, scope: r.escopos, client: { id: a.clienteId, grants: GRANTS },
+        user: { autorizacaoId: a.id, versao: r.versao, sessaoVersao: r.sessaoVersao, permissoesHash: r.permissoesHash, restricoes: r.restricoes, escopos: r.escopos, familia: r.familia } };
+    },
+    async revokeToken(token) {
+      // Uso único. Dentro da tolerância de reenvio o refresh já está consumido e a troca segue.
+      await db.mcpRefreshToken.updateMany({ where: { hash: hashCredencial(token.refreshToken), consumidoEm: null }, data: { consumidoEm: new Date() } });
+      return true;
+    },
     async saveToken(token, client, user) {
       const v = vinculo(user);
-      await db.mcpToken.create({ data: { hash: hashCredencial(token.accessToken), autorizacaoId: v.autorizacaoId, versao: v.versao,
-        sessaoVersao: v.sessaoVersao, permissoesHash: v.permissoesHash, restricoes: v.restricoes, escopos: token.scope ?? [], emissor, destinatario: recurso,
-        expiraEm: token.accessTokenExpiresAt! } });
-      await auditarMcp({ autorizacaoId: v.autorizacaoId, clienteId: client.id, acao: "TOKEN_EMITIDO", resultado: "OK" }, db);
-      return { accessToken: token.accessToken, accessTokenExpiresAt: token.accessTokenExpiresAt, scope: token.scope, client, user };
+      const familia = v.familia ?? randomUUID();
+      const comum = { autorizacaoId: v.autorizacaoId, versao: v.versao, sessaoVersao: v.sessaoVersao, permissoesHash: v.permissoesHash,
+        restricoes: v.restricoes, escopos: token.scope ?? [], emissor, destinatario: recurso, familia };
+      await db.mcpToken.create({ data: { ...comum, hash: hashCredencial(token.accessToken), expiraEm: token.accessTokenExpiresAt! } });
+      if (!token.refreshToken || !token.refreshTokenExpiresAt) throw new OAuth2Server.ServerError("Renovação indisponível.");
+      await db.mcpRefreshToken.create({ data: { ...comum, hash: hashCredencial(token.refreshToken), expiraEm: token.refreshTokenExpiresAt } });
+      await auditarMcp({ autorizacaoId: v.autorizacaoId, clienteId: client.id, acao: v.familia ? "TOKEN_RENOVADO" : "TOKEN_EMITIDO", resultado: "OK" }, db);
+      return { accessToken: token.accessToken, accessTokenExpiresAt: token.accessTokenExpiresAt, refreshToken: token.refreshToken, refreshTokenExpiresAt: token.refreshTokenExpiresAt, scope: token.scope, client, user };
     },
     // Bearer é validado pelo serviço que relê a identidade e todos os limites atuais.
     async getAccessToken() { return false; },
   };
-  return new OAuth2Server({ model, accessTokenLifetime: 3600, authorizationCodeLifetime: 120, allowEmptyState: false,
-    requireClientAuthentication: { authorization_code: false }, allowBearerTokensInQueryString: false });
+  return new OAuth2Server({ model, accessTokenLifetime: PRAZOS_OAUTH.acesso, refreshTokenLifetime: PRAZOS_OAUTH.refresh, authorizationCodeLifetime: PRAZOS_OAUTH.codigo,
+    allowEmptyState: false, alwaysIssueNewRefreshToken: true,
+    requireClientAuthentication: { authorization_code: false, refresh_token: false }, allowBearerTokensInQueryString: false });
 }
 
 export async function consentirOAuth(solicitacaoId: string, autorizacaoId: string, usuarioId: string, revisaoApresentada: string) {
@@ -125,6 +162,22 @@ export async function trocarCodigoOAuth(body: Record<string, string>) {
   // A tentativa consome o código inclusive quando o verificador está incorreto.
   // Não envolver em rollback: o consumo atômico impede tentativas/reutilização.
   const oauth = criarServidorOAuth(prisma, entrada.resource);
+  const resposta = new OAuth2Server.Response();
+  await oauth.token(new OAuth2Server.Request({ method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "content-length": String(Buffer.byteLength(new URLSearchParams(entrada).toString())) }, query: {}, body: entrada }), resposta);
+  return resposta;
+}
+
+/**
+ * Troca um refresh token por novo par acesso/refresh, sem consentimento. `resource` é opcional porque o
+ * destinatário já está preso ao refresh; se vier, precisa ser o deste servidor. `scope` é aceito por
+ * compatibilidade (clientes repetem o pedido original, inclusive `hub:perfil`), mas a renovação mantém
+ * exatamente os escopos consentidos: nunca amplia.
+ */
+export async function renovarTokenOAuth(body: Record<string, string>) {
+  const { scope, ...entrada } = z.object({ grant_type: z.literal("refresh_token"), client_id: z.string().uuid(), refresh_token: z.string().regex(FORMATO_CREDENCIAL),
+    resource: z.literal(enderecosMcp().recurso).optional(), scope: z.string().min(1).max(32768).optional() }).strict().parse(body);
+  if (scope) escoposSolicitados(scope);
+  const oauth = criarServidorOAuth(prisma, enderecosMcp().recurso);
   const resposta = new OAuth2Server.Response();
   await oauth.token(new OAuth2Server.Request({ method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "content-length": String(Buffer.byteLength(new URLSearchParams(entrada).toString())) }, query: {}, body: entrada }), resposta);
   return resposta;

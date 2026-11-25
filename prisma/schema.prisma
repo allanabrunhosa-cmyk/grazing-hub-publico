@@ -664,6 +664,7 @@ model McpAutorizacao {
   updatedAt DateTime @updatedAt
   codigos McpCodigoOAuth[]
   tokens McpToken[]
+  refreshTokens McpRefreshToken[]
   @@index([usuarioId, clienteId, situacao])
   @@index([perfilAcessoId])
 }
@@ -706,7 +707,30 @@ model McpToken {
   emissor String
   destinatario String
   expiraEm DateTime
+  // Cadeia de renovação a que o token pertence; nulo nos emitidos antes do refresh token.
+  familia String?
   @@index([expiraEm])
+  @@index([familia])
+}
+
+// Renovação do acesso sem novo consentimento. Uso único com rotação; só o hash é guardado.
+model McpRefreshToken {
+  hash String @id
+  familia String
+  autorizacaoId String
+  autorizacao McpAutorizacao @relation(fields: [autorizacaoId], references: [id], onDelete: Restrict)
+  versao Int
+  sessaoVersao Int
+  permissoesHash String
+  escopos String[]
+  restricoes Json
+  emissor String
+  destinatario String
+  expiraEm DateTime
+  consumidoEm DateTime?
+  createdAt DateTime @default(now())
+  @@index([expiraEm])
+  @@index([familia])
 }
 
 model McpEvento {
