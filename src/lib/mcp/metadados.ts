@@ -14,6 +14,6 @@ export function metadadosRecurso() {
 export function metadadosAutorizacao() {
   const { emissor } = enderecosMcp();
   return { issuer: emissor, authorization_endpoint: `${emissor}/oauth/iniciar`, token_endpoint: `${emissor}/oauth/token`,
-    response_types_supported: ["code"], grant_types_supported: ["authorization_code"], token_endpoint_auth_methods_supported: ["none"],
+    response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], token_endpoint_auth_methods_supported: ["none"],
     code_challenge_methods_supported: ["S256"], scopes_supported: ESCOPOS_MCP };
 }

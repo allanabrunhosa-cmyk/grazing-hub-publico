@@ -8,7 +8,7 @@ const ESCRITAS = new Set(["create", "createMany", "createManyAndReturn", "update
 // Lotes dos serviços expostos cujo schema possui id String gerado.
 // Vínculos com chaves compostas/naturais não recebem um ID artificial.
 const LOTES_COM_ID = new Set(["itemPedidoVenda", "conversaoInsumo", "composicaoInsumo", "insumoFornecedor", "recebimentoDivergencia", "historicoConciliacao", "transacaoExtrato", "liquidacaoCartao"]);
-const TECNICOS = new Set(["mcpEvento", "mcpOperacao", "mcpLimite", "mcpConfiguracao", "mcpAutorizacao", "mcpToken"]);
+const TECNICOS = new Set(["mcpEvento", "mcpOperacao", "mcpLimite", "mcpConfiguracao", "mcpAutorizacao", "mcpToken", "mcpRefreshToken"]);
 // Captura apenas dentro da transação isolada de prévia. Não é um dispatcher
 // público nem registro de parâmetros em logs. IDs criados são normalizados para
 // que duas simulações da mesma operação possam ser comparadas sem ignorar valores.

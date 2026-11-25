@@ -543,3 +543,19 @@ testes/layout testes/mcp` (400 aprovados, 64 ignorados por flags de banco), `npx
 --noEmit`, eslint dos caminhos alterados, `npm run lint:design` (0 novos) e `npm run
 build`. Prévia Vite isolada em 1440 px claro e 390 px escuro, sem rolagem horizontal.
 Referência visual **Em revisão**.
+
+### Renovação do acesso (refresh token) — 25/11/2026
+
+Pedido do responsável: o OpenBot desconectava a cada hora. Causa: access token de 1 h sem
+refresh, decisão das entregas anteriores (os registros acima de "sem refresh" são históricos).
+O HUB passa a emitir refresh token com rotação; regra em [OPERACAO](OPERACAO.md). Migration
+aditiva `20261125130000_mcp_refresh_token`. O texto do consentimento deixou de dizer que a
+credencial vence em uma hora (só texto, sem mudança de layout).
+
+Validação local na branch `claude/mcp-refresh-token-20261125`: `MCP_BANCO_TESTE=1 npx vitest
+run testes/mcp --maxWorkers=1` em banco local `_teste` (339 aprovados; as mesmas 16 falhas de
+`multimodulo.test.ts` também presentes na `main` sem a mudança, conferido lado a lado),
+`npx vitest run testes/mcp testes/layout` (400 aprovados, 80 ignorados por flags de banco),
+`npx tsc --noEmit`, eslint dos caminhos alterados, `npm run lint:design` (0 novos) e
+`npm run build`. Não executado: renovação real pelo OpenBot em produção, captura visual do
+consentimento e `smoke-http.mts`.

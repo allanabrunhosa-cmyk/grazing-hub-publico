@@ -58,6 +58,12 @@ export async function exigirMcpAtivo() {
   if (!config?.ativo) throw new ErroMcp("temporarily_unavailable", 503, "Acesso MCP suspenso.");
 }
 
+/** Regra única para token de acesso e refresh token: a conexão segue ativa e nada mudou desde a emissão. */
+export function credencialVigente(a: AutorizacaoMcp, emitida: { versao: number; sessaoVersao: number }) {
+  return a.situacao === "ATIVA" && a.lojaId === "singleton" && a.cliente.ativo && !(a.modeloAcesso === 1 && !a.perfil?.ativo) &&
+    a.usuario.ativo && !a.usuario.excluidoEm && a.versao === emitida.versao && a.usuario.sessaoVersao === emitida.sessaoVersao;
+}
+
 export async function autenticarMcp(credencial: string) {
   await exigirMcpAtivo();
   const { emissor, recurso } = enderecosMcp();
@@ -65,9 +71,7 @@ export async function autenticarMcp(credencial: string) {
     ? await prisma.mcpToken.findUnique({ where: { hash: hashCredencial(credencial) }, include: { autorizacao: { include: INCLUIR_AUTORIZACAO } } }) : null;
   if (!token || token.expiraEm <= new Date() || token.emissor !== emissor || token.destinatario !== recurso) throw new ErroMcp("invalid_token", 401, "Credencial inválida ou expirada.");
   const a = token.autorizacao;
-  if (a.situacao !== "ATIVA" || a.lojaId !== "singleton" || !a.cliente.ativo || (a.modeloAcesso === 1 && !a.perfil?.ativo) || !a.usuario.ativo || a.usuario.excluidoEm || a.versao !== token.versao || a.usuario.sessaoVersao !== token.sessaoVersao) {
-    throw new ErroMcp("invalid_token", 401, "Autorização indisponível. Autorize novamente no HUB.");
-  }
+  if (!credencialVigente(a, token)) throw new ErroMcp("invalid_token", 401, "Autorização indisponível. Autorize novamente no HUB.");
   const escopos = intersectarEscopos(token.escopos, escoposDaAutorizacao(a));
   return { autorizacaoId: a.id, usuarioId: a.usuarioId, clienteId: a.clienteId, lojaId: a.lojaId, versao: a.versao, sessaoVersao: a.usuario.sessaoVersao, escopos,
     restricoes: intersectarRestricoes(RestricoesSchema.parse(a.restricoes), RestricoesSchema.parse(token.restricoes)) };
@@ -98,6 +102,7 @@ export async function limparRegistrosMcp() {
     prisma.$executeRaw`DELETE FROM "McpEvento" WHERE "id" IN (SELECT "id" FROM "McpEvento" WHERE "createdAt" < ${corte} AND NOT EXISTS (SELECT 1 FROM "AtividadeUsuario" a WHERE a."fonteTabela" = 'McpEvento' AND a."fonteId" = "McpEvento"."id") ORDER BY "createdAt" LIMIT 1000)`,
     prisma.$executeRaw`DELETE FROM "McpOperacao" WHERE "id" IN (SELECT "id" FROM "McpOperacao" WHERE "expiraEm" < CURRENT_TIMESTAMP - INTERVAL '1 day' ORDER BY "expiraEm" LIMIT 1000)`,
     prisma.$executeRaw`DELETE FROM "McpToken" WHERE "hash" IN (SELECT "hash" FROM "McpToken" WHERE "expiraEm" < CURRENT_TIMESTAMP LIMIT 1000)`,
+    prisma.$executeRaw`DELETE FROM "McpRefreshToken" WHERE "hash" IN (SELECT "hash" FROM "McpRefreshToken" WHERE "expiraEm" < CURRENT_TIMESTAMP LIMIT 1000)`,
     prisma.$executeRaw`DELETE FROM "McpCodigoOAuth" WHERE "hash" IN (SELECT "hash" FROM "McpCodigoOAuth" WHERE "expiraEm" < CURRENT_TIMESTAMP LIMIT 1000)`,
     prisma.$executeRaw`DELETE FROM "McpSolicitacaoOAuth" WHERE "id" IN (SELECT "id" FROM "McpSolicitacaoOAuth" WHERE "expiraEm" < CURRENT_TIMESTAMP LIMIT 1000)`,
     prisma.$executeRaw`DELETE FROM "McpLimite" WHERE "chave" IN (SELECT "chave" FROM "McpLimite" WHERE "expiraEm" < CURRENT_TIMESTAMP LIMIT 1000)`,

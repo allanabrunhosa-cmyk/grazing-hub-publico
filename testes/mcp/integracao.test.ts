@@ -10,7 +10,8 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 const s = vi.hoisted(() => ({ prisma: null as unknown as PrismaClient }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/prisma", () => ({ get prisma() { return s.prisma; } }));
-import { consentirOAuth, trocarCodigoOAuth, validarPedidoOAuth } from "@/lib/mcp/oauth";
+import { consentirOAuth, PRAZOS_OAUTH, renovarTokenOAuth, trocarCodigoOAuth, validarPedidoOAuth } from "@/lib/mcp/oauth";
+import { metadadosAutorizacao } from "@/lib/mcp/metadados";
 import { autenticarMcp, limitarMcp, limparRegistrosMcp, revisaoConsentimento, INCLUIR_AUTORIZACAO } from "@/lib/mcp/servidor";
 import { alterarAdministracaoMcp, diagnosticarMcp } from "@/lib/mcp/administracao";
 import { atenderMcp } from "@/lib/mcp/http";
@@ -43,8 +44,14 @@ async function codigo(id = autorizacaoId, escopos: string[] = ESCOPOS_MCP, idiom
 }
 async function token(id = autorizacaoId, escopos: string[] = ESCOPOS_MCP) {
   const response = await trocarCodigoOAuth(await codigo(id, escopos));
-  expect(response.body.refresh_token).toBeUndefined(); return response.body.access_token as string;
+  expect(response.body.refresh_token).toEqual(expect.any(String)); return response.body.access_token as string;
 }
+async function par(id = autorizacaoId, escopos: string[] = ESCOPOS_MCP) {
+  const { body } = await trocarCodigoOAuth(await codigo(id, escopos));
+  return { access: body.access_token as string, refresh: body.refresh_token as string };
+}
+const renovar = (refresh: string, extra: Record<string, string> = {}) => renovarTokenOAuth({ grant_type: "refresh_token", client_id: clienteId, refresh_token: refresh, resource: recurso, ...extra });
+const envelhecer = (refresh: string) => s.prisma.mcpRefreshToken.update({ where: { hash: createHash("sha256").update(refresh).digest("hex") }, data: { consumidoEm: new Date(Date.now() - (PRAZOS_OAUTH.toleranciaReenvio + 5) * 1000) } });
 function request(body: unknown, accessToken?: string, headers: Record<string, string> = {}) {
   return new Request(recurso, { method: "POST", headers: { host: new URL(origem).host, "content-type": "application/json", accept: "application/json, text/event-stream", ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}), ...headers }, body: JSON.stringify(body) });
 }
@@ -87,12 +94,13 @@ describe.skipIf(process.env.MCP_BANCO_TESTE !== "1")("MCP/OAuth: PostgreSQL loca
     await s.prisma.movimentacaoBancaria.create({ data: { contaBancariaId: "banco-a", tipo: "ENTRADA", valor: "200.01", data: new Date("2026-09-10"), descricao: "Movimento fictício" } });
   });
 
-  it("OAuth completo com PKCE S256, código único, token opaco hash e sem refresh", async () => {
+  it("OAuth completo com PKCE S256, código único, token opaco hash e refresh guardado só por hash", async () => {
     const entrada = await codigo(); const response = await trocarCodigoOAuth(entrada); const access = response.body.access_token;
     expect(await autenticarMcp(access)).toMatchObject({ usuarioId: "financeiro", escopos: ESCOPOS_MCP });
     const armazenado = JSON.stringify(await s.prisma.mcpToken.findMany()); expect(armazenado).not.toContain(access);
     expect(JSON.stringify(await s.prisma.mcpCodigoOAuth.findMany())).not.toContain(entrada.code);
-    expect(response.body.refresh_token).toBeUndefined(); expect(response.body.expires_in).toBeGreaterThan(3500);
+    expect(response.body.refresh_token).toEqual(expect.any(String)); expect(response.body.expires_in).toBeGreaterThan(3500);
+    expect(JSON.stringify(await s.prisma.mcpRefreshToken.findMany())).not.toContain(response.body.refresh_token);
     await expect(trocarCodigoOAuth(entrada)).rejects.toThrow();
   });
   it("duas trocas simultâneas emitem somente um token; revogação bloqueia código já emitido", async () => {
@@ -125,7 +133,6 @@ describe.skipIf(process.env.MCP_BANCO_TESTE !== "1")("MCP/OAuth: PostgreSQL loca
   });
   it("preferência de idioma do ChatGPT atravessa consentimento e PKCE sem ampliar escopos", async () => {
     const response = await trocarCodigoOAuth(await codigo(autorizacaoId, ESCOPOS_GERENCIAIS, "pt-BR"));
-    expect(response.body.refresh_token).toBeUndefined();
     const contexto = await autenticarMcp(response.body.access_token);
     expect(contexto.usuarioId).toBe("financeiro");
     expect(contexto.escopos).toEqual(ESCOPOS_GERENCIAIS);
@@ -259,12 +266,80 @@ describe.skipIf(process.env.MCP_BANCO_TESTE !== "1")("MCP/OAuth: PostgreSQL loca
     const p1 = await consultarFinanceiroMcp("financeiro_lancamentos", { ...periodo, tamanho: 1, pagina: 1 }, a); const p2 = await consultarFinanceiroMcp("financeiro_lancamentos", { ...periodo, tamanho: 1, pagina: 2 }, a); expect(p1.dados).not.toEqual(p2.dados); expect(p1.dados).toMatchObject({ total: 3 });
     await limitarMcp("teste-limite", 1); await expect(limitarMcp("teste-limite", 1)).rejects.toThrow();
   });
-  it("endpoint token exige resource e não aceita refresh/password/credencial na URL", async () => {
+  it("endpoint token exige resource e não aceita grant trocado, destinatário errado ou credencial na URL", async () => {
     const body = await codigo();
     const response = await tokenPost(new Request(`${origem}/oauth/token`, { method: "POST", headers: { host: new URL(origem).host, "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(body) })); expect(response.status).toBe(200);
     await expect(trocarCodigoOAuth({ ...body, grant_type: "refresh_token" })).rejects.toThrow();
     await expect(trocarCodigoOAuth({ ...body, resource: `${origem}/financeiro` })).rejects.toThrow();
     expect((await atenderMcp(new Request(`${recurso}?access_token=invalido`, { headers: { host: new URL(origem).host } }))).status).toBe(400);
+  });
+  it("renovação troca o par sem consentimento, gira o refresh e mantém os escopos consentidos", async () => {
+    const inicial = await par(autorizacaoId, ESCOPOS_GERENCIAIS);
+    const r1 = await renovar(inicial.refresh);
+    expect(r1.body.access_token).not.toBe(inicial.access); expect(r1.body.refresh_token).not.toBe(inicial.refresh); expect(r1.body.expires_in).toBeGreaterThan(3500);
+    expect((await autenticarMcp(r1.body.access_token)).escopos).toEqual(ESCOPOS_GERENCIAIS);
+    // Sem resource e repetindo o pedido original (inclusive o escopo curto): aceito, sem ampliar.
+    const r2 = await renovarTokenOAuth({ grant_type: "refresh_token", client_id: clienteId, refresh_token: r1.body.refresh_token, scope: "hub:perfil" });
+    expect((await autenticarMcp(r2.body.access_token)).escopos).toEqual(ESCOPOS_GERENCIAIS);
+    const guardados = await s.prisma.mcpRefreshToken.findMany();
+    expect(new Set(guardados.map(g => g.familia)).size).toBe(1); expect(guardados.filter(g => !g.consumidoEm)).toHaveLength(1);
+    expect(guardados.every(g => g.expiraEm.getTime() > Date.now() + (PRAZOS_OAUTH.refresh - 60) * 1000)).toBe(true);
+    expect(await s.prisma.mcpEvento.count({ where: { acao: "TOKEN_RENOVADO", autorizacaoId } })).toBe(2);
+    expect(await s.prisma.mcpAutorizacao.findUniqueOrThrow({ where: { id: autorizacaoId } })).toMatchObject({ situacao: "ATIVA", versao: 1 });
+    expect(metadadosAutorizacao().grant_types_supported).toEqual(["authorization_code", "refresh_token"]);
+  });
+  it("reenvio imediato do mesmo refresh é tolerado; reaparecimento tardio encerra a cadeia inteira", async () => {
+    const inicial = await par();
+    const r1 = await renovar(inicial.refresh);
+    const reenvio = await renovar(inicial.refresh);
+    await expect(autenticarMcp(reenvio.body.access_token)).resolves.toMatchObject({ autorizacaoId });
+    await envelhecer(inicial.refresh);
+    const outra = await s.prisma.mcpToken.count();
+    await expect(renovar(inicial.refresh)).rejects.toThrow();
+    expect(await s.prisma.mcpToken.count()).toBe(outra - 3);
+    for (const access of [inicial.access, r1.body.access_token, reenvio.body.access_token]) await expect(autenticarMcp(access)).rejects.toThrow();
+    await expect(renovar(r1.body.refresh_token)).rejects.toThrow(); await expect(renovar(reenvio.body.refresh_token)).rejects.toThrow();
+    expect(await s.prisma.mcpEvento.count({ where: { acao: "TOKEN_REUTILIZADO", resultado: "NEGADO", autorizacaoId } })).toBeGreaterThan(0);
+  });
+  it.each(["expirado", "emissor", "destinatario", "suspenso", "revogado", "usuario-inativo", "sessao", "cliente-inativo", "global", "outro-cliente", "novo-consentimento", "inexistente"])("nega renovação quando %s", async caso => {
+    const { refresh } = await par();
+    let clienteDoPedido = clienteId; let valor = refresh;
+    if (caso === "expirado") await s.prisma.mcpRefreshToken.updateMany({ data: { expiraEm: new Date(0) } });
+    if (caso === "emissor") await s.prisma.mcpRefreshToken.updateMany({ data: { emissor: "https://outro.example.invalid" } });
+    if (caso === "destinatario") await s.prisma.mcpRefreshToken.updateMany({ data: { destinatario: `${origem}/outro` } });
+    if (caso === "suspenso" || caso === "revogado") await alterarAdministracaoMcp({ tipo: "situacao", id: autorizacaoId, versao: 1, situacao: caso === "suspenso" ? "SUSPENSA" : "REVOGADA" }, "admin-mcp");
+    if (caso === "usuario-inativo") await s.prisma.usuario.update({ where: { id: "financeiro" }, data: { ativo: false } });
+    if (caso === "sessao") await s.prisma.usuario.update({ where: { id: "financeiro" }, data: { sessaoVersao: 1 } });
+    if (caso === "cliente-inativo") await s.prisma.mcpCliente.update({ where: { id: clienteId }, data: { ativo: false } });
+    if (caso === "global") await s.prisma.mcpConfiguracao.update({ where: { id: "singleton" }, data: { ativo: false } });
+    if (caso === "outro-cliente") clienteDoPedido = (await s.prisma.mcpCliente.create({ data: { nome: "Outro cliente fictício", redirectUris: [callback] } })).id;
+    if (caso === "novo-consentimento") await par();
+    if (caso === "inexistente") valor = "a".repeat(64);
+    const antes = await s.prisma.mcpToken.count();
+    await expect(renovarTokenOAuth({ grant_type: "refresh_token", client_id: clienteDoPedido, refresh_token: valor, resource: recurso })).rejects.toThrow();
+    expect(await s.prisma.mcpToken.count()).toBe(antes);
+  });
+  it("renovação recusa destinatário diferente, parâmetro extra e escopo desconhecido; redução de permissão vale no token renovado", async () => {
+    const { refresh } = await par(autorizacaoId, ESCOPOS_GERENCIAIS);
+    await expect(renovar(refresh, { resource: `${origem}/outro` })).rejects.toThrow();
+    await expect(renovar(refresh, { code_verifier: "a".repeat(64) })).rejects.toThrow();
+    await expect(renovar(refresh, { scope: "escopo:inexistente" })).rejects.toThrow();
+    await s.prisma.usuario.update({ where: { id: "financeiro" }, data: { permissoesPersonalizadas: { "financeiro.dre": { visualizar: false } } } });
+    const renovado = await renovar(refresh, { scope: ESCOPOS_MCP.join(" ") });
+    const contexto = await autenticarMcp(renovado.body.access_token);
+    expect(contexto.escopos).not.toContain("financeiro:dre:ler"); expect(contexto.escopos).not.toContain("financeiro:lancamentos:ler");
+  });
+  it("endpoint token renova por formulário e a limpeza remove refresh vencido", async () => {
+    const { refresh } = await par();
+    const post = (corpo: Record<string, string>) => tokenPost(new Request(`${origem}/oauth/token`, { method: "POST", headers: { host: new URL(origem).host, "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(corpo) }));
+    const ok = await post({ grant_type: "refresh_token", client_id: clienteId, refresh_token: refresh, resource: recurso });
+    expect(ok.status).toBe(200); expect(ok.headers.get("cache-control")).toBe("no-store");
+    expect(await ok.json()).toMatchObject({ token_type: "Bearer", access_token: expect.any(String), refresh_token: expect.any(String) });
+    const recusado = await post({ grant_type: "refresh_token", client_id: clienteId, refresh_token: "a".repeat(64), resource: recurso });
+    expect(recusado.status).toBe(400); expect((await recusado.json()).error).toBe("invalid_grant");
+    await s.prisma.mcpRefreshToken.updateMany({ where: { consumidoEm: { not: null } }, data: { expiraEm: new Date(0) } });
+    await s.prisma.mcpLimite.deleteMany({ where: { chave: { startsWith: "limpeza:" } } }); await limparRegistrosMcp();
+    expect(await s.prisma.mcpRefreshToken.count()).toBe(1);
   });
   it("diagnóstico é real e limitado, limpeza conserva histórico recente", async () => {
     const diagnostico = await diagnosticarMcp("admin-mcp"); expect(diagnostico).toMatchObject({ banco: "OK", consultaFinanceira: "NAO_EXECUTADA", clienteExterno: "NAO_TESTADO" });

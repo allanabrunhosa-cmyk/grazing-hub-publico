@@ -17,8 +17,9 @@ financeiras. Escrita operacional, SQL livre e contas de serviço estão fora des
   `@node-oauth/oauth2-server`. Clientes públicos pré-cadastrados, redirect exato.
   Sem descoberta remota de clientes, DCR aberto ou callbacks presumidos.
 - Tokens opacos, somente hashes persistidos, emissor/recurso e expiração conferidos
-  junto da autorização e identidade em toda chamada. Sem refresh tokens nesta entrega:
-  expiração exige nova autorização; password/client_credentials não habilitados.
+  junto da autorização e identidade em toda chamada. Refresh token com rotação desde
+  25/11/2026 ([OPERAÇÃO](OPERACAO.md#renovação-sem-novo-consentimento--desde-25112026));
+  password/client_credentials não habilitados.
 - Isolamento existente é ConfiguracaoLoja singleton; não há tenant financeiro por linha.
   Rejeitar outra loja; restringir contas/registros e omitir campos pessoais/bancários.
 - Permissão efetiva é interseção HUB atual × perfil MCP × autorização × consentimento
