@@ -91,6 +91,23 @@ O perfil de exportação do site hoje gera 60 colunas (nome e endereço de entre
 contratado de 59 colunas, em que C e H eram a mesma coluna de cobrança. A exportação
 original de 60 colunas permanece preservada ao lado, com hash, na área privada.
 
+Execução em 25/11/2026, na revisão publicada `11878d6`: simulação na imagem
+(200 novos, 0 conflitos), aplicação de 200 pedidos (148 clientes criados, 32
+reutilizados, nenhum produto novo) e reexecução com 200 mantidos. As tabelas
+protegidas ficaram iguais; o HUB passou a ter 1.910 pedidos históricos. Lote
+`grazing-legado-orders:2026:d031113ab681`.
+
+A pedido do usuário, os endereços de entrega de outubro seguiram o mesmo
+[enriquecimento consultivo](../bi-vendas/FONTES.md) dos meses anteriores. As colunas
+de data, `Full Address (Shipping)` e número do pedido foram anexadas à planilha-fonte
+(linhas 1713 a 1912); as demais colunas dessas linhas ficaram vazias. Somente CEPs
+foram consultados no ViaCEP. Resultado do lote `entregas-historicas:2026-10:d295f58eef19`:
+200 pedidos vinculados, 194 entregas informadas, 6 retiradas, 193 com CEP, 189 com
+bairro, 3 CEPs divergentes do endereço digitado e reexecução com 200 mantidos.
+Os logs de lint, tipos e build usados na comprovação foram gerados na revisão
+`fe9ec9e`, cuja árvore de código é idêntica à publicada. O cadastro passivo no
+Atendimento não foi executado para outubro.
+
 ## Ajuste cadastral posterior — 15/10/2026
 
 O usuário solicitou separar PF/PJ, comprovar CNPJ, conservar nomes pessoais e
