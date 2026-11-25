@@ -4,6 +4,8 @@ import { validarComplementoRegistro, type ComplementoRegistro } from "./historic
 
 export const ORIGEM_HISTORICA = "grazing-legado-orders";
 export const LOJA_HISTORICA = "grazing-hub";
+/** Limite exclusivo do legado: outubro de 2026 foi o último mês operado fora do HUB. */
+const FIM_PERIODO_HISTORICO = "2026-11-01";
 const Decimal = Prisma.Decimal.clone({ precision: 50 });
 type Json = null | boolean | number | string | Json[] | { [chave: string]: Json };
 type Aberto = { [campo: string]: unknown };
@@ -292,10 +294,10 @@ function validarRegistro(valor: unknown, date1904: boolean): RegistroHistorico {
   if (!/^\d+$/.test(numero) || String(valores[8]).trim() !== numero || r.origem !== ORIGEM_HISTORICA || r.chave_deduplicacao !== `${ORIGEM_HISTORICA}:${numero}`) throw Error("HISTORICO_IDENTIDADE_INVALIDA");
   if (typeof r.hash_linha !== "string" || !/^[a-f0-9]{64}$/.test(r.hash_linha) || r.hash_linha !== hashCanonico(valores)) throw Error("HISTORICO_HASH_LINHA_DIVERGENTE");
   const criacao = validarData(r.data_criacao, valores[4], date1904);
-  if (numero === "20138" ? criacao.local_exato.slice(0, 10) !== "2025-12-30" : criacao.local_exato < "2026-01-01" || criacao.local_exato >= "2026-10-01") throw Error("HISTORICO_CRIACAO_FORA_PERIODO");
+  if (numero === "20138" ? criacao.local_exato.slice(0, 10) !== "2025-12-30" : criacao.local_exato < "2026-01-01" || criacao.local_exato >= FIM_PERIODO_HISTORICO) throw Error("HISTORICO_CRIACAO_FORA_PERIODO");
   if (r.pagamento_informado !== null) {
     const pago = validarData(r.pagamento_informado, valores[5], date1904);
-    if (pago.local_exato < "2026-01-01" || pago.local_exato >= "2026-10-01") throw Error("HISTORICO_PAGAMENTO_FORA_PERIODO");
+    if (pago.local_exato < "2026-01-01" || pago.local_exato >= FIM_PERIODO_HISTORICO) throw Error("HISTORICO_PAGAMENTO_FORA_PERIODO");
   } else if (ocupado(valores[5])) throw Error("HISTORICO_PAGAMENTO_OMITIDO");
   if (r.efeitos_operacionais_autorizados !== false || r.liquidacao_comprovada !== null) throw Error("HISTORICO_EFEITO_OPERACIONAL_RECUSADO");
   const itens = lista(r.itens, 10), blocos = new Set<number>();

@@ -48,9 +48,13 @@ describe("domínio da importação histórica",()=>{
     expect(p.registros[0].data_criacao.mes).toBe("2025-12");expect(p.registros[0].pagamento_informado?.mes).toBe("2026-01");
     expect(()=>validarPacoteHistorico(pacote([registro({numero:"20138"})]))).toThrow("CRIACAO_FORA_PERIODO");
   });
-  it("rejeita eventos posteriores a setembro sem retrodatá-los",()=>{
-    expect(()=>validarPacoteHistorico(pacote([registro({pago:data("2026-10-01T00:00:00")})]))).toThrow("PAGAMENTO_FORA_PERIODO");
-    expect(()=>validarPacoteHistorico(pacote([registro({data:data("2026-10-01T00:00:00")})]))).toThrow("CRIACAO_FORA_PERIODO");
+  it("aceita outubro de 2026 como último mês do legado",()=>{
+    const p=validarPacoteHistorico(pacote([registro({data:data("2026-10-31T23:59:00"),pago:data("2026-10-31T23:59:30")})]));
+    expect(p.registros[0].data_criacao.mes).toBe("2026-10");expect(p.registros[0].pagamento_informado?.mes).toBe("2026-10");
+  });
+  it("rejeita eventos posteriores a outubro sem retrodatá-los",()=>{
+    expect(()=>validarPacoteHistorico(pacote([registro({pago:data("2026-11-01T00:00:00")})]))).toThrow("PAGAMENTO_FORA_PERIODO");
+    expect(()=>validarPacoteHistorico(pacote([registro({data:data("2026-11-01T00:00:00")})]))).toThrow("CRIACAO_FORA_PERIODO");
     expect(()=>validarPacoteHistorico(pacote([registro({numero:"20139",data:data("2025-12-30T00:00:00")})]))).toThrow("CRIACAO_FORA_PERIODO");
   });
   it("serial local conserva microsegundos apesar do metadado Los Angeles",()=>{
