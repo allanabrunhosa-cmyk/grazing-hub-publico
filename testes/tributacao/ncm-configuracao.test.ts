@@ -87,11 +87,12 @@ describe("Cenários NCM por configuração", () => {
     expect(resolverNcmConfiguracao(c, [escolha()], "v1").pendencias.join()).toContain("sem fotografia técnica");
     const i = item(); delete i.receitaFotografada; expect(calcularTributacao(contexto, [i], versoes()).pendencias.join()).toContain("pedido ou do cadastro atual não comprovada");
   });
-  it("ingrediente gratuito ou cobrado sem cenário bloqueia novas análises; opções sem ingrediente conservam a linha", () => {
+  it("ingrediente integrado sem cenário mantém o NCM do produto e pede revisão, cobrado ou não; sem NCM do produto continua bloqueando", () => {
     const c = classificacao(); delete c.configuracaoNcm; c.ncm = "08061000"; c.analiseNcm = analise("Descrição A fictícia");
-    const vs = versoes(c); expect(calcularTributacao(contexto, [item()], vs).pendencias.join()).toContain("sem cenário NCM fundamentado");
+    const vs = versoes(c); { const r = calcularTributacao(contexto, [item()], vs); expect(r.pendencias).toEqual([]); expect(r.apto).toBe(true); expect(r.linhas[0].ncm).toBe("08061000"); expect(r.revisoesNcm).toEqual([{ produtoId: "principal", nome: "Família fictícia" }]); expect(r.linhas[0].justificativas.join()).toContain("sabor ou opção ainda sem decisão de NCM"); }
+    { const semNcm = classificacao(); delete semNcm.configuracaoNcm; semNcm.analiseNcm = analise("Descrição A fictícia"); expect(resolverNcmConfiguracao(semNcm, [escolha()], "v").pendencias.join()).toContain("sem NCM do produto para manter"); }
     const v = vs.find(v => v.tipo === "COMPLEMENTO" && v.chave === "opcao-a")!; v.dados = { ...v.dados as object, comportamento: "INTEGRADO" } as DadosVersaoFiscal;
-    const cobrado = item(); cobrado.escolhas[0].valor = "2.00"; expect(calcularTributacao(contexto, [cobrado], vs).apto).toBe(false);
+    const cobrado = item(); cobrado.escolhas[0].valor = "2.00"; { const r = calcularTributacao(contexto, [cobrado], vs); expect(r.apto).toBe(true); expect(r.totalMercadorias).toBe("10.00"); expect(r.revisoesNcm).toHaveLength(1); }
     const vazio = item(); vazio.receitaFotografada!.opcaoHashes[0].hash = hashOpcaoTecnica(null, []);
     expect(calcularTributacao(contexto, [vazio], vs).apto).toBe(true);
     delete c.analiseNcm; delete c.ncmAplicabilidade; expect(calcularTributacao(contexto, [item()], versoes(c)).apto).toBe(true);
@@ -111,7 +112,8 @@ describe("Cenários NCM por configuração", () => {
     const r = calcularTributacao(contexto, [i], versoes(c)); expect(r.apto).toBe(true); expect(r.totalMercadorias).toBe("10.00"); expect(r.linhas).toHaveLength(1); expect(r.linhas[0].ncm).toBe("08061000"); expect(r.linhas[0].cenarioNcm?.opcaoIds).toEqual(["opcao-a", "opcao-b"]);
     es[0].quantidadeEscolhida = "3"; { const fora = calcularTributacao(contexto, [i], versoes(c)); expect(fora.pendencias).toEqual([]); expect(fora.apto).toBe(true); expect(fora.linhas[0].ncm).toBe("08061000"); expect(fora.revisoesNcm).toHaveLength(1); expect(fora.linhas[0].justificativas.join()).toContain("quantidade 4 fora de 1–3, NCM mantido com revisão pendente"); }
     es[0].quantidadeEscolhida = "2"; const atual = foto(); atual.opcaoHashes[1].hash = hashOpcaoTecnica(null, ingrediente("opcao-b", "2")); const alterada = calcularTributacao(contexto, [i], versoes(c), atual); expect(alterada.apto).toBe(true); expect(alterada.revisoesNcm).toEqual([{ produtoId: "principal", nome: "Família fictícia" }]); expect(alterada.linhas[0].ncm).toBe("08061000");
-    expect(calcularTributacao(contexto, [item([{ ...escolha("opcao-nova"), quantidadeEscolhida: "1" }])], versoes(c)).pendencias.join()).toContain("sem equivalência");
+    { const nova = calcularTributacao(contexto, [item([{ ...escolha("opcao-nova"), quantidadeEscolhida: "1" }])], versoes(c)); expect(nova.pendencias).toEqual([]); expect(nova.apto).toBe(true); expect(nova.linhas[0].ncm).toBe("08061000"); expect(nova.revisoesNcm).toHaveLength(1); expect(nova.linhas[0].justificativas.join()).toContain("sabor ou opção ainda sem decisão de NCM"); }
+    { const baixa = structuredClone(c); baixa.configuracaoNcm!.gruposEquivalentes![0].analiseNcm.fontes = []; expect(calcularTributacao(contexto, [item([{ ...escolha("opcao-nova"), quantidadeEscolhida: "1" }])], versoes(baixa)).pendencias.join()).toContain("sem equivalência"); }
     { const semEscolha = calcularTributacao(contexto, [item([])], versoes(c)); expect(semEscolha.apto).toBe(true); expect(semEscolha.revisoesNcm).toHaveLength(1); }
     c.configuracaoNcm.gruposEquivalentes![0].quantidadeMinima = "0"; { const coberto = calcularTributacao(contexto, [item([])], versoes(c)); expect(coberto.apto).toBe(true); expect(coberto.revisoesNcm).toBeUndefined(); }
   });
@@ -203,13 +205,17 @@ describe("Cenários NCM por configuração", () => {
     tecnica.materiais.opcoes[1].materiais.insumos[0].hash = "b".repeat(64);
     const ra = calcularTributacao(contexto, [a], versoes(c), tecnica); expect(ra.apto).toBe(true); expect(ra.revisoesNcm).toBeUndefined(); const r = calcularTributacao(contexto, [b], versoes(c), tecnica); expect(r.apto).toBe(true); expect(r.revisoesNcm).toEqual([{ produtoId: "principal", nome: "Família fictícia" }]); expect(r.linhas[0].ncm).toBe("19053100");
   });
-  it("unidade separada de sabor único leva o valor inteiro cobrado no principal; dois sabores sem preço próprio seguem bloqueados", () => {
+  it("unidade separada de sabor único leva o valor inteiro cobrado no principal; dois sabores sem preço próprio dividem o valor pela quantidade escolhida", () => {
     const c = classificacao(); c.configuracaoNcm!.modoFiscal = "UNIDADES_SEPARADAS";
     const vs = versoes(c), unico = { ...item([{ ...escolha("opcao-b"), quantidadeEscolhida: "1", valor: "0.00" }]), total: "161.77" };
     const r = calcularTributacao(contexto, [unico], vs); expect(r.pendencias).toEqual([]); expect(r.apto).toBe(true);
     expect(r.linhas.map(l => [l.ncm, l.quantidade, l.valor])).toEqual([["19053100", "1.000000", "161.77"]]); expect(r.totalMercadorias).toBe("161.77");
     const dois = { ...item([{ ...escolha(), quantidadeEscolhida: "1", valor: "0.00" }, { ...escolha("opcao-b"), quantidadeEscolhida: "1", valor: "0.00" }]), total: "161.77" };
-    const bloqueado = calcularTributacao(contexto, [dois], vs); expect(bloqueado.apto).toBe(false); expect(bloqueado.linhas).toHaveLength(0); expect(bloqueado.pendencias.join()).toContain("base ou custo não discriminado");
+    const rateado = calcularTributacao(contexto, [dois], vs); expect(rateado.pendencias).toEqual([]); expect(rateado.apto).toBe(true);
+    expect(rateado.linhas.map(l => [l.ncm, l.quantidade, l.valor])).toEqual([["08061000", "1.000000", "80.89"], ["19053100", "1.000000", "80.88"]]); expect(rateado.totalMercadorias).toBe("161.77");
+    expect(rateado.linhas[0].justificativas.join()).toContain("rateado pela quantidade escolhida");
+    const desigual = { ...item([{ ...escolha(), quantidadeEscolhida: "2", valor: "0.00" }, { ...escolha("opcao-b"), quantidadeEscolhida: "1", valor: "0.00" }]), total: "90.00" };
+    expect(calcularTributacao(contexto, [desigual], vs).linhas.map(l => [l.quantidade, l.valor])).toEqual([["2.000000", "60.00"], ["1.000000", "30.00"]]);
   });
   it("marca de insumo simples não gera revisão; troca de material ou preparação alterada mantém o NCM e pede revisão", () => {
     const c = classificacao(); delete c.configuracaoNcm; c.ncm = "08061000"; c.analiseNcm = analise("Descrição A fictícia");

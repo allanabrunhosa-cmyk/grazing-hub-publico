@@ -98,12 +98,16 @@ export function calcularTributacao(contexto: ContextoFiscal, itens: ItemComercia
       if (!es.length || valorDiscriminado && es.length !== 1) { adicionar(`${linha.nome}: unidades separadas exigem opções individualizadas; configuração multissabor exige componentes/rateios documentados separados.`); return; }
       // Uma única opção escolhida é a mercadoria inteira da linha: o preço cobrado no
       // principal pertence a ela, sem rateio. Duas ou mais exigem valor por opção.
-      const valores = es.map(e => valorDiscriminado || es.length === 1 ? linha.valor : e.valor);
+      // Sabores sem preço próprio (incluídos no preço do principal): o valor da linha é dividido
+      // pela quantidade escolhida de cada sabor, regra aceita pelo responsável em 25/11/2026.
+      // Opções com preço próprio que não fecham o total continuam exigindo conferência.
+      const semPrecoProprio = !valorDiscriminado && es.length > 1 && es.every(e => valorFiscal(e.valor).isZero() && !!e.quantidadeEscolhida && /^\d{1,12}(\.\d{1,6})?$/.test(e.quantidadeEscolhida) && new D(e.quantidadeEscolhida).gt(0));
+      const valores = semPrecoProprio ? ratearFiscal(linha.valor, es.map(e => e.quantidadeEscolhida!)) : es.map(e => valorDiscriminado || es.length === 1 ? linha.valor : e.valor);
       if (!valores.reduce((t,v) => t.plus(valorFiscal(v)), new D(0)).equals(linha.valor)) { adicionar(`${linha.nome}: valores das unidades separadas não fecham com o total comercial; base ou custo não discriminado exige análise, sem rateio presumido.`); return; }
       for (const [n,e] of es.entries()) {
         const quantidade = e.quantidadeEscolhida && composta(linha.quantidade, e.quantidadeEscolhida, linha.nome);
         if (!quantidade) { adicionar(`${linha.nome}: quantidade escolhida por unidade separada ausente.`); continue; }
-        expandir({ ...linha, id: `${linha.id}:unidade:${e.opcaoId}`, nome: valorDiscriminado ? linha.nome : `${linha.nome} — ${e.nome}`, quantidade, valor: valores[n], unidadeSeparadaResolvida: true, escolhas: [{ ...e, quantidadeEscolhida: "1" }, ...todas.filter(x => !c.configuracaoNcm!.grupoIds.includes(x.grupoId ?? ""))], justificativas: [...linha.justificativas, `Opção ${e.opcaoId} representa mercadoria individual, quantidade do pedido ${linha.quantidade} × ${e.quantidadeEscolhida}, conforme análise versionada; valores comerciais preservados.`] }, caminho);
+        expandir({ ...linha, id: `${linha.id}:unidade:${e.opcaoId}`, nome: valorDiscriminado ? linha.nome : `${linha.nome} — ${e.nome}`, quantidade, valor: valores[n], unidadeSeparadaResolvida: true, escolhas: [{ ...e, quantidadeEscolhida: "1" }, ...todas.filter(x => !c.configuracaoNcm!.grupoIds.includes(x.grupoId ?? ""))], justificativas: [...linha.justificativas, `Opção ${e.opcaoId} representa mercadoria individual, quantidade do pedido ${linha.quantidade} × ${e.quantidadeEscolhida}, conforme análise versionada; ${semPrecoProprio ? `valor ${valores[n]} rateado pela quantidade escolhida de cada sabor, sem alterar o total` : "valores comerciais preservados"}.`] }, caminho);
       }
       return;
     }

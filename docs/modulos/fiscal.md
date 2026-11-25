@@ -33,7 +33,10 @@ a emissão: a nota sai com o NCM vigente e o produto fica com revisão de NCM pe
 no Painel do Fiscal, no bloco Fiscal do pedido e por e-mail aos administradores. No painel,
 **Manter NCM** registra nova versão da classificação com a composição atual e **Alterar NCM**
 abre a ficha fiscal. Prova ausente (fotografia inexistente no pedido ou no cadastro) e
-combinação de opções sem cenário continuam bloqueando. Contrato, caminhos e limites:
+combinação de opções sem cenário continuam bloqueando. Variações (25/11/2026): sabor não muda
+o NCM salvo exceção cadastrada; sabor novo ou adicional integrado usa o NCM do produto com
+revisão pendente, e produto com NCM por sabor rateia o valor pela quantidade escolhida quando
+os sabores não têm preço próprio. Contrato, caminhos e limites:
 [Revisão de NCM](../features/revisao-ncm/SPEC.md).
 Desde 25/11/2026 o mesmo vale para a contagem de escolhas de um grupo com equivalência NCM:
 escolher mais ou menos sabores do que a análise previu mantém o NCM e gera revisão pendente,

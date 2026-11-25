@@ -20,8 +20,26 @@ Regras do domínio: [Fiscal](../../modulos/fiscal.md). Andamento: [TASKS](TASKS.
 | Ingrediente incluído, retirado ou trocado; quantidade/unidade/modo de preparo | segue, NCM mantido | sim |
 | Receita de preparação alterada (inclui marca de ingrediente dentro dela) | segue, NCM mantido | sim |
 | Quantidade de escolhas fora da faixa da equivalência NCM (ex.: análise com 1 sabor, cardápio vendendo 2) — 25/11/2026 | segue, NCM mantido | sim |
+| Sabor/opção criado depois da análise em grupo de sabores equivalentes — 25/11/2026 | segue, NCM do produto | sim |
+| Ingrediente incluído ou adicional integrado em produto sem configuração por escolha — 25/11/2026 | segue, NCM do produto | sim, só no pedido |
+| Escolha de grupo que a configuração não cobre (fora de cenários e equivalências) — 25/11/2026 | segue, NCM resolvido | sim, só no pedido |
 | Prova ausente no pedido ou no cadastro (fotografia inexistente) | bloqueia, como antes | — |
-| Combinação de opções sem cenário NCM | bloqueia, como antes | — |
+| Combinação de opções sem cenário NCM (produto com NCM por sabor) | bloqueia, como antes | — |
+| Produto sem NCM próprio para manter | bloqueia | — |
+
+### Variações de sabor e tamanho — 25/11/2026
+
+Regra do responsável: o sabor **não** muda o NCM, salvo exceção cadastrada; tamanho nunca muda.
+
+- **Padrão (sabores equivalentes, `gruposEquivalentes`)**: qualquer opção do grupo usa o NCM do
+  produto. Sabor novo no cardápio não bloqueia; aparece no painel como "opção nova sem decisão
+  de NCM" e **Manter NCM** o inclui na equivalência (`opcoesAtivasGrupo` em `revisao-ncm-limites.ts`).
+- **Exceção (NCM por sabor, `modoFiscal: "UNIDADES_SEPARADAS"`)**: uma linha fiscal por sabor.
+  Sabores sem preço próprio dividem o valor da linha pela quantidade escolhida de cada um
+  (`ratearFiscal`, centavos pelo maior resto, total preservado). Opções com preço próprio que
+  não fecham o total continuam bloqueando. Sabor novo sem cenário continua bloqueando: não há
+  NCM do produto para herdar (o cadastro desses produtos não tem NCM base).
+- Tamanho é quantidade/preço do mesmo produto e não tem configuração fiscal.
 
 - **Manter NCM**: confirmação explícita no painel. Registra nova versão da classificação com
   os mesmos dados e a composição atual, pelo caminho normal salvar → impacto → ativar, com
@@ -61,6 +79,11 @@ serve: a projeção de atividades só aceita RASCUNHO/IMPACTO/ATIVACAO.
 - Gravações fora dos três pontos com gatilho (por exemplo importação em lote) só geram
   e-mail na próxima abertura do painel ou gravação com gatilho.
 - Pedido antigo, fechado antes de uma mudança já confirmada, emite com o NCM vigente sem aviso.
+- Os avisos marcados "só no pedido" não aparecem no painel nem têm **Manter NCM**: a decisão
+  é registrada na ficha fiscal (equivalência do grupo). Produto com receita fiscal documentada
+  por opção exige a porção do sabor novo na ficha; **Manter NCM** recusa e explica.
+- Complementos vendidos como mercadoria (bebidas, empório) seguem o tratamento próprio do
+  complemento e não entram nesta regra.
 
 ## Aceite
 

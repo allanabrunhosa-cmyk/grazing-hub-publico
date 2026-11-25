@@ -23,4 +23,11 @@ Contrato: [SPEC](SPEC.md).
   pede revisão; Manter NCM amplia a faixa. Evidência: `testes/tributacao` com banco local (34 na
   integração) e ensaio somente leitura dos pedidos afetados, aptos e com totais conferidos.
 
-Próximo passo exato: nenhum pendente nesta feature; evoluções do modelo de variações ficam em proposta própria.
+- [x] Variações de sabor — 25/11/2026: sabor novo e adicional integrado mantêm o NCM do produto com
+  revisão; NCM por sabor rateia o valor pela quantidade quando os sabores não têm preço próprio;
+  painel avisa e **Manter NCM** incorpora o sabor novo. Evidência: `npx vitest run testes/tributacao`
+  e consumidores (607 aprovados) e `ncm-aplicabilidade-integracao.test.ts` com banco local (35).
+  Sem tela nova: os textos saem no painel e no pedido já existentes.
+
+Próximo passo exato: tabela simples "sabor → NCM" na ficha fiscal (hoje a exceção é mantida pelo
+editor de classificação existente) e **Manter NCM** para os avisos que hoje só aparecem no pedido.
