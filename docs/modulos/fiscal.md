@@ -1,5 +1,21 @@
 # Fiscal
 
+## Falha de comunicação do emissor com a SEFAZ — 26/11/2026
+
+Quando o Brasil NFe responde ao envio com "Não foi possível obter comunicação com os serviços
+da sefaz", a consulta devolve a tentativa com situação 3, não emitida, código 0 e sem protocolo.
+Isso **não comprova rejeição**: a SEFAZ pode ter recebido a nota. O documento fica em
+`PENDENTE_CONFERENCIA` e a emissão permanece bloqueada (`interpretarRecuperacaoFiscalBrasilNfe`).
+A API do emissor não consulta a SEFAZ pela chave; a conferência é externa, no portal nacional.
+
+Caso real: pedido 61, nº 36 da série 6. O responsável conferiu a chave no portal (não consta) e
+a tentativa foi marcada como `REJEITADO` por `scripts/fiscal-saida-pedido61-tentativa-rejeitada.ts`
+(backup, ensaio, reconsulta do emissor e evento `RETORNO` com origem
+`CONFERENCIA_EXTERNA_RESPONSAVEL`). Rejeição sem protocolo libera outra revisão
+(`rejeicaoFiscalCorrigivel`). O número da tentativa vira salto e precisa de inutilização na
+SEFAZ, que o sistema ainda não faz. Não há ação na tela para esse caso: cada ocorrência exige
+operação assistida.
+
 ## Destaque da nota cancelada no pedido — 24/11/2026
 
 No bloco Fiscal do pedido (`emitir-nota-pedido.tsx`), nota `CANCELADO` mostra selo vermelho
