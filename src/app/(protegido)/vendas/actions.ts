@@ -85,11 +85,21 @@ export async function salvarGrupoVendaAction(entrada: GrupoEntrada) {
   }
   catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
 }
+/** Produto que usa complemento do tipo Opção recebe na classificação o NCM de cada item.
+ * O cadastro comercial já foi salvo: qualquer falha aqui vira aviso, nunca erro do salvamento. */
+async function sincronizarNcmDasOpcoesDoProduto(produtoId: string, autor: Awaited<ReturnType<typeof exigirPermissao>>) {
+  const avisos: string[] = [];
+  try {
+    const vinculos = await prisma.produtoGrupoVenda.findMany({ where: { produtoId, grupo: { tipo: "OPCAO", ativo: true } }, select: { grupoId: true } });
+    for (const v of vinculos) avisos.push(...(await sincronizarNcmDoComplementoOpcao(v.grupoId, autor, produtoId)).avisos);
+  } catch { avisos.push("Não foi possível levar o NCM dos complementos à classificação fiscal; confira a aba Fiscal."); }
+  return avisos;
+}
 export async function salvarProdutoVendaAction(entrada: ProdutoEntrada) {
   const autor = await exigirPermissao("vendas.produtos", entrada?.id ? "editar" : "adicionar");
   if (entrada?.novoVinculoComplemento || entrada?.pausasComplementos?.length) await exigirPermissao("vendas.catalogo", "editar");
   if (entrada?.salvarFiscal) { await exigirPermissao("vendas.fiscal", "editar"); return { erro: "Salve e aplique a configuração na própria aba Fiscal. O salvamento comercial não altera parâmetros fiscais." }; }
-  try { const id = await salvarProduto(entrada, autor, entrada?.salvarFiscal ? { fiscal: entrada.fiscal, revisado: entrada.fiscalRevisado === true, grupoFiscalId: entrada.grupoFiscalId ?? null } : undefined); revalidatePath("/vendas", "layout"); atualizarCadastrosFiscais(); return { ok: true as const, id }; }
+  try { const id = await salvarProduto(entrada, autor, entrada?.salvarFiscal ? { fiscal: entrada.fiscal, revisado: entrada.fiscalRevisado === true, grupoFiscalId: entrada.grupoFiscalId ?? null } : undefined); const avisos = await sincronizarNcmDasOpcoesDoProduto(id, autor); revalidatePath("/vendas", "layout"); atualizarCadastrosFiscais(); return { ok: true as const, id, aviso: avisos.length ? `Produto salvo. Pendências fiscais: ${avisos.join(" ")}` : undefined }; }
   catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
 }
 export async function organizarCodigosProdutosVendaAction() {

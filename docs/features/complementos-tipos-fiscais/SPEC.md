@@ -57,6 +57,8 @@ Exemplo de nome: "Torta artesanal grande palmito" = produto + variável + opçã
   versão da classificação (salvar → impacto → ativar) com um cenário por item
   (`UNIDADES_SEPARADAS`). Só o item com NCM informado é criado ou trocado; cenários de itens sem
   NCM no cadastro são preservados. Repetir o salvamento não cria versão.
+- Salvar o produto (`salvarProdutoVendaAction`) repete a sincronização só para ele, em cada
+  complemento Opção ativo vinculado: é o que cobre o vínculo novo. Sem mudança, não cria versão.
 - Falha em um produto não desfaz o cadastro: vira aviso na tela. Casos: produto sem classificação,
   rascunho fiscal aberto, NCM configurado por outra regra de escolhas, código fora da tabela
   oficial, item ativo sem NCM (a nota bloqueia quando esse item é escolhido).
@@ -75,8 +77,6 @@ O motor não mudou nesta etapa; os três tratamentos já existiam e passam a ter
 
 ## Fora desta etapa e decisões abertas
 
-- Vincular um complemento Opção a um produto novo só leva os NCMs à classificação quando o
-  complemento é salvo de novo; salvar o produto não dispara a sincronização.
 - **Torta artesanal e Suco integral**: convertidos para Opção em produção em 26/11/2026 por
   `scripts/complementos-torta-suco-opcao.ts` (serviço oficial do cadastro, backup e ensaio
   prévios). O NCM de cada item veio da classificação vigente; classificação, limites (já 1 por
