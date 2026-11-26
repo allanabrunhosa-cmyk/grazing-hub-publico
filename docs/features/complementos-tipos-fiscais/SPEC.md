@@ -77,8 +77,10 @@ O motor não mudou nesta etapa; os três tratamentos já existiam e passam a ter
 
 - Vincular um complemento Opção a um produto novo só leva os NCMs à classificação quando o
   complemento é salvo de novo; salvar o produto não dispara a sincronização.
-- **Torta artesanal e Suco integral**: mudar o tipo do complemento de sabores para Opção no
-  cadastro. A mudança limita a um sabor por item; não foi feita em produção por esta entrega.
+- **Torta artesanal e Suco integral**: convertidos para Opção em produção em 26/11/2026 por
+  `scripts/complementos-torta-suco-opcao.ts` (serviço oficial do cadastro, backup e ensaio
+  prévios). O NCM de cada item veio da classificação vigente; classificação, limites (já 1 por
+  item) e prévias de pedidos reais não mudaram.
 - **Variável**: entidade nova, sem NCM, que altera preço e entra no nome da nota.
 - Nome na nota da Opção: hoje "produto — opção". Trocar o separador é decisão de apresentação.
 

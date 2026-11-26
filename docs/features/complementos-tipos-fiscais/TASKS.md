@@ -21,8 +21,7 @@ Contrato: [SPEC](SPEC.md).
 - [ ] Sincronizar também ao vincular o complemento a um produto (hoje só ao salvar o complemento).
 - [x] Espetinhos com NCM único 2106.90.90 (25/11/2026). Ensaio e aplicação com prévia de 5
   pedidos reais: mesmas linhas e valores, sem pendências nem revisões.
-- [ ] Torta artesanal e Suco integral como Opção. Feito pelo responsável na tela, ou por
-  operação autorizada.
+- [x] Torta artesanal e Suco integral como Opção (26/11/2026, operação autorizada).
 - [x] Sabor novo em Opção sem NCM: aviso ao salvar e nota bloqueada para esse item.
 
 ## Etapa 3 — Variável
@@ -30,4 +29,4 @@ Contrato: [SPEC](SPEC.md).
 - [ ] Entidade Variável (escolha única, sem NCM, altera preço, entra no nome da nota).
 - [ ] Unificação opcional dos produtos por tamanho.
 
-**Próximo passo exato:** Torta e Suco como Opção (decisão do responsável), depois etapa 3.
+**Próximo passo exato:** etapa 3 (Variável), quando o responsável decidir.
