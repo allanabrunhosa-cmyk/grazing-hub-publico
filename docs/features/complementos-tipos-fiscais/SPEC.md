@@ -19,8 +19,11 @@ Exemplo de nome: "Torta artesanal grande palmito" = produto + variável + opçã
 ## Decisões de 25/11/2026
 
 - **Opção aceita uma única escolha.** Dois sabores no mesmo pedido são dois itens do pedido.
-- **Composição nunca muda o NCM.** Os Grazing Espetinhos passam a ter NCM único do produto;
-  a escolha do código é do responsável (ver decisões abertas).
+- **Composição nunca muda o NCM.** Os Grazing Espetinhos 24un e 48un têm NCM único 2106.90.90
+  (o mesmo da Grazing para 2 Vegetariana), escolhido pelo responsável. Aplicado em produção em
+  25/11/2026 por `scripts/estrutura-fiscal-espetinhos-ncm-unico.ts`: nova versão da classificação
+  pelo serviço oficial, com os três sabores como equivalentes; backup prévio e ensaio desfeito
+  antes da gravação. As seis combinações anteriores ficam no histórico da versão 4.
 - **Todo Adicional sai em linha própria com NCM próprio**, inclusive os Extras.
 - **Variável fica para uma etapa seguinte.** Tamanhos continuam como produtos separados.
 
@@ -59,8 +62,6 @@ O motor não mudou nesta etapa; os três tratamentos já existiam e passam a ter
 
 - **NCM do item no cadastro de Opção**: hoje o NCM por opção continua no editor de classificação
   fiscal. Falta o campo no próprio cadastro do complemento, gravando a versão fiscal por baixo.
-- **Espetinhos**: escolher o NCM único entre os quatro usados hoje (0406.10.10, 0406.90.30,
-  1601.00.00, 2106.90.90). Depende do responsável e do contador.
 - **Torta artesanal e Suco integral**: mudar o tipo do complemento de sabores para Opção no
   cadastro. A mudança limita a um sabor por item; não foi feita em produção por esta entrega.
 - **Variável**: entidade nova, sem NCM, que altera preço e entra no nome da nota.
