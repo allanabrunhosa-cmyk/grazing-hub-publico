@@ -149,7 +149,8 @@ it("consulta CEP pela autorização de Clientes, protege os quatro campos brasil
   expect(texto("Logradouro *").readOnly).toBe(true);
   expect(texto("Cidade *").readOnly).toBe(true);
   expect(texto("Estado / UF *").readOnly).toBe(true);
-  expect(texto("Bairro *").readOnly).toBe(true);
+  // O CEP não informou o bairro: somente esse campo fica liberado para digitação.
+  expect(texto("Bairro *").readOnly).toBe(false);
   expect(texto("Número *").value).toBe("123");
   expect(texto("Complemento (opcional)").value).toBe("Sala 2");
   expect(texto("Complemento (opcional)").readOnly).toBe(false);

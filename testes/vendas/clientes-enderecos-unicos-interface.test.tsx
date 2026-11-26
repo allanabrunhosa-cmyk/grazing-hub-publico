@@ -122,7 +122,7 @@ describe("inclusão temporária e endereço postal único", () => {
     expect(alterar.mock.lastCall?.[0].entregaPadrao).toMatchObject({ selecionado: 1, destinatario: { nome: "Destinatária Diferente" }, endereco: { numero: "30", complemento: "Apartamento 2" } });
   });
 
-  it("não deixa o CEP incompleto da consulta passar por campos brasileiros somente leitura", async () => {
+  it("CEP sem bairro libera o campo para digitação e continua exigindo o preenchimento", async () => {
     const alterar = vi.fn();
     sim.cep.mockResolvedValue({ endereco: { logradouro: "Rua Fictícia", bairro: "", cidade: "São Paulo", uf: "SP" } });
     render(<Formulario alterar={alterar} />);
@@ -130,7 +130,7 @@ describe("inclusão temporária e endereço postal único", () => {
     const modal = screen.getByRole("dialog", { name: "Adicionar endereço de entrega" }), campos = within(modal);
     fireEvent.change(campos.getByLabelText("Nome Completo *"), { target: { value: "Destinatária Completa" } });
     await preencherPostal(modal, "40");
-    expect(campos.getByLabelText("Bairro *")).toHaveProperty("readOnly", true);
+    expect(campos.getByLabelText("Bairro *")).toHaveProperty("readOnly", false);
     await userEvent.click(campos.getByRole("button", { name: "Adicionar endereço" }));
     expect(campos.getByRole("alert").textContent).toContain("Bairro");
     expect(alterar).not.toHaveBeenCalled();

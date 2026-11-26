@@ -9,6 +9,7 @@ export const buscarCepClienteAction = async () => {
   const estado = new URLSearchParams(location.search).get("cep");
   if (estado === "pendente") await new Promise(resolve => setTimeout(resolve, 4000));
   if (estado === "erro") return { erro: "Consulta de CEP indisponível na simulação." };
+  if (estado === "cidade") return { endereco: { logradouro: "", bairro: "", cidade: "Cidade fictícia", uf: "MG" } };
   return { endereco: { logradouro: "Rua fictícia", bairro: "Bairro fictício", cidade: "Cidade fictícia", uf: "SP" } };
 };
 export const buscarCepPedidoAction = buscarCepClienteAction;
