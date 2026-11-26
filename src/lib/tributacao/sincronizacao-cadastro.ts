@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma, type VersaoEstruturaFiscal } from "@/generated/prisma/client";
 import { historicoFiscalJsonb, lerFiscalTexto, mesclarFiscalJsonb } from "@/lib/vendas/fiscal-jsonb";
 import { lerAjustesOpcoes, opcoesEfetivas, validarComponentes } from "@/lib/vendas/dominio";
+import { ehEscolhaInterna } from "@/lib/vendas/tipos-complemento";
 import type { ClassificacaoFiscal, ComportamentoFiscal, VersaoFiscalDto } from "./tipos";
 import { ErroEstruturaFiscal } from "./validacao";
 import { grupoOperacionalFiscal } from "./grupos-operacionais";
@@ -23,7 +24,7 @@ export async function conferirVinculosCenariosNcm(tx: Banco, c: ClassificacaoFis
     const vinculo = o.grupo.produtos[0];
     const efetiva = opcoesEfetivas([{ id: o.id, preco: (o.usarPrecoPadrao ? o.produto?.preco ?? o.preco : o.preco).toString(), ativo: o.ativo, composicao: o.composicao == null ? null : validarComponentes(o.composicao) }], { opcoesExcluidas: vinculo.opcoesExcluidas, ajustesOpcoes: lerAjustesOpcoes(vinculo.ajustesOpcoes) })[0];
     const b = vigentes.find(v => v.tipo === "COMPLEMENTO" && v.chave === o.id)?.dados as ComportamentoFiscal | undefined;
-    const aliasComposicao = o.grupo.tipo === "COMPOSICAO" && !!efetiva.composicao?.length;
+    const aliasComposicao = ehEscolhaInterna(o.grupo.tipo) && !!efetiva.composicao?.length;
     if (!o.grupo.ativo || !efetiva?.ativo || o.produtoId && !aliasComposicao && !await tx.produtoVenda.count({ where: { id: o.produtoId, ativo: true } }) || !b || !["INCLUIDO", "INTEGRADO"].includes(b.comportamento) || b.comportamento === "INCLUIDO" && !new Prisma.Decimal(efetiva.preco).isZero()) throw new ErroEstruturaFiscal("Cenário NCM exige opções comercializáveis e comportamento integrado ao principal; não discriminar sabor como mercadoria artificial.");
   }
 }

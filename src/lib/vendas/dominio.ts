@@ -2,6 +2,7 @@
 import { telefoneOpcionalArmazenado } from "./telefone";
 import { CORES_CATEGORIA, type CorCategoria, type EscopoCategoria } from "./classificacao";
 import { preservarCodigoMunicipio } from "./municipio";
+import { ehTipoGrupo, limitarPorTipo, type TipoGrupo } from "./tipos-complemento";
 import { cobrancasDoCliente, identidadePrincipalCliente, LIMITE_COBRANCAS_CLIENTE } from "./cliente-cobranca";
 import { normalizarEmailCliente } from "./cliente-identificadores";
 import { codigoProdutoValido } from "./codigo-produto";
@@ -26,7 +27,7 @@ export type ComposicaoComplemento = ProdutoEntrada["componentes"];
 export type AjusteOpcao = { opcaoId: string; preco?: string; composicao?: ComposicaoComplemento | null; ativo?: boolean };
 export type PausaComplemento = { opcaoId: string; ativo: boolean; grupos: { id: string; versao: number }[] };
 export type OpcaoEntrada = { id: string; nome: string; preco: string; produtoId: string | null; quantidade: string; ativo: boolean; composicao?: ComposicaoComplemento | null; usarPrecoPadrao?: boolean };
-export type GrupoEntrada = CategoriaEntrada & { tipo: "COMPOSICAO" | "EXTRAS" | "COMPLEMENTAR"; categoriaId?: string | null; minimo: number; maximo: number | null; repetir: boolean; opcoes: OpcaoEntrada[] };
+export type GrupoEntrada = CategoriaEntrada & { tipo: TipoGrupo; categoriaId?: string | null; minimo: number; maximo: number | null; repetir: boolean; opcoes: OpcaoEntrada[] };
 export type VinculoGrupo = { grupoId: string; usarPadrao: boolean; minimo: number; maximo: number | null; opcoesExcluidas?: string[]; ajustesOpcoes?: AjusteOpcao[] };
 export type ProdutoEntrada = {
   id: string; versao: number; nome: string; especificacao: string | null; descricao: string | null;
@@ -272,15 +273,15 @@ export function opcoesEfetivas<T extends { id: string; preco: string; ativo: boo
 }
 export function validarGrupo(entrada: unknown): GrupoEntrada {
   const d = objeto(entrada);
-  if (d.tipo !== "COMPOSICAO" && d.tipo !== "EXTRAS" && d.tipo !== "COMPLEMENTAR") throw new ErroCadastroVenda("Tipo de grupo inválido.");
-  const limites = d.tipo === "EXTRAS" ? { minimo: 0, maximo: null } : validarLimites(d.minimo, d.maximo);
+  if (!ehTipoGrupo(d.tipo)) throw new ErroCadastroVenda("Tipo de grupo inválido.");
+  const limites = d.tipo === "EXTRAS" ? { minimo: 0, maximo: null } : limitarPorTipo(d.tipo, validarLimites(d.minimo, d.maximo));
   const opcoes = lista(d.opcoes, "Opções", 500).map((valor) => {
     const o = objeto(valor);
     return { id: texto(o.id, "Identificador", 100), nome: texto(o.nome, "Nome da opção", 160, true), preco: decimal(o.preco, "Preço da opção", true), produtoId: opcional(o.produtoId, "Produto", 100), quantidade: decimal(o.quantidade, "Quantidade da composição"), ativo: booleano(o.ativo, "Opção ativa"), ...(o.usarPrecoPadrao === undefined ? {} : { usarPrecoPadrao: booleano(o.usarPrecoPadrao, "Preço do cadastro") }), ...(o.composicao === undefined ? {} : { composicao: o.composicao === null ? null : validarComponentes(o.composicao) }) };
   });
   semDuplicados(opcoes.map(o => o.id).filter(Boolean), "Opções");
   semDuplicados(opcoes.map(o => o.nome.toLocaleLowerCase("pt-BR")), "Nomes das opções");
-  return { ...validarCategoria(d), tipo: d.tipo, categoriaId: opcional(d.categoriaId, "Categoria do grupo", 100), ...limites, repetir: d.tipo === "EXTRAS" ? true : booleano(d.repetir, "Repetir"), opcoes };
+  return { ...validarCategoria(d), tipo: d.tipo, categoriaId: opcional(d.categoriaId, "Categoria do grupo", 100), ...limites, repetir: d.tipo === "EXTRAS" ? true : d.tipo === "OPCAO" ? false : booleano(d.repetir, "Repetir"), opcoes };
 }
 export function validarProduto(entrada: unknown): ProdutoEntrada {
   const d = objeto(entrada);
@@ -307,7 +308,7 @@ export function validarProduto(entrada: unknown): ProdutoEntrada {
   if (fotoUrl && !/^\/api\/vendas\/fotos\/[a-zA-Z0-9_-]+$/.test(fotoUrl)) throw new ErroCadastroVenda("Utilize uma foto enviada pelo cadastro de produtos.");
   return { ...identidade(d), ...embalagem, ...slots,
     pausasComplementos: lista(d.pausasComplementos ?? [], "Pausas de complementos", 500).map(valor => { const p = objeto(valor); const grupos = lista(p.grupos, "Grupos afetados", 500).map(valor => identidade(objeto(valor))); semDuplicados(grupos.map(g => g.id), "Grupos afetados"); return { opcaoId: texto(p.opcaoId, "Complemento", 100, true), ativo: booleano(p.ativo, "Complemento ativo"), grupos }; }),
-    classificacao: classificacoes[0], classificacoes, tempoPreparoMinutos, novoVinculoComplemento, nome: texto(d.nome, "Nome", 160, true), especificacao: opcional(d.especificacao, "Especificação", 300), descricao: opcional(d.descricao, "Descrição", 3000), tipo: d.tipo, codigo, unidade: texto(d.unidade, "Unidade", 10, true).toUpperCase(), fotoUrl, observacoes: opcional(d.observacoes, "Observações", 3000), modoPreparo: opcional(d.modoPreparo, "Modo de preparo", 5000), ativo: booleano(d.ativo, "Ativo"), categorias, grupos, preco, componentes };
+    classificacao: classificacoes[0], classificacoes, tempoPreparoMinutos, novoVinculoComplemento, nome: texto(d.nome, "Nome", 160, true), especificacao: opcional(d.especificacao, "Especificação", 300), descricao: opcional(d.descricao, "Descrição", 3000), tipo: d.tipo, codigo, unidade: "UN".toUpperCase(), fotoUrl, observacoes: opcional(d.observacoes, "Observações", 3000), modoPreparo: opcional(d.modoPreparo, "Modo de preparo", 5000), ativo: booleano(d.ativo, "Ativo"), categorias, grupos, preco, componentes };
 }
 export function validarFiscal(entrada: unknown, revisado: boolean): FiscalVenda {
   const d = objeto(entrada);
@@ -327,7 +328,7 @@ export function validarFiscal(entrada: unknown, revisado: boolean): FiscalVenda 
 
 export type GrupoSimulacao = { id: string; nome: string; tipo: string; minimo: number; maximo: number | null; repetir: boolean; ativo: boolean; opcoes: { id: string; nome: string; preco: string; ativo: boolean }[] };
 export function limitesEfetivos(grupo: Pick<GrupoSimulacao, "tipo" | "minimo" | "maximo">, vinculo: Omit<VinculoGrupo, "ajustesOpcoes"> & { ajustesOpcoes?: unknown }) {
-  return grupo.tipo === "EXTRAS" ? { minimo: 0, maximo: null } : vinculo.usarPadrao ? { minimo: grupo.minimo, maximo: grupo.maximo } : { minimo: vinculo.minimo, maximo: vinculo.maximo };
+  return grupo.tipo === "EXTRAS" ? { minimo: 0, maximo: null } : limitarPorTipo(grupo.tipo, vinculo.usarPadrao ? { minimo: grupo.minimo, maximo: grupo.maximo } : { minimo: vinculo.minimo, maximo: vinculo.maximo });
 }
 /** Base zero é vendável se uma escolha obrigatória válida puder formar preço positivo. */
 export function precoObrigatorioNaConfiguracao(grupos: (Pick<GrupoSimulacao, "id" | "tipo" | "minimo" | "maximo" | "repetir" | "ativo"> & { opcoes: { id: string; preco: string; ativo: boolean }[] })[], vinculos: VinculoGrupo[]) {
