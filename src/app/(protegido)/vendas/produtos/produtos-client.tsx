@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { codigoProdutoValido } from "@/lib/vendas/codigo-produto";
 import { entidadeInicial } from "@/lib/atividades/entidade-inicial";
@@ -172,7 +173,7 @@ function EditorProduto({ inicial, dados: dadosOriginais, fechar, adicionarCatalo
       </div>
     </div>;
   }
-  return <><EditorVenda titulo={d.id ? "Editar produto" : "Novo produto"} descricao="Cadastro comercial, composição e fiscal do produto." fechar={fechar} salvar={() => salvarProdutoVendaAction(d)} impedido={enviandoFoto} abrirSecao={selecionarAba}
+  return <><EditorVenda titulo={d.id ? "Editar produto" : "Novo produto"} descricao="Cadastro comercial, composição e fiscal do produto." fechar={fechar} salvar={async () => { const r = await salvarProdutoVendaAction(d); if ("aviso" in r && r.aviso) toast.warning(r.aviso, { duration: 20000 }); return r; }} impedido={enviandoFoto} abrirSecao={selecionarAba}
     cabecalho={<div className="flex flex-wrap items-center justify-between gap-3">
       <div className="min-w-0 space-y-2"><p className="text-xs text-muted-foreground">Código do produto: <span className="font-mono font-medium text-foreground">{d.codigo || "Gerado ao salvar"}</span></p><div className="flex flex-wrap gap-1">{abas.map(([id,nome]) => <Button key={id} data-abrir-secao={id} size="sm" variant={aba === id ? "default" : "outline"} onClick={() => selecionarAba(id)}>{nome}</Button>)}</div></div>
       <Button type="button" variant="outline" size="sm" onClick={() => setFichaAberta(true)}><Printer className="size-4" />Imprimir ficha técnica</Button>

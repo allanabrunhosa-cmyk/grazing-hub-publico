@@ -239,7 +239,9 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Aplicabilidad
     expect(await versoes()).toHaveLength(2);
     await sim.prisma.opcaoComplementoVenda.update({ where: { id: grupo.opcoes[1].id }, data: { ncm: "19053100" } });
     await sim.prisma.opcaoComplementoVenda.update({ where: { id: grupo.opcoes[0].id }, data: { ncm: "19059090" } });
-    const r3 = await sincronizarNcmDoComplementoOpcao(grupo.id, sessao);
+    expect(await sincronizarNcmDoComplementoOpcao(grupo.id, sessao, randomUUID())).toEqual({ atualizados: [], avisos: [] });
+    expect(await versoes()).toHaveLength(2);
+    const r3 = await sincronizarNcmDoComplementoOpcao(grupo.id, sessao, produtoId);
     expect(r3).toEqual({ atualizados: ["Produto exclusivamente fictício"], avisos: [] });
     const c3 = (await versoes())[0].dados as unknown as ClassificacaoFiscal;
     expect(c3.configuracaoNcm!.cenarios.map(s => [s.opcaoIds[0], s.ncm])).toEqual([[grupo.opcoes[0].id, "19059090"], [grupo.opcoes[1].id, "19053100"]]);

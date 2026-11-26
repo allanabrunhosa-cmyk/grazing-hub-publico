@@ -28,13 +28,14 @@ export function cenariosDaOpcao(atuais: Cenario[], opcoes: OpcaoComNcm[], analis
 /** Leva o NCM informado nos itens de um complemento Opção à classificação fiscal de cada
  * produto que usa o complemento, pelo caminho oficial (salvar → impacto → ativar), uma
  * transação por produto. Falha em um produto vira aviso e não desfaz o cadastro nem os demais.
- * Exige administrador: o NCM só muda com a permissão do responsável. */
-export async function sincronizarNcmDoComplementoOpcao(grupoId: string, sessao: SessaoAtual): Promise<{ atualizados: string[]; avisos: string[] }> {
+ * Exige administrador: o NCM só muda com a permissão do responsável.
+ * `somenteProdutoId` restringe a um produto (usado ao salvar o produto que recebeu o vínculo). */
+export async function sincronizarNcmDoComplementoOpcao(grupoId: string, sessao: SessaoAtual, somenteProdutoId?: string): Promise<{ atualizados: string[]; avisos: string[] }> {
   const grupo = await prisma.grupoComplementoVenda.findUnique({ where: { id: grupoId }, select: { id: true, nome: true, tipo: true, opcoes: { select: { id: true, nome: true, ncm: true, ativo: true } }, produtos: { select: { produtoId: true, produto: { select: { nome: true, ativo: true } } } } } });
   const atualizados: string[] = [], avisos: string[] = [];
   if (!grupo || grupo.tipo !== "OPCAO" || !grupo.opcoes.some(o => o.ncm)) return { atualizados, avisos };
   const semNcm = new Set<string>();
-  for (const vinculo of grupo.produtos.filter(v => v.produto.ativo)) {
+  for (const vinculo of grupo.produtos.filter(v => v.produto.ativo && (!somenteProdutoId || v.produtoId === somenteProdutoId))) {
     const nome = vinculo.produto.nome;
     try {
       const mudou = await prisma.$transaction(async tx => {

@@ -18,7 +18,8 @@ Contrato: [SPEC](SPEC.md).
   fiscal versionada (26/11/2026). Testes: `ncm-aplicabilidade-integracao.test.ts` e
   `vendas/integracao.test.ts` com banco local. Corrige também a restrição do banco que recusava
   o tipo Opção.
-- [ ] Sincronizar também ao vincular o complemento a um produto (hoje só ao salvar o complemento).
+- [x] Sincronizar também ao salvar o produto que usa o complemento (26/11/2026): vínculo novo
+  leva os NCMs à classificação daquele produto; pendência vira aviso na tela.
 - [x] Espetinhos com NCM único 2106.90.90 (25/11/2026). Ensaio e aplicação com prévia de 5
   pedidos reais: mesmas linhas e valores, sem pendências nem revisões.
 - [x] Torta artesanal e Suco integral como Opção (26/11/2026, operação autorizada).
