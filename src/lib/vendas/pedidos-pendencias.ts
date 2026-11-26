@@ -12,7 +12,11 @@ export function pendenciaEnderecoPedido(endereco: PedidoEntrada["endereco"], com
   if (completo && (!endereco?.cep?.trim() || brasileiro && !/^\d{8}$/.test(endereco.cep.replace(/\D/g, "")))) return campoEndereco("cep", brasileiro ? "Informe um CEP brasileiro com oito dígitos." : "Informe o código postal.");
   if (!endereco?.numero?.trim()) return campoEndereco("numero", "Informe o número do endereço.");
   for (const chave of completo ? ["logradouro", "bairro", "cidade", "uf"] as const : ["logradouro", "cidade"] as const) {
-    if (!endereco?.[chave]?.trim()) return campoEndereco(brasileiro ? "cep" : chave, brasileiro ? "Confira o CEP para preencher logradouro, bairro, cidade e estado." : "Preencha os campos obrigatórios do endereço.");
+    if (!endereco?.[chave]?.trim()) {
+      // CEP único de cidade traz cidade e UF, mas não rua nem bairro: o campo é digitado.
+      if (brasileiro && (chave === "logradouro" || chave === "bairro") && endereco?.cidade?.trim() && endereco?.uf?.trim()) return campoEndereco(chave, `Este CEP não informa o ${chave}. Preencha o ${chave} do endereço.`);
+      return campoEndereco(brasileiro ? "cep" : chave, brasileiro ? "Confira o CEP para preencher logradouro, bairro, cidade e estado." : "Preencha os campos obrigatórios do endereço.");
+    }
   }
   return null;
 }
