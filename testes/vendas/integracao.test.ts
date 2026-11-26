@@ -35,6 +35,16 @@ describe.skipIf(process.env.VENDAS_BANCO_TESTE !== "1")("Vendas no PostgreSQL is
     expect(await sim.prisma.movimentacaoEstoque.count()).toBe(0);
     expect(await sim.prisma.historicoCadastroVenda.count({ where: { registroId: id, entidade: "PRODUTO" } })).toBe(2);
   });
+  it("grava complemento do tipo Opção com escolha única e NCM por item; outros tipos não guardam NCM", async () => {
+    const base = { id: "", versao: 0, minimo: 3, maximo: 9, repetir: true, ativo: true };
+    const id = await salvarGrupo({ ...base, nome: "Sabores opção banco", tipo: "OPCAO", opcoes: [{ id: "", nome: "Palmito", preco: "0", produtoId: null, quantidade: "1", ativo: true, ncm: "19059090" }, { id: "", nome: "Sem código", preco: "0", produtoId: null, quantidade: "1", ativo: true }] }, autor);
+    const g = await sim.prisma.grupoComplementoVenda.findUniqueOrThrow({ where: { id }, include: { opcoes: { orderBy: { ordem: "asc" } } } });
+    expect(g).toMatchObject({ tipo: "OPCAO", minimo: 1, maximo: 1, repetir: false });
+    expect(g.opcoes.map(o => o.ncm)).toEqual(["19059090", null]);
+    await expect(salvarGrupo({ ...base, nome: "NCM inválido banco", tipo: "OPCAO", opcoes: [{ id: "", nome: "Letras", preco: "0", produtoId: null, quantidade: "1", ativo: true, ncm: "1905.90A" }] }, autor)).rejects.toThrow("NCM do item deve ter 8 dígitos.");
+    const outro = await salvarGrupo({ ...base, nome: "Composição sem NCM banco", tipo: "COMPOSICAO", opcoes: [{ id: "", nome: "Queijo", preco: "0", produtoId: null, quantidade: "1", ativo: true, ncm: "04069030" }] }, autor);
+    expect((await sim.prisma.opcaoComplementoVenda.findFirstOrThrow({ where: { grupoId: outro } })).ncm).toBeNull();
+  });
   it("persiste composição por grupo/produto, pausa global auditada, conflitos e rollback", async () => {
     const perfil = await sim.prisma.perfilAcesso.upsert({ where: { sistema: "ADMINISTRADOR" }, create: { nome: "Admin sintético complementos", sistema: "ADMINISTRADOR" }, update: {} });
     const usuario = await sim.prisma.usuario.create({ data: { nome: "Autor sintético", email: "complementos@example.invalid", senhaHash: "hash-sintetico", perfilAcessoId: perfil.id } });

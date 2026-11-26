@@ -14,17 +14,20 @@ Contrato: [SPEC](SPEC.md).
 
 ## Etapa 2 — NCM no cadastro e ajustes de produtos
 
-- [ ] Campo de NCM por item no cadastro de complemento do tipo Opção, gravando a classificação
-  fiscal versionada (salvar → impacto → ativar) sem passar pelo editor de classificação.
+- [x] Campo de NCM por item no cadastro de complemento do tipo Opção, gravando a classificação
+  fiscal versionada (26/11/2026). Testes: `ncm-aplicabilidade-integracao.test.ts` e
+  `vendas/integracao.test.ts` com banco local. Corrige também a restrição do banco que recusava
+  o tipo Opção.
+- [ ] Sincronizar também ao vincular o complemento a um produto (hoje só ao salvar o complemento).
 - [x] Espetinhos com NCM único 2106.90.90 (25/11/2026). Ensaio e aplicação com prévia de 5
   pedidos reais: mesmas linhas e valores, sem pendências nem revisões.
 - [ ] Torta artesanal e Suco integral como Opção. Feito pelo responsável na tela, ou por
   operação autorizada.
-- [ ] Sabor novo em Opção exige NCM antes de vender (hoje bloqueia a nota sem cenário).
+- [x] Sabor novo em Opção sem NCM: aviso ao salvar e nota bloqueada para esse item.
 
 ## Etapa 3 — Variável
 
 - [ ] Entidade Variável (escolha única, sem NCM, altera preço, entra no nome da nota).
 - [ ] Unificação opcional dos produtos por tamanho.
 
-**Próximo passo exato:** etapa 2, primeiro item (NCM por item no cadastro de Opção).
+**Próximo passo exato:** Torta e Suco como Opção (decisão do responsável), depois etapa 3.

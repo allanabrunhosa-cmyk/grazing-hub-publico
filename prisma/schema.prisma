@@ -524,6 +524,8 @@ model OpcaoComplementoVenda {
   // Quantidade de unidades do produto/composição por escolha.
   quantidade Decimal @default(1) @db.Decimal
   composicao Json?
+  // NCM do item quando o complemento é do tipo Opção; nulo nos demais tipos.
+  ncm String?
   usarPrecoPadrao Boolean @default(false)
   ordem Int @default(0)
   ativo Boolean @default(true)

@@ -26,7 +26,7 @@ export type CategoriaEntrada = { id: string; versao: number; nome: string; ativo
 export type ComposicaoComplemento = ProdutoEntrada["componentes"];
 export type AjusteOpcao = { opcaoId: string; preco?: string; composicao?: ComposicaoComplemento | null; ativo?: boolean };
 export type PausaComplemento = { opcaoId: string; ativo: boolean; grupos: { id: string; versao: number }[] };
-export type OpcaoEntrada = { id: string; nome: string; preco: string; produtoId: string | null; quantidade: string; ativo: boolean; composicao?: ComposicaoComplemento | null; usarPrecoPadrao?: boolean };
+export type OpcaoEntrada = { id: string; nome: string; preco: string; produtoId: string | null; quantidade: string; ativo: boolean; composicao?: ComposicaoComplemento | null; usarPrecoPadrao?: boolean; ncm?: string | null };
 export type GrupoEntrada = CategoriaEntrada & { tipo: TipoGrupo; categoriaId?: string | null; minimo: number; maximo: number | null; repetir: boolean; opcoes: OpcaoEntrada[] };
 export type VinculoGrupo = { grupoId: string; usarPadrao: boolean; minimo: number; maximo: number | null; opcoesExcluidas?: string[]; ajustesOpcoes?: AjusteOpcao[] };
 export type ProdutoEntrada = {
@@ -271,13 +271,19 @@ export function opcoesEfetivas<T extends { id: string; preco: string; ativo: boo
     ...(a?.preco === undefined ? {} : { preco: a.preco }), ...(a?.composicao == null ? {} : { composicao: a.composicao }),
     ativo: o.ativo && a?.ativo !== false && !vinculo.opcoesExcluidas?.includes(o.id) }; });
 }
+/** NCM do item de uma Opção: oito dígitos ou vazio. Letras, pontos e espaços são recusados. */
+function ncmOpcao(valor: unknown): string | null {
+  if (valor == null || valor === "") return null;
+  if (typeof valor !== "string" || !/^[0-9]{8}$/.test(valor)) throw new ErroCadastroVenda("NCM do item deve ter 8 dígitos.");
+  return valor;
+}
 export function validarGrupo(entrada: unknown): GrupoEntrada {
   const d = objeto(entrada);
   if (!ehTipoGrupo(d.tipo)) throw new ErroCadastroVenda("Tipo de grupo inválido.");
   const limites = d.tipo === "EXTRAS" ? { minimo: 0, maximo: null } : limitarPorTipo(d.tipo, validarLimites(d.minimo, d.maximo));
   const opcoes = lista(d.opcoes, "Opções", 500).map((valor) => {
     const o = objeto(valor);
-    return { id: texto(o.id, "Identificador", 100), nome: texto(o.nome, "Nome da opção", 160, true), preco: decimal(o.preco, "Preço da opção", true), produtoId: opcional(o.produtoId, "Produto", 100), quantidade: decimal(o.quantidade, "Quantidade da composição"), ativo: booleano(o.ativo, "Opção ativa"), ...(o.usarPrecoPadrao === undefined ? {} : { usarPrecoPadrao: booleano(o.usarPrecoPadrao, "Preço do cadastro") }), ...(o.composicao === undefined ? {} : { composicao: o.composicao === null ? null : validarComponentes(o.composicao) }) };
+    return { id: texto(o.id, "Identificador", 100), nome: texto(o.nome, "Nome da opção", 160, true), preco: decimal(o.preco, "Preço da opção", true), produtoId: opcional(o.produtoId, "Produto", 100), quantidade: decimal(o.quantidade, "Quantidade da composição"), ativo: booleano(o.ativo, "Opção ativa"), ...(o.usarPrecoPadrao === undefined ? {} : { usarPrecoPadrao: booleano(o.usarPrecoPadrao, "Preço do cadastro") }), ...(o.composicao === undefined ? {} : { composicao: o.composicao === null ? null : validarComponentes(o.composicao) }), ncm: d.tipo === "OPCAO" ? ncmOpcao(o.ncm) : null };
   });
   semDuplicados(opcoes.map(o => o.id).filter(Boolean), "Opções");
   semDuplicados(opcoes.map(o => o.nome.toLocaleLowerCase("pt-BR")), "Nomes das opções");
