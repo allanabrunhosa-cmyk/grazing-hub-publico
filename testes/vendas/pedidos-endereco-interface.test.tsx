@@ -90,3 +90,36 @@ it("consulta com falha mantém o endereço protegido e permite tentar novamente"
   expect((screen.getByLabelText("Logradouro *") as HTMLInputElement).readOnly).toBe(true);
   fireEvent.blur(cep); await screen.findByText("Endereço preenchido pelo CEP. Informe número e complemento.");
 });
+
+it("CEP único de cidade libera somente logradouro e bairro, sem apagar o que foi digitado", async () => {
+  consultar.mockResolvedValue({ endereco: { logradouro: "", bairro: "", cidade: "Cidade Fictícia", uf: "MG", codigoMunicipio: "3100000" } });
+  render(<Formulario />);
+  const cep = screen.getByLabelText("CEP *"), campo = (nome: string) => screen.getByLabelText(nome) as HTMLInputElement;
+  fireEvent.change(cep, { target: { value: "30000000" } }); fireEvent.blur(cep);
+  await screen.findByText("Este CEP não informa logradouro nem bairro. Preencha esses campos, o número e o complemento.");
+  expect(campo("Logradouro *").readOnly).toBe(false); expect(campo("Bairro *").readOnly).toBe(false);
+  expect(campo("Cidade *").readOnly).toBe(true); expect(campo("Estado / UF *").readOnly).toBe(true);
+  expect(campo("Cidade *").value).toBe("Cidade Fictícia"); expect(campo("Estado / UF *").value).toBe("MG");
+  fireEvent.change(campo("Logradouro *"), { target: { value: "Rua Digitada" } }); fireEvent.change(campo("Bairro *"), { target: { value: "Centro" } });
+  fireEvent.blur(cep);
+  await waitFor(() => expect(consultar).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(screen.queryByText("Consultando CEP…")).toBeNull());
+  expect(campo("Logradouro *").value).toBe("Rua Digitada"); expect(campo("Bairro *").value).toBe("Centro");
+  expect(campo("Logradouro *").readOnly).toBe(false);
+  consultar.mockResolvedValue({ endereco: { logradouro: "Rua Fictícia", bairro: "Centro", cidade: "São Paulo", uf: "SP", codigoMunicipio: "3550308" } });
+  fireEvent.change(cep, { target: { value: "01001000" } });
+  expect(campo("Logradouro *").value).toBe(""); expect(campo("Logradouro *").readOnly).toBe(true);
+  fireEvent.blur(cep);
+  await waitFor(() => expect(campo("Logradouro *").value).toBe("Rua Fictícia"));
+  expect(campo("Logradouro *").readOnly).toBe(true); expect(campo("Bairro *").readOnly).toBe(true);
+});
+
+it("endereço salvo com CEP único de cidade abre com o campo vazio liberado, sem consultar a API", () => {
+  function Salvo() { const [e, setE] = useState<EnderecoPedidoForm>({ ...enderecoPedidoVazio(), cep: "30000000", numero: "50", bairro: "Centro", cidade: "Cidade Fictícia", uf: "MG" }); return <CamposEnderecoPedido obrigatorio valor={e} alterar={setE} />; }
+  render(<Salvo />);
+  const logradouro = screen.getByLabelText("Logradouro *") as HTMLInputElement;
+  expect(logradouro.readOnly).toBe(false); expect((screen.getByLabelText("Bairro *") as HTMLInputElement).readOnly).toBe(true);
+  fireEvent.change(logradouro, { target: { value: "R" } }); fireEvent.change(logradouro, { target: { value: "Rua Digitada" } });
+  expect(logradouro.value).toBe("Rua Digitada"); expect(logradouro.readOnly).toBe(false);
+  expect(consultar).not.toHaveBeenCalled();
+});
