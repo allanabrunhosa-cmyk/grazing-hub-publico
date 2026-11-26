@@ -7,10 +7,11 @@ import { isDeepStrictEqual } from "node:util";
 import { revalidatePath } from "next/cache";
 import { exigirPermissao } from "@/lib/permissoes/servidor";
 import { salvarCliente, salvarCategoria, salvarCategoriaGrupo, salvarGrupo, salvarProduto, salvarGrupoFiscal, excluirCadastroVenda, reordenarCategorias, mensagemErroCadastro } from "@/lib/vendas/persistencia";
-import { validarComponentes } from "@/lib/vendas/dominio";
+import { ErroCadastroVenda, validarComponentes } from "@/lib/vendas/dominio";
 import type { ClienteEntrada, CategoriaEntrada, GrupoEntrada, ProdutoEntrada } from "@/lib/vendas/dominio";
 import { mimeFotoVenda } from "@/lib/vendas/foto";
 import { prisma } from "@/lib/prisma";
+import { sincronizarNcmDoComplementoOpcao } from "@/lib/tributacao/ncm-opcao";
 import { reordenarProdutos, alterarSituacaoProduto, alterarPrecoProduto, criarCanalVenda } from "@/lib/vendas/persistencia";
 import type { ReferenciaOrdem } from "@/lib/vendas/ordem";
 import { alterarStatusCadastroVenda } from "@/lib/vendas/persistencia";
@@ -71,10 +72,16 @@ export async function reordenarProdutosVendaAction(categoriaId: string, itens: R
 export async function salvarGrupoVendaAction(entrada: GrupoEntrada) {
   const autor = await exigirPermissao("vendas.catalogo", entrada?.id ? "editar" : "adicionar");
   try {
+    // O NCM do item só muda com a permissão do responsável: administrador, conferido no servidor.
+    if (entrada?.tipo === "OPCAO" && !autor.admin) {
+      const gravados = entrada.id ? await prisma.opcaoComplementoVenda.findMany({ where: { grupoId: entrada.id }, select: { id: true, ncm: true } }) : [];
+      if ((entrada.opcoes ?? []).some(o => (o.ncm || null) !== (gravados.find(g => g.id === o.id)?.ncm ?? null))) throw new ErroCadastroVenda("Somente administrador altera o NCM dos itens.");
+    }
     const id = await salvarGrupo(entrada, autor);
+    const fiscal = entrada?.tipo === "OPCAO" ? await sincronizarNcmDoComplementoOpcao(id, autor) : { atualizados: [], avisos: [] };
     const g = await prisma.grupoComplementoVenda.findUniqueOrThrow({ where: { id }, include: { opcoes: { orderBy: [{ ordem: "asc" }, { id: "asc" }] }, produtos: { select: { produtoId: true } } } });
     const registro = { ...g, tipo: g.tipo as GrupoEntrada["tipo"], opcoes: g.opcoes.map(o => ({ ...o, preco: o.preco.toString(), quantidade: o.quantidade.toString(), composicao: o.composicao == null ? null : validarComponentes(o.composicao) })), produtos: g.produtos.map(p => p.produtoId) };
-    revalidatePath("/vendas", "layout"); return { ok: true as const, id, registro };
+    revalidatePath("/vendas", "layout"); return { ok: true as const, id, registro, aviso: fiscal.avisos.length ? `Complemento salvo. Pendências fiscais: ${fiscal.avisos.join(" ")}` : undefined };
   }
   catch (erro) { return { erro: mensagemErroCadastro(erro) }; }
 }

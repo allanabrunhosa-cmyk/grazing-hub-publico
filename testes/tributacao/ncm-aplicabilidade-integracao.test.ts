@@ -24,6 +24,7 @@ import { fotografarClassificacaoNormal, fotografarReceitaFiscal, hashReceitaDocu
 import { conferirPoliticaKit } from "@/lib/tributacao/fotografia-kit";
 import { fotografarMateriais } from "@/lib/tributacao/receita-material";
 import { resolverNcmConfiguracao } from "@/lib/tributacao/ncm-configuracao";
+import { sincronizarNcmDoComplementoOpcao } from "@/lib/tributacao/ncm-opcao";
 import { consultarRevisoesNcmPendentes, manterNcmRevisado, registrarAlertaRevisoesNcm, revisoesNcmSemAlerta } from "@/lib/tributacao/revisao-ncm";
 import { executarCliClassificacao } from "../../scripts/estrutura-fiscal-classificacao-catalogo";
 
@@ -220,6 +221,37 @@ describe.skipIf(process.env.ESTRUTURA_FISCAL_BANCO_TESTE !== "1")("Aplicabilidad
     const semMaximo = await consultarRevisoesNcmPendentes([produtoId]); expect(semMaximo[0].mudancas[0]).toContain("a partir de 2, sem máximo");
     await expect(manterNcmRevisado({ versaoId: nova.id, assinatura: semMaximo[0].assinatura, chaveOperacao: randomUUID() }, sessao)).rejects.toThrow("não tem máximo de escolhas");
   });
+  it("NCM do item de uma Opção vira cenário do produto pelo cadastro; repetir não cria versão; item sem NCM é avisado", async () => {
+    const anterior = await sim.prisma.versaoEstruturaFiscal.findFirst({ where: { tipo: "TABELA", chave: "NCM" }, orderBy: { versao: "desc" } });
+    if (!anterior) await ativar({ ...entrada(), tipo: "TABELA", chave: "NCM", dados: tabelaFicticia, fontes: ["https://portalunico.siscomex.gov.br/classif/api/publico/nomenclatura/download/json", "Valores exclusivamente sintéticos"] });
+    const grupo = await sim.prisma.grupoComplementoVenda.create({ data: { nome: `Opção fictícia ${randomUUID()}`, tipo: "OPCAO", maximo: 1, repetir: false, produtos: { create: { produtoId } }, opcoes: { create: [{ nome: "Sabor A fictício", ncm: "08061000", ordem: 0 }, { nome: "Sabor B fictício", ordem: 1 }] } }, include: { opcoes: { orderBy: { ordem: "asc" } } } });
+    for (const o of grupo.opcoes) await ativar({ ...entrada(), tipo: "COMPLEMENTO", chave: o.id, dados: { opcaoId: o.id, comportamento: "INCLUIDO", produtoId: null, justificativa: "Sabor integrado exclusivamente sintético" } });
+    await ativar(entrada(classificacao(produtoId, { estado: "CONFIRMADO", pendencias: [] })));
+    const versoes = () => sim.prisma.versaoEstruturaFiscal.findMany({ where: { tipo: "CLASSIFICACAO", chave: produtoId }, orderBy: { versao: "desc" } });
+    const r1 = await sincronizarNcmDoComplementoOpcao(grupo.id, sessao);
+    expect(r1.atualizados).toEqual(["Produto exclusivamente fictício"]);
+    expect(r1.avisos.join(" ")).toContain("Sem NCM: Sabor B fictício");
+    const [v2] = await versoes(), c2 = v2.dados as unknown as ClassificacaoFiscal;
+    expect(v2).toMatchObject({ versao: 2, status: "ATIVO" });
+    expect(c2.configuracaoNcm).toMatchObject({ grupoIds: [grupo.id], modoFiscal: "UNIDADES_SEPARADAS", padraoSemEscolhasAutorizado: false, cenarios: [{ opcaoIds: [grupo.opcoes[0].id], ncm: "08061000", nome: "Sabor A fictício", analiseNcm: { descricaoNcm: "Descrição de fixture", confianca: "MEDIA" } }] });
+    expect(c2.configuracaoNcm!.fotografiaTecnica?.algoritmo).toBe("grazing.receita-fiscal.v1");
+    expect((await sincronizarNcmDoComplementoOpcao(grupo.id, sessao)).atualizados).toEqual([]);
+    expect(await versoes()).toHaveLength(2);
+    await sim.prisma.opcaoComplementoVenda.update({ where: { id: grupo.opcoes[1].id }, data: { ncm: "19053100" } });
+    await sim.prisma.opcaoComplementoVenda.update({ where: { id: grupo.opcoes[0].id }, data: { ncm: "19059090" } });
+    const r3 = await sincronizarNcmDoComplementoOpcao(grupo.id, sessao);
+    expect(r3).toEqual({ atualizados: ["Produto exclusivamente fictício"], avisos: [] });
+    const c3 = (await versoes())[0].dados as unknown as ClassificacaoFiscal;
+    expect(c3.configuracaoNcm!.cenarios.map(s => [s.opcaoIds[0], s.ncm])).toEqual([[grupo.opcoes[0].id, "19059090"], [grupo.opcoes[1].id, "19053100"]]);
+    await sim.prisma.opcaoComplementoVenda.update({ where: { id: grupo.opcoes[1].id }, data: { ncm: "99999999" } });
+    const r4 = await sincronizarNcmDoComplementoOpcao(grupo.id, sessao);
+    expect(r4.atualizados).toEqual([]); expect(r4.avisos.join(" ")).toContain("não consta da tabela oficial");
+    expect(await versoes()).toHaveLength(3);
+    const naoAdmin = await sim.prisma.usuario.create({ data: { nome: "Operador fictício", email: `${randomUUID()}@example.invalid`, senhaHash: "sem-login", perfilAcessoId: (await sim.prisma.perfilAcesso.create({ data: { nome: `Perfil ${randomUUID()}`, permissoes: {} } })).id } });
+    await sim.prisma.opcaoComplementoVenda.update({ where: { id: grupo.opcoes[1].id }, data: { ncm: "08061000" } });
+    const r5 = await sincronizarNcmDoComplementoOpcao(grupo.id, { ...sessao, userId: naoAdmin.id, admin: false });
+    expect(r5.atualizados).toEqual([]); expect(r5.avisos.join(" ")).toContain("não permite esta operação fiscal");
+  }, 120000);
   it("sabor criado no cardápio depois da análise: avisa, e manter o NCM o inclui na equivalência do grupo", async () => {
     const grupo = await sim.prisma.grupoComplementoVenda.create({ data: { nome: `Sabores fictícios ${randomUUID()}`, tipo: "COMPOSICAO", minimo: 1, maximo: 1, produtos: { create: { produtoId } }, opcoes: { create: [{ nome: "Sabor fictício A", preco: "0" }] } }, include: { opcoes: true } });
     await integrarOpcao(grupo.opcoes[0].id);

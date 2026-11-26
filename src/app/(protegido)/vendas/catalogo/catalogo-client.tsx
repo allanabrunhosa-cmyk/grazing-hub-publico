@@ -18,6 +18,8 @@ import type { CategoriaEntrada, GrupoEntrada, ProdutoEntrada } from "@/lib/venda
 import type { DadosProdutos, DadosCatalogo } from "@/lib/vendas/consultas";
 import { salvarCategoriaVendaAction, salvarCategoriaGrupoVendaAction, salvarGrupoVendaAction } from "../actions";
 import { ListaOrdenavel } from "../lista-ordenavel";
+import { toast } from "sonner";
+import { SeletorFiscal } from "@/components/fiscal/seletor-fiscal";
 import { AJUDA_TIPO_COMPLEMENTO, tipoComplemento } from "@/lib/vendas/tipos-complemento";
 import { Campo, Texto, Check, Vazio, CabecalhoVendas, EditorVenda } from "../componentes";
 import { BotaoExcluirVenda } from "../botao-excluir";
@@ -74,7 +76,7 @@ export function EditorGrupo({ inicial, produtos, insumos = [], afetados, categor
   const todasCategorias = [...new Map([...categoriasGrupos, ...categoriasLocais].map(c => [c.id,c])).values()];
   const extras = d.tipo === "EXTRAS";
   const opcao = (i: number, valores: Partial<GrupoEntrada["opcoes"][number]>) => setD({ ...d, opcoes: d.opcoes.map((o, n) => n === i ? { ...o, ...valores } : o) });
-  return <EditorVenda titulo={d.id ? `Editar ${inicial.nome}` : "Novo complemento"} descricao={`Cadastro compartilhado: alterações afetam ${afetados} produto(s) vinculado(s).`} fechar={fechar} abrirSecao={setAba} salvar={async () => { const r = await salvarGrupoVendaAction(d); if (r.registro) aoSalvar?.(r.registro); return r; }}>
+  return <EditorVenda titulo={d.id ? `Editar ${inicial.nome}` : "Novo complemento"} descricao={`Cadastro compartilhado: alterações afetam ${afetados} produto(s) vinculado(s).`} fechar={fechar} abrirSecao={setAba} salvar={async () => { const r = await salvarGrupoVendaAction(d); if (r.registro) aoSalvar?.(r.registro); if (r.aviso) toast.warning(r.aviso, { duration: 20000 }); return r; }}>
     <Tabs value={aba} onValueChange={setAba}><TabsList variant="buttons"><TabsTriggerBotao value="cadastro">Cadastro</TabsTriggerBotao><TabsTriggerBotao value="disponibilidade">Disponibilidade</TabsTriggerBotao></TabsList>
     <TabsContent value="cadastro" keepMounted data-secao="cadastro" className="space-y-4">
     <Campo nome="Tipo *"><SelecaoFormulario aria-label="Tipo *" disabled={inicial.tipo === "EXTRAS"} value={d.tipo} onValueChange={valor => setD({ ...d, tipo: valor as GrupoEntrada["tipo"], ...(valor === "OPCAO" ? { repetir: false } : {}) })}><option value="COMPOSICAO">Composição · escolhe mais de 1 item</option><option value="OPCAO">Opção · escolhe apenas 1 item</option><option value="COMPLEMENTAR">Adicional · produto ou item a mais</option>{extras && <option value="EXTRAS">Adicional · Extras, sem limite</option>}</SelecaoFormulario></Campo>
@@ -88,6 +90,7 @@ export function EditorGrupo({ inicial, produtos, insumos = [], afetados, categor
       <p className="text-xs text-muted-foreground">As novas escolhas herdam o preço e a composição do cadastro. Arraste para definir a disposição no produto.</p>
       <ListaOrdenavel itens={d.opcoes} chave={o => o.chaveTela} nome={o => o.nome || "Novo complemento"} mudar={opcoes => setD({ ...d,opcoes })}>{(o,i,alca) => <LinhaComplemento nome={o.nome || `Complemento ${i + 1}`} alca={alca} abertoInicial={!o.id} preco={o.usarPrecoPadrao && produtos.some(p => p.id === o.produtoId && "preco" in p) ? precoPadraoComplemento(produtos.find(p => p.id === o.produtoId)! as ProdutoEntrada) : o.preco} ativo={o.ativo} alterarPreco={preco => opcao(i, { preco, usarPrecoPadrao: false })} alterarAtivo={ativo => opcao(i, { ativo })} remover={() => setD({ ...d, opcoes: d.opcoes.filter((_, n) => n !== i) })}>
         {o.produtoId && <p className="text-xs text-muted-foreground">Cadastro: {produtos.find(p => p.id === o.produtoId)?.nome ?? "Indisponível"}. A composição abaixo vale somente para este grupo.</p>}
+        {d.tipo === "OPCAO" && <div className="space-y-1.5"><Campo nome="NCM do item"><SeletorFiscal nome={`NCM de ${o.nome || `item ${i + 1}`}`} valor={o.ncm ?? ""} mudar={ncm => opcao(i, { ncm: ncm || null })} contexto={{ tabela: "ncm" }} /></Campo><p className="text-xs text-muted-foreground">Na nota, este item sai com o nome do produto e este NCM. Somente administrador altera.</p></div>}
         <Campo nome="Nome do complemento"><Input aria-label={`Nome da opção ${i + 1}`} autoFocus={!o.id && !o.produtoId && i === 0} required maxLength={160} placeholder="Nome do complemento" value={o.nome} onChange={e => opcao(i, { nome: e.target.value })} /></Campo>
         <ComposicaoProduto configurarFicha={false} podeCadastrarInsumo={false} insumos={insumos} componentes={composicaoDaOpcao(o, produtos.filter(p => "componentes" in p) as ProdutoEntrada[])} mudar={composicao => opcao(i, { composicao, quantidade: "1" })} />
         {o.composicao != null && <Button variant="outline" size="sm" onClick={() => opcao(i, { composicao: null, quantidade: "1" })}>Usar composição padrão</Button>}

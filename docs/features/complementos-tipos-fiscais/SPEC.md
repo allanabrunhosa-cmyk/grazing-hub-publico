@@ -46,6 +46,21 @@ Exemplo de nome: "Torta artesanal grande palmito" = produto + variável + opçã
 - Aba Fiscal do produto (`components/fiscal/campos-classificacao.tsx`): produto com NCM por
   escolha mostra a lista de NCMs em vez da frase "NCM definido pela composição do produto".
 
+## NCM do item no cadastro de Opção — 26/11/2026
+
+- Coluna `OpcaoComplementoVenda.ncm` (migration `20261126090000_ncm_opcao_complemento`, que também
+  passa a aceitar `OPCAO` na restrição de tipo do banco: até ela, salvar um complemento como
+  Opção falhava em produção). Só o tipo Opção guarda NCM; `validarGrupo` exige 8 dígitos.
+- No cadastro do complemento, cada item de uma Opção mostra **NCM do item** (`SeletorFiscal`).
+  Somente administrador altera, conferido no servidor (`salvarGrupoVendaAction`).
+- `src/lib/tributacao/ncm-opcao.ts`: ao salvar, cada produto que usa o complemento recebe nova
+  versão da classificação (salvar → impacto → ativar) com um cenário por item
+  (`UNIDADES_SEPARADAS`). Só o item com NCM informado é criado ou trocado; cenários de itens sem
+  NCM no cadastro são preservados. Repetir o salvamento não cria versão.
+- Falha em um produto não desfaz o cadastro: vira aviso na tela. Casos: produto sem classificação,
+  rascunho fiscal aberto, NCM configurado por outra regra de escolhas, código fora da tabela
+  oficial, item ativo sem NCM (a nota bloqueia quando esse item é escolhido).
+
 ## Como o motor fiscal já atende a regra
 
 O motor não mudou nesta etapa; os três tratamentos já existiam e passam a ter nome no cadastro.
@@ -60,8 +75,8 @@ O motor não mudou nesta etapa; os três tratamentos já existiam e passam a ter
 
 ## Fora desta etapa e decisões abertas
 
-- **NCM do item no cadastro de Opção**: hoje o NCM por opção continua no editor de classificação
-  fiscal. Falta o campo no próprio cadastro do complemento, gravando a versão fiscal por baixo.
+- Vincular um complemento Opção a um produto novo só leva os NCMs à classificação quando o
+  complemento é salvo de novo; salvar o produto não dispara a sincronização.
 - **Torta artesanal e Suco integral**: mudar o tipo do complemento de sabores para Opção no
   cadastro. A mudança limita a um sabor por item; não foi feita em produção por esta entrega.
 - **Variável**: entidade nova, sem NCM, que altera preço e entra no nome da nota.
