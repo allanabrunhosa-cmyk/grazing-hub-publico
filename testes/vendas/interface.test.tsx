@@ -76,10 +76,10 @@ describe("interface de cadastros de Vendas", () => {
   });
   it("Extras não apresenta limite máximo editável", async () => {
     render(<CatalogoVenda dados={{ categorias: [], categoriasGrupos: [], produtos: [{ id: "produto-extra", nome: "Produto sintético", ativo: true, preco: "12", versao: 1, grupos: [] }], grupos: [{ id: "extras", nome: "Extras", tipo: "EXTRAS", categoriaId: null, versao: 1, ativo: true, minimo: 0, maximo: null, repetir: true, produtos: ["p"], opcoes: [] }] }} adicionar editar />);
-    const u = userEvent.setup(); await u.click(screen.getByRole("tab", { name: "Grupos de complementos" })); await u.click(screen.getByRole("button", { name: "Editar Extras" }));
+    const u = userEvent.setup(); await u.click(screen.getByRole("tab", { name: "Complementos" })); await u.click(screen.getByRole("button", { name: "Editar Extras" }));
     expect(screen.queryByRole("spinbutton", { name: /Máximo/ })).toBeNull();
     expect(screen.getByText(/Extras é sempre opcional/)).toBeTruthy();
-    await u.click(screen.getByRole("combobox", { name: "Produtos e complementos do grupo" }));
+    await u.click(screen.getByRole("combobox", { name: "Produtos e itens do complemento" }));
     await u.click(await screen.findByRole("option", { name: "Produto sintético" }));
     await u.keyboard("{Escape}");
     expect(screen.getByRole("textbox", { name: "Nome da opção 1" })).toBeTruthy();
@@ -121,7 +121,7 @@ describe("interface de cadastros de Vendas", () => {
     render(<ProdutosVenda dados={vazio} adicionar editar />);
     await userEvent.click(screen.getByRole("button", { name: "Novo produto" }));
     expect(screen.queryByRole("button", { name: "Criar categoria" })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Composição" }));
+    await userEvent.click(screen.getByRole("button", { name: "Receita" }));
     expect(screen.queryByRole("button", { name: "Criar grupo de complementos" })).toBeNull();
   });
 });
@@ -284,13 +284,13 @@ describe("catálogo expansível e regras próprias",()=>{
     const u = userEvent.setup();
     await u.click(screen.getByRole("button",{name:"Editar Produto catálogo"}));
     expect(screen.queryByRole("button",{name:"Complementos"})).toBeNull();
-    await u.click(screen.getByRole("button",{name:"Composição"}));
+    await u.click(screen.getByRole("button",{name:"Receita"}));
     const alca = screen.getByRole("button",{name:"Arrastar Saco para embalar"});
     alca.focus(); await u.keyboard(" {ArrowUp}{Enter}");
     await u.click(screen.getByRole("button",{name:"Exibir Saco para embalar na ficha técnica"}));
     expect(screen.getByRole("button",{name:"Exibir Saco para embalar na ficha técnica"}).getAttribute("aria-pressed")).toBe("false");
-    expect(screen.getByRole("heading",{name:"Grupo de complementos"})).toBeTruthy();
-    expect(screen.getByRole("combobox",{name:"Grupo de complementos"})).toBeTruthy();
+    expect(screen.getByRole("heading",{name:"Complementos"})).toBeTruthy();
+    expect(screen.getByRole("combobox",{name:"Complementos"})).toBeTruthy();
     expect(screen.queryByRole("button",{name:"Próximos grupos"})).toBeNull();
     await u.click(screen.getByRole("button",{name:"Salvar"}));
     expect(sim.salvar).toHaveBeenCalledWith(expect.objectContaining({componentes:[
@@ -350,7 +350,7 @@ describe("catálogo expansível e regras próprias",()=>{
   it("altera os limites e desmarca opção só no vínculo deste produto",async()=>{
     sim.salvar.mockResolvedValue({ok:true});render(<ProdutosVenda dados={catalogo} adicionar editar/>);
     const u=userEvent.setup();await u.click(screen.getByRole("button",{name:"Editar Produto catálogo"}));
-    await u.click(screen.getByRole("button",{name:"Composição"}));
+    await u.click(screen.getByRole("button",{name:"Receita"}));
     const resumo = screen.getByRole("button",{name:"Abrir grupo Escolhas de queijo"});
     expect(resumo.getAttribute("aria-expanded")).toBe("false");
     const obrigatorio = screen.getByRole("checkbox",{name:"Obrigatório"});
@@ -370,7 +370,7 @@ describe("catálogo expansível e regras próprias",()=>{
     render(<ProdutosVenda dados={catalogo} adicionar editar />);
     const u = userEvent.setup();
     await u.click(screen.getByRole("button", { name: "Editar Produto catálogo" }));
-    await u.click(screen.getByRole("button", { name: "Composição" }));
+    await u.click(screen.getByRole("button", { name: "Receita" }));
     const grupo = screen.getByRole("button", { name: "Abrir grupo Escolhas de queijo" });
     grupo.focus(); await u.keyboard("{Enter}");
     expect(grupo.getAttribute("aria-expanded")).toBe("true");
@@ -390,10 +390,10 @@ describe("catálogo expansível e regras próprias",()=>{
     render(<ProdutosVenda dados={dados} adicionar editar />);
     const u = userEvent.setup();
     await u.click(screen.getByRole("button", { name: "Editar Produto catálogo" }));
-    await u.click(screen.getByRole("button", { name: "Composição" }));
-    await u.click(screen.getByRole("combobox", { name: "Grupo de complementos" }));
-    expect(screen.getByText("Extras", { exact: true })).toBeTruthy();
-    expect(screen.getByText("Sem categoria", { exact: true })).toBeTruthy();
+    await u.click(screen.getByRole("button", { name: "Receita" }));
+    await u.click(screen.getByRole("combobox", { name: "Complementos" }));
+    expect(screen.getByText("Composição · Extras", { exact: true })).toBeTruthy();
+    expect(screen.getByText("Composição · Sem categoria", { exact: true })).toBeTruthy();
     await u.click(await screen.findByRole("option", { name: /Acompanhamentos/ }));
     await u.keyboard("{Escape}");
     await u.click(screen.getByRole("button", { name: "Salvar" }));
@@ -404,7 +404,7 @@ describe("catálogo expansível e regras próprias",()=>{
     render(<ProdutosVenda dados={catalogo} adicionar editar />);
     const u = userEvent.setup();
     await u.click(screen.getByRole("button", { name: "Editar Produto catálogo" }));
-    await u.click(screen.getByRole("button", { name: "Composição" }));
+    await u.click(screen.getByRole("button", { name: "Receita" }));
     await u.click(screen.getByRole("button", { name: "Remover grupo Escolhas de queijo do produto" }));
     expect(screen.queryByRole("button", { name: "Remover grupo Escolhas de queijo do produto" })).toBeNull();
     await u.click(screen.getByRole("button", { name: "Salvar" }));
@@ -414,7 +414,7 @@ describe("catálogo expansível e regras próprias",()=>{
     sim.salvar.mockResolvedValue({ok:true});
     sim.listarPorcoes.mockResolvedValue({ porcoes: [{ id: "fatia-teste", insumoId: "i", nome: "1 fatia", quantidade: "0.2", unidade: "KG", versao: 1 }], podeCadastrar: false });
     render(<ProdutosVenda dados={catalogo} adicionar editar/>);
-    const u=userEvent.setup();await u.click(screen.getByRole("button",{name:"Editar Produto catálogo"}));await u.click(screen.getByRole("button",{name:"Composição"}));
+    const u=userEvent.setup();await u.click(screen.getByRole("button",{name:"Editar Produto catálogo"}));await u.click(screen.getByRole("button",{name:"Receita"}));
     expect(screen.getByRole("button",{name:"Adicionar ingrediente"})).toBeTruthy();
     expect(screen.getByRole("textbox",{name:"Descrição da porção de Queijo"})).toBeTruthy();
     expect(screen.queryByLabelText(/Modo de preparo/)).toBeNull();expect(screen.queryByLabelText(/Rendimento/)).toBeNull();expect(screen.queryByLabelText(/Validade/)).toBeNull();
@@ -450,12 +450,12 @@ describe("catálogo expansível e regras próprias",()=>{
     await userEvent.setup().click(screen.getByRole("button", { name: "Confirmar preço de Produto catálogo" }));
     await waitFor(() => expect(sim.salvar).toHaveBeenCalledWith("p", 1, "90.00"));
   });
-  it("complemento pode ficar sem grupo e tem um único campo de preço", async () => {
+  it("cadastro de produto não oferece classificação nem unidade e tem um único campo de preço", async () => {
     render(<ProdutosVenda dados={catalogo} adicionar editar />);
     const u = userEvent.setup(); await u.click(screen.getByRole("button", { name: "Novo produto" }));
     await u.type(screen.getByRole("textbox", { name: "Nome *" }), "Novo complemento");
-    await u.click(screen.getByRole("combobox", { name: "Classificação" }));
-    await u.click(await screen.findByRole("option", { name: "Complemento" }));
+    expect(screen.queryByRole("combobox", { name: "Classificação" })).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Unidade comercial *" })).toBeNull();
     await u.click(screen.getByRole("button", { name: "Preço" }));
     expect(screen.getByRole("textbox", { name: "Preço do produto" })).toBeTruthy();
     expect(screen.queryByRole("combobox", { name: /Canal do preço/ })).toBeNull();
@@ -494,7 +494,7 @@ describe("Complementos e escopo da pausa", () => {
     const principal = { ...catalogo.produtos[0], grupos: [] };
     const complemento = { ...principal, id: "copa", nome: "Copa sintética", classificacoes: ["COMPLEMENTO" as const], classificacao: "COMPLEMENTO" as const };
     render(<EditorGrupo inicial={{ ...catalogo.grupos[0], id: "", versao: 0, opcoes: [] }} produtos={[principal, complemento]} afetados={0} fechar={() => {}} />);
-    const u = userEvent.setup(); await u.click(screen.getByRole("combobox", { name: "Produtos e complementos do grupo" }));
+    const u = userEvent.setup(); await u.click(screen.getByRole("combobox", { name: "Produtos e itens do complemento" }));
     await u.click(await screen.findByRole("option", { name: "Produto catálogo" }));
     await u.click(screen.getByRole("option", { name: "Copa sintética" })); await u.keyboard("{Escape}");
     expect(sim.salvar).not.toHaveBeenCalled();
@@ -570,7 +570,7 @@ describe("Complementos e escopo da pausa", () => {
   it("abre a primeira aba com lista e salva cadastro simples grátis sem grupo e sem FM", async () => {
     sim.salvar.mockResolvedValue({ ok: true });
     render(<CatalogoVenda dados={catalogo} dadosComplementos={catalogo} adicionar editar adicionarComplemento editarComplemento />);
-    expect(screen.getByRole("tab", { name: "Complementos", selected: true })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Itens", selected: true })).toBeTruthy();
     const u = userEvent.setup(); await u.click(screen.getByRole("button", { name: "Novo complemento" }));
     await u.type(screen.getByRole("textbox", { name: "Nome do complemento *" }), "Salame");
     expect(screen.queryByRole("button", { name: /ficha de montagem/i })).toBeNull();
@@ -582,7 +582,7 @@ describe("Complementos e escopo da pausa", () => {
     sim.salvar.mockResolvedValue({ ok: true });
     render(<ProdutosVenda dados={catalogo} adicionar editar editarCatalogo />);
     const u = userEvent.setup(); await u.click(screen.getByRole("button", { name: "Editar Produto catálogo" }));
-    await u.click(screen.getByRole("button", { name: "Composição" }));
+    await u.click(screen.getByRole("button", { name: "Receita" }));
     await u.click(screen.getByRole("button", { name: "Abrir grupo Escolhas de queijo" }));
     await u.click(screen.getByRole("switch", { name: "Status de Brie" }));
     await u.click(screen.getByRole("button", { name: alcance }));

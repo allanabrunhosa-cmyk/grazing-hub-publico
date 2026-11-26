@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { Prisma } from "@/generated/prisma/client";
 import { lerAjustesOpcoes, opcoesEfetivas, validarComponentes } from "@/lib/vendas/dominio";
+import { ehEscolhaInterna } from "@/lib/vendas/tipos-complemento";
 import type { ClassificacaoFiscal, ComportamentoFiscal, ComprovacaoFisicaFiscal, ConfiguracaoNcm, ItemComercialFiscal, MateriaisFiscaisFotografados, ReceitaFiscalDocumentada } from "./tipos";
 import { ErroEstruturaFiscal, hojeFiscal } from "./validacao";
 import { fotografarMateriais } from "./receita-material";
@@ -56,7 +57,7 @@ async function fotografarEscolhasProduto(tx: Prisma.TransactionClient, produtoId
     if (!vinculo || escolha.grupoId && escolha.grupoId !== o.grupoId) throw new ErroEstruturaFiscal("Grupo da receita não pertence ao principal.");
     const efetiva = opcoesEfetivas([{ ...o, preco: o.preco.toString(), composicao: o.composicao == null ? null : validarComponentes(o.composicao) }], { opcoesExcluidas: vinculo.opcoesExcluidas, ajustesOpcoes: lerAjustesOpcoes(vinculo.ajustesOpcoes) })[0];
     const componentes = efetiva.composicao ?? o.produto?.componentes ?? [];
-    const aliasComposicao = vinculo.grupo.tipo === "COMPOSICAO" && !!efetiva.composicao?.length;
+    const aliasComposicao = ehEscolhaInterna(vinculo.grupo.tipo) && !!efetiva.composicao?.length;
     if (validarDisponibilidade && (!vinculo.grupo.ativo || !efetiva.ativo || o.produto && !o.produto.ativo && !aliasComposicao)) throw new ErroEstruturaFiscal("Opção da receita técnica indisponível no catálogo atual.");
     const multiplicador = efetiva.composicao == null ? o.quantidade : new D(1);
     const hashCadastro = hashOpcaoTecnica(o.produtoId, componentes.map(k => ({ insumoId: k.insumoId, unidade: k.unidade, quantidade: new D(k.quantidade).mul(multiplicador).toString() })));

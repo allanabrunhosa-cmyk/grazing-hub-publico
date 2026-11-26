@@ -9,7 +9,6 @@ import { MultiselecaoCombobox } from "@/components/multiselecao-combobox";
 import { salvarProdutoVendaAction } from "../actions";
 import { Campo, Texto, EditorVenda } from "../componentes";
 import { Tabs, TabsList, TabsTriggerBotao, TabsContent } from "@/components/ui/tabs";
-import { SelecaoFormulario } from "@/components/ui/select";
 import { DisponibilidadeCadastro } from "./disponibilidade";
 import { classificacaoComercial } from "@/lib/vendas/classificacao";
 
@@ -17,12 +16,11 @@ export function EditorComplemento({ inicial, dados, fechar, podeCadastrarInsumo 
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [aba, setAba] = useState("cadastro");
   const [d, setD] = useState(() => ({ ...inicial }));
-  return <EditorVenda titulo={d.id ? `Editar ${inicial.nome}` : "Novo complemento"} descricao="Defina o padrão. Preço e composição podem ser ajustados em cada grupo ou produto." fechar={fechar} impedido={enviandoFoto} abrirSecao={setAba} salvar={() => salvarProdutoVendaAction(d)}>
+  return <EditorVenda titulo={d.id ? `Editar ${inicial.nome}` : "Novo complemento"} descricao="Defina o padrão. Preço e composição podem ser ajustados em cada complemento ou produto." fechar={fechar} impedido={enviandoFoto} abrirSecao={setAba} salvar={() => salvarProdutoVendaAction(d)}>
     <div className="space-y-1.5"><Texto nome="Código do produto" maxLength={8} value={d.codigo ?? ""} readOnly placeholder="Gerado ao salvar" /><p className="text-xs text-muted-foreground">Código automático da categoria de origem. Não muda ao reorganizar categorias.</p></div>
     <Tabs value={aba} onValueChange={setAba}><TabsList variant="buttons"><TabsTriggerBotao value="cadastro">Cadastro</TabsTriggerBotao><TabsTriggerBotao value="disponibilidade">Disponibilidade</TabsTriggerBotao></TabsList>
     <TabsContent value="cadastro" keepMounted data-secao="cadastro" className="space-y-4">
     <Texto nome="Nome do complemento *" required maxLength={160} value={d.nome} onChange={e => setD(a => ({ ...a, nome: e.target.value }))} />
-    <Campo nome="Classificação"><SelecaoFormulario aria-label="Classificação" value={classificacaoComercial(d)} onValueChange={valor => setD(a => ({ ...a, classificacao: valor as "PRINCIPAL" | "COMPLEMENTO", classificacoes: [valor as "PRINCIPAL" | "COMPLEMENTO"], categorias: [] }))}><option value="PRINCIPAL">Produto</option><option value="COMPLEMENTO">Complemento</option></SelecaoFormulario></Campo>
     <div className="grid items-start gap-4 sm:grid-cols-[12rem_minmax(0,1fr)]">
       <FotoCampo nome="complemento" produtoId={d.id} url={d.fotoUrl} mudar={fotoUrl => setD(a => ({ ...a, fotoUrl }))} aoEnviar={setEnviandoFoto} />
       <div className="min-w-0 space-y-4"><Campo nome="Preço *"><CurrencyInput aria-label="Preço do complemento" required value={d.preco} onValueChange={preco => setD(a => ({ ...a, preco }))} /></Campo>

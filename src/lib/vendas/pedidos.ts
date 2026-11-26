@@ -1,4 +1,5 @@
 import { classificacaoComercial } from "./classificacao";
+import { ehEscolhaInterna } from "./tipos-complemento";
 import { pedidoEmAcompanhamento } from "@/lib/ifood/acompanhamento-dominio";
 import { exigirEfeitoOperacional } from "@/lib/ifood/acompanhamento";
 import { diaNoFuso, diaValido, somarDias, intervaloDatasPedidos } from "./pedidos-agenda-dominio";
@@ -408,7 +409,7 @@ export async function calcularPedido(tx: Tx, d: PedidoEntrada, pagamentoAnterior
     for (const escolha of escolhas) {
       const opcional = opcionais.find(p => p.id === escolha.produtoId);
       if (!escolha.produtoId && escolha.composicao == null) { pendente = true; continue; }
-      const aliasComposicao = escolha.grupoTipo === "COMPOSICAO" && !!escolha.composicao?.length;
+      const aliasComposicao = ehEscolhaInterna(escolha.grupoTipo) && !!escolha.composicao?.length;
       if (escolha.produtoId && (!opcional || !opcional.ativo && !aliasComposicao)) throw erroComplementoIndisponivel(produto.nome, escolha.grupoNome, escolha.opcaoNome, opcional);
       const componentes = escolha.composicao ?? opcional!.componentes;
       if (!componentes.length) { pendente = true; continue; }

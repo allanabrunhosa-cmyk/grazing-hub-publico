@@ -24,9 +24,12 @@ test("categoria em tag e disponibilidade preservam o cadastro ao trocar abas", a
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 test("grupo seleciona Produto e mantém a disponibilidade e categorias próprias", async ({ page }, info) => {
-  await page.getByRole("tab", { name: "Grupos de complementos", exact: true }).click();
+  await page.getByRole("tab", { name: "Complementos", exact: true }).click();
   await page.getByRole("button", { name: "Editar Queijos da montagem", exact: true }).click();
-  await page.getByRole("combobox", { name: "Produtos e complementos do grupo" }).click();
+  await expect(page.getByRole("combobox", { name: "Tipo *" })).toBeVisible();
+  await expect(page.getByRole("dialog").getByText("O cliente escolhe mais de um item. Na nota vale o nome e o NCM do produto.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Finalidade" })).toHaveCount(0);
+  await page.getByRole("combobox", { name: "Produtos e itens do complemento" }).click();
   await expect(page.getByRole("option", { name: "Tábua Grazing para 1", exact: true })).toBeVisible();
   await expect(page.getByRole("option", { name: "Monte sua Tábua de Frios Grazing para 1", exact: true })).toHaveCount(0);
   await page.getByRole("option", { name: "Tábua Grazing para 1", exact: true }).click();

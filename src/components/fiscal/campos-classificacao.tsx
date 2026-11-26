@@ -9,8 +9,8 @@ import type { CrtFiscal, TabelaFiscal } from "@/lib/fiscal/catalogos/tipos";
 
 const rotulos: Partial<Record<TabelaFiscal, string>> = { ncm: "NCM", origem: "Origem ICMS", cfop: "CFOP", csosn: "CSOSN", cstIcms: "CST ICMS", pis: "CST PIS", cofins: "CST COFINS", cest: "CEST", ipi: "CST IPI", cEnq: "Enquadramento IPI", cBenef: "Benefício fiscal · cBenef", cstIbsCbs: "CST IBS/CBS", cClassTrib: "Classificação IBS/CBS", unidadeTributavel: "Unidade tributável" };
 export type AplicabilidadeCamposFiscais = { cest?: boolean; ipi?: boolean; fcp?: boolean; beneficio?: boolean; ibsCbs?: boolean };
-export function CamposClassificacaoFiscal({ fiscal, mudar, revisado = false, crt = null, dia, modelo, uf = "SP", aplicabilidade, escopo, ncmEditavel = true }: {
-  fiscal: Record<string, string>; mudar: (fiscal: Record<string, string>) => void; revisado?: boolean; crt?: CrtFiscal; dia?: string; modelo?: 55 | 65; uf?: string; aplicabilidade?: AplicabilidadeCamposFiscais; escopo?: "produto" | "grupo"; ncmEditavel?: boolean;
+export function CamposClassificacaoFiscal({ fiscal, mudar, revisado = false, crt = null, dia, modelo, uf = "SP", aplicabilidade, escopo, ncmEditavel = true, ncmsPorEscolha }: {
+  fiscal: Record<string, string>; mudar: (fiscal: Record<string, string>) => void; revisado?: boolean; crt?: CrtFiscal; dia?: string; modelo?: 55 | 65; uf?: string; aplicabilidade?: AplicabilidadeCamposFiscais; escopo?: "produto" | "grupo"; ncmEditavel?: boolean; ncmsPorEscolha?: { nome: string; ncm: string | null }[];
 }) {
   const [gtinEmEdicao, definirGtinEmEdicao] = useState(false);
   const [exibir, definirExibir] = useState<AplicabilidadeCamposFiscais>({ cest: Boolean(fiscal.cest), ipi: Boolean(fiscal.ipi || fiscal.cEnq), fcp: Boolean(fiscal.fcp), beneficio: Boolean(fiscal.cBenef), ibsCbs: Boolean(fiscal.cstIbsCbs || fiscal.cClassTrib) });
@@ -23,7 +23,7 @@ export function CamposClassificacaoFiscal({ fiscal, mudar, revisado = false, crt
   return <div className="space-y-4">
     {!crt && <p className="text-sm text-muted-foreground">Regime ainda não confirmado. Confira o CRT vigente antes da aprovação.</p>}
     <div className="grid min-w-0 gap-4 sm:grid-cols-2">
-      {escopo !== "grupo" && (ncmEditavel ? campo("ncm", revisado) : <p className="text-sm text-muted-foreground">NCM definido pela composição do produto.</p>)}{campo("origem", revisado)}
+      {escopo !== "grupo" && (ncmEditavel ? campo("ncm", revisado) : <div className="min-w-0 space-y-1.5 text-sm"><p className="font-medium">NCM</p>{ncmsPorEscolha?.length ? <ul className="space-y-1">{ncmsPorEscolha.map((n, i) => <li key={i} className="flex min-w-0 flex-wrap gap-x-2"><span className="font-mono">{n.ncm ? n.ncm.replace(/^(\d{4})(\d{2})(\d{2})$/, "$1.$2.$3") : "Não informado"}</span><span className="min-w-0 text-muted-foreground">{n.nome}</span></li>)}</ul> : <p className="text-muted-foreground">Sem NCM cadastrado para as escolhas deste produto.</p>}<p className="text-xs text-muted-foreground">O NCM deste produto depende da escolha do cliente e é mantido na classificação fiscal.</p></div>)}{campo("origem", revisado)}
       {!escopo && <label className="grid min-w-0 gap-1.5 text-sm font-medium">Tipo de operação para CFOP<SelecaoFormulario aria-label="Tipo de operação para CFOP" value={operacao} onValueChange={v => definirOperacao(v as typeof operacao)}><option value="SAIDA">Todas as saídas</option><option value="INTERNA">Saída no estado · 5</option><option value="INTERESTADUAL">Saída para outro estado · 6</option><option value="EXTERIOR">Saída para exterior · 7</option></SelecaoFormulario></label>}
       {campo("cfop", revisado)}{simples ? campo("csosn", revisado) : crt ? campo("cstIcms", revisado) : <>{campo("csosn", revisado && !fiscal.cstIcms)}{campo("cstIcms", revisado && !fiscal.csosn)}</>}
       {campo("pis", revisado)}{campo("cofins", revisado)}{escopo !== "grupo" && campo("unidadeTributavel", revisado)}
