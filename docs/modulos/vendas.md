@@ -16,7 +16,9 @@ Cuidados: `validarIdentidadeCobranca` continua aceitando 160 para não travar a 
 pedidos antigos, cujo retrato de cobrança não acompanha o cadastro. Cadastro antigo acima do
 limite só é recusado quando for salvo de novo. O retrato do titular Principal não muda por
 "Editar informações"; a correção do pedido 100 foi feita por
-`scripts/cliente-razao-social-60-pedido100.ts`.
+`scripts/cliente-razao-social-60-pedido100.ts`. Em 28/11/2026, `scripts/clientes-razao-social-60.ts`
+abreviou os três cadastros restantes e os pedidos 98 e 99; não sobrou cadastro nem pedido acima
+do limite.
 
 ## Códigos comerciais dos produtos
 
