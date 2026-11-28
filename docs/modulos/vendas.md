@@ -1,5 +1,23 @@
 # Vendas
 
+## Limite fiscal nos cadastros de cliente — 27/11/2026
+
+A NF-e aceita até 60 caracteres no nome/razão social do destinatário e em logradouro,
+complemento, bairro e cidade do endereço de cobrança. Antes o limite só aparecia como pendência
+na emissão (`fiscal-saida/brasil-nfe-destinatario.ts`); agora o cadastro recusa
+(`LIMITE_TEXTO_FISCAL` em `src/lib/vendas/limites-fiscais.ts`, aplicado em `validarCliente`):
+Nome Completo de PF, Razão social e os quatro campos de endereço de cada cobrança. As telas
+limitam a digitação (`identidade-cobranca-form`, `novo-cliente-pedido` e
+`CamposEnderecoPedido` com `limiteFiscal`); texto longo vindo da consulta de CNPJ mostra o
+aviso para abreviar. Endereço de entrega e Nome Fantasia não entram na nota e mantêm os limites
+anteriores.
+
+Cuidados: `validarIdentidadeCobranca` continua aceitando 160 para não travar a edição de
+pedidos antigos, cujo retrato de cobrança não acompanha o cadastro. Cadastro antigo acima do
+limite só é recusado quando for salvo de novo. O retrato do titular Principal não muda por
+"Editar informações"; a correção do pedido 100 foi feita por
+`scripts/cliente-razao-social-60-pedido100.ts`.
+
 ## Códigos comerciais dos produtos
 
 `ProdutoVenda.codigo` usa até oito letras maiúsculas/números. A geração automática

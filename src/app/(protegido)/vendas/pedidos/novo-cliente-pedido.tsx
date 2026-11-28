@@ -1,4 +1,5 @@
 "use client";
+import { LIMITE_TEXTO_FISCAL } from "@/lib/vendas/limites-fiscais";
 import { useId } from "react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,7 +40,7 @@ export function CamposClientePedido({ valor: d, alterar, somenteLeitura = false,
     {mostrarTipo && <div className="sm:max-w-xs"><TipoClientePedido valor={d} alterar={alterar} somenteLeitura={somenteLeitura} /></div>}
     {bloqueado && <p className="text-sm text-muted-foreground">Escolha o tipo para preencher os dados cadastrais.</p>}
     <fieldset disabled={bloqueado} className="grid min-w-0 items-start gap-3 sm:grid-cols-2 lg:grid-cols-12">
-    <div className={d.tipo === "PF" ? "sm:col-span-2 lg:col-span-12" : "lg:col-span-8"}><Campo nome={d.tipo === "PF" ? "Nome Completo *" : "Nome Fantasia *"}><Input data-cliente-nome required={!somenteLeitura} readOnly={somenteLeitura} value={d.nome} maxLength={160} onChange={e => alterar({ ...d, nome: e.target.value, ...(d.tipo === "PF" ? { primeiroNome: e.target.value.trim().split(/\s+/)[0] ?? "", sobrenome: e.target.value.trim().split(/\s+/).slice(1).join(" ") } : {}) })} /></Campo></div>
+    <div className={d.tipo === "PF" ? "sm:col-span-2 lg:col-span-12" : "lg:col-span-8"}><Campo nome={d.tipo === "PF" ? "Nome Completo *" : "Nome Fantasia *"}><Input data-cliente-nome required={!somenteLeitura} readOnly={somenteLeitura} value={d.nome} maxLength={d.tipo === "PF" ? LIMITE_TEXTO_FISCAL : 160} onChange={e => alterar({ ...d, nome: e.target.value, ...(d.tipo === "PF" ? { primeiroNome: e.target.value.trim().split(/\s+/)[0] ?? "", sobrenome: e.target.value.trim().split(/\s+/).slice(1).join(" ") } : {}) })} /></Campo></div>
     {d.tipo === "PJ" && <div className="lg:col-span-4"><Campo nome="Nome Completo do contato"><Input readOnly={somenteLeitura} value={d.contato ?? ""} maxLength={160} onChange={e => alterar({ ...d, contato: e.target.value, nomeContato: e.target.value.trim().split(/\s+/)[0] ?? "", sobrenomeContato: e.target.value.trim().split(/\s+/).slice(1).join(" ") })} /></Campo></div>}
     <div className="lg:col-span-6"><CampoTelefone nome="Telefone" obrigatorio somenteLeitura={somenteLeitura} valor={d.telefone} alterar={valor => campo("telefone", valor || null)} /></div>
     <div className="lg:col-span-6"><Campo nome="Data de nasc."><Input readOnly={somenteLeitura} title="Data de nascimento" type="date" value={d.dataNascimento ?? ""} onChange={e => campo("dataNascimento", e.target.value)} /></Campo></div>
