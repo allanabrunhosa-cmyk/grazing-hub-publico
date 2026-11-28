@@ -44,7 +44,7 @@ function NovaCobrancaClienteDialog({ enderecos, consultarCnpj, consultarCep, con
   }
   return <DialogAdicionarEndereco titulo="Adicionar endereço de cobrança" ocupado={consultaCep || consultaCnpj} validar={validar} confirmar={() => confirmar(valor)} fechar={fechar}>
     <IdentidadeCobrancaForm obrigatorio valor={valor} alterar={setValor} consultarCnpj={consultarCnpj} aoConsultar={setConsultaCnpj} />
-    <CamposEnderecoPedido obrigatorio valor={valor} alterar={setValor} consultarCep={consultarCep} onConsultandoCepChange={setConsultaCep} />
+    <CamposEnderecoPedido limiteFiscal obrigatorio valor={valor} alterar={setValor} consultarCep={consultarCep} onConsultandoCepChange={setConsultaCep} />
   </DialogAdicionarEndereco>;
 }
 
@@ -72,7 +72,7 @@ export function CobrancaClientePedido({ enderecos, selecionado, alterar, consult
     <div role="group" aria-label={nomeAbaCobranca(indice)} className="space-y-3" data-cobranca-indice={indice} key={indice}>
       {indice === 0 && <div className="flex items-center gap-2"><Button type="button" variant="outline" size="icon-sm" disabled aria-pressed="true" aria-label="Titular da Principal fixado às Informações gerais" title="Titular da Principal fixado às Informações gerais"><Pin aria-hidden="true" className="size-4" /></Button><p className="text-xs text-muted-foreground">Titular vinculado às Informações gerais.</p></div>}
       <IdentidadeCobrancaForm valor={endereco} somenteLeitura={props.somenteLeitura || indice === 0} obrigatorio={props.obrigatorio} consultarCnpj={consultarCnpj} aoConsultar={ocupado => consultar("cnpj", ocupado)} alterar={valor => mudar.current(atual.current.map((e, i) => i === indice ? { ...e, ...valor } : e), indice)} />
-      <CamposEnderecoPedido {...props} valor={endereco} alterar={valor => mudar.current(atual.current.map((e, i) => i === indice ? { ...e, ...valor } : e), indice)} onConsultandoCepChange={ocupado => consultar("cep", ocupado)} />
+      <CamposEnderecoPedido {...props} limiteFiscal valor={endereco} alterar={valor => mudar.current(atual.current.map((e, i) => i === indice ? { ...e, ...valor } : e), indice)} onConsultandoCepChange={ocupado => consultar("cep", ocupado)} />
     </div>
     {adicionando && <NovaCobrancaClienteDialog enderecos={lista} consultarCep={props.consultarCep} consultarCnpj={consultarCnpj} confirmar={novo => { alterar([...atual.current, novo], atual.current.length); setAdicionando(false); }} fechar={() => setAdicionando(false)} />}
     {removendo !== null && <ConfirmarRemocaoEndereco nome={nomeAbaCobranca(removendo)} descricao="Este endereço de cobrança deixará de aparecer no cadastro." confirmar={() => remover(removendo)} fechar={() => setRemovendo(null)} />}

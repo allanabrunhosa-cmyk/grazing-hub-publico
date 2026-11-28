@@ -43,6 +43,14 @@ describe("cadastro comercial de Vendas", () => {
     expect(() => validarCliente({ ...cliente, email: "invalido" })).toThrow("e-mail");
     expect(() => validarCliente({ ...cliente, enderecos: [{ nome: "Casa", logradouro: "Rua A", numero: "10", cidade: "São Paulo", uf: "XX" }] })).toThrow("UF");
   });
+  it("recusa no cadastro o texto que a nota fiscal não aceita (60 caracteres)", () => {
+    const e = { nome: "Casa", logradouro: "Rua A", numero: "10", cidade: "São Paulo", uf: "SP" }, longo = "X".repeat(61), limite = "X".repeat(60);
+    expect(() => validarCliente({ ...cliente, tipo: "PF", nome: longo })).toThrow("Nome Completo: abrevie para até 60 caracteres (limite da nota fiscal). Hoje tem 61.");
+    expect(() => validarCliente({ ...cliente, tipo: "PJ", razaoSocial: longo })).toThrow("Razão social: abrevie para até 60");
+    expect(validarCliente({ ...cliente, tipo: "PJ", nome: longo, razaoSocial: limite }).razaoSocial).toBe(limite);
+    for (const campo of ["logradouro", "complemento", "bairro", "cidade"]) expect(() => validarCliente({ ...cliente, enderecos: [{ ...e, [campo]: longo }] })).toThrow("abrevie para até 60");
+    expect(validarCliente({ ...cliente, enderecos: [{ ...e, logradouro: limite, complemento: limite, bairro: limite }] }).enderecos[0].logradouro).toBe(limite);
+  });
   it("dados fiscais incompletos ficam como rascunho, sem preenchimento presumido", () => {
     expect(validarFiscal({}, false).ncm).toBe("");
     expect(() => validarFiscal({}, true)).toThrow("Preencha");

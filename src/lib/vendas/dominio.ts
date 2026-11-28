@@ -1,4 +1,5 @@
 /** Regras do cadastro comercial; não movimentam estoque nem emitem documentos. */
+import { LIMITE_TEXTO_FISCAL } from "./limites-fiscais";
 import { telefoneOpcionalArmazenado } from "./telefone";
 import { CORES_CATEGORIA, type CorCategoria, type EscopoCategoria } from "./classificacao";
 import { preservarCodigoMunicipio } from "./municipio";
@@ -61,6 +62,11 @@ export function texto(valor: unknown, campo: string, tamanho = 160, obrigatorio 
   const limpo = valor.trim();
   if ((obrigatorio && !limpo) || limpo.length > tamanho) throw new ErroCadastroVenda(`${campo}: preencha até ${tamanho} caracteres.`);
   return limpo;
+}
+/** Recusa texto que a nota fiscal não aceita; a mensagem diz o limite e o motivo. */
+function textoFiscal<T extends string | undefined>(valor: T, campo: string): T {
+  if (typeof valor === "string" && valor.trim().length > LIMITE_TEXTO_FISCAL) throw new ErroCadastroVenda(`${campo}: abrevie para até ${LIMITE_TEXTO_FISCAL} caracteres (limite da nota fiscal). Hoje tem ${valor.trim().length}.`);
+  return valor;
 }
 function opcional(valor: unknown, campo: string, tamanho = 160) { return texto(valor, campo, tamanho) || null; }
 function lista(valor: unknown, campo: string, limite = 250): unknown[] {
@@ -143,8 +149,10 @@ export function validarCliente(entrada: unknown): ClienteEntrada {
     if (brasileiro && uf && !"AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split(" ").includes(uf)) throw new ErroCadastroVenda("UF inválida.");
     const identidadeLivre = validarIdentidadeCobranca(e);
     const identidadeCobranca = indice > 0 && identidadeLivre.titularPendente ? identidadeLivre : validarIdentidadeCobranca(e, true);
+    // A cobrança vira o destinatário da nota: o cadastro já recusa o que a NF-e não aceita.
+    textoFiscal(identidadeCobranca.razaoSocial, "Razão social"); textoFiscal(identidadeCobranca.nomeCompleto, "Nome Completo");
     return { ...identidadeCobranca, nome: texto(e.nome, "Nome do endereço", 80, true), destinatario: texto(e.destinatario, "Destinatário"), pais, cep,
-      logradouro: texto(e.logradouro, "Logradouro", 200, true), numero: texto(e.numero, "Número", 30, true), complemento: texto(e.complemento, "Complemento"), bairro: texto(e.bairro, "Bairro"), cidade: texto(e.cidade, "Cidade", 120, true), uf,
+      logradouro: textoFiscal(texto(e.logradouro, "Logradouro", 200, true), "Logradouro"), numero: texto(e.numero, "Número", 30, true), complemento: textoFiscal(texto(e.complemento, "Complemento"), "Complemento"), bairro: textoFiscal(texto(e.bairro, "Bairro"), "Bairro"), cidade: textoFiscal(texto(e.cidade, "Cidade", 120, true), "Cidade"), uf,
       ...preservarCodigoMunicipio(e.codigoMunicipio, uf, pais, mensagem => new ErroCadastroVenda(mensagem)) };
   });
   const dataNascimento = texto(d.dataNascimento, "Data de nascimento", 10);
@@ -155,6 +163,8 @@ export function validarCliente(entrada: unknown): ClienteEntrada {
   const contato = d.tipo === "PJ" && (d.nomeContato != null || d.sobrenomeContato != null)
     ? [texto(d.nomeContato, "Nome do contato", 80), texto(d.sobrenomeContato, "Sobrenome do contato", 80)].filter(Boolean).join(" ")
     : d.contato;
+  if (d.tipo === "PF") textoFiscal(texto(d.nome, "Nome", 160, true), "Nome Completo");
+  textoFiscal(texto(d.razaoSocial, "Razão social", 160), "Razão social");
   return { ...identidade(d), nome: texto(d.nome, "Nome", 160, true),
     ...(Object.hasOwn(d, "primeiroNome") ? { primeiroNome: opcional(d.primeiroNome, "Primeiro nome", 160) } : {}),
     ...(Object.hasOwn(d, "sobrenome") ? { sobrenome: opcional(d.sobrenome, "Sobrenome", 160) } : {}),
